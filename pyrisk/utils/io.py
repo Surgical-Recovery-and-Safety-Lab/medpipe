@@ -1,0 +1,50 @@
+"""
+I/O utilities module.
+
+This module provides helper functions for reading from and writing to files,
+handling various common I/O tasks.
+
+Functions:
+- load_data_from_csv: Loads the data from a csv file
+"""
+
+import pathlib
+
+import pandas as pd
+
+
+def load_data_from_csv(data_path: str):
+    """
+    Reads the data from a csv file
+
+    Parameters
+    __________
+    data_path
+        Path to the csv file to load.
+
+    Returns
+    _______
+    data : pd.DataFrame
+        Loaded data.
+
+    Raises
+    ______
+    TypeError
+        If data_path is not a str.
+    FileNotFoundError
+        If data_path does not exist.
+    ValueError
+        If data_path extension is not .csv file.
+
+    """
+    if type(data_path) is not str:
+        raise TypeError(f"{data_path} should be a string")
+
+    path = pathlib.Path(data_path)  # Create a Path object
+    if not path.exists():
+        raise FileNotFoundError(f"{data_path} does not exist")
+    if pathlib.Path(data_path).suffix != ".csv":
+        raise ValueError(f"{data_path} should be a csv file")
+
+    data = pd.read_csv(data_path)
+    return data
