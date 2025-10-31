@@ -16,7 +16,7 @@ import pandas as pd
 
 def load_data_from_csv(data_path: str):
     """
-    Reads the data from a csv file
+    Reads a csv file and returns its contents.
 
     Parameters
     __________
