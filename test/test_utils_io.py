@@ -10,7 +10,7 @@ import tomllib
 
 import pytest
 
-from pyrisk.utils.io import load_data_from_csv
+from pyrisk.utils.io import load_data_from_csv, read_toml_configuration
 
 CWD = pathlib.Path.cwd()
 
@@ -27,7 +27,7 @@ def test_load_data_from_csv_not_str():
 
 def test_load_data_from_csv_not_csv_file():
     with pytest.raises(ValueError):
-        data_path = str(CWD / "test/test_data/not_a_csv.txt")
+        data_path = str(CWD / "test/test_data/test_text.txt")
         load_data_from_csv(data_path)
 
 
