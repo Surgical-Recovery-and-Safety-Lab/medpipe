@@ -32,8 +32,13 @@ def path_checks(path: str, extension: str) -> None:
             If data_path extension is not .extension file.
 
     """
+    if type(path) is not str:
+        raise TypeError(f"{path} should be a string")
+
     path_object = pathlib.Path(path)  # Create a Path object
+
     if not path_object.exists():
         raise FileNotFoundError(f"{path} does not exist")
+
     if path_object.suffix != extension:
         raise ValueError(f"{path} should be a {extension} file")

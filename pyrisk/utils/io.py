@@ -40,12 +40,9 @@ def load_data_from_csv(data_path: str):
         If data_path extension is not .csv file.
 
     """
-    if type(data_path) is not str:
-        raise TypeError(f"{data_path} should be a string")
-
     try:
         exceptions.path_checks(data_path, ".csv")
-    except (FileNotFoundError, TypeError):
+    except (FileNotFoundError, TypeError, ValueError):
         raise
 
     data = pd.read_csv(data_path)
@@ -78,12 +75,9 @@ def read_toml_configuration(config_path: str) -> dict:
         If the file was not read properly.
 
     """
-    if type(config_path) is not str:
-        raise TypeError(f"{config_path} should be a string")
-
     try:
         exceptions.path_checks(config_path, ".toml")
-    except (FileNotFoundError, TypeError):
+    except (FileNotFoundError, TypeError, ValueError):
         raise
 
     with open(config_path, "rb") as file:
