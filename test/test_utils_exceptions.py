@@ -6,7 +6,6 @@ test_utils_exceptions.py
 Test functions for the utils.exceptions module
 """
 import pathlib
-import tomllib
 
 import pytest
 
