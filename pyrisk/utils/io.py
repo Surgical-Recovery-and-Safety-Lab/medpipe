@@ -51,19 +51,19 @@ def load_data_from_csv(data_path: str):
     return data
 
 
-def read_toml_configuration(config_path: str):
+def read_toml_configuration(config_path: str) -> dict:
     """
     Reads a .TOML configuration file and returns contents.
 
     Parameters:
     ----------
     config_path
-       Path to the configuration file.
+        Path to the configuration file.
 
     Returns:
     -------
     config : dict
-       Configuration contents as a dictionary.
+        Configuration contents as a dictionary.
 
     Raises:
     ------
