@@ -9,7 +9,7 @@ import pathlib
 
 import pytest
 
-from pyrisk.data.db import parquet_to_duckdb
+from pyrisk.data.db import extract_data_from_duckdb, parquet_to_duckdb
 
 CWD = pathlib.Path.cwd()
 PARQUET_PATH = str(CWD / "test/test_data/test_data.parquet")
@@ -54,3 +54,30 @@ def test_parquet_to_duckdb_file_not_found():
     with pytest.raises(FileNotFoundError):
         parquet_path = str(CWD / "test/test_data/not_exist.parquet")
         parquet_to_duckdb(parquet_path, DUCKDB_PATH)
+
+
+def test_extract_data_from_duckdb_success():
+    extract_data_from_duckdb(DUCKDB_PATH, QUERY)
+
+
+@pytest.mark.parametrize(
+    "duckdb_path, query",
+    [
+        (12, QUERY),
+        (DUCKDB_PATH, 12),
+    ],
+)
+def test_extract_data_from_duckdb_not_str(duckdb_path, query):
+    with pytest.raises(TypeError):
+        extract_data_from_duckdb(duckdb_path, query)
+
+
+def test_extract_data_from_duckdb_not_extension_file():
+    with pytest.raises(ValueError):
+        extract_data_from_duckdb(TXT_PATH, QUERY)
+
+
+def test_extract_data_from_duckdb_file_not_found():
+    with pytest.raises(FileNotFoundError):
+        duckdb_path = str(CWD / "test/test_data/not_exist.duckdb")
+        extract_data_from_duckdb(duckdb_path, QUERY)
