@@ -5,7 +5,8 @@ This module provides helper functions for reading from and writing to files,
 handling various common I/O tasks.
 
 Functions:
-- load_data_from_csv: Loads the data from a csv file
+- load_data_from_csv: Loads the data from a csv file.
+- read_toml_configuration: Parses the contents of a TOML file.
 """
 
 import pathlib
