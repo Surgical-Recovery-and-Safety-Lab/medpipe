@@ -10,14 +10,20 @@ import tomllib
 
 import pytest
 
-from pyrisk.utils.io import load_data_from_csv, read_toml_configuration
+from pyrisk.utils.io import (
+    load_data_from_csv,
+    read_toml_configuration,
+    save_data_to_csv,
+)
 
 CWD = pathlib.Path.cwd()
+TXT_PATH = str(CWD / "test/test_data/test_text.txt")
+CSV_PATH = str(CWD / "test/test_data/test_data.csv")
+DF = load_data_from_csv(CSV_PATH)
 
 
 def test_load_data_from_csv_success():
-    data_path = str(CWD / "test/test_data/test_data.csv")
-    load_data_from_csv(data_path)
+    load_data_from_csv(CSV_PATH)
 
 
 def test_load_data_from_csv_not_str():
@@ -27,8 +33,7 @@ def test_load_data_from_csv_not_str():
 
 def test_load_data_from_csv_not_csv_file():
     with pytest.raises(ValueError):
-        data_path = str(CWD / "test/test_data/test_text.txt")
-        load_data_from_csv(data_path)
+        load_data_from_csv(TXT_PATH)
 
 
 def test_load_data_from_csv_file_not_found():
@@ -69,8 +74,7 @@ def test_read_toml_configuration_not_str():
 
 def test_read_toml_configuration_not_toml_file():
     with pytest.raises(ValueError):
-        data_path = str(CWD / "test/test_data/test_text.txt")
-        read_toml_configuration(data_path)
+        read_toml_configuration(TXT_PATH)
 
 
 def test_read_toml_configuration_incorrect_toml_file():
