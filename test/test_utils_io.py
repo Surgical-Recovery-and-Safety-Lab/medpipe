@@ -10,11 +10,8 @@ import tomllib
 
 import pytest
 
-from pyrisk.utils.io import (
-    load_data_from_csv,
-    read_toml_configuration,
-    save_data_to_csv,
-)
+from pyrisk.utils.io import (load_data_from_csv, read_toml_configuration,
+                             save_data_to_csv)
 
 CWD = pathlib.Path.cwd()
 TXT_PATH = str(CWD / "test/test_data/test_text.txt")
@@ -41,8 +38,9 @@ def test_load_data_from_csv_file_not_found():
         load_data_from_csv("not_a_file.csv")
 
 
-def test_save_data_to_csv_success():
-    save_data_to_csv(DF, CSV_PATH)
+def test_save_data_to_csv_success(tmp_path):
+    save_path = str(tmp_path / "save_data.csv")
+    save_data_to_csv(DF, save_path)
 
 
 @pytest.mark.parametrize(
