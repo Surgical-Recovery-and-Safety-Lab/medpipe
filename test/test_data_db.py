@@ -14,17 +14,20 @@ from pyrisk.data.db import extract_data_from_duckdb, parquet_to_duckdb
 CWD = pathlib.Path.cwd()
 PARQUET_PATH = str(CWD / "test/test_data/test_data.parquet")
 DUCKDB_PATH = str(CWD / "test/test_data/test_data.duckdb")
+TXT_PATH = str(CWD / "test/test_data/test_text.txt")
+QUERY = "SELECT * FROM main"
 
 
-def test_parquet_to_duckdb_success():
-    parquet_to_duckdb(PARQUET_PATH, DUCKDB_PATH)
+def test_parquet_to_duckdb_success(tmp_path):
+    duckdb_path = str(tmp_path / "save_db.duckdb")
+    parquet_to_duckdb(PARQUET_PATH, duckdb_path)
 
 
 @pytest.mark.parametrize(
     "parquet_path, duckdb_path",
     [
-        (str(CWD / "test/test_data/test_data.parquet"), 12),
-        (12, str(CWD / "test/test_data/test_data.duckdb")),
+        (PARQUET_PATH, 12),
+        (12, DUCKDB_PATH),
     ],
 )
 def test_parquet_to_duckdb_not_str(parquet_path, duckdb_path):
@@ -34,16 +37,7 @@ def test_parquet_to_duckdb_not_str(parquet_path, duckdb_path):
 
 @pytest.mark.parametrize(
     "parquet_path, duckdb_path",
-    [
-        (
-            str(CWD / "test/test_data/test_data.parquet"),
-            str(CWD / "test/test_data/test_data.parquet"),
-        ),
-        (
-            str(CWD / "test/test_data/test_data.duckdb"),
-            str(CWD / "test/test_data/test_data.duckdb"),
-        ),
-    ],
+    [(PARQUET_PATH, TXT_PATH), (TXT_PATH, DUCKDB_PATH)],
 )
 def test_parquet_to_duckdb_not_extension_file(parquet_path, duckdb_path):
     with pytest.raises(ValueError):
