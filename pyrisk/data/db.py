@@ -19,7 +19,7 @@ def parquet_to_duckdb(
     """
     Converts a .parquet file to a .duckdb file.
 
-    Parameters:
+    Parameters
     ----------
     parquet_path
         File path to the .parquet file.
@@ -28,12 +28,12 @@ def parquet_to_duckdb(
     table_name, default: 'main'
         Name of the table to create in the duckdb database.
 
-    Returns:
+    Returns
     -------
     None
         Nothing is returned.
 
-    Raises:
+    Raises
     ------
     TypeError
         If parquet_path or duckdb_path are not str.
@@ -73,19 +73,19 @@ def extract_data_from_duckdb(duckdb_path: str, query: str):
     """
     Extracts data from a duckdb and saves it to a .csv file.
 
-    Parameters:
+    Parameters
     ----------
     duckdb_path
         Path to the duckdb file.
     query
         Query to send to the duckdb to extract data.
 
-    Returns:
+    Returns
     -------
     data : pd.DataFrame
         Extracted data from the duckdb database.
 
-    Raises:
+    Raises
     ------
     TypeError
         If duckdb_path or query is not a str.

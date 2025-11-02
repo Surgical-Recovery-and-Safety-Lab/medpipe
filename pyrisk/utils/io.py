@@ -54,19 +54,19 @@ def save_data_to_csv(df: pd.DataFrame, file_path: str) -> None:
     """
     Save data from a DataFrame to a .csv file.
 
-    Parameters:
+    Parameters
     ----------
     df
         DataFrame to save.
     file_path
         Path and file name to save to.
 
-    Returns:
+    Returns
     -------
     None
         Nothing is returned.
 
-    Raises:
+    Raises
     ------
     TypeError
         If file_path is not a str.
@@ -94,17 +94,17 @@ def read_toml_configuration(config_path: str) -> dict:
     """
     Reads a .TOML configuration file and returns contents.
 
-    Parameters:
+    Parameters
     ----------
     config_path
         Path to the configuration file.
 
-    Returns:
+    Returns
     -------
     config : dict
         Configuration contents as a dictionary.
 
-    Raises:
+    Raises
     ------
     TypeError
         If data_path is not a str.

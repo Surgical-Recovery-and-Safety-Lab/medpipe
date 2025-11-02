@@ -4,7 +4,7 @@ Execption functions module.
 This module provides functions for execption handling and raising.
 
 Functions:
-- path_checks: Checks if the path is correct.
+- path_checks Checks if the path is correct.
 """
 
 import pathlib
@@ -14,19 +14,19 @@ def path_checks(path: str, extension: str) -> None:
     """
     Performs checks to ensure that a path and extension are correct.
 
-    Parameters:
+    Parameters
     ----------
     path
         Path to the file to check.
     extension
         Extension of the file to check.
 
-    Returns:
+    Returns
     -------
     None
         Nothing is returned.
 
-    Raises:
+    Raises
     ------
     TypeError
         If path is not a str.
