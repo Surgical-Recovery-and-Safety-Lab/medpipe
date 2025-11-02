@@ -4,8 +4,8 @@ Database functions module.
 This module provides functions to open, query, and save data from databases.
 
 Functions:
--
--
+- parquet_to_duckdb: Converts a .parquet file to a duckdb.
+- extract_data_from_duckdb: Queries a duckdb to extract data.
 """
 
 import duckdb
@@ -63,7 +63,7 @@ def parquet_to_duckdb(
     drop_table = f"DROP TABLE IF EXISTS {table_name}"
     query = f"CREATE TABLE {table_name} AS SELECT * FROM '{parquet_path}'"
 
-    # Execute the query
+    # Execute the queries
     conn.execute(drop_table)
     conn.execute(query)
     conn.close()
