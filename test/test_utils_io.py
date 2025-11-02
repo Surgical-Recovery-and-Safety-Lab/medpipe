@@ -36,6 +36,27 @@ def test_load_data_from_csv_file_not_found():
         load_data_from_csv("not_a_file.csv")
 
 
+def test_save_data_to_csv_success():
+    save_data_to_csv(DF, CSV_PATH)
+
+
+@pytest.mark.parametrize(
+    "df, save_path",
+    [
+        (DF, 12),
+        (12, CSV_PATH),
+    ],
+)
+def test_save_data_to_csv_wrong_types(df, save_path):
+    with pytest.raises(TypeError):
+        save_data_to_csv(df, save_path)
+
+
+def test_save_data_to_csv_not_csv_file():
+    with pytest.raises(ValueError):
+        save_data_to_csv(DF, TXT_PATH)
+
+
 def test_read_toml_configuration_success():
     data_path = str(CWD / "test/test_data/test_config.toml")
     read_toml_configuration(data_path)
