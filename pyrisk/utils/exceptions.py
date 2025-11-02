@@ -12,24 +12,28 @@ import pathlib
 
 def path_checks(path: str, extension: str) -> None:
     """
-    TODO: Add function description.
+    Performs checks to ensure that a path and extension are correct.
 
     Parameters:
     ----------
-    arg
-        arg description.
+    path
+        Path to the file to check.
+    extension
+        Extension of the file to check.
 
     Returns:
     -------
-    return : return_type
-        return description.
+    None
+        Nothing is returned.
 
     Raises:
     ------
-        FileNotFoundError
-            If data_path does not exist.
-        ValueError
-            If data_path extension is not .extension file.
+    TypeError
+        If path is not a str.
+    FileNotFoundError
+        If path does not exist.
+    ValueError
+        If path extension is not .extension file.
 
     """
     if type(path) is not str:
