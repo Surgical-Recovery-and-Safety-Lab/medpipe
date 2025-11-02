@@ -9,10 +9,11 @@ Functions:
 - read_toml_configuration: Parses the contents of a TOML file.
 """
 
-import pathlib
 import tomllib
 
 import pandas as pd
+
+from . import exceptions
 
 
 def load_data_from_csv(data_path: str):
@@ -42,11 +43,10 @@ def load_data_from_csv(data_path: str):
     if type(data_path) is not str:
         raise TypeError(f"{data_path} should be a string")
 
-    path = pathlib.Path(data_path)  # Create a Path object
-    if not path.exists():
-        raise FileNotFoundError(f"{data_path} does not exist")
-    if pathlib.Path(data_path).suffix != ".csv":
-        raise ValueError(f"{data_path} should be a csv file")
+    try:
+        exceptions.path_checks(data_path, ".csv")
+    except (FileNotFoundError, TypeError):
+        raise
 
     data = pd.read_csv(data_path)
     return data
@@ -81,11 +81,10 @@ def read_toml_configuration(config_path: str) -> dict:
     if type(config_path) is not str:
         raise TypeError(f"{config_path} should be a string")
 
-    path = pathlib.Path(config_path)  # Create a Path object
-    if not path.exists():
-        raise FileNotFoundError(f"{config_path} does not exist")
-    if pathlib.Path(config_path).suffix != ".toml":
-        raise ValueError(f"{config_path} should be a toml file")
+    try:
+        exceptions.path_checks(config_path, ".toml")
+    except (FileNotFoundError, TypeError):
+        raise
 
     with open(config_path, "rb") as file:
         config = tomllib.load(file)
