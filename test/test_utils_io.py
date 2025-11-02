@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-test_utils.io.py
+test_utils_io.py
 
 Test functions for the utils.io module
 """
