@@ -67,3 +67,45 @@ def parquet_to_duckdb(
     conn.execute(drop_table)
     conn.execute(query)
     conn.close()
+
+
+def extract_data_from_duckdb(duckdb_path: str, query: str):
+    """
+    Extracts data from a duckdb and saves it to a .csv file.
+
+    Parameters:
+    ----------
+    duckdb_path
+        Path to the duckdb file.
+    query
+        Query to send to the duckdb to extract data.
+
+    Returns:
+    -------
+    data : pd.DataFrame
+        Extracted data from the duckdb database.
+
+    Raises:
+    ------
+    TypeError
+        If duckdb_path or query is not a str.
+    FileNotFoundError
+        If duckdb_path does not exist.
+    ValueError
+        If duckdb_path extension is not a .duckdb file.
+
+    """
+    try:
+        pyrisk.utils.exceptions.path_checks(duckdb_path, ".duckdb")
+    except (FileNotFoundError, TypeError, ValueError):
+        raise
+
+    if type(query) is not str:
+        raise TypeError(f"{query} should be a string")
+
+    conn = duckdb.connect(duckdb_path)
+
+    df = conn.execute(query).df()  # Get the data
+    conn.close()
+
+    return df
