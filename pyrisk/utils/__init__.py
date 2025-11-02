@@ -6,4 +6,5 @@ submodules:
 - exceptions: contains exceptions handling functions.
 """
 
-from . import exceptions, io
+import pyrisk.utils.exceptions
+import pyrisk.utils.io

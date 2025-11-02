@@ -8,4 +8,7 @@ submodules:
 - utils: contains utility functions
 """
 
-from . import data, metrics, models, utils
+import pyrisk.data
+import pyrisk.metrics
+import pyrisk.models
+import pyrisk.utils
