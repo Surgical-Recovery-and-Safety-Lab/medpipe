@@ -17,13 +17,13 @@ import pandas as pd
 from . import exceptions
 
 
-def load_data_from_csv(data_path: str):
+def load_data_from_csv(data_file: str):
     """
-    Reads a csv file and returns its contents.
+    Reads a .csv file and returns its contents.
 
     Parameters
     __________
-    data_path
+    data_file
         Path to the .csv file to load.
 
     Returns
@@ -34,23 +34,25 @@ def load_data_from_csv(data_path: str):
     Raises
     ______
     TypeError
-        If data_path is not a str.
+        If data_file is not a str.
     FileNotFoundError
-        If data_path does not exist.
+        If data_file does not exist.
+    IsADirectoryError
+        If data_file is not a file.
     ValueError
-        If data_path extension is not .csv file.
+        If data_file extension is not .csv file.
 
     """
     try:
-        exceptions.path_checks(data_path, ".csv")
-    except (FileNotFoundError, TypeError, ValueError):
+        exceptions.file_checks(data_file, ".csv")
+    except (FileNotFoundError, IsADirectoryError, TypeError, ValueError):
         raise
 
-    data = pd.read_csv(data_path)
+    data = pd.read_csv(data_file)
     return data
 
 
-def save_data_to_csv(df: pd.DataFrame, file_path: str) -> None:
+def save_data_to_csv(df: pd.DataFrame, save_file: str) -> None:
     """
     Save data from a DataFrame to a .csv file.
 
@@ -58,7 +60,7 @@ def save_data_to_csv(df: pd.DataFrame, file_path: str) -> None:
     ----------
     df
         DataFrame to save.
-    file_path
+    save_file
         Path and file name to save to.
 
     Returns
@@ -69,16 +71,18 @@ def save_data_to_csv(df: pd.DataFrame, file_path: str) -> None:
     Raises
     ------
     TypeError
-        If file_path is not a str.
+        If save_file is not a str.
     TypeError
         If df is not a pd.DataFrame or pd.Series.
+    IsADirectoryError
+        If save_file is not a file.
     ValueError
-        If file_path extension is not .csv file.
+        If save_file extension is not .csv file.
 
     """
     try:
-        exceptions.path_checks(file_path, ".csv")
-    except (TypeError, ValueError):
+        exceptions.file_checks(save_file, ".csv")
+    except (TypeError, ValueError, IsADirectoryError):
         raise
     except FileNotFoundError:
         # File will be created so skip FileNotFoundError
@@ -87,16 +91,16 @@ def save_data_to_csv(df: pd.DataFrame, file_path: str) -> None:
     if type(df) is not pd.DataFrame:
         raise TypeError("df should be a pd.DataFrame")
 
-    df.to_csv(file_path)
+    df.to_csv(save_file)
 
 
-def read_toml_configuration(config_path: str) -> dict:
+def read_toml_configuration(config_file: str) -> dict:
     """
     Reads a .TOML configuration file and returns contents.
 
     Parameters
     ----------
-    config_path
+    config_file
         Path to the configuration file.
 
     Returns
@@ -107,20 +111,22 @@ def read_toml_configuration(config_path: str) -> dict:
     Raises
     ------
     TypeError
-        If data_path is not a str.
+        If config_file is not a str.
     FileNotFoundError
-        If data_path does not exist.
+        If config_file does not exist.
+    IsADirectoryError
+        If config_file is not a file.
     ValueError
-        If data_path extension is not .csv file.
+        If data_file extension is not .csv file.
     tomllib.TOMLDecodeError
         If the file was not read properly.
 
     """
     try:
-        exceptions.path_checks(config_path, ".toml")
-    except (FileNotFoundError, TypeError, ValueError):
+        exceptions.file_checks(config_file, ".toml")
+    except (FileNotFoundError, IsADirectoryError, TypeError, ValueError):
         raise
 
-    with open(config_path, "rb") as file:
+    with open(config_file, "rb") as file:
         config = tomllib.load(file)
     return config
