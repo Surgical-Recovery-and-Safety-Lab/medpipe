@@ -13,8 +13,39 @@ import logging.config
 import pyrisk.utils.exceptions
 import pyrisk.utils.io
 
+LOGGING_CONFIG = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "standard": {"format": "%(asctime)s [%(levelname)s] %(name)s: %(message)s"}
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "level": "INFO",
+            "formatter": "standard",
+            "stream": "ext://sys.stdout",
+        },
+        "file": {
+            "class": "logging.FileHandler",
+            "level": "ERROR",
+            "formatter": "standard",
+            "filename": "default_name.log",
+            "mode": "a",
+        },
+    },
+    "loggers": {
+        "pyrisk": {
+            "level": "DEBUG",
+            "handlers": ["console", "file"],
+            "propagate": False,
+        }
+    },
+    "root": {"level": "WARNING", "handlers": ["console"]},
+}
 
-def setup_logger(script_name: str, config_file: str, log_path: str) -> logging.Logger:
+
+def setup_logger(script_name: str, log_path: str) -> logging.Logger:
     """
     Setups a logger based on a configuration file for logging exceptions.
 
