@@ -9,23 +9,17 @@ Functions:
 
 import logging
 import logging.config
+import pathlib
 
 import pyrisk.utils.exceptions
-import pyrisk.utils.io
 
 LOGGING_CONFIG = {
     "version": 1,
-    "disable_existing_loggers": False,
+    "disable_existing_loggers": True,
     "formatters": {
         "standard": {"format": "%(asctime)s [%(levelname)s] %(name)s: %(message)s"}
     },
     "handlers": {
-        "console": {
-            "class": "logging.StreamHandler",
-            "level": "INFO",
-            "formatter": "standard",
-            "stream": "ext://sys.stdout",
-        },
         "file": {
             "class": "logging.FileHandler",
             "level": "ERROR",
@@ -35,13 +29,12 @@ LOGGING_CONFIG = {
         },
     },
     "loggers": {
-        "pyrisk": {
+        "root": {
             "level": "DEBUG",
-            "handlers": ["console", "file"],
+            "handlers": ["file"],
             "propagate": False,
         }
     },
-    "root": {"level": "WARNING", "handlers": ["console"]},
 }
 
 
@@ -80,11 +73,11 @@ def setup_logger(script_name: str, log_path: str) -> logging.Logger:
     except (FileNotFoundError, TypeError, NotADirectoryError):
         raise
 
-    log_file = f"{log_path}/{script_name}.log"  # Location to save the log
-
     # Change the log file destination
     logger_config_dict = LOGGING_CONFIG
-    logger_config_dict["handlers"]["file"]["filename"] = log_file
+    logger_config_dict["handlers"]["file"]["filename"] = str(
+        pathlib.Path(log_path) / f"{script_name}.log"
+    )
 
     logging.config.dictConfig(logger_config_dict)  # Configure logger
 
