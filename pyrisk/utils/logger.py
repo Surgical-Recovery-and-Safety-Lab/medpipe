@@ -47,14 +47,12 @@ LOGGING_CONFIG = {
 
 def setup_logger(script_name: str, log_path: str) -> logging.Logger:
     """
-    Setups a logger based on a configuration file for logging exceptions.
+    Setups a logger for logging exceptions.
 
     Parameters
     ----------
     script_name
         Name of the script to log exceptions from.
-    config_file
-        Path to the configuration file for the logger.
     log_path
         Path to the folder to store the log file.
 
@@ -66,22 +64,15 @@ def setup_logger(script_name: str, log_path: str) -> logging.Logger:
     Raises
     ______
     TypeError
-        If config_file or log_path are not a str.
+        If script_name or log_path are not a str.
     FileNotFoundError
-        If config_file or log_path do not exist.
-    IsADirectoryError
-        If config_file is not a file.
-    ValueError
-        If config_file extension is not .toml file.
+        If log_path do not exist.
     NotADirectoryError
         If log_path is not a directory.
 
     """
-    try:
-        config = pyrisk.utils.io.read_toml_configuration(config_file)
-
-    except (FileNotFoundError, ValueError, IsADirectoryError, TypeError):
-        raise
+    if type(script_name) is not str:
+        raise TypeError(f"{script_name} should be a string")
 
     try:
         pyrisk.utils.exceptions.path_checks(log_path)
@@ -89,14 +80,12 @@ def setup_logger(script_name: str, log_path: str) -> logging.Logger:
     except (FileNotFoundError, TypeError, NotADirectoryError):
         raise
 
-    log_file = f"{log_path}/{script_name}.log"
+    log_file = f"{log_path}/{script_name}.log"  # Location to save the log
 
-    # Modify the filename in file handler args
-    if "handlers" in config and "file" in config["handlers"]:
-        # Update args tuple to set new log file path
-        args = list(config["handlers"]["file"]["args"])
-        args[0] = log_file  # set new file path
-        config["handlers"]["file"]["args"] = args
+    # Change the log file destination
+    logger_config_dict = LOGGING_CONFIG
+    logger_config_dict["handlers"]["file"]["filename"] = log_file
 
-    logging.config.dictConfig(config)
+    logging.config.dictConfig(logger_config_dict)  # Configure logger
+
     return logging.getLogger(script_name)
