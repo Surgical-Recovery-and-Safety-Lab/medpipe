@@ -50,6 +50,12 @@ def test_parquet_to_duckdb_file_not_found():
         parquet_to_duckdb(parquet_path, DUCKDB_PATH)
 
 
+def test_parquet_to_duckdb_not_a_file():
+    with pytest.raises(IsADirectoryError):
+        parquet_path = str(CWD / "test/test_data/")
+        parquet_to_duckdb(parquet_path, DUCKDB_PATH)
+
+
 def test_extract_data_from_duckdb_success():
     extract_data_from_duckdb(DUCKDB_PATH, QUERY)
 
@@ -74,4 +80,10 @@ def test_extract_data_from_duckdb_not_extension_file():
 def test_extract_data_from_duckdb_file_not_found():
     with pytest.raises(FileNotFoundError):
         duckdb_path = str(CWD / "test/test_data/not_exist.duckdb")
+        extract_data_from_duckdb(duckdb_path, QUERY)
+
+
+def test_extract_data_from_duckdb_not_a_file():
+    with pytest.raises(IsADirectoryError):
+        duckdb_path = str(CWD / "test/test_data/")
         extract_data_from_duckdb(duckdb_path, QUERY)
