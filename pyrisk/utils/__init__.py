@@ -7,6 +7,4 @@ submodules:
 - logger: contains logging functions.
 """
 
-import pyrisk.utils.exceptions
-import pyrisk.utils.io
-import pyrisk.utils.logger
+from pyrisk.utils import exceptions, io, logger
