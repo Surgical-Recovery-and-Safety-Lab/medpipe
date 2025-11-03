@@ -19,7 +19,6 @@ TXT_FILE = str(CWD / DATA_DIR / "test_text.txt")
 
 def test_setup_logger_success(tmp_path):
     setup_logger("script_name", str(tmp_path))
-    breakpoint()
 
 
 @pytest.mark.parametrize(
