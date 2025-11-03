@@ -9,9 +9,10 @@ import pathlib
 
 import pytest
 
-from pyrisk.utils.exceptions import path_checks
+from pyrisk.utils.exceptions import file_checks
 
 CWD = pathlib.Path.cwd()
+DATA_DIR = str(CWD / "test/test_data/")
 
 
 @pytest.mark.parametrize(
@@ -22,14 +23,14 @@ CWD = pathlib.Path.cwd()
         ("test_config.toml", ".toml"),
     ],
 )
-def test_path_checks_success(file_name, extension):
-    data_path = str(CWD / "test/test_data/" / file_name)
-    path_checks(data_path, extension)
+def test_file_checks_success(file_name, extension):
+    data_path = str(CWD / DATA_DIR / file_name)
+    file_checks(data_path, extension)
 
 
-def test_path_checks_not_str():
+def test_file_checks_not_str():
     with pytest.raises(TypeError):
-        path_checks(12, ".txt")
+        file_checks(12, ".txt")
 
 
 @pytest.mark.parametrize(
@@ -40,10 +41,10 @@ def test_path_checks_not_str():
         ("test_config.toml", ".txt"),
     ],
 )
-def test_path_checks_not_extension_file(file_name, extension):
+def test_file_checks_not_extension_file(file_name, extension):
     with pytest.raises(ValueError):
-        data_path = str(CWD / "test/test_data/" / file_name)
-        path_checks(data_path, extension)
+        data_path = str(CWD / DATA_DIR / file_name)
+        file_checks(data_path, extension)
 
 
 @pytest.mark.parametrize(
@@ -54,6 +55,19 @@ def test_path_checks_not_extension_file(file_name, extension):
         ("not_a_file.toml", ".toml"),
     ],
 )
-def test_path_checks_file_not_found(file_name, extension):
+def test_file_checks_file_not_found(file_name, extension):
     with pytest.raises(FileNotFoundError):
-        path_checks(file_name, extension)
+        file_checks(file_name, extension)
+
+
+@pytest.mark.parametrize(
+    "extension",
+    [
+        (".txt"),
+        (".csv"),
+        (".toml"),
+    ],
+)
+def test_file_checks_not_a_file(extension):
+    with pytest.raises(IsADirectoryError):
+        file_checks(DATA_DIR, extension)
