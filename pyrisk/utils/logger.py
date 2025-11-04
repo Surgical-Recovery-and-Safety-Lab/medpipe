@@ -17,7 +17,8 @@ LOGGING_CONFIG = {
     "version": 1,
     "disable_existing_loggers": True,
     "formatters": {
-        "standard": {"format": "%(asctime)s [%(levelname)s] %(name)s: %(message)s"}
+        "standard": {"format": "%(asctime)s [%(levelname)s] %(name)s: %(message)s"},
+        "brief": {"format": "[%(levelname)s] %(message)s"},
     },
     "handlers": {
         "file": {
@@ -25,13 +26,20 @@ LOGGING_CONFIG = {
             "level": "ERROR",
             "formatter": "standard",
             "filename": "default_name.log",
-            "mode": "a",
+            "mode": "w",
+            "encoding": "utf8",
+        },
+        "console": {
+            "class": "logging.StreamHandler",
+            "level": "INFO",
+            "formatter": "brief",
+            "stream": "ext://sys.stdout",
         },
     },
     "loggers": {
         "root": {
-            "level": "DEBUG",
-            "handlers": ["file"],
+            "level": "INFO",
+            "handlers": ["console", "file"],
             "propagate": False,
         }
     },
