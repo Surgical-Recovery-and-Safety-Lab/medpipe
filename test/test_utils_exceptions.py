@@ -7,9 +7,11 @@ Test functions for the utils.exceptions module
 """
 import pathlib
 
+import numpy as np
 import pytest
 
-from pyrisk.utils.exceptions import file_checks, path_checks
+from pyrisk.utils.exceptions import (array_check, array_dim_check, file_checks,
+                                     path_checks)
 
 CWD = pathlib.Path.cwd()
 DATA_DIR = str(CWD / "test/test_data/")
@@ -100,3 +102,95 @@ def test_path_checks_is_a_file(file_name):
     with pytest.raises(NotADirectoryError):
         data_path = str(CWD / DATA_DIR / file_name)
         path_checks(data_path)
+
+
+@pytest.mark.parametrize(
+    "arr",
+    [
+        np.array([]),
+        np.array([1]),
+        np.array([1, 2]),
+        np.array([[1, 2], [1, 2]]),
+        np.array([[1], [2]]),
+    ],
+)
+def test_array_check_success(arr):
+    array_check(arr)
+
+
+@pytest.mark.parametrize(
+    "not_arr",
+    [
+        5,  # Int
+        3.14,  # Float
+        "not_an_arr",  # Str
+        [1, 2, 3],  # List
+        ("arr", 1),  # Tuple
+    ],
+)
+def test_array_check_not_array(not_arr):
+    with pytest.raises(TypeError):
+        array_check(not_arr)
+
+
+@pytest.mark.parametrize(
+    "arr1, arr2, dim",
+    [
+        (np.array([]), np.array([]), None),
+        (np.array([1]), np.array([2]), None),
+        (np.array([1, 2]), np.array([2, 3]), None),
+        (np.array([1, 2]), np.array([2, 3]), 0),
+        (np.array([[1], [2]]), np.array([[1], [3]]), None),
+        (np.array([[1], [2]]), np.array([[1], [3]]), 1),
+        (np.array([[1, 2], [1, 2]]), np.array([[1, 4], [2, 3]]), None),
+        (np.array([[1, 2], [1, 2]]), np.array([[1, 4], [2, 3]]), 0),
+        (np.array([[1, 2], [1, 2]]), np.array([[1, 4], [2, 3]]), 1),
+    ],
+)
+def test_array_dim_check_success(arr1, arr2, dim):
+    array_dim_check(arr1, arr2, dim)
+
+
+@pytest.mark.parametrize(
+    "arr1, arr2, dim",
+    [
+        (np.array([]), np.array([1]), None),
+        (np.array([1]), np.array([2, 2]), None),
+        (np.array([1, 2]), np.array([3]), 0),
+        (np.array([[1], [2]]), np.array([[1, 1], [2, 2]]), None),
+        (np.array([[1], [2]]), np.array([[1, 1], [2, 2]]), 1),
+        (np.array([[1, 2], [1, 2]]), np.array([1, 4]), None),
+    ],
+)
+def test_array_dim_check_not_equal(arr1, arr2, dim):
+    with pytest.raises(ValueError):
+        array_dim_check(arr1, arr2, dim)
+
+
+@pytest.mark.parametrize(
+    "arr1, arr2, dim",
+    [
+        (np.array([]), np.array([1]), 1),
+        (np.array([1]), np.array([2, 2]), 1),
+        (np.array([1, 2]), np.array([2, 3]), 1),
+        (np.array([[1], [2]]), np.array([[1], [3]]), 2),
+    ],
+)
+def test_array_dim_check_index_error(arr1, arr2, dim):
+    with pytest.raises(IndexError):
+        array_dim_check(arr1, arr2, dim)
+
+
+@pytest.mark.parametrize(
+    "dim",
+    [
+        3.14,  # Float
+        "not_an_arr",  # Str
+        [1, 2, 3],  # List
+        ("arr", 1),  # Tuple
+    ],
+)
+def test_array_check_bad_dim(dim):
+    with pytest.raises(TypeError):
+        array_dim_check(np.array([]), np.array([]), dim)
+
