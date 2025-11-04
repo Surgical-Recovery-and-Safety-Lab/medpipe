@@ -9,6 +9,8 @@ Functions:
 
 import pathlib
 
+import numpy as np
+
 
 def file_checks(file: str, extension: str) -> None:
     """
@@ -87,3 +89,67 @@ def path_checks(path: str) -> None:
 
     if not path_object.is_dir():
         raise NotADirectoryError(f"{path} should be a directory")
+
+
+def array_check(arr) -> None:
+    """
+    Checks that the input is an array-like.
+
+    Parameters
+    ----------
+    arr : array-like
+        Array to check.
+
+    Returns
+    -------
+    None
+        Nothing is returned.
+
+    Raises
+    ------
+    TypeError
+        If arr is not an array-like.
+
+    """
+    if type(arr) is not type(np.array([])):
+        raise TypeError("Input is not an array")
+
+
+def array_dim_check(arr1, arr2, dim=None) -> None:
+    """
+    Checks that the dimensions of the arrays match.
+
+    Parameters
+    ----------
+    arr1 : array-like
+        First array.
+    arr2 : array-like
+        Second array.
+    dim : int or None, default: None
+        Dimension to compare. If None shape is used.
+
+    Returns
+    -------
+    None
+        Nothing is returned.
+
+    Raises
+    ------
+    TypeError
+        If dim is not an integer.
+    ValueError
+        If the arrays do not have the same dimensions.
+
+    """
+    # Check arrays
+    array_check(arr1)
+    array_check(arr2)
+
+    if dim is None:
+        if arr1.shape != arr2.shape:
+            raise ValueError("The dimensions do not agree")
+    else:
+        if type(dim) is not int:
+            raise TypeError("dim should be an integer")
+        if arr1.shape[dim] != arr2.shape[dim]:
+            raise ValueError(f"The {dim} axis does not agree")
