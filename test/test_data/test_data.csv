@@ -1,2 +1,11 @@
 AGE,SEX,DUMMY_VAR
 79.0,F,True
+49.0,F,True
+75.0,M,False
+19.0,M,True
+45.0,M,False
+38.0,F,True
+78.0,F,True
+19.0,M,False
+22.0,F,False
+40.0,M,True
