@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-test_models.py
+test_models_core.py
 
-Test functions for the models module
+Test functions for the models.core module
 """
 
 import pathlib
 
 import pytest
 
-from pyrisk.models import create_model
+from pyrisk.models.core import create_model
 from pyrisk.utils.io import read_toml_configuration
 
 CWD = pathlib.Path.cwd()
