@@ -4,7 +4,11 @@ Execption functions module.
 This module provides functions for execption handling and raising.
 
 Functions:
-- path_checks Checks if the path is correct.
+- file_checks: Checks if the file is correct.
+- path_checks: Checks if the path is correct.
+- array_check: Checks for an array-like.
+- array_dim_check: Checks that the dimension of two arrays agree.
+- exception_handler: Function that handles exceptions.
 """
 
 import pathlib
