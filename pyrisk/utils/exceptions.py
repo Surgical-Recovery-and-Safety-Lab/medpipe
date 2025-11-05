@@ -14,8 +14,6 @@ Functions:
 import pathlib
 import sys
 
-import numpy as np
-
 
 def file_checks(file: str, extension: str) -> None:
     """
