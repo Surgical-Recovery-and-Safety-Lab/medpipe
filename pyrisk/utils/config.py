@@ -7,6 +7,8 @@ Functions:
 - get_file_path: Gets a file path from a configuration dictionary.
 """
 
+from pyrisk.utils.exceptions import file_checks
+
 
 def get_file_path(
     config_dict: dict, path_type: str = "io", suffix: str = "", version: bool = True
@@ -63,4 +65,6 @@ def get_file_path(
             parameters["dir"] + parameters["name"] + suffix + parameters["extension"]
         )
 
+    # Run file checks before returning
+    file_checks(file_path, parameters["extension"])
     return file_path
