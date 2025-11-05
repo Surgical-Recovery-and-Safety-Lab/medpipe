@@ -112,7 +112,9 @@ def array_check(arr) -> None:
         If arr is not an array-like.
 
     """
-    if type(arr) is not type(np.array([])):
+    try:
+        arr.__array__
+    except AttributeError:
         raise TypeError("Input is not an array")
 
 
