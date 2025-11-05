@@ -8,6 +8,7 @@ Functions:
 """
 
 import pathlib
+import sys
 
 import numpy as np
 
@@ -153,3 +154,28 @@ def array_dim_check(arr1, arr2, dim=None) -> None:
             raise TypeError("dim should be an integer")
         if arr1.shape[dim] != arr2.shape[dim]:
             raise ValueError(f"The {dim} axis does not agree")
+
+
+def exception_handler(logger, log_path, log_config, script_name):
+    """
+    Handles exceptions and logs them.
+
+    Parameters
+    ----------
+    logger : logging.Logger
+        Logger object that logs the exception.
+    log_path : str
+        Path to the log file being used.
+    log_config : dict
+        Configuration parameters for the log messages.
+    script_name : str
+        Name of the script in which the error occurred.
+
+    Returns
+    -------
+    None
+        Nothing is returned.
+
+    """
+    logger.exception(log_config["log_message"] + f"{script_name}")
+    sys.stderr.write(log_config["print_message"] + f"{log_path}/{script_name}.log")
