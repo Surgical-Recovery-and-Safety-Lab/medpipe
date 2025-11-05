@@ -50,11 +50,11 @@ def create_model(model_type: str, **config_params: dict):
 
     match model_type:
         case "hgb":
-            print("Creating a Histogram Gradient Boosting model")
+            print("[INFO] Creating a Histogram Gradient Boosting model")
             model = skl.ensemble.HistGradientBoostingClassifier(**config_params)
 
         case "svm":
-            print("Creating a Support Vector Machine model")
+            print("[INFO] Creating a Support Vector Machine model")
             model = skl.svm.SVC(**config_params)
 
         case _:
