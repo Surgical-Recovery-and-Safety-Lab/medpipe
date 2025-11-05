@@ -18,8 +18,8 @@ def get_file_path(
     ----------
     config_dict
         Dictionary from a loaded .TOML file.
-    path_type : {"io", "db"}, default: "io"
-        Path type, either io or db.
+    path_type : {"io", "db", "data"}, default: "io"
+        Path type in the configuration file.
     suffix : default, ""
         Additional suffix for the path.
     version : default: True
@@ -40,8 +40,8 @@ def get_file_path(
     if type(suffix) is not type(""):
         raise TypeError(f"suffix should be a str, but got {type(suffix)}")
 
-    if path_type not in ["io", "db"]:
-        raise ValueError(f"path_type should be io or db, but got {path_type}")
+    if path_type not in ["io", "db", "data"]:
+        raise ValueError(f"path_type should be io, db, or data, but got {path_type}")
 
     key = path_type + "_parameters"
     if key not in config_dict.keys():
