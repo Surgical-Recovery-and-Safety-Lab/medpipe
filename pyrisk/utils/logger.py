@@ -15,10 +15,9 @@ import pyrisk.utils.exceptions
 
 LOGGING_CONFIG = {
     "version": 1,
-    "disable_existing_loggers": True,
+    "disable_existing_loggers": False,
     "formatters": {
         "standard": {"format": "%(asctime)s [%(levelname)s] %(name)s: %(message)s"},
-        "brief": {"format": "[%(levelname)s] %(message)s"},
     },
     "handlers": {
         "file": {
@@ -29,17 +28,11 @@ LOGGING_CONFIG = {
             "mode": "w",
             "encoding": "utf8",
         },
-        "console": {
-            "class": "logging.StreamHandler",
-            "level": "INFO",
-            "formatter": "brief",
-            "stream": "ext://sys.stdout",
-        },
     },
     "loggers": {
         "root": {
             "level": "INFO",
-            "handlers": ["console", "file"],
+            "handlers": ["file"],
             "propagate": False,
         }
     },
