@@ -15,7 +15,7 @@ import pathlib
 import sys
 
 
-def file_checks(file: str, extension: str) -> None:
+def file_checks(file: str, extension: str, exists: bool = True) -> None:
     """
     Performs checks to ensure that a file and extension are correct.
 
@@ -25,6 +25,8 @@ def file_checks(file: str, extension: str) -> None:
         File to check.
     extension
         Extension of the file to check.
+    exists : default: True
+        Flag to indicate if the file should exists.
 
     Returns
     -------
@@ -48,10 +50,10 @@ def file_checks(file: str, extension: str) -> None:
 
     path_object = pathlib.Path(file)  # Create a Path object
 
-    if not path_object.exists():
+    if not path_object.exists() and exists:
         raise FileNotFoundError(f"{file} does not exist")
 
-    if not path_object.is_file():
+    if not path_object.is_file() and exists:
         raise IsADirectoryError(f"{file} should be a file")
 
     if path_object.suffix != extension:
