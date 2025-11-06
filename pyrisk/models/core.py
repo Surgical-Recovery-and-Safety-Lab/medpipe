@@ -55,7 +55,7 @@ def create_model(model_type: str, **config_params: dict):
 
         case "svm":
             print("[INFO] Creating a Support Vector Machine model")
-            model = skl.svm.SVC(**config_params)
+            model = skl.svm.LinearSVC(**config_params)
 
         case _:
             raise ValueError(f"{model_type} invalid model type. See function docstring")

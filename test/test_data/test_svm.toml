@@ -1,3 +1,2 @@
 [parameters]
 C = 1.0
-kernel = "rbf"
