@@ -18,16 +18,18 @@ DATA_DIR = str(CWD / "test/test_data/")
 
 
 @pytest.mark.parametrize(
-    "file_name, extension",
+    "file_name, extension, exists",
     [
-        ("test_text.txt", ".txt"),
-        ("test_data.csv", ".csv"),
-        ("test_config.toml", ".toml"),
+        ("test_text.txt", ".txt", True),
+        ("test_data.csv", ".csv", True),
+        ("test_config.toml", ".toml", True),
+        ("not_a_file.csv", ".csv", False),
+
     ],
 )
-def test_file_checks_success(file_name, extension):
+def test_file_checks_success(file_name, extension, exists):
     file_path = str(CWD / DATA_DIR / file_name)
-    file_checks(file_path, extension)
+    file_checks(file_path, extension, exists)
 
 
 def test_file_checks_not_str():
