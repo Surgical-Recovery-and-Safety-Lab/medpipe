@@ -5,7 +5,9 @@ This class creates an AI Risk neural network.
 
 """
 
+import torch
 import torch.nn as nn
+import torch.optim as optim
 
 
 class AIRiskNN(nn.Module):
@@ -51,8 +53,8 @@ class AIRiskNN(nn.Module):
             nn.ReLU(),
             nn.Linear(50, 10),
             nn.ReLU(),
-            nn.Linear(10, 2),
-            nn.Softmax(),
+            nn.Linear(10, 1),
+            nn.Sigmoid(),
         )
 
     def forward(self, X):
