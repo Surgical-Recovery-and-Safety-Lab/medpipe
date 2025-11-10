@@ -17,11 +17,11 @@ import sklearn as skl
 from tabpfn import TabPFNClassifier
 from torch.accelerator import current_accelerator, is_available
 
-from pyrisk.models import AIRiskNN
+from pyrisk.models.AIRiskNN import AIRiskNN
 from pyrisk.utils.exceptions import array_check, array_dim_check, file_checks
 
 
-def create_model(model_type: str, **config_params: dict):
+def create_model(model_type: str, n_features: int = -1, **config_params):
     """
     Creates a AI model.
 
@@ -33,7 +33,8 @@ def create_model(model_type: str, **config_params: dict):
             svm: support vector machine.
             nn: AIRiskNN neural network.
             tabp: TabP foundational model.
-
+    n_features : int, default: -1
+        Number of features in the data, only needed for NN models.
     **config_params
         Configuration parameters for the model.
 
@@ -65,9 +66,13 @@ def create_model(model_type: str, **config_params: dict):
 
         case "nn":
             print("[INFO] Creating a Neural Network model")
+
+            if n_features == -1:
+                raise ValueError("For nn models, please specify feature number")
+
             device = current_accelerator().type if is_available() else "cpu"
             print(f"[INFO] Using {device} device")
-            model = AIRiskNN().to(device)
+            model = AIRiskNN(n_features).to(device)
 
         case "tabp":
             print("[INFO] Creating a TabP Foundational Model")
