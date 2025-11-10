@@ -14,7 +14,9 @@ Functions:
 import pickle
 
 import sklearn as skl
+from torch.accelerator import current_accelerator, is_available
 
+from pyrisk.models import AIRiskNN
 from pyrisk.utils.exceptions import array_check, array_dim_check, file_checks
 
 
@@ -56,6 +58,12 @@ def create_model(model_type: str, **config_params: dict):
         case "svm":
             print("[INFO] Creating a Support Vector Machine model")
             model = skl.svm.LinearSVC(**config_params)
+
+        case "nn":
+            print("[INFO] Creating a Neural Network model")
+            device = current_accelerator().type if is_available() else "cpu"
+            print(f"[INFO] Using {device} device")
+            model = AIRiskNN().to(device)
 
         case _:
             raise ValueError(f"{model_type} invalid model type. See function docstring")
