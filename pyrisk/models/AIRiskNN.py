@@ -21,6 +21,10 @@ class AIRiskNN(nn.Module):
     -------
     forward(X)
         Forward pass method.
+    fit(X, y, epochs=20, batch_size=32, lr=0.001)
+        Train the model on the provided dataset.
+    predict(X)
+        Predicts labels from input data.
 
     """
 
@@ -63,7 +67,7 @@ class AIRiskNN(nn.Module):
 
         Parameters
         ----------
-        X : array-like
+        X : torch.tensor
             Data to pass through the model.
 
         Returns
