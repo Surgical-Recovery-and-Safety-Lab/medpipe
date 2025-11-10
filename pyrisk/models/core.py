@@ -14,6 +14,7 @@ Functions:
 import pickle
 
 import sklearn as skl
+from tabpfn import TabPFNClassifier
 from torch.accelerator import current_accelerator, is_available
 
 from pyrisk.models import AIRiskNN
@@ -26,16 +27,19 @@ def create_model(model_type: str, **config_params: dict):
 
     Parameters
     ----------
-    model_type : {"hgb", "svm"}
+    model_type : {"hgb", "svm", "nn", "tabp"}
         Type of model to create.
             hgb: histogram gradient boosting.
             svm: support vector machine.
+            nn: AIRiskNN neural network.
+            tabp: TabP foundational model.
+
     **config_params
         Configuration parameters for the model.
 
     Returns
     -------
-    model : skl.ensemble.HistGradBoostingClassifier or skl.svm.SVC
+    model : HistGradBoostingClassifier, SVC, AIRiskNN or TabPFNClassifier.
         Created model.
 
     Raises
@@ -44,7 +48,7 @@ def create_model(model_type: str, **config_params: dict):
         If model_type is not a str.
         If an unexpected keyword argument is present.
     ValueError
-        If model_type is not "hgb" or "svm".
+        If model_type is not "hgb", "svm", "nn", or "tabp".
 
     """
     if type(model_type) is not str:
@@ -65,13 +69,17 @@ def create_model(model_type: str, **config_params: dict):
             print(f"[INFO] Using {device} device")
             model = AIRiskNN().to(device)
 
+        case "tabp":
+            print("[INFO] Creating a TabP Foundational Model")
+            model = TabPFNClassifier()
+
         case _:
             raise ValueError(f"{model_type} invalid model type. See function docstring")
 
     return model
 
 
-def train_model(model, X, y, sample_weight=None) -> None:
+def train_model(model, X, y, *arg) -> None:
     """
     Trains an AI model.
 
@@ -83,7 +91,7 @@ def train_model(model, X, y, sample_weight=None) -> None:
         Training data.
     y : array-like of shape (n_samples, n_classes)
         Prediction labels.
-    sample_weight : array-like of shape (n_samples, n_classes), default: None
+    arg : array-like of shape (n_samples, n_classes)
         Weight of each sample to help address class imbalance.
 
     Returns
@@ -105,11 +113,15 @@ def train_model(model, X, y, sample_weight=None) -> None:
     array_check(y)
     array_dim_check(X, y, 0)
 
-    if sample_weight:
+    if len(arg):
+        sample_weight = arg[0]
         array_check(sample_weight)
         array_dim_check(y, sample_weight)
 
-    model.fit(X, y, sample_weight=sample_weight)
+        model.fit(X, y, sample_weight=sample_weight)
+
+    else:
+        model.fit(X, y)
 
 
 def test_model(model, X, y, sample_weight=None) -> float:
