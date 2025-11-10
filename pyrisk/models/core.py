@@ -79,7 +79,7 @@ def create_model(model_type: str, **config_params: dict):
     return model
 
 
-def train_model(model, X, y, *arg) -> None:
+def train_model(model, X, y, sample_weight=None) -> None:
     """
     Trains an AI model.
 
@@ -91,7 +91,7 @@ def train_model(model, X, y, *arg) -> None:
         Training data.
     y : array-like of shape (n_samples, n_classes)
         Prediction labels.
-    arg : array-like of shape (n_samples, n_classes)
+    sample_weight : array-like of shape (n_samples, n_classes), default: None
         Weight of each sample to help address class imbalance.
 
     Returns
@@ -113,8 +113,7 @@ def train_model(model, X, y, *arg) -> None:
     array_check(y)
     array_dim_check(X, y, 0)
 
-    if len(arg):
-        sample_weight = arg[0]
+    if sample_weight:
         array_check(sample_weight)
         array_dim_check(y, sample_weight)
 
@@ -160,8 +159,10 @@ def test_model(model, X, y, sample_weight=None) -> float:
 
     if sample_weight:
         array_check(sample_weight)
+        return model.score(X, y, sample_weight=sample_weight)
 
-    return model.score(X, y, sample_weight=sample_weight)
+    else:
+        return model.score(X, y)
 
 
 def save_model(model, save_file) -> None:
