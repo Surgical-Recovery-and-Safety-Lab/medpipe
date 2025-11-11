@@ -84,20 +84,20 @@ def create_model(model_type: str, n_features: int = -1, **config_params):
     return model
 
 
-def train_model(model, X, y, sample_weight=None) -> None:
+def train_model(model, X, y, **kwargs) -> None:
     """
     Trains an AI model.
 
     Parameters
     ----------
-    model : skl.ensemble.HistGradBoostingClassifier or skl.svm.SVC
+    model : HistGradBoostingClassifier, SVC, or AIRiskNN
         Model to train.
     X : array-like of shape (n_samples, n_features)
         Training data.
     y : array-like of shape (n_samples, n_classes)
         Prediction labels.
-    sample_weight : array-like of shape (n_samples, n_classes), default: None
-        Weight of each sample to help address class imbalance.
+    **kwargs
+        Additional argument dictionary for fitting.
 
     Returns
     -------
@@ -118,14 +118,11 @@ def train_model(model, X, y, sample_weight=None) -> None:
     array_check(y)
     array_dim_check(X, y, 0)
 
-    if sample_weight:
-        array_check(sample_weight)
-        array_dim_check(y, sample_weight)
+    if "sample_weight" in kwargs.keys():
+        array_check(kwargs["sample_weight"])
+        array_dim_check(y, kwargs["sample_weight"])
 
-        model.fit(X, y, sample_weight=sample_weight)
-
-    else:
-        model.fit(X, y)
+    model.fit(X, y, **kwargs)
 
 
 def test_model(model, X, y, sample_weight=None) -> float:
