@@ -65,6 +65,9 @@ def parse_version_number(v_number: str) -> list[str]:
     """
     Parses a version number.
 
+    Expecting a version number in the format vX.Y.Z-a.b.c,
+    where X, Y, and Z are numbers and a, b, and c are letters and optional.
+
     Parameters
     ----------
     v_number
@@ -85,18 +88,18 @@ def parse_version_number(v_number: str) -> list[str]:
         raise TypeError(f"v_number should be a string, but got {type(v_number)}")
 
     try:
-        int(v_number[0])
+        num, _ = v_number.split("-")  # Split at the - sign
     except ValueError:
-        # Need to remove v
-        v_number = v_number[1:]
+        # If there are not letters
+        num = v_number
 
     try:
-        int(v_number[-1])
+        int(num[0])
     except ValueError:
-        # Check if there is a trailing letter
-        v_number = v_number[:-1]
+        # Need to remove v
+        num = num[1:]
 
-    return v_number.split(".")
+    return num.split(".")
 
 
 def get_data_configuration(data_parameters: dict, v_number: str) -> dict:
