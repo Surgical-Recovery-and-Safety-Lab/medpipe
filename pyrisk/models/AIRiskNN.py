@@ -46,20 +46,27 @@ class AIRiskNN(nn.Module):
         super().__init__()
         self.save_file = "/home/mroe734/Documents/srs/AI-risk-score/models/NN_v0.1.1.pt"
         self.model = nn.Sequential(
-            nn.Linear(n_features, 50),
+            nn.Linear(n_features, n_features),
+            nn.BatchNorm1d(n_features),
             nn.ReLU(),
-            nn.Linear(50, 50),
+            nn.Linear(n_features, 30),
+            nn.BatchNorm1d(30),
             nn.ReLU(),
-            nn.Linear(50, 100),
+            nn.Dropout(0.3),
+            nn.Linear(30, 60),
+            nn.BatchNorm1d(60),
             nn.ReLU(),
-            nn.Linear(100, 100),
+            nn.Dropout(0.5),
+            nn.Linear(60, 30),
+            nn.BatchNorm1d(30),
             nn.ReLU(),
-            nn.Linear(100, 50),
+            nn.Dropout(0.2),
+            nn.Linear(30, n_features),
+            nn.Dropout(0.5),
+            nn.BatchNorm1d(n_features),
             nn.ReLU(),
-            nn.Linear(50, 10),
-            nn.ReLU(),
-            nn.Linear(10, 1),
-            nn.Sigmoid(),
+            nn.Dropout(0.0),
+            nn.Linear(n_features, 1),
         )
 
     def forward(self, X):
@@ -77,11 +84,9 @@ class AIRiskNN(nn.Module):
             Output of the model.
 
         """
-        # Add a check that the data has the correct dimension
-        logits = self.model(X)
-        return logits
+        return self.model(X)
 
-    def fit(self, X, y, epochs=20, batch_size=32, lr=0.001):
+    def fit(self, X, y, epochs=200, batch_size=512, lr=0.005):
         """
         Train the model on the provided dataset.
 
@@ -104,7 +109,8 @@ class AIRiskNN(nn.Module):
             Nothing is returned.
 
         """
-        self.train()  # Set model to training mode
+        self.train()  # Set model to training model
+
         # Convert data to tensors
         X_train = torch.tensor(X.to_numpy(dtype=float), dtype=torch.float32)
         y_train = torch.tensor(y, dtype=torch.float32)
