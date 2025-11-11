@@ -44,6 +44,7 @@ class AIRiskNN(nn.Module):
 
         """
         super().__init__()
+        self.save_file = "/home/mroe734/Documents/srs/AI-risk-score/models/NN_v0.1.1.pt"
         self.model = nn.Sequential(
             nn.Linear(n_features, 50),
             nn.ReLU(),
