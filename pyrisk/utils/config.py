@@ -61,17 +61,61 @@ def get_file_path(
     return file_path
 
 
-def parse_version_number(v_number: str) -> list[str]:
+def split_version_number(v_number: str):
     """
-    Parses a version number.
+    Splits a version number into the data and model version numbers.
 
-    Expecting a version number in the format vX.Y.Z-a.b.c,
-    where X, Y, and Z are numbers and a, b, and c are letters and optional.
+    Expecting a version number in the format vX.Y.Z-nN, where X.Y.Z is the
+    data version number and nN is the model version number.
 
     Parameters
     ----------
     v_number
-        Version number to parse.
+        Data version number to split.
+
+    Returns
+    -------
+    data_v_number : str
+        Data version number in the format vX.Y.Z.
+    model_v_number : str
+        Model version number in the format vnN.
+
+    Raises
+    ------
+    TypeError
+        If v_number is not a string.
+    ValueError
+        If v_number format is incorrect.
+
+    """
+    if type(v_number) is not type(""):
+        raise TypeError(f"v_number should be a string, but got {type(v_number)}")
+
+    if "-" not in v_number:
+        raise ValueError(
+            f"Incorrect version number format, expecting vX.Y.Z-nN but got {v_number}"
+        )
+
+    data_v_number, model_v_number = v_number.split("-")  # Split at the - sign
+
+    if data_v_number[0] != "v":
+        # Add v in case version number does not have one
+        data_v_number = "v" + data_v_number
+
+    return data_v_number, "v" + model_v_number
+
+
+def parse_data_version_number(v_number: str) -> list[str]:
+    """
+    Parses a data version number.
+
+    Expecting a version number in the format vX.Y.Z, where X, Y, and Z
+    are integers.
+
+    Parameters
+    ----------
+    v_number
+        Data version number to parse.
 
     Returns
     -------
@@ -87,19 +131,48 @@ def parse_version_number(v_number: str) -> list[str]:
     if type(v_number) is not type(""):
         raise TypeError(f"v_number should be a string, but got {type(v_number)}")
 
-    try:
-        num, _ = v_number.split("-")  # Split at the - sign
-    except ValueError:
-        # If there are not letters
-        num = v_number
+    if v_number[0] == "v":
+        # Remove v prefix if present
+        v_number = v_number[1:]
 
-    try:
-        int(num[0])
-    except ValueError:
-        # Need to remove v
-        num = num[1:]
+    return v_number.split(".")
 
-    return num.split(".")
+
+def parse_model_version_number(v_number: str) -> list[str]:
+    """
+    Parses a model version number.
+
+    Expecting a version number in the format vxX, where x can be any
+    letter and X any integer.
+
+    Parameters
+    ----------
+    v_number
+        Model version number to parse.
+
+    Returns
+    -------
+    v_list : list[str]
+        List containing [prediction x, model X] numbers.
+
+    Raises
+    ------
+    TypeError
+        If v_number is not a string.
+
+    """
+    if type(v_number) is not type(""):
+        raise TypeError(f"v_number should be a string, but got {type(v_number)}")
+
+    if v_number[0] == "v":
+        # Remove v prefix if present
+        v_number = v_number[1:]
+
+    # Get all letters and digits in case multiple are present
+    alpha = "".join([c for c in v_number if c.isalpha()])
+    digit = "".join([c for c in v_number if c.isdigit()])
+
+    return [alpha, digit]
 
 
 def get_data_configuration(data_parameters: dict, v_number: str) -> dict:
@@ -128,7 +201,7 @@ def get_data_configuration(data_parameters: dict, v_number: str) -> dict:
         raise TypeError(
             f"data_parameters should be a dict, but got f{type(data_parameters)}"
         )
-    v_list = parse_version_number(v_number)  # Parse version number to identify path
+    v_list = parse_data_version_number(v_number)  # Parse version number to identify path
 
     data_config_dict = {}  # Create empty configuration dictionary
     path = data_parameters["dir"]
