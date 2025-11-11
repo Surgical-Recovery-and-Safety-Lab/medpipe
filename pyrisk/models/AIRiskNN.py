@@ -103,6 +103,7 @@ class AIRiskNN(nn.Module):
             Nothing is returned.
 
         """
+        self.train()  # Set model to training mode
         # Convert data to tensors
         X_train = torch.tensor(X.to_numpy(dtype=float), dtype=torch.float32)
         y_train = torch.tensor(y, dtype=torch.float32)
@@ -124,25 +125,15 @@ class AIRiskNN(nn.Module):
             total_preds = 0
 
             for inputs, labels in train_loader:
-                self.train()
+                optimizer.zero_grad()  # Zero the gradients
 
-                # Zero the gradients
-                optimizer.zero_grad()
+                outputs = self(inputs)  # Forward pass
 
-                # Forward pass
-                outputs = self(inputs)
+                loss = criterion(outputs.squeeze(), labels)  # Compute loss
+                loss.backward()  # Backpropagation
+                optimizer.step()  # Update model weights
 
-                # Calculate the loss
-                loss = criterion(outputs.squeeze(), labels)
-
-                # Backward pass (compute gradients)
-                loss.backward()
-
-                # Update the model weights
-                optimizer.step()
-
-                # Track loss and accuracy
-                running_loss += loss.item()
+                running_loss += loss.item()  # Track loss
 
                 # Calculate accuracy
                 predicted = torch.round(torch.sigmoid(outputs))  # Round
