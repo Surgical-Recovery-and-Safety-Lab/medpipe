@@ -170,16 +170,18 @@ def test_model(model, X, y, sample_weight=None) -> float:
         return model.score(X, y)
 
 
-def save_model(model, save_file) -> None:
+def save_model(model, save_file, extension=".pkl") -> None:
     """
-    Saves an AI model to a pkl file.
+    Saves an AI model to file.
 
     Parameters
     ----------
-    model : skl.ensemble.HistGradBoostingClassifier or skl.svm.SVC
+    model : HistGradBoostingClassifier, SVC, or AIRiskNN
         Model to save.
     save_file : str
         Path to the file to save the model.
+    extension : str, default: ".pkl"
+        Extension of the save file.
 
     Returns
     -------
@@ -195,13 +197,18 @@ def save_model(model, save_file) -> None:
     IsADirectoryError
         If save_file is a directory.
     ValueError
-        If save_file extension is not .pkl file.
+        If save_file extension is not extension.
 
     """
-    file_checks(save_file, ".pkl", exists=False)
+    file_checks(save_file, extension, exists=False)
 
-    with open(save_file, "wb") as f:
-        pickle.dump(model, f)
+    if extension != ".pkl":
+        # Saving an AIRiskNN model
+        model.save_model(save_file)
+
+    else:
+        with open(save_file, "wb") as f:
+            pickle.dump(model, f)
 
 
 def load_model(load_file: str):

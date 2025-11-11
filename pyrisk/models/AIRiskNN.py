@@ -9,8 +9,6 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
-from pyrisk.utils.exceptions import file_checks
-
 
 class AIRiskNN(nn.Module):
     """
@@ -199,14 +197,14 @@ class AIRiskNN(nn.Module):
 
         return predictions
 
-    def save_model(self):
+    def save_model(self, save_file):
         """
         Saves model weights to file.
 
         Parameters
         ----------
-        None
-            No parameters.
+        save_file : str
+            Path to the file to save the model.
 
         Returns
         -------
@@ -214,8 +212,7 @@ class AIRiskNN(nn.Module):
             Nothing is returned.
 
         """
-        file_checks(self.save_file, ".pt", exists=False)
-        torch.save(self.model.state_dict(), self.save_file)
+        torch.save(self.model.state_dict(), save_file)
 
     def load_model(self, load_file: str):
         """
@@ -232,5 +229,4 @@ class AIRiskNN(nn.Module):
             Nothing is returned.
 
         """
-        file_checks(load_file, ".pt")
         self.model.load_state_dict(torch.load(load_file, weights_only=True))
