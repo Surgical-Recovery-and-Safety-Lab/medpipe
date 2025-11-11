@@ -198,7 +198,7 @@ def save_model(model, save_file) -> None:
         If save_file extension is not .pkl file.
 
     """
-    file_checks(save_file, ".pkl")
+    file_checks(save_file, ".pkl", exists=False)
 
     with open(save_file, "wb") as f:
         pickle.dump(model, f)
