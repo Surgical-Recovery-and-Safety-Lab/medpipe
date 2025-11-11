@@ -18,18 +18,16 @@ class AIRiskNN(nn.Module):
     ----------
     model : nn.Sequential
         Pytorch model.
-    save_file : str
-        Path to save file to save the model.
 
     Methods
     -------
     forward(X)
         Forward pass method.
-    fit(X, y, epochs=20, batch_size=32, lr=0.001)
+    fit(X, y, epochs=50, batch_size=64, lr=0.001)
         Train the model on the provided dataset.
     predict(X)
         Predicts labels from input data.
-    save_model()
+    save_model(save_file)
         Saves model weights to a file.
     load_model(load_file)
         Loads model weights from a file.
@@ -94,7 +92,7 @@ class AIRiskNN(nn.Module):
         """
         return self.model(X)
 
-    def fit(self, X, y, epochs=200, batch_size=512, lr=0.005):
+    def fit(self, X, y, epochs=50, batch_size=64, lr=0.001):
         """
         Train the model on the provided dataset.
 
@@ -104,9 +102,9 @@ class AIRiskNN(nn.Module):
             Training data.
         y : array-like of shape (n_samples, n_classes)
             Prediction labels.
-        epochs : int, default: 20
+        epochs : int, default: 50
             Number of training epochs.
-        batch_size : int, default: 32
+        batch_size : int, default: 64
             Size of the mini-batches for training.
         lr : float, default: 0.001
             Learning rate for the optimizer.
