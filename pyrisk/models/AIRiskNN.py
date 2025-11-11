@@ -9,6 +9,8 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
+from pyrisk.utils.exceptions import file_checks
+
 
 class AIRiskNN(nn.Module):
     """
@@ -16,6 +18,10 @@ class AIRiskNN(nn.Module):
 
     Attributes
     ----------
+    model : nn.Sequential
+        Pytorch model.
+    save_file : str
+        Path to save file to save the model.
 
     Methods
     -------
@@ -25,6 +31,10 @@ class AIRiskNN(nn.Module):
         Train the model on the provided dataset.
     predict(X)
         Predicts labels from input data.
+    save_model()
+        Saves model weights to a file.
+    load_model(load_file)
+        Loads model weights from a file.
 
     """
 
