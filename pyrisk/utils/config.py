@@ -175,43 +175,58 @@ def parse_model_version_number(v_number: str) -> list[str]:
     return [alpha, digit]
 
 
-def get_data_configuration(data_parameters: dict, v_number: str) -> dict:
+def get_configuration(parameters: dict, v_number: str, join_token: str = ".") -> dict:
     """
-    Gets the data configuration by chaining .toml configurations.
+    Gets the configuration by chaining .toml configurations.
 
     Parameters
     ----------
-    data_parameters
-        Parameters for the data configuration.
+    parameters
+        Parameters for the configuration chaining.
     v_number
         Version number of the data to recuperate.
+    join_token : default: "."
+        Token used to join the version numbers. For data configurations use "."
+        and for model configurations use "".
 
     Returns
     -------
-    data_config_dict : dict
-        Data configuration parameters.
+    config_dict : dict
+        Configuration parameters dictionary.
 
     Raises
     ------
     TypeError
-        If data_parameters is not a dict.
+        If parameters is not a dict.
+    ValueError
+        If join_token is not "." or "".
 
     """
-    if type(data_parameters) is not type(dict()):
-        raise TypeError(
-            f"data_parameters should be a dict, but got f{type(data_parameters)}"
-        )
-    v_list = parse_data_version_number(v_number)  # Parse version number to identify path
+    if type(parameters) is not type(dict()):
+        raise TypeError(f"parameters should be a dict, but got f{type(parameters)}")
+
+    match join_token:
+        case ".":
+            v_list = parse_data_version_number(
+                v_number
+            )  # Parse data version number to identify path
+
+        case "":
+            v_list = parse_model_version_number(
+                v_number
+            )  # Parse model version number to identify path
+        case _:
+            raise ValueError(f"join_token should be . or '', but got {join_token}")
 
     data_config_dict = {}  # Create empty configuration dictionary
-    path = data_parameters["dir"]
+    path = parameters["dir"]
 
     for i in range(len(v_list)):
         file_path = (
             path
-            + data_parameters["name"]
-            + f"v{".".join(v_list[:i+1])}"
-            + data_parameters["extension"]
+            + parameters["name"]
+            + f"v{join_token.join(v_list[:i+1])}"
+            + parameters["extension"]
         )
         data_config_dict.update(read_toml_configuration(file_path))
 
