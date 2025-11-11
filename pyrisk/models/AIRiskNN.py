@@ -181,3 +181,39 @@ class AIRiskNN(nn.Module):
             ).squeeze()  # Remove unnecessary dimensions
 
         return predictions
+
+    def save_model(self):
+        """
+        Saves model weights to file.
+
+        Parameters
+        ----------
+        None
+            No parameters.
+
+        Returns
+        -------
+        None
+            Nothing is returned.
+
+        """
+        file_checks(self.save_file, ".pt", exists=False)
+        torch.save(self.model.state_dict(), self.save_file)
+
+    def load_model(self, load_file: str):
+        """
+        Loads model weights from a file.
+
+        Parameters
+        ----------
+        load_file
+            File to the model weights.
+
+        Returns
+        -------
+        None
+            Nothing is returned.
+
+        """
+        file_checks(load_file, ".pt")
+        self.model.load_state_dict(torch.load(load_file, weights_only=True))
