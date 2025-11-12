@@ -72,7 +72,7 @@ def create_model(model_type: str, n_features: int = -1, **config_params):
 
             device = current_accelerator().type if is_available() else "cpu"
             print(f"[INFO] Using {device} device")
-            model = AIRiskNN(n_features).to(device)
+            model = AIRiskNN(n_features, **config_params).to(device)
 
         case "tabp":
             print("[INFO] Creating a TabP Foundational Model")
