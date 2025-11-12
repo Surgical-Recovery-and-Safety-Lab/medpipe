@@ -5,6 +5,8 @@ This class creates an AI Risk neural network.
 
 """
 
+from collections import OrderedDict
+
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -34,7 +36,7 @@ class AIRiskNN(nn.Module):
 
     """
 
-    def __init__(self, n_features):
+    def __init__(self, n_features, **architecture):
         """
         Initialise an AIRiskNN class instance.
 
@@ -42,6 +44,8 @@ class AIRiskNN(nn.Module):
         ----------
         n_features : int
             Number of features in the data.
+        architecture
+            Model architecture dictionary.
 
         Returns
         -------
@@ -50,30 +54,8 @@ class AIRiskNN(nn.Module):
 
         """
         super().__init__()
-        self.save_file = "/home/mroe734/Documents/srs/AI-risk-score/models/NN_v0.1.1.pt"
-        self.model = nn.Sequential(
-            nn.Linear(n_features, n_features),
-            nn.BatchNorm1d(n_features),
-            nn.ReLU(),
-            nn.Linear(n_features, 30),
-            nn.BatchNorm1d(30),
-            nn.ReLU(),
-            nn.Dropout(0.3),
-            nn.Linear(30, 60),
-            nn.BatchNorm1d(60),
-            nn.ReLU(),
-            nn.Dropout(0.5),
-            nn.Linear(60, 30),
-            nn.BatchNorm1d(30),
-            nn.ReLU(),
-            nn.Dropout(0.2),
-            nn.Linear(30, n_features),
-            nn.Dropout(0.5),
-            nn.BatchNorm1d(n_features),
-            nn.ReLU(),
-            nn.Dropout(0.0),
-            nn.Linear(n_features, 1),
-        )
+        layers_dict = self.parse_architecture(architecture, n_features)
+        self.model = nn.Sequential(layers_dict)
 
     def forward(self, X):
         """
@@ -92,7 +74,16 @@ class AIRiskNN(nn.Module):
         """
         return self.model(X)
 
-    def fit(self, X, y, epochs=50, batch_size=64, lr=0.001):
+    def fit(
+        self,
+        X,
+        y,
+        epochs=50,
+        batch_size=64,
+        lr=0.001,
+        loss_name="BCEWithLogitsLoss",
+        optim_name="Adam",
+    ):
         """
         Train the model on the provided dataset.
 
@@ -107,7 +98,11 @@ class AIRiskNN(nn.Module):
         batch_size : int, default: 64
             Size of the mini-batches for training.
         lr : float, default: 0.001
-            Learning rate for the optimizer.
+            Learning rate for the optimiser.
+        loss_name : str, default: "BCEWithLogitsLoss"
+            Name of the loss function to use.
+        optim_name : str, default: "Adam"
+            Name of the optimiser to use.
 
         Returns
         -------
@@ -121,9 +116,9 @@ class AIRiskNN(nn.Module):
         X_train = torch.tensor(X.to_numpy(dtype=float), dtype=torch.float32)
         y_train = torch.tensor(y, dtype=torch.float32)
 
-        # Define the loss function and optimizer
-        criterion = nn.BCEWithLogitsLoss()
-        optimizer = optim.Adam(self.parameters(), lr=lr)
+        # Define the loss function and optimiser
+        criterion = getattr(nn, loss_name)()
+        optimiser = getattr(optim, optim_name)(self.parameters(), lr=lr)
 
         # Create data loaders for batching
         dataset = torch.utils.data.TensorDataset(X_train, y_train)
@@ -138,13 +133,12 @@ class AIRiskNN(nn.Module):
             total_preds = 0
 
             for inputs, labels in train_loader:
-                optimizer.zero_grad()  # Zero the gradients
+                optimiser.zero_grad()  # Zero the gradients
 
                 outputs = self(inputs)  # Forward pass
-
                 loss = criterion(outputs.squeeze(), labels)  # Compute loss
                 loss.backward()  # Backpropagation
-                optimizer.step()  # Update model weights
+                optimiser.step()  # Update model weights
 
                 running_loss += loss.item()  # Track loss
 
@@ -228,3 +222,43 @@ class AIRiskNN(nn.Module):
 
         """
         self.model.load_state_dict(torch.load(load_file, weights_only=True))
+
+    def parse_architecture(self, architecture, n_features):
+        """
+        Parse the architecture of the model.
+
+        Parameters
+        ----------
+        architecture : dict
+            Architecture of the model.
+        n_features : int
+            Number of features for first layer.
+
+        Returns
+        -------
+        layers_dict : OrderedDict
+            Ordered dictionary to create Sequential model.
+
+        """
+        layers = []
+        nb_feats = n_features
+
+        for i, layer_config in enumerate(architecture["layers"]):
+            layer_type = layer_config.pop("type")  # Layer type
+            layer_fn = getattr(nn, layer_type)  # Create an layer function
+
+            match layer_type:
+                case "Linear":
+                    # If Linear layer add in_features
+                    layer_config["in_features"] = nb_feats
+                    nb_feats = layer_config["out_features"]  # Reset number of features
+
+                case "BatchNorm1d":
+                    # If BatchNorm1D add num_features
+                    layer_config["num_features"] = nb_feats
+
+            layer = layer_fn(**layer_config)
+
+            layers.append((layer_type + f"_{i}", layer))  # Appends to layer list
+
+        return OrderedDict(layers)
