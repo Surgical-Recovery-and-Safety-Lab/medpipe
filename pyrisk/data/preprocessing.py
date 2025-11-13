@@ -63,6 +63,72 @@ def split_test_train(
     return train_set, test_set
 
 
+def temporal_k_fold(
+    data: pd.Series, n_folds: int = 5, feature_name: str = "OP_YEAR"
+) -> dict[int, list[int]]:
+    """
+    Splits the data to create temporal based validation sets.
+
+    The function returns the index of examples for a specific year.
+    The newest data will be the first fold.
+
+    Parameters
+    ----------
+    data
+        Subset of the data with the temporal feature to split with.
+    n_folds : default: 5
+        Number of folds to create.
+    feature_name : default: "OP_YEAR"
+        Name of the feature used to split the data temporally.
+
+    Returns
+    -------
+    fold_indices
+        Temporal fold indices.
+
+    Raises
+    ------
+    TypeError
+        If data is not a pd.Series.
+    TypeError
+        If n_folds is not an integer.
+    ValueError
+        If n_folds is less than 1.
+    ValueError
+        If n_folds is greater than number of unique years.
+    KeyError
+        If feature_name is not in data.
+
+    """
+    if type(data) is not type(pd.Series()):
+        raise TypeError(f"data should be a pd.Series, but got {type(data)}")
+
+    if type(n_folds) is not type(1):
+        raise TypeError(f"n_folds should be an integer, but got {type(n_folds)}")
+
+    if n_folds < 1:
+        raise ValueError(f"n_folds should be greater than 0, but got {n_folds}")
+
+    if feature_name != data.name:
+        raise KeyError(f"{feature_name} is not a column in data")
+
+    years = data.unique()  # List of all the years
+
+    if n_folds > len(years):
+        raise ValueError(
+            f"Too many folds, n_folds is {n_folds} and number of years is {len(years)}"
+        )
+
+    fold_years = reversed(years[len(years) - n_folds :])  # Years to create folds with
+    fold_indices = {}  # Empyt dict for the fold indices
+
+    for year in fold_years:
+        indices = data.loc[data == year].index
+        fold_indices.update({year: indices})
+
+    return fold_indices
+
+
 def convert_object_to_categorical(data: pd.DataFrame) -> pd.DataFrame:
     """
     Converts all object columns of a DataFrame to categoricals.
