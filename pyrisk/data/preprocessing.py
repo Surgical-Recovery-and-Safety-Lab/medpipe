@@ -10,6 +10,7 @@ Functions:
 - extract_labels: Extracts prediction labels from data.
 """
 
+import numpy as np
 import pandas as pd
 import sklearn as skl
 
@@ -83,10 +84,11 @@ def temporal_k_fold(
     data: pd.Series, n_folds: int = 5, feature_name: str = "OP_YEAR"
 ) -> dict[int, list[int]]:
     """
-    Splits the data to create temporal based validation sets.
+    Splits the data to create temporal based train/test sets.
 
-    The function returns the index of examples for a specific year.
-    The newest data will be the first fold.
+    The function returns the index of examples of all years but one for
+    the training set and the other year as the testing set.
+    The newest data will be the first testing fold.
 
     Parameters
     ----------
@@ -99,8 +101,10 @@ def temporal_k_fold(
 
     Returns
     -------
-    fold_indices
-        Temporal fold indices.
+    fold_indices : dict[int, tuple(array-like, array-like)]
+        Dictionary containing the train and test indices.
+        The key is the year number and the value is a tuple with the first
+        element the train indices and the second element is the test indices.
 
     Raises
     ------
@@ -136,11 +140,12 @@ def temporal_k_fold(
         )
 
     fold_years = reversed(years[len(years) - n_folds :])  # Years to create folds with
-    fold_indices = {}  # Empyt dict for the fold indices
+    fold_indices = {}  # Empty dict for the fold indices
 
     for year in fold_years:
-        indices = data.loc[data == year].index
-        fold_indices.update({year: indices})
+        test_idx = data.loc[data == year].index.to_numpy()
+        train_idx = np.delete(data.index.to_numpy(), test_idx)
+        fold_indices.update({year: (train_idx, test_idx)})
 
     return fold_indices
 
