@@ -4,7 +4,7 @@ Preprocessing functions module.
 This module provides functions to preprocess data before training.
 
 Functions:
-- split_test_train: Splits the data into train and test sets.
+- split_test_train: Splits the data indices into train and test sets.
 - convert_object_to_categorical: Converts object columns to categoricals.
 - label_encode_data: Encodes data columns with a label encoder.
 - extract_labels: Extracts prediction labels from data.
@@ -13,54 +13,70 @@ Functions:
 import pandas as pd
 import sklearn as skl
 
+from pyrisk.utils.exceptions import array_check
 
-def split_test_train(
-    data: pd.DataFrame, train_size: float = 0.8, random_state: int = 42
-):
+
+def split_test_train(data_idx, n_folds=1, **kwargs):
     """
-    Split data into train and test sets.
+    Split data indices into train and test sets.
 
     Parameters
     ----------
-    data
-        Data to split.
-    train_size : float, default: 0.8
-        Size of the training set, between 0.0 and 1.0.
-    random_state : int, default: 42
-        Random seed to use, for reproducibility.
+    data_ind : array-like
+        Data indices to split.
+    n_folds : int, default: 1
+        Number of folds to compute.
+    **kwargs
+        Extra arguments for the train_test_split function or KFold class.
 
     Returns
     -------
-    train_set : pd.DataFrame
-        Train subset for the data.
-    test_set : pd.DataFrame
-        Test subset for the data.
+    fold_indices : dict[int, tuple(array-like, array-like)]
+        Dictionary containing the train and test indices.
+        The key is the fold number and the value is a tuple with the first
+        element the train indices and the second element is the test indices.
 
     Raises
     ------
     TypeError
-        If train_size is not a float.
+        If data_idx is not an array-like.
     TypeError
-        If data is not a pd.DataFrame.
+        If n_folds is not an integer.
     ValueError
-        If train_size is not between 0.0 and 1.0.
+        If n_folds is less than 1.
 
     """
-    # Check that train_size is correct
-    if type(train_size) is not type(0.0):
-        raise TypeError(f"train_size should be a float, but got {type(train_size)}")
-    if train_size < 0.0 or train_size > 1.0:
-        raise ValueError(
-            f"train_size should be between 0.0 and 1.0, but got {train_size}"
-        )
-    if type(data) is not type(pd.DataFrame()):
-        raise TypeError(f"data should be a pd.DataFrame, but got {type(data)}")
+    array_check(data_idx)
 
-    train_set, test_set = skl.model_selection.train_test_split(
-        data, train_size=train_size, random_state=random_state
-    )
+    if type(n_folds) is not type(1):
+        raise TypeError(f"n_folds should be an int, but got {type(n_folds)}")
+    if n_folds < 1:
+        raise ValueError(f"n_folds should be greater than 1, but got {n_folds}")
 
-    return train_set, test_set
+    fold_indices = dict()
+
+    if n_folds == 1:
+        # Split into a single test and train set
+        train_idx, test_idx = skl.model_selection.train_test_split(data_idx, **kwargs)
+        fold_indices.update({n_folds: (train_idx, test_idx)})
+        return fold_indices
+
+    # Create the correct argument dict for KFold
+    args_dict = dict()
+    for key, value in kwargs.items():
+        if key == "random_state" or key == "shuffle":
+            if value == -1:
+                # If random_state is -1 then convert to None
+                value = None
+
+            args_dict.update({key: value})
+
+    # Split into n_folds
+    kf = skl.model_selection.KFold(n_splits=n_folds, **args_dict)
+    for i, fold_idx in enumerate(kf.split(data_idx)):
+        fold_indices.update({i: fold_idx})
+
+    return fold_indices
 
 
 def temporal_k_fold(
