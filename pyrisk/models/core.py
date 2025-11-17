@@ -90,6 +90,8 @@ def train_model(model, data, kfold_it, labels, group_name="", **kwargs):
     """
     Trains an AI model.
 
+    The model with the best precision is selected.
+
     Parameters
     ----------
     model : HistGradBoostingClassifier or SVC.
@@ -113,6 +115,7 @@ def train_model(model, data, kfold_it, labels, group_name="", **kwargs):
          - accuracy
          - f1
          - precision
+         - recall
          - roc (Receiver Operator Characteristic)
          - auroc (Area Under Receiver Operator Characteristic)
          - prc (Precision-Recall Curve)
@@ -130,7 +133,11 @@ def train_model(model, data, kfold_it, labels, group_name="", **kwargs):
     if type(data) is not type(pd.DataFrame()):
         raise TypeError(f"data should be a pd.DataFrame, but got {type(data)}")
 
+    # Initialise variables
     group_flag = False
+    precision = 0.0  # Precision used to select the best model
+    best_fold = 0  # Fold with best precision
+    model_tmp = model  # Temporary model variable to keep best model
     model_metrics = {}  # Dict to store model metrics for each fold
     X, y = extract_labels(data, labels)  # Get prediction labels from data
 
@@ -146,7 +153,7 @@ def train_model(model, data, kfold_it, labels, group_name="", **kwargs):
             print(f"  Fold number {fold}")
         else:
             fold = i
-            print(f" Fold number {fold}")
+            print(f"  Fold number {fold}")
 
         X_train, y_train = extract_labels(data.iloc[train_idx], labels)
         X_test, y_test = extract_labels(data.iloc[test_idx], labels)
@@ -157,8 +164,22 @@ def train_model(model, data, kfold_it, labels, group_name="", **kwargs):
 
         model.fit(X_train, y_train.ravel(), **kwargs)  # Train model
 
-        model_metrics.update({fold: test_model(model, X_test, y_test.ravel())})
+        metric_dict = test_model(model, X_test, y_test.ravel())
+        model_metrics.update({fold: metric_dict})
 
+        # Print model metrics
+        print("  Metrics")
+        print_metrics(metric_dict)
+
+        if metric_dict["precision"] > precision:
+            # Temporarily save model with best precision
+            print("  New best model")
+            precision = metric_dict["precision"]
+            best_fold = fold
+            model_tmp = model
+
+    model = model_tmp  # Set model with best precision
+    print(f"  Best fold number {best_fold}")
     return model_metrics
 
 
