@@ -184,6 +184,7 @@ def test_model(model, X_test, y_test) -> dict[str, float]:
          - accuracy
          - f1
          - precision
+         - recall
          - roc (Receiver Operator Characteristic)
          - auroc (Area Under Receiver Operator Characteristic)
          - prc (Precision-Recall Curve)
@@ -209,6 +210,7 @@ def test_model(model, X_test, y_test) -> dict[str, float]:
     metric_dict.update({"accuracy": skl.metrics.accuracy_score(y_test, y_pred)})
     metric_dict.update({"f1": skl.metrics.f1_score(y_test, y_pred)})
     metric_dict.update({"precision": skl.metrics.precision_score(y_test, y_pred)})
+    metric_dict.update({"recall": skl.metrics.recall_score(y_test, y_pred)})
     metric_dict.update({"roc": skl.metrics.roc_curve(y_test, y_pred_proba[:, 1])})
     metric_dict.update({"auroc": skl.metrics.roc_auc_score(y_test, y_pred_proba[:, 1])})
     metric_dict.update(
