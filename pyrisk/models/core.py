@@ -268,7 +268,7 @@ def save_model(model, save_file, extension=".pkl") -> None:
 
 def load_model(load_file: str):
     """
-    Loads an AI model from a .pkl file.
+    Loads an AI model and its metric data from a .pkl file.
 
     Parameters
     ----------
@@ -277,8 +277,10 @@ def load_model(load_file: str):
 
     Returns
     -------
-    model : skl.ensemble.HistGradBoostingClassifier or skl.svm.SVC
+    model : HistGradBoostingClassifier, SVC, or AIRiskNN
         Loaded model.
+    metric_dict : dict[int, dict[str, float or tuple(array-like)]]
+        Model metrics for different folds.
 
     Raises
     ------
@@ -295,6 +297,6 @@ def load_model(load_file: str):
     file_checks(load_file, ".pkl")
 
     with open(load_file, "rb") as f:
-        model = pickle.load(f)
+        loaded_data = pickle.load(f)
 
-    return model
+    return loaded_data[0], loaded_data[1]
