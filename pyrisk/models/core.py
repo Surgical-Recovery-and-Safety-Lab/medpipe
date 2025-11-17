@@ -13,10 +13,12 @@ Functions:
 
 import pickle
 
+import pandas as pd
 import sklearn as skl
 from tabpfn import TabPFNClassifier
 from torch.accelerator import current_accelerator, is_available
 
+from pyrisk.data.preprocessing import extract_labels
 from pyrisk.models.AIRiskNN import AIRiskNN
 from pyrisk.utils.exceptions import array_check, array_dim_check, file_checks
 
@@ -84,46 +86,78 @@ def create_model(model_type: str, n_features: int = -1, **config_params):
     return model
 
 
-def train_model(model, X, y, **kwargs) -> None:
+def train_model(model, data, kfold_it, labels, group_name="", **kwargs):
     """
     Trains an AI model.
 
     Parameters
     ----------
-    model : HistGradBoostingClassifier, SVC, or AIRiskNN
+    model : HistGradBoostingClassifier or SVC.
         Model to train.
-    X : array-like of shape (n_samples, n_features)
-        Training data.
-    y : array-like of shape (n_samples, n_classes)
-        Prediction labels.
+    data : pd.DataFrame
+        Data to train on.
+    kfold_it : StratifiedKFold or GroupKFold
+        KFold iterator to create train and test sets.
+    labels : str or list[str]
+        Labels to predict.
+    group_name : str, default: ""
+        Group name used to extract the group data for splitting.
     **kwargs
         Additional argument dictionary for fitting.
 
     Returns
     -------
-    None
-        Nothing is returned.
+    model_metrics : dict[int, dict[str, float or tuple(array-like)]
+        Model metrics for each fold.
+        The test metrics used are:
+         - accuracy
+         - f1
+         - precision
+         - roc (Receiver Operator Characteristic)
+         - auroc (Area Under Receiver Operator Characteristic)
+         - prc (Precision-Recall Curve)
+         - ap (Average Precision)
 
     Raises
     ------
     TypeError
-        If X, y, or sample_weight are not an array-like.
+        If sample_weight are not an array-like.
+        If data is not a pd.DataFrame.
     ValueError
-        If the X and y do not have the same dimensions.
-        If the y and sample_weight do not have the same dimensions.
+        If the train_labels and sample_weight do not have the same dimensions.
 
     """
-    # Check that inputs are correct
-    array_check(X)
-    array_check(y)
-    array_dim_check(X, y, 0)
+    if type(data) is not type(pd.DataFrame()):
+        raise TypeError(f"data should be a pd.DataFrame, but got {type(data)}")
 
-    if "sample_weight" in kwargs.keys():
-        array_check(kwargs["sample_weight"])
-        array_dim_check(y, kwargs["sample_weight"])
+    group_flag = False
+    model_metrics = {}  # Dict to store model metrics for each fold
+    X, y = extract_labels(data, labels)  # Get prediction labels from data
 
-    model.fit(X, y, **kwargs)
+    if group_name != "":
+        group_flag = True
+        groups = data[group_name]  # Get the groups for splitting
+    else:
+        groups = None
 
+    for i, (train_idx, test_idx) in enumerate(kfold_it.split(X, y, groups=groups)):
+        if group_flag:
+            fold = int(groups[test_idx].iloc[0])  # Use the test year as the fold number
+            print(f"  Fold number {fold}")
+        else:
+            fold = i
+            print(f" Fold number {fold}")
+
+        X_train, y_train = extract_labels(data.iloc[train_idx], labels)
+        X_test, y_test = extract_labels(data.iloc[test_idx], labels)
+
+        if "sample_weight" in kwargs.keys():
+            array_check(kwargs["sample_weight"])
+            array_dim_check(y_train, kwargs["sample_weight"])
+
+        model.fit(X_train, y_train.ravel(), **kwargs)  # Train model
+
+        model_metrics.update({fold: test_model(model, X_test, y_test.ravel())})
 
 def test_model(model, X, y, sample_weight=None) -> float:
     """
