@@ -154,9 +154,9 @@ class AIRiskNN(nn.Module):
                 f"Epoch {epoch+1}/{epochs}, Loss: {avg_loss:.4f}, Accuracy: {accuracy:.2f}%"
             )
 
-    def predict(self, X):
+    def predict_proba(self, X):
         """
-        Predicts labels from input data.
+        Predicts probabilities from input data.
 
         Parameters
         ----------
@@ -165,8 +165,8 @@ class AIRiskNN(nn.Module):
 
         Returns
         -------
-        predictions array-like of shape (n_samples, n_classes)
-            Predicted labels.
+        probabilities : array-like of shape (n_samples, n_classes)
+            Predicted probabilities.
 
         """
         # Set to evaluate mode
@@ -181,11 +181,29 @@ class AIRiskNN(nn.Module):
 
             # Apply sigmoid to convert logits to probabilities
             probabilities = torch.sigmoid(logits)
+        return probabilities
 
-            # Convert probabilities to binary predictions (0 or 1)
-            predictions = torch.round(
-                probabilities
-            ).squeeze()  # Remove unnecessary dimensions
+    def predict(self, X):
+        """
+        Predicts labels from input data.
+
+        Parameters
+        ----------
+        X : array-like of shape (n_samples, n_features)
+            Training data.
+
+        Returns
+        -------
+        predictions : array-like of shape (n_samples, n_classes)
+            Predicted labels.
+
+        """
+        probabilities = self.predict_proba(X)  # Get probabilities
+
+        # Convert probabilities to binary predictions (0 or 1)
+        predictions = torch.round(
+            probabilities
+        ).squeeze()  # Remove unnecessary dimensions
 
         return predictions
 
