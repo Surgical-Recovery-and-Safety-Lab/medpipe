@@ -235,6 +235,8 @@ def save_model(model, save_file, extension=".pkl") -> None:
         Path to the file to save the model.
     extension : str, default: ".pkl"
         Extension of the save file.
+    metric_dict : dict[int, dict[str, float or tuple(array-like)]], default None
+        Model metrics for different folds.
 
     Returns
     -------
@@ -261,7 +263,7 @@ def save_model(model, save_file, extension=".pkl") -> None:
 
     else:
         with open(save_file, "wb") as f:
-            pickle.dump(model, f)
+            pickle.dump([model, metric_dict], f)
 
 
 def load_model(load_file: str):
