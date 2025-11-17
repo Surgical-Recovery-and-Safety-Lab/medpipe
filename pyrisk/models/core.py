@@ -177,7 +177,7 @@ def test_model(model, X_test, y_test) -> dict[str, float]:
 
     Returns
     -------
-    metric_dict : dict[str, float]
+    metric_dict : dict[str, float or tuple(array-like)]
         Dictionary of the model performance. Keys are the metric name and
         values are the metric value.
         The test metrics used are:
@@ -223,7 +223,36 @@ def test_model(model, X_test, y_test) -> dict[str, float]:
     return metric_dict
 
 
-def save_model(model, save_file, extension=".pkl") -> None:
+def print_metrics(metric_dict) -> None:
+    """
+    Prints the metrics on the terminal.
+
+    Parameters
+    ----------
+    metric_dict : dict[str, float or tuple(array-like)]
+        Dictionary of the model performance. Keys are the metric name and
+        values are the metric value.
+        The test metrics used are:
+         - accuracy
+         - f1
+         - precision
+         - recall
+         - auroc (Area Under Receiver Operator Characteristic)
+
+    Returns
+    -------
+    None
+        Nothing is returned.
+
+    """
+    print(f"    Accuracy: {metric_dict["accuracy"]:.3f}")
+    print(f"    F1: {metric_dict["f1"]:.3f}")
+    print(f"    Precision: {metric_dict["precision"]:.3f}")
+    print(f"    Recall: {metric_dict["recall"]:.3f}")
+    print(f"    AUROC: {metric_dict["auroc"]:.3f}")
+
+
+def save_model(model, save_file, metric_dict=None, extension=".pkl") -> None:
     """
     Saves an AI model to file.
 
