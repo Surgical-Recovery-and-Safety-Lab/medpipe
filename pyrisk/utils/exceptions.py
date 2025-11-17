@@ -14,6 +14,8 @@ Functions:
 import pathlib
 import sys
 
+from pandas.api.types import is_list_like
+
 
 def file_checks(file: str, extension: str, exists: bool = True) -> None:
     """
@@ -116,10 +118,8 @@ def array_check(arr) -> None:
         If arr is not an array-like.
 
     """
-    try:
-        arr.__array__
-    except AttributeError:
-        raise TypeError("Input is not an array")
+    if not is_list_like(arr):
+        raise TypeError(f"arr should be an array-like but instead got {type(arr)}")
 
 
 def array_dim_check(arr1, arr2, dim=None) -> None:
