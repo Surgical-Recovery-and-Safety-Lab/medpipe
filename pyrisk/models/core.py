@@ -159,46 +159,66 @@ def train_model(model, data, kfold_it, labels, group_name="", **kwargs):
 
         model_metrics.update({fold: test_model(model, X_test, y_test.ravel())})
 
-def test_model(model, X, y, sample_weight=None) -> float:
+    return model_metrics
+
+
+def test_model(model, X_test, y_test) -> dict[str, float]:
     """
-    Trains an AI model.
+    Computes different metrics to test the model.
 
     Parameters
     ----------
-    model : skl.ensemble.HistGradBoostingClassifier or skl.svm.SVC
+    model : HistGradBoostingClassier, SVC, or AIRiskNN
         Model to test.
-    X : array-like of shape (n_samples, n_features)
-        Testing data.
-    y : array-like of shape (n_samples, n_classes)
-        Prediction labels.
-    sample_weight : array-like of shape (n_samples, n_classes), default: None
-        Weight of each sample to help address class imbalance.
+    X_test : array-like of shape (n_samples, n_features)
+        Test data to make predictions on.
+    y_test : array-like of shape (n_samples, n_classes)
+        Ground truth test labels.
 
     Returns
     -------
-    score : float
-        Accuracy of the model.
+    metric_dict : dict[str, float]
+        Dictionary of the model performance. Keys are the metric name and
+        values are the metric value.
+        The test metrics used are:
+         - accuracy
+         - f1
+         - precision
+         - roc (Receiver Operator Characteristic)
+         - auroc (Area Under Receiver Operator Characteristic)
+         - prc (Precision-Recall Curve)
+         - ap (Average Precision)
 
     Raises
     ------
     TypeError
-        If X, y, or sample_weight are not an array-like.
+        If X_test or y_test are not an array-like.
     ValueError
-        If the X and y do not have the same dimensions.
-        If the y and sample_weight do not have the same dimensions.
+        If X_test and y_test do not have the same dimensions.
 
     """
     # Check that inputs are correct
-    array_check(X)
-    array_check(y)
-    array_dim_check(X, y, 0)
+    array_check(X_test)
+    array_check(y_test)
+    array_dim_check(X_test, y_test, 0)
 
-    if sample_weight:
-        array_check(sample_weight)
-        return model.score(X, y, sample_weight=sample_weight)
+    y_pred = model.predict(X_test)
+    y_pred_proba = model.predict_proba(X_test)
 
-    else:
-        return model.score(X, y)
+    metric_dict = {}
+    metric_dict.update({"accuracy": skl.metrics.accuracy_score(y_test, y_pred)})
+    metric_dict.update({"f1": skl.metrics.f1_score(y_test, y_pred)})
+    metric_dict.update({"precision": skl.metrics.precision_score(y_test, y_pred)})
+    metric_dict.update({"roc": skl.metrics.roc_curve(y_test, y_pred_proba[:, 1])})
+    metric_dict.update({"auroc": skl.metrics.roc_auc_score(y_test, y_pred_proba[:, 1])})
+    metric_dict.update(
+        {"prc": skl.metrics.precision_recall_curve(y_test, y_pred_proba[:, 1])}
+    )
+    metric_dict.update(
+        {"ap": skl.metrics.average_precision_score(y_test, y_pred_proba[:, 1])}
+    )
+
+    return metric_dict
 
 
 def save_model(model, save_file, extension=".pkl") -> None:
