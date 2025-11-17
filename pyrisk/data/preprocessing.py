@@ -4,150 +4,66 @@ Preprocessing functions module.
 This module provides functions to preprocess data before training.
 
 Functions:
-- split_test_train: Splits the data indices into train and test sets.
+- test_train_it: Creates a KFold iterator to split data into
+    test and train sets.
 - convert_object_to_categorical: Converts object columns to categoricals.
 - label_encode_data: Encodes data columns with a label encoder.
 - extract_labels: Extracts prediction labels from data.
 """
 
-import numpy as np
 import pandas as pd
 import sklearn as skl
 
-from pyrisk.utils.exceptions import array_check
 
-
-def split_test_train(data_idx, n_folds=1, **kwargs):
+def test_train_it(temporal_k_fold=False, **kwargs):
     """
-    Split data indices into train and test sets.
+    Creates a KFold iterator to split data into test and train sets.
 
     Parameters
     ----------
-    data_ind : array-like
-        Data indices to split.
-    n_folds : int, default: 1
-        Number of folds to compute.
+    temporal_k_fold : bool, default: False
+        If True, the data will be split using a group and a
+        GroupKFold iterator is returned.
     **kwargs
-        Extra arguments for the train_test_split function or KFold class.
+        Extra arguments for the StratifiedKFold or GroupKFold class.
 
     Returns
     -------
-    fold_indices : dict[int, tuple(array-like, array-like)]
-        Dictionary containing the train and test indices.
-        The key is the fold number and the value is a tuple with the first
-        element the train indices and the second element is the test indices.
+    kfold_it : StratifiedKFold or GroupKFold
+        KFold iterator.
 
     Raises
     ------
-    TypeError
-        If data_idx is not an array-like.
-    TypeError
-        If n_folds is not an integer.
     ValueError
-        If n_folds is less than 1.
+        If n_splits is less than 2.
 
     """
-    array_check(data_idx)
-
-    if type(n_folds) is not type(1):
-        raise TypeError(f"n_folds should be an int, but got {type(n_folds)}")
-    if n_folds < 1:
-        raise ValueError(f"n_folds should be greater than 1, but got {n_folds}")
-
-    fold_indices = dict()
-
-    if n_folds == 1:
-        # Split into a single test and train set
-        train_idx, test_idx = skl.model_selection.train_test_split(data_idx, **kwargs)
-        fold_indices.update({n_folds: (train_idx, test_idx)})
-        return fold_indices
-
-    # Create the correct argument dict for KFold
+    # Create the correct argument dict for StratifiedKFold
     args_dict = dict()
     for key, value in kwargs.items():
-        if key == "random_state" or key == "shuffle":
-            if value == -1:
-                # If random_state is -1 then convert to None
-                value = None
+        match key:
+            case "random_state":
+                if value == -1:
+                    value = None
+                args_dict.update({key: value})
 
-            args_dict.update({key: value})
+            case "shuffle":
+                args_dict.update({key: value})
 
-    # Split into n_folds
-    kf = skl.model_selection.KFold(n_splits=n_folds, **args_dict)
-    for i, fold_idx in enumerate(kf.split(data_idx)):
-        fold_indices.update({i: fold_idx})
+            case "n_splits":
+                if value < 2:
+                    raise ValueError(
+                        f"n_splits should be greater than 2, but got {value}"
+                    )
 
-    return fold_indices
+                args_dict.update({key: value})
 
+    if not temporal_k_fold:
+        kfold_it = skl.model_selection.StratifiedKFold(**args_dict)
+    else:
+        kfold_it = skl.model_selection.GroupKFold(**args_dict)
 
-def temporal_k_fold(
-    data: pd.Series, n_folds: int = 5, feature_name: str = "OP_YEAR"
-) -> dict[int, list[int]]:
-    """
-    Splits the data to create temporal based train/test sets.
-
-    The function returns the index of examples of all years but one for
-    the training set and the other year as the testing set.
-    The newest data will be the first testing fold.
-
-    Parameters
-    ----------
-    data
-        Subset of the data with the temporal feature to split with.
-    n_folds : default: 5
-        Number of folds to create.
-    feature_name : default: "OP_YEAR"
-        Name of the feature used to split the data temporally.
-
-    Returns
-    -------
-    fold_indices : dict[int, tuple(array-like, array-like)]
-        Dictionary containing the train and test indices.
-        The key is the year number and the value is a tuple with the first
-        element the train indices and the second element is the test indices.
-
-    Raises
-    ------
-    TypeError
-        If data is not a pd.Series.
-    TypeError
-        If n_folds is not an integer.
-    ValueError
-        If n_folds is less than 1.
-    ValueError
-        If n_folds is greater than number of unique years.
-    KeyError
-        If feature_name is not in data.
-
-    """
-    if type(data) is not type(pd.Series()):
-        raise TypeError(f"data should be a pd.Series, but got {type(data)}")
-
-    if type(n_folds) is not type(1):
-        raise TypeError(f"n_folds should be an integer, but got {type(n_folds)}")
-
-    if n_folds < 1:
-        raise ValueError(f"n_folds should be greater than 0, but got {n_folds}")
-
-    if feature_name != data.name:
-        raise KeyError(f"{feature_name} is not a column in data")
-
-    years = data.unique()  # List of all the years
-
-    if n_folds > len(years):
-        raise ValueError(
-            f"Too many folds, n_folds is {n_folds} and number of years is {len(years)}"
-        )
-
-    fold_years = reversed(years[len(years) - n_folds :])  # Years to create folds with
-    fold_indices = {}  # Empty dict for the fold indices
-
-    for year in fold_years:
-        test_idx = data.loc[data == year].index.to_numpy()
-        train_idx = np.delete(data.index.to_numpy(), test_idx)
-        fold_indices.update({year: (train_idx, test_idx)})
-
-    return fold_indices
+    return kfold_it
 
 
 def convert_object_to_categorical(data: pd.DataFrame) -> pd.DataFrame:
