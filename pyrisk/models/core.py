@@ -19,6 +19,7 @@ from tabpfn import TabPFNClassifier
 from torch.accelerator import current_accelerator, is_available
 
 from pyrisk.data.preprocessing import extract_labels
+from pyrisk.metrics.core import print_metrics
 from pyrisk.models.AIRiskNN import AIRiskNN
 from pyrisk.utils.exceptions import array_check, array_dim_check, file_checks
 
@@ -199,8 +200,8 @@ def test_model(model, X_test, y_test) -> dict[str, float]:
     Returns
     -------
     metric_dict : dict[str, float or tuple(array-like)]
-        Dictionary of the model performance. Keys are the metric name and
-        values are the metric value.
+        Dictionary of the model performance for one fold.
+        Keys are the metric name and values are the metric value.
         The test metrics used are:
          - accuracy
          - f1
@@ -244,36 +245,7 @@ def test_model(model, X_test, y_test) -> dict[str, float]:
     return metric_dict
 
 
-def print_metrics(metric_dict) -> None:
-    """
-    Prints the metrics on the terminal.
-
-    Parameters
-    ----------
-    metric_dict : dict[str, float or tuple(array-like)]
-        Dictionary of the model performance. Keys are the metric name and
-        values are the metric value.
-        The test metrics used are:
-         - accuracy
-         - f1
-         - precision
-         - recall
-         - auroc (Area Under Receiver Operator Characteristic)
-
-    Returns
-    -------
-    None
-        Nothing is returned.
-
-    """
-    print(f"    Accuracy: {metric_dict["accuracy"]:.3f}")
-    print(f"    F1: {metric_dict["f1"]:.3f}")
-    print(f"    Precision: {metric_dict["precision"]:.3f}")
-    print(f"    Recall: {metric_dict["recall"]:.3f}")
-    print(f"    AUROC: {metric_dict["auroc"]:.3f}")
-
-
-def save_model(model, save_file, metric_dict=None, extension=".pkl") -> None:
+def save_model(model, save_file, model_metrics=None, extension=".pkl") -> None:
     """
     Saves an AI model to file.
 
@@ -285,7 +257,7 @@ def save_model(model, save_file, metric_dict=None, extension=".pkl") -> None:
         Path to the file to save the model.
     extension : str, default: ".pkl"
         Extension of the save file.
-    metric_dict : dict[int, dict[str, float or tuple(array-like)]], default None
+    model_metrics : dict[int, dict[str, float or tuple(array-like)]], default None
         Model metrics for different folds.
 
     Returns
@@ -313,7 +285,7 @@ def save_model(model, save_file, metric_dict=None, extension=".pkl") -> None:
 
     else:
         with open(save_file, "wb") as f:
-            pickle.dump([model, metric_dict], f)
+            pickle.dump([model, model_metrics], f)
 
 
 def load_model(load_file: str):
@@ -329,7 +301,7 @@ def load_model(load_file: str):
     -------
     model : HistGradBoostingClassifier, SVC, or AIRiskNN
         Loaded model.
-    metric_dict : dict[int, dict[str, float or tuple(array-like)]]
+    model_metrics : dict[int, dict[str, float or tuple(array-like)]]
         Model metrics for different folds.
 
     Raises
