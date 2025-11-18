@@ -8,6 +8,7 @@ Functions:
 """
 
 import matplotlib.pyplot as plt
+import numpy as np
 import sklearn as skl
 
 from pyrisk.utils.exceptions import array_check, array_dim_check
@@ -58,4 +59,164 @@ def plot_from_display(y_true, y_pred, display, **kwargs) -> None:
             display_fct = skl.metrics.RocCurveDisplay.from_predictions
 
     display_fct(y_true, y_pred, **kwargs)
+    plt.show()
+
+
+def plot_mean_ROC_curve(model_metrics, nb_points=500):
+    """
+    Plots the ROC curve of each fold and the mean ROC curve.
+
+    Parameters
+    ----------
+    model_metrics : dict[int, dict[str, float or tuple(array-like)]]
+        Model metrics for different folds.
+    nb_points : int, default: 500
+        Number of points for the mean ROC curve.
+
+    Returns
+    -------
+    None
+        Nothing is returned.
+
+    Raises
+    ------
+    TypeError
+        If nb_points is not an int.
+
+    """
+
+    if type(nb_points) is not type(0):
+        raise TypeError(f"nb_points should be an int, but got {type(nb_points)}")
+
+    mean_fpr = np.linspace(0, 1, nb_points)
+    tprs = []
+    aucs = []
+
+    for fold in model_metrics.keys():
+        # Iterate over each fold data
+        fpr, tpr, _ = model_metrics[fold]["roc"]
+        tprs.append(np.interp(mean_fpr, fpr, tpr))
+        aucs.append(model_metrics[fold]["auroc"])
+        plt.step(
+            fpr,
+            tpr,
+            lw=1,
+            alpha=0.3,
+            label=f"Fold number {fold} (AUC {model_metrics[fold]["auroc"]:.3f})",
+        )
+
+    # Compute mean and std for all folds
+    mean_tpr = np.mean(tprs, axis=0)
+    mean_auroc = np.mean(aucs, axis=0)
+
+    std_tprs = np.std(tprs, axis=0)
+    std_auroc = np.std(aucs, axis=0)
+
+    upper_std = np.minimum(mean_tpr + std_tprs, 1)
+    lower_std = np.maximum(mean_tpr - std_tprs, 0)
+
+    # Plot mean curve with shaded std
+    plt.step(
+        mean_fpr,
+        mean_tpr,
+        color="b",
+        alpha=0.8,
+        lw=2,
+        label=rf"Mean ROC curve (AUC {mean_auroc:.3f} $\pm$ {std_auroc:.3f})",
+    )
+    plt.fill_between(
+        mean_fpr,
+        lower_std,
+        upper_std,
+        color="grey",
+        alpha=0.2,
+        label=r"Mean $\pm$ 1 SD",
+    )
+
+    plt.xlim([-0.01, 1.01])
+    plt.ylim([-0.01, 1.01])
+    plt.xlabel("False Positive Rate")
+    plt.ylabel("True Positive Rate")
+    plt.title("Cross-Validated ROC")
+    plt.legend(loc="lower right")
+    plt.show()
+
+
+def plot_mean_PR_curve(model_metrics, nb_points=500):
+    """
+    Plots the PR curve of each fold and the mean PR curve.
+
+    Parameters
+    ----------
+    model_metrics : dict[int, dict[str, float or tuple(array-like)]]
+        Model metrics for different folds.
+    nb_points : int, default: 500
+        Number of points for the mean curve.
+
+    Returns
+    -------
+    None
+        Nothing is returned.
+
+    Raises
+    ------
+    TypeError
+        If nb_points is not an int.
+
+    """
+
+    if type(nb_points) is not type(0):
+        raise TypeError(f"nb_points should be an int, but got {type(nb_points)}")
+
+    mean_precision = np.linspace(0, 1, nb_points)
+    recalls = []
+    aps = []
+
+    for fold in model_metrics.keys():
+        # Iterate over each fold data
+        precision, recall, _ = model_metrics[fold]["prc"]
+        recalls.append(np.interp(mean_precision, precision, recall))
+        aps.append(model_metrics[fold]["ap"])
+        plt.step(
+            recall,
+            precision,
+            lw=1,
+            alpha=0.5,
+            label=f"Fold number {fold} (AP {model_metrics[fold]["ap"]:.3f})",
+        )
+
+    # Compute mean and std for all folds
+    mean_recall = np.mean(recalls, axis=0)
+    mean_ap = np.mean(aps, axis=0)
+
+    std_recall = np.std(recalls, axis=0)
+    std_ap = np.std(aps, axis=0)
+
+    upper_std = np.minimum(mean_recall + std_recall, 1)
+    lower_std = np.maximum(mean_recall - std_recall, 0)
+
+    # Plot mean curve with shaded std
+    plt.step(
+        mean_recall,
+        mean_precision,
+        color="b",
+        alpha=0.8,
+        lw=2,
+        label=rf"Mean PRC curve (AP {mean_ap:.3f} $\pm$ {std_ap:.3f})",
+    )
+    plt.fill_betweenx(
+        mean_precision,
+        lower_std,
+        upper_std,
+        color="grey",
+        alpha=0.3,
+        label=r"Mean $\pm$ 1 SD",
+    )
+
+    plt.xlim([-0.01, 1.01])
+    plt.ylim([-0.01, 1.01])
+    plt.xlabel("Recall")
+    plt.ylabel("Precision")
+    plt.title("Cross-Validated PRC")
+    plt.legend(loc="upper right")
     plt.show()
