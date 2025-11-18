@@ -150,7 +150,7 @@ def train_model(model, data, kfold_it, labels, group_name="", **kwargs):
 
     for i, (train_idx, test_idx) in enumerate(kfold_it.split(X, y, groups=groups)):
         if group_flag:
-            fold = int(groups[test_idx].iloc[0])  # Use the test year as the fold number
+            fold = int(groups.iloc[test_idx[0]])  # Use the test year as the fold number
             print(f"  Fold number {fold}")
         else:
             fold = i
