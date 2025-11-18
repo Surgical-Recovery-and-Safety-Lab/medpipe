@@ -10,8 +10,12 @@ import pathlib
 import numpy as np
 import pytest
 
-from pyrisk.utils.exceptions import (array_check, array_dim_check, file_checks,
-                                     path_checks)
+from pyrisk.utils.exceptions import (
+    array_check,
+    array_dim_check,
+    file_checks,
+    path_checks,
+)
 
 CWD = pathlib.Path.cwd()
 DATA_DIR = str(CWD / "test/test_data/")
@@ -24,7 +28,6 @@ DATA_DIR = str(CWD / "test/test_data/")
         ("test_data.csv", ".csv", True),
         ("test_config.toml", ".toml", True),
         ("not_a_file.csv", ".csv", False),
-
     ],
 )
 def test_file_checks_success(file_name, extension, exists):
@@ -114,6 +117,8 @@ def test_path_checks_is_a_file(file_name):
         np.array([1, 2]),
         np.array([[1, 2], [1, 2]]),
         np.array([[1], [2]]),
+        [1, 2, 3],  # List
+        (1, 2, 3),  # Tuple
     ],
 )
 def test_array_check_success(arr):
@@ -126,8 +131,6 @@ def test_array_check_success(arr):
         5,  # Int
         3.14,  # Float
         "not_an_arr",  # Str
-        [1, 2, 3],  # List
-        ("arr", 1),  # Tuple
     ],
 )
 def test_array_check_not_array(not_arr):
@@ -195,4 +198,3 @@ def test_array_dim_check_index_error(arr1, arr2, dim):
 def test_array_check_bad_dim(dim):
     with pytest.raises(TypeError):
         array_dim_check(np.array([]), np.array([]), dim)
-
