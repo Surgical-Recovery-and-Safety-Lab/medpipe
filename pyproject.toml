@@ -21,4 +21,8 @@ classifiers = [
   "Programming Language :: Python :: 3.14",
 ]
 
+dynamic = [ "dependencies" ]
 urls.Repository = "https://github.com/Surgical-Recovery-and-Safety-Lab/pyrisk"
+
+[tool.setuptools.dynamic]
+dependencies = { file = [ "requirements.txt" ] }
