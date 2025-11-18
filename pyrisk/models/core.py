@@ -65,7 +65,7 @@ def create_model(model_type: str, n_features: int = -1, **config_params):
 
         case "svm":
             print("[INFO] Creating a Support Vector Machine model")
-            model = skl.svm.LinearSVC(**config_params)
+            model = skl.svm.SVC(**config_params)
 
         case "nn":
             print("[INFO] Creating a Neural Network model")
