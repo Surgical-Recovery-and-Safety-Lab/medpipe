@@ -218,7 +218,7 @@ def get_configuration(parameters: dict, v_number: str, join_token: str = ".") ->
         case _:
             raise ValueError(f"join_token should be . or '', but got {join_token}")
 
-    data_config_dict = {}  # Create empty configuration dictionary
+    config_dict = {}  # Create empty configuration dictionary
     path = parameters["dir"]
 
     for i in range(len(v_list)):
@@ -228,7 +228,7 @@ def get_configuration(parameters: dict, v_number: str, join_token: str = ".") ->
             + f"v{join_token.join(v_list[:i+1])}"
             + parameters["extension"]
         )
-        data_config_dict.update(read_toml_configuration(file_path))
+        config_dict.update(read_toml_configuration(file_path))
 
         if i == len(v_list) - 1:
             # Exit early to avoid out of range error
@@ -237,4 +237,4 @@ def get_configuration(parameters: dict, v_number: str, join_token: str = ".") ->
         # Update file path with next version folder
         path += f"v{v_list[i+1]}/"
 
-    return data_config_dict
+    return config_dict
