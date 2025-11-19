@@ -181,7 +181,7 @@ class AIRiskNN(nn.Module):
 
             # Apply sigmoid to convert logits to probabilities
             probabilities = torch.sigmoid(logits)
-        return probabilities
+        return torch.cat([1 - probabilities, probabilities], dim=1)
 
     def predict(self, X):
         """
@@ -201,9 +201,7 @@ class AIRiskNN(nn.Module):
         probabilities = self.predict_proba(X)  # Get probabilities
 
         # Convert probabilities to binary predictions (0 or 1)
-        predictions = torch.round(
-            probabilities
-        ).squeeze()  # Remove unnecessary dimensions
+        predictions = torch.argmax(probabilities, dim=1)
 
         return predictions
 
