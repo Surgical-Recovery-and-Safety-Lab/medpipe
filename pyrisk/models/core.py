@@ -22,9 +22,10 @@ from pyrisk.data.preprocessing import extract_labels
 from pyrisk.metrics.core import print_metrics
 from pyrisk.models.AIRiskNN import AIRiskNN
 from pyrisk.utils.exceptions import array_check, array_dim_check, file_checks
+from pyrisk.utils.logger import info_handler
 
 
-def create_model(model_type: str, n_features: int = -1, **config_params):
+def create_model(model_type: str, n_features: int = -1, logger=None, **config_params):
     """
     Creates a AI model.
 
@@ -38,6 +39,8 @@ def create_model(model_type: str, n_features: int = -1, **config_params):
             tabp: TabP foundational model.
     n_features : int, default: -1
         Number of features in the data, only needed for NN models.
+    logger : logging.Logger, default: None
+        Logger object to log prints. If None print to terminal.
     **config_params
         Configuration parameters for the model.
 
@@ -60,25 +63,45 @@ def create_model(model_type: str, n_features: int = -1, **config_params):
 
     match model_type:
         case "hgb":
-            print("[INFO] Creating a Histogram Gradient Boosting model")
+            if logger:
+                info_handler(
+                    logger, "Creating a Histogram Gradient Boosting model", "core"
+                )
+            else:
+                print("[INFO] Creating a Histogram Gradient Boosting model")
             model = skl.ensemble.HistGradientBoostingClassifier(**config_params)
 
         case "svm":
-            print("[INFO] Creating a Support Vector Machine model")
+            if logger:
+                info_handler(logger, "Creating a Support Vector Machine model", "core")
+            else:
+                print("[INFO] Creating a Support Vector Machine model")
+
             model = skl.svm.SVC(**config_params)
 
         case "nn":
-            print("[INFO] Creating a Neural Network model")
+            if logger:
+                info_handler(logger, "Creating a Neural Network model", "core")
+            else:
+                print("[INFO] Creating a Neural Network model")
 
             if n_features == -1:
                 raise ValueError("For nn models, please specify feature number")
 
             device = current_accelerator().type if is_available() else "cpu"
-            print(f"[INFO] Using {device} device")
-            model = AIRiskNN(n_features, **config_params).to(device)
+            if logger:
+                info_handler(logger, f"Using {device} device", "core")
+            else:
+                print(f"[INFO] Using {device} device")
+
+            model = AIRiskNN(n_features, logger, **config_params).to(device)
 
         case "tabp":
-            print("[INFO] Creating a TabP Foundational Model")
+            if logger:
+                info_handler(logger, "Creating a TabP Foundational Model", "core")
+            else:
+                print("[INFO] Creating a TabP Foundational Model")
+
             model = TabPFNClassifier()
 
         case _:
