@@ -207,40 +207,6 @@ class AIRiskNN(nn.Module):
 
         return predictions
 
-    def save_model(self, save_file):
-        """
-        Saves model weights to file.
-
-        Parameters
-        ----------
-        save_file : str
-            Path to the file to save the model.
-
-        Returns
-        -------
-        None
-            Nothing is returned.
-
-        """
-        torch.save(self.model.state_dict(), save_file)
-
-    def load_model(self, load_file: str):
-        """
-        Loads model weights from a file.
-
-        Parameters
-        ----------
-        load_file
-            File to the model weights.
-
-        Returns
-        -------
-        None
-            Nothing is returned.
-
-        """
-        self.model.load_state_dict(torch.load(load_file, weights_only=True))
-
     def parse_architecture(self, architecture, n_features):
         """
         Parse the architecture of the model.
