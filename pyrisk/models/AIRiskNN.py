@@ -27,13 +27,10 @@ class AIRiskNN(nn.Module):
         Forward pass method.
     fit(X, y, epochs=50, batch_size=64, lr=0.001)
         Train the model on the provided dataset.
+    predict_proba(X)
+        Predicts probabilities from input data.
     predict(X)
         Predicts labels from input data.
-    save_model(save_file)
-        Saves model weights to a file.
-    load_model(load_file)
-        Loads model weights from a file.
-
     """
 
     def __init__(self, n_features, **architecture):
