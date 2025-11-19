@@ -25,7 +25,7 @@ LOGGING_CONFIG = {
     "handlers": {
         "file": {
             "class": "logging.FileHandler",
-            "level": "ERROR",
+            "level": "INFO",
             "formatter": "standard",
             "filename": "default_name.log",
             "mode": "w",
