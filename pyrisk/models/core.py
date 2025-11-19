@@ -300,7 +300,7 @@ def load_model(load_file: str):
     Returns
     -------
     model : HistGradBoostingClassifier, SVC, or AIRiskNN
-        Loaded model.
+        Loaded model or state_dict in the case of an AIRiskNN.
     model_metrics : dict[int, dict[str, float or tuple(array-like)]]
         Model metrics for different folds.
 
