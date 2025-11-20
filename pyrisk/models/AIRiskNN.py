@@ -5,11 +5,16 @@ This class creates an AI Risk neural network.
 
 """
 
+import time
 from collections import OrderedDict
 
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from sklearn.metrics import precision_score
+from torchsummary import summary
+
+from pyrisk.utils.logger import print_message
 
 
 class AIRiskNN(nn.Module):
@@ -20,20 +25,33 @@ class AIRiskNN(nn.Module):
     ----------
     model : nn.Sequential
         Pytorch model.
+    logger : logging.Logger or None, default: None
+        Logger object to log prints. If None print to terminal.
 
     Methods
     -------
     forward(X)
         Forward pass method.
-    fit(X, y, epochs=50, batch_size=64, lr=0.001)
+    fit(X,
+        y,
+        X_test=[],
+        y_test=[],
+        epochs=50,
+        batch_size=64,
+        lr=0.001,
+        loss_name="BECWithLogitsLoss",
+        optim_name="Adam"
+        )
         Train the model on the provided dataset.
     predict_proba(X)
         Predicts probabilities from input data.
     predict(X)
         Predicts labels from input data.
+    compute_precision(y_true, y_pred)
+        Computes precision based on true and predicted labels.
     """
 
-    def __init__(self, n_features, **architecture):
+    def __init__(self, n_features, logger=None, **architecture):
         """
         Initialise an AIRiskNN class instance.
 
@@ -41,6 +59,8 @@ class AIRiskNN(nn.Module):
         ----------
         n_features : int
             Number of features in the data.
+        logger : logging.Logger or None, default: None
+            Logger object to log prints. If None print to terminal.
         architecture
             Model architecture dictionary.
 
@@ -53,6 +73,9 @@ class AIRiskNN(nn.Module):
         super().__init__()
         layers_dict = self.parse_architecture(architecture, n_features)
         self.model = nn.Sequential(layers_dict)
+        self.logger = logger
+        stats = summary(self.model, (n_features,), verbose=0)
+        print_message(str(stats), logger, "models/AIRiskNN")
 
     def forward(self, X):
         """
@@ -75,6 +98,8 @@ class AIRiskNN(nn.Module):
         self,
         X,
         y,
+        X_test=[],
+        y_test=[],
         epochs=50,
         batch_size=64,
         lr=0.001,
@@ -90,6 +115,10 @@ class AIRiskNN(nn.Module):
             Training data.
         y : array-like of shape (n_samples, n_classes)
             Prediction labels.
+        X_test : array-like, default: []
+            Test data.
+        y_test : array-like, default: []
+            Test labels.
         epochs : int, default: 50
             Number of training epochs.
         batch_size : int, default: 64
@@ -112,6 +141,8 @@ class AIRiskNN(nn.Module):
         # Convert data to tensors
         X_train = torch.tensor(X.to_numpy(dtype=float), dtype=torch.float32)
         y_train = torch.tensor(y, dtype=torch.float32)
+        X_test = torch.tensor(X_test.to_numpy(dtype=float), dtype=torch.float32)
+        y_test = torch.tensor(y_test, dtype=torch.float32)
 
         # Define the loss function and optimiser
         criterion = getattr(nn, loss_name)()
@@ -125,9 +156,12 @@ class AIRiskNN(nn.Module):
 
         # Training loop
         for epoch in range(epochs):
+
+            start_time = time.time()
             running_loss = 0.0
-            correct_preds = 0
-            total_preds = 0
+            train_predictions = []
+            train_labels = []
+            message = f"    Epoch {epoch}/{epochs} | "
 
             for inputs, labels in train_loader:
                 optimiser.zero_grad()  # Zero the gradients
@@ -141,15 +175,38 @@ class AIRiskNN(nn.Module):
 
                 # Calculate accuracy
                 predicted = torch.round(torch.sigmoid(outputs))  # Round
-                correct_preds += (predicted.squeeze() == labels).sum().item()
-                total_preds += labels.size(0)
+                train_predictions.append(predicted.squeeze())
+                train_labels.append(labels.squeeze())
 
-            # Print statistics after each epoch
+            # Create epoch-level predictions and labels
+            train_predictions = torch.cat(train_predictions).detach().numpy()
+            train_labels = torch.cat(train_labels).numpy()
+
+            # Compute train statistics
             avg_loss = running_loss / len(train_loader)
-            accuracy = 100 * correct_preds / total_preds
-            print(
-                f"Epoch {epoch+1}/{epochs}, Loss: {avg_loss:.4f}, Accuracy: {accuracy:.2f}%"
-            )
+            train_precision = self.compute_precision(train_labels, train_predictions)
+
+            message += f"Loss {avg_loss:.4f} | Train precision {train_precision:.4f} | "
+
+            # Compute test statistics
+            if len(X_test) > 0 and len(y_test) > 0:
+                self.eval()  # Set to eval mode for testing
+                with torch.no_grad():  # Disable gradient calculation
+                    outputs = self(X_test)
+                    test_predictions = torch.round(torch.sigmoid(outputs))
+                    test_precision = self.compute_precision(y_test, test_predictions)
+                    message += f"Test precision {test_precision:.4f} | "
+
+                self.train()  # Reset to train
+
+            epoch_time = time.time() - start_time
+
+            message += f"Compute time {epoch_time:.3f} s"
+
+            if self.logger:
+                print_message(message, self.logger, "models/AIRiskNN")
+            else:
+                print(message)
 
     def predict_proba(self, X):
         """
@@ -241,3 +298,29 @@ class AIRiskNN(nn.Module):
             layers.append((layer_type + f"_{i}", layer))  # Appends to layer list
 
         return OrderedDict(layers)
+
+    def compute_precision(self, y_true, y_pred):
+        """
+        Computes the precision from true and predicted labels.
+
+        Parameters
+        ----------
+        y_true : array-like of shape (n_samples, n_classes)
+            Ground truth labels.
+        y_pred : array-like of shape (n_samples, n_classes)
+            Prediction labels.
+
+        Returns
+        -------
+        precision : float
+            Precision.
+
+        """
+        # Support both binary and multi-label cases
+        if y_true.ndim == 1:
+            precision = precision_score(y_true, y_pred, zero_division=0.0)
+        else:
+            precision = precision_score(
+                y_true, y_pred, average="macro", zero_division=0.0
+            )
+        return precision
