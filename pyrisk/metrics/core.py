@@ -15,9 +15,12 @@ import numpy as np
 from scipy.stats import bootstrap
 
 from pyrisk.utils.exceptions import array_check
+from pyrisk.utils.logger import print_message
+
+SCRIPT_NAME = "metrics/core"
 
 
-def print_metrics(metric_dict) -> None:
+def print_metrics(metric_dict, logger=None) -> None:
     """
     Prints the metrics on the terminal.
 
@@ -32,6 +35,8 @@ def print_metrics(metric_dict) -> None:
          - precision
          - recall
          - auroc (Area Under Receiver Operator Characteristic)
+    logger : logging.Logger, default: None
+        Logger object to log prints. If None print to terminal.
 
     Returns
     -------
@@ -39,14 +44,14 @@ def print_metrics(metric_dict) -> None:
         Nothing is returned.
 
     """
-    print(f"    Accuracy: {metric_dict["accuracy"]:.3f}")
-    print(f"    F1: {metric_dict["f1"]:.3f}")
-    print(f"    Precision: {metric_dict["precision"]:.3f}")
-    print(f"    Recall: {metric_dict["recall"]:.3f}")
-    print(f"    AUROC: {metric_dict["auroc"]:.3f}")
+    print_message(f"    Accuracy: {metric_dict["accuracy"]:.3f}", logger, SCRIPT_NAME)
+    print_message(f"    F1: {metric_dict["f1"]:.3f}", logger, SCRIPT_NAME)
+    print_message(f"    Precision: {metric_dict["precision"]:.3f}", logger, SCRIPT_NAME)
+    print_message(f"    Recall: {metric_dict["recall"]:.3f}", logger, SCRIPT_NAME)
+    print_message(f"    AUROC: {metric_dict["auroc"]:.3f}", logger, SCRIPT_NAME)
 
 
-def print_metrics_CI(ci_dict):
+def print_metrics_CI(ci_dict, logger=None):
     """
     Prints the metrics with their confidence intervals.
 
@@ -57,6 +62,8 @@ def print_metrics_CI(ci_dict):
         The keys are the name of the metrics and the values are a tuple with
         first element the metric value, second the lower bound, and third the
         upper bound.
+    logger : logging.Logger, default: None
+        Logger object to log prints. If None print to terminal.
 
     Returns
     -------
@@ -66,7 +73,11 @@ def print_metrics_CI(ci_dict):
     """
     for metric in ci_dict.keys():
         stat, lower_b, upper_b = ci_dict[metric]
-        print(f"  {metric.capitalize()}: {stat:.3f} CI [{lower_b:.3f}, {upper_b:.3f}]")
+        print_message(
+            f"  {metric.capitalize()}: {stat:.3f} CI [{lower_b:.3f}, {upper_b:.3f}]",
+            logger,
+            SCRIPT_NAME,
+        )
 
 
 def compute_all_CI(model_metrics, **kwargs):

@@ -6,7 +6,7 @@ This module provides helper functions for logging.
 Functions:
 - setup_logger: sets up a logger for a script.
 - exception_handler: Function that logs exceptions.
-- info_handler: Function that logs info.
+- print_message: Function that prints and logs an info message.
 """
 
 import logging
@@ -113,18 +113,18 @@ def exception_handler(logger, log_path, log_config, script_name):
     sys.stderr.write(log_config["print_message"] + f"{log_path}/{script_name}.log")
 
 
-def info_handler(logger, message, script_name):
+def print_message(message, logger=None, script_name="") -> None:
     """
-    Handles info messages and logs them.
+    Wrapper function to print message or log them.
 
     Parameters
     ----------
-    logger : logging.Logger
-        Logger object that logs the exception.
     message : str
-        Message to print.
-    script_name : str
-        Name of the script in which the error occurred.
+        Message to print or log.
+    logger : logging.Logger or None, default:None
+        Logger to log message. If None message is printed to terminal.
+    script_name : str, default: ""
+        Script name to know where the message is coming from.
 
     Returns
     -------
@@ -132,5 +132,8 @@ def info_handler(logger, message, script_name):
         Nothing is returned.
 
     """
-    logger.info(f"{message} in {script_name}")
-    sys.stdout.write(f"[INFO] {message}\n")
+    if logger:
+        logger.info(f"{message} in {script_name}")
+        sys.stdout.write(f"[INFO] {message}\n")
+    else:
+        print(f"[INFO] {message} in {script_name}")

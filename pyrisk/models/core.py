@@ -22,7 +22,9 @@ from pyrisk.data.preprocessing import extract_labels
 from pyrisk.metrics.core import print_metrics
 from pyrisk.models.AIRiskNN import AIRiskNN
 from pyrisk.utils.exceptions import array_check, array_dim_check, file_checks
-from pyrisk.utils.logger import info_handler
+from pyrisk.utils.logger import print_message
+
+SCRIPT_NAME = "models/core"
 
 
 def create_model(model_type: str, n_features: int = -1, logger=None, **config_params):
@@ -63,45 +65,29 @@ def create_model(model_type: str, n_features: int = -1, logger=None, **config_pa
 
     match model_type:
         case "hgb":
-            if logger:
-                info_handler(
-                    logger, "Creating a Histogram Gradient Boosting model", "core"
-                )
-            else:
-                print("[INFO] Creating a Histogram Gradient Boosting model")
+            print_message(
+                "Creating a Histogram Gradient Boosting model", logger, SCRIPT_NAME
+            )
             model = skl.ensemble.HistGradientBoostingClassifier(**config_params)
 
         case "svm":
-            if logger:
-                info_handler(logger, "Creating a Support Vector Machine model", "core")
-            else:
-                print("[INFO] Creating a Support Vector Machine model")
-
+            print_message(
+                "Creating a Support Vector Machine model", logger, SCRIPT_NAME
+            )
             model = skl.svm.SVC(**config_params)
 
         case "nn":
-            if logger:
-                info_handler(logger, "Creating a Neural Network model", "core")
-            else:
-                print("[INFO] Creating a Neural Network model")
+            print_message("Creating a Neural Network model", logger, SCRIPT_NAME)
 
             if n_features == -1:
                 raise ValueError("For nn models, please specify feature number")
 
             device = current_accelerator().type if is_available() else "cpu"
-            if logger:
-                info_handler(logger, f"Using {device} device", "core")
-            else:
-                print(f"[INFO] Using {device} device")
-
+            print_message(f"Using {device} device", logger, SCRIPT_NAME)
             model = AIRiskNN(n_features, logger, **config_params).to(device)
 
         case "tabp":
-            if logger:
-                info_handler(logger, "Creating a TabP Foundational Model", "core")
-            else:
-                print("[INFO] Creating a TabP Foundational Model")
-
+            print_message("Creating a TabP Foundational Model", logger, SCRIPT_NAME)
             model = TabPFNClassifier()
 
         case _:
@@ -110,7 +96,7 @@ def create_model(model_type: str, n_features: int = -1, logger=None, **config_pa
     return model
 
 
-def train_model(model, data, kfold_it, labels, group_name="", **kwargs):
+def train_model(model, data, kfold_it, labels, group_name="", logger=None, **kwargs):
     """
     Trains an AI model.
 
@@ -118,7 +104,7 @@ def train_model(model, data, kfold_it, labels, group_name="", **kwargs):
 
     Parameters
     ----------
-    model : HistGradBoostingClassifier or SVC.
+    model : HistGradBoostingClassifier, SVC or AIRiskNN.
         Model to train.
     data : pd.DataFrame
         Data to train on.
@@ -128,6 +114,8 @@ def train_model(model, data, kfold_it, labels, group_name="", **kwargs):
         Labels to predict.
     group_name : str, default: ""
         Group name used to extract the group data for splitting.
+    logger : logging.Logger, default: None
+        Logger object to log prints. If None print to terminal.
     **kwargs
         Additional argument dictionary for fitting.
 
@@ -174,10 +162,10 @@ def train_model(model, data, kfold_it, labels, group_name="", **kwargs):
     for i, (train_idx, test_idx) in enumerate(kfold_it.split(X, y, groups=groups)):
         if group_flag:
             fold = int(groups.iloc[test_idx[0]])  # Use the test year as the fold number
-            print(f"  Fold number {fold}")
+            print_message(f"  Fold number {fold}", logger, SCRIPT_NAME)
         else:
             fold = i
-            print(f"  Fold number {fold}")
+            print_message(f"  Fold number {fold}", logger, SCRIPT_NAME)
 
         X_train, y_train = extract_labels(data.iloc[train_idx], labels)
         X_test, y_test = extract_labels(data.iloc[test_idx], labels)
@@ -186,14 +174,19 @@ def train_model(model, data, kfold_it, labels, group_name="", **kwargs):
             array_check(kwargs["sample_weight"])
             array_dim_check(y_train, kwargs["sample_weight"])
 
-        model.fit(X_train, y_train.ravel(), **kwargs)  # Train model
-
+        if type(model) is AIRiskNN:
+            # Pass test data for epoch print
+            model.fit(
+                X_train, y_train.ravel(), X_test, y_test.ravel(), **kwargs
+            )  # Train model
+        else:
+            model.fit(X_train, y_train.ravel(), **kwargs)  # Train model
         metric_dict = test_model(model, X_test, y_test.ravel())
         model_metrics.update({fold: metric_dict})
 
         # Print model metrics
-        print("  Metrics")
-        print_metrics(metric_dict)
+        print_message("  Metrics", logger, SCRIPT_NAME)
+        print_metrics(metric_dict, logger)
 
         if metric_dict["precision"] > precision:
             # Temporarily save model with best precision
@@ -203,7 +196,7 @@ def train_model(model, data, kfold_it, labels, group_name="", **kwargs):
             model_tmp = model
 
     model = model_tmp  # Set model with best precision
-    print(f"  Best fold number {best_fold}")
+    print_message(f"  Best fold number {best_fold}", logger, SCRIPT_NAME)
     return model_metrics
 
 
