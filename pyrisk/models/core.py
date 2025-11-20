@@ -160,15 +160,18 @@ def train_model(model, data, kfold_it, labels, group_name="", logger=None, **kwa
         groups = None
 
     for i, (train_idx, test_idx) in enumerate(kfold_it.split(X, y, groups=groups)):
+        X_train, y_train = extract_labels(data.iloc[train_idx], labels)
+        X_test, y_test = extract_labels(data.iloc[test_idx], labels)
+
         if group_flag:
             fold = int(groups.iloc[test_idx[0]])  # Use the test year as the fold number
+            # Drop the group (OP_YEAR) from data
+            X_train = X_train.drop(groups.name, axis=1)
+            X_test = X_test.drop(groups.name, axis=1)
             print_message(f"  Fold number {fold}", logger, SCRIPT_NAME)
         else:
             fold = i
             print_message(f"  Fold number {fold}", logger, SCRIPT_NAME)
-
-        X_train, y_train = extract_labels(data.iloc[train_idx], labels)
-        X_test, y_test = extract_labels(data.iloc[test_idx], labels)
 
         if "sample_weight" in kwargs.keys():
             array_check(kwargs["sample_weight"])
