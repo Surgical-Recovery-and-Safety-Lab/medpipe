@@ -39,6 +39,7 @@ jmespath==1.0.1
 joblib==1.5.2
 kditransform==1.2.0
 kiwisolver==1.4.9
+lightning-utilities==0.15.2
 llvmlite==0.45.1
 loguru==0.7.3
 markdown-it-py==4.0.0
@@ -111,6 +112,8 @@ tabpfn-common-utils==0.2.7
 threadpoolctl==3.6.0
 tokenizers==0.22.1
 torch==2.7.1
+torch-summary==1.4.5
+torchmetrics==1.8.2
 tqdm==4.67.1
 transformers==4.57.1
 triton==3.3.1
