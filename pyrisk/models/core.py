@@ -15,12 +15,16 @@ import pickle
 
 import pandas as pd
 import sklearn as skl
-from tabpfn import TabPFNClassifier
+from sklearn.multioutput import MultiOutputClassifier
 from torch.accelerator import current_accelerator, is_available
 
 import pyrisk.data.weighting as weight
 from pyrisk.data.preprocessing import extract_labels
-from pyrisk.metrics.core import compute_pred_metrics, print_metrics
+from pyrisk.metrics.core import (
+    compute_pred_metrics,
+    compute_score_metrics,
+    print_metrics,
+)
 from pyrisk.models.AIRiskNN import AIRiskNN
 from pyrisk.utils.exceptions import array_check, array_dim_check, file_checks
 from pyrisk.utils.logger import print_message
@@ -210,17 +214,16 @@ def train_model(
             model.fit(
                 X_train, y_train.squeeze(), sample_weight=sample_weight[train_idx]
             )  # Train model
-        metric_dict = test_model(model, X_test, y_test.squeeze(), labels)
+        metric_dict = test_model(model, X_test, y_test.squeeze())
         model_metrics.update({fold: metric_dict})
 
         # Print model metrics
-        print_message("  Metrics", logger, SCRIPT_NAME)
-        print_metrics(metric_dict, logger)
+        print_metrics(metric_dict, labels, logger)
 
-        if metric_dict["precision"] > precision:
+        if metric_dict["precision"][-1] > precision:
             # Temporarily save model with best precision
             print_message("  New best model", logger, SCRIPT_NAME)
-            precision = metric_dict["precision"]
+            precision = metric_dict["precision"][-1]
             best_fold = fold
             model_tmp = model
 
@@ -229,7 +232,7 @@ def train_model(
     return model_metrics
 
 
-def test_model(model, X_test, y_test, labels):
+def test_model(model, X_test, y_test):
     """
     Computes different metrics to test the model.
 
@@ -244,7 +247,7 @@ def test_model(model, X_test, y_test, labels):
 
     Returns
     -------
-    metric_dict : dict[str, float or tuple(array-like)]
+    metric_dict : dict[str, dict[str, list[float or tuple(array-like)]]
         Dictionary of the model performance for one fold.
         Keys are the metric name and values are the metric value.
         The test metrics used are:
@@ -272,21 +275,12 @@ def test_model(model, X_test, y_test, labels):
 
     y_pred = model.predict(X_test)
     y_pred_proba = model.predict_proba(X_test)
-
-    metric_dict = {}
-    metric_dict.update({"accuracy": skl.metrics.accuracy_score(y_test, y_pred)})
-    metric_dict.update({"f1": skl.metrics.f1_score(y_test, y_pred)})
-    metric_dict.update({"precision": skl.metrics.precision_score(y_test, y_pred)})
-    metric_dict.update({"recall": skl.metrics.recall_score(y_test, y_pred)})
-    metric_dict.update({"roc": skl.metrics.roc_curve(y_test, y_pred_proba[:, 1])})
-    metric_dict.update({"auroc": skl.metrics.roc_auc_score(y_test, y_pred_proba[:, 1])})
-    metric_dict.update(
-        {"prc": skl.metrics.precision_recall_curve(y_test, y_pred_proba[:, 1])}
+    metric_dict = compute_pred_metrics(
+        ["accuracy", "f1", "recall", "precision"], y_test, y_pred
     )
     metric_dict.update(
-        {"ap": skl.metrics.average_precision_score(y_test, y_pred_proba[:, 1])}
+        compute_score_metrics(["roc", "auroc", "prc", "ap"], y_test, y_pred_proba)
     )
-
     return metric_dict
 
 
