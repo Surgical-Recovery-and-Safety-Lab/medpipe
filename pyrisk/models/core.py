@@ -20,7 +20,7 @@ from torch.accelerator import current_accelerator, is_available
 
 import pyrisk.data.weighting as weight
 from pyrisk.data.preprocessing import extract_labels
-from pyrisk.metrics.core import print_metrics
+from pyrisk.metrics.core import compute_pred_metrics, print_metrics
 from pyrisk.models.AIRiskNN import AIRiskNN
 from pyrisk.utils.exceptions import array_check, array_dim_check, file_checks
 from pyrisk.utils.logger import print_message
@@ -28,7 +28,9 @@ from pyrisk.utils.logger import print_message
 SCRIPT_NAME = "models/core"
 
 
-def create_model(model_type: str, n_features: int = -1, logger=None, **config_params):
+def create_model(
+    model_type: str, n_features: int = -1, logger=None, n_classes=1, **config_params
+):
     """
     Creates a AI model.
 
@@ -44,6 +46,8 @@ def create_model(model_type: str, n_features: int = -1, logger=None, **config_pa
         Number of features in the data, only needed for NN models.
     logger : logging.Logger, default: None
         Logger object to log prints. If None print to terminal.
+    n_classes : int, default: 1
+        Number of classes. Used to call MultiOutputClassifier.
     **config_params
         Configuration parameters for the model.
 
@@ -71,11 +75,17 @@ def create_model(model_type: str, n_features: int = -1, logger=None, **config_pa
             )
             model = skl.ensemble.HistGradientBoostingClassifier(**config_params)
 
+            if n_classes > 1:
+                model = MultiOutputClassifier(model)
+
         case "svm":
             print_message(
                 "Creating a Support Vector Machine model", logger, SCRIPT_NAME
             )
             model = skl.svm.SVC(**config_params)
+
+            if n_classes > 1:
+                model = MultiOutputClassifier(model)
 
         case "nn":
             print_message("Creating a Neural Network model", logger, SCRIPT_NAME)
@@ -198,9 +208,9 @@ def train_model(
             )  # Train model
         else:
             model.fit(
-                X_train, y_train.ravel(), sample_weight=sample_weight[train_idx]
+                X_train, y_train.squeeze(), sample_weight=sample_weight[train_idx]
             )  # Train model
-        metric_dict = test_model(model, X_test, y_test.ravel())
+        metric_dict = test_model(model, X_test, y_test.squeeze(), labels)
         model_metrics.update({fold: metric_dict})
 
         # Print model metrics
@@ -219,7 +229,7 @@ def train_model(
     return model_metrics
 
 
-def test_model(model, X_test, y_test) -> dict[str, float]:
+def test_model(model, X_test, y_test, labels):
     """
     Computes different metrics to test the model.
 
