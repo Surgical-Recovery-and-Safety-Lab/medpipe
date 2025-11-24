@@ -36,7 +36,7 @@ def print_metrics(metric_dict, label_list, logger=None) -> None:
          - precision
          - recall
          - auroc (Area Under Receiver Operator Characteristic)
-    label_list : str or list[str]
+    label_list : list[str]
         List of predicted labels.
     logger : logging.Logger, default: None
         Logger object to log prints. If None print to terminal.
@@ -47,30 +47,16 @@ def print_metrics(metric_dict, label_list, logger=None) -> None:
         Nothing is returned.
 
     """
-    if type(label_list) is not type(list()):
-        # If only one label items are not lists
-        print_message(f"  {label_list} metrics:", logger, SCRIPT_NAME)
-        print_message(
-            f"    Accuracy: {metric_dict["accuracy"]:.3f}", logger, SCRIPT_NAME
-        )
-        print_message(f"    F1: {metric_dict["f1"]:.3f}", logger, SCRIPT_NAME)
-        print_message(
-            f"    Precision: {metric_dict["precision"]:.3f}", logger, SCRIPT_NAME
-        )
-        print_message(f"    Recall: {metric_dict["recall"]:.3f}", logger, SCRIPT_NAME)
-        print_message(f"    AUROC: {metric_dict["auroc"]:.3f}", logger, SCRIPT_NAME)
-        return
+    n_it = len(label_list)  # Number of print iterations
+    if n_it > 1:
+        n_it += 1  # Add one for the global values if multilabel
 
-    for i in range(len(label_list) + 1):
+    for i in range(n_it):
         # If label_list is a list
         if i < len(label_list):
             print_message(f"  {label_list[i]} metrics:", logger, SCRIPT_NAME)
-
         else:
             print_message("  Global metrics:", logger, SCRIPT_NAME)
-            print_message(
-                f"    Accuracy: {metric_dict["accuracy"]:.3f}", logger, SCRIPT_NAME
-            )
 
         print_message(f"    F1: {metric_dict["f1"][i]:.3f}", logger, SCRIPT_NAME)
         print_message(
@@ -80,6 +66,10 @@ def print_metrics(metric_dict, label_list, logger=None) -> None:
             f"    Recall: {metric_dict["recall"][i]:.3f}", logger, SCRIPT_NAME
         )
         print_message(f"    AUROC: {metric_dict["auroc"][i]:.3f}", logger, SCRIPT_NAME)
+
+    print_message(
+        f"    Accuracy: {metric_dict["accuracy"][0]:.3f}", logger, SCRIPT_NAME
+    )
 
 
 def print_metrics_CI(ci_dict, logger=None):
