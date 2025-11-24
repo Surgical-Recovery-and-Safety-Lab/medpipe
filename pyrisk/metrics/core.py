@@ -226,7 +226,7 @@ def compute_pred_metrics(metric_list, y_true, y_pred):
 
     Returns
     -------
-    metric_dict : dict[str, float or list[float]]
+    metric_dict : dict[str, list[float]]
         Dictionary of the metrics. The keys are the name of the metric
         and the values are the computed metric value.
         If multilabel then the list contains the value for each class and
@@ -248,13 +248,14 @@ def compute_pred_metrics(metric_list, y_true, y_pred):
         average = None
 
     if "accuracy" in metric_list:
-        metric_dict.update({"accuracy": skl.metrics.accuracy_score(y_true, y_pred)})
+        metric_dict.update({"accuracy": [skl.metrics.accuracy_score(y_true, y_pred)]})
         metric_list.remove("accuracy")
 
     for metric in metric_list:
+        values = []  # Create empty list to hold the metrics for each label
         match metric:
             case "f1":
-                values = skl.metrics.f1_score(y_true, y_pred, average=average)
+                values.append(skl.metrics.f1_score(y_true, y_pred, average=average))
                 if multilabel:
                     values = np.append(
                         values,
@@ -263,7 +264,9 @@ def compute_pred_metrics(metric_list, y_true, y_pred):
                 metric_dict.update({metric: values})
 
             case "precision":
-                values = skl.metrics.precision_score(y_true, y_pred, average=average)
+                values.append(
+                    skl.metrics.precision_score(y_true, y_pred, average=average)
+                )
                 if multilabel:
                     values = np.append(
                         values,
@@ -272,7 +275,7 @@ def compute_pred_metrics(metric_list, y_true, y_pred):
                 metric_dict.update({metric: values})
 
             case "recall":
-                values = skl.metrics.recall_score(y_true, y_pred, average=average)
+                values.append(skl.metrics.recall_score(y_true, y_pred, average=average))
                 if multilabel:
                     values = np.append(
                         values,
@@ -305,7 +308,7 @@ def compute_score_metrics(metric_list, y_true, y_pred_proba):
 
     Returns
     -------
-    metric_dict : dict[str, list[tuple]]
+    metric_dict : dict[str, list[float or tuple]]
         Dictionary of the metrics. The keys are the name of the metric
         and the values are the computed metric values.
         If multilabel then the list contains the value for each class.
@@ -317,10 +320,13 @@ def compute_score_metrics(metric_list, y_true, y_pred_proba):
 
     """
     metric_dict = {}
+    multilabel = True
 
     if type(y_pred_proba) is not type(list()):
         # Make into a list
         y_pred_proba = [y_pred_proba]
+        y_true = np.expand_dims(y_true, 1)
+        multilabel = False
 
     for metric in metric_list:
         values = []  # Create empty list to hold the metrics for each label
@@ -343,7 +349,8 @@ def compute_score_metrics(metric_list, y_true, y_pred_proba):
 
             metric_dict.update({metric: values})
 
-        if metric == "ap" or metric == "auroc":
-            # Add the average AUROC of AP score
-            metric_dict[metric].append(np.mean(metric_dict[metric]))
+        if multilabel:
+            if metric == "ap" or metric == "auroc":
+                # Add the average AUROC of AP score
+                metric_dict[metric].append(np.mean(metric_dict[metric]))
     return metric_dict
