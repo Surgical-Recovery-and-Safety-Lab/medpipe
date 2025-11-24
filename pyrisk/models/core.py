@@ -184,6 +184,8 @@ def train_model(
     else:
         sample_weight = None
 
+    n_folds = kfold_it.get_n_splits(X, y[:, 0], groups=groups)
+
     for i, (train_idx, test_idx) in enumerate(
         kfold_it.split(X, y[:, 0], groups=groups)
     ):
@@ -195,10 +197,12 @@ def train_model(
             # Drop the group (OP_YEAR) from data
             X_train = X_train.drop(groups.name, axis=1)
             X_test = X_test.drop(groups.name, axis=1)
-            print_message(f"  Fold number {fold}", logger, SCRIPT_NAME)
+            print_message(
+                f"  Fold number {fold} ({i+1}/{n_folds})", logger, SCRIPT_NAME
+            )
         else:
             fold = i
-            print_message(f"  Fold number {fold}", logger, SCRIPT_NAME)
+            print_message(f"  Fold number {fold+1}/{n_folds}", logger, SCRIPT_NAME)
 
         if type(model) is AIRiskNN:
             # Pass test data for epoch print
