@@ -18,6 +18,7 @@ import sklearn as skl
 from tabpfn import TabPFNClassifier
 from torch.accelerator import current_accelerator, is_available
 
+import pyrisk.data.weighting as weight
 from pyrisk.data.preprocessing import extract_labels
 from pyrisk.metrics.core import print_metrics
 from pyrisk.models.AIRiskNN import AIRiskNN
@@ -96,7 +97,16 @@ def create_model(model_type: str, n_features: int = -1, logger=None, **config_pa
     return model
 
 
-def train_model(model, data, kfold_it, labels, group_name="", logger=None, **kwargs):
+def train_model(
+    model,
+    data,
+    kfold_it,
+    labels,
+    group_name="",
+    logger=None,
+    weighting_fn="",
+    **kwargs,
+):
     """
     Trains an AI model.
 
@@ -116,6 +126,8 @@ def train_model(model, data, kfold_it, labels, group_name="", logger=None, **kwa
         Group name used to extract the group data for splitting.
     logger : logging.Logger, default: None
         Logger object to log prints. If None print to terminal.
+    weighting_fn : str, default: ""
+        Name of the weighting function to use for the samples.
     **kwargs
         Additional argument dictionary for fitting.
 
@@ -136,10 +148,7 @@ def train_model(model, data, kfold_it, labels, group_name="", logger=None, **kwa
     Raises
     ------
     TypeError
-        If sample_weight are not an array-like.
         If data is not a pd.DataFrame.
-    ValueError
-        If the train_labels and sample_weight do not have the same dimensions.
 
     """
     if type(data) is not type(pd.DataFrame()):
@@ -159,7 +168,15 @@ def train_model(model, data, kfold_it, labels, group_name="", logger=None, **kwa
     else:
         groups = None
 
-    for i, (train_idx, test_idx) in enumerate(kfold_it.split(X, y, groups=groups)):
+    if weighting_fn:
+        # Get sample weights if needed
+        sample_weight = getattr(weight, weighting_fn)(y)
+    else:
+        sample_weight = None
+
+    for i, (train_idx, test_idx) in enumerate(
+        kfold_it.split(X, y[:, 0], groups=groups)
+    ):
         X_train, y_train = extract_labels(data.iloc[train_idx], labels)
         X_test, y_test = extract_labels(data.iloc[test_idx], labels)
 
@@ -173,17 +190,20 @@ def train_model(model, data, kfold_it, labels, group_name="", logger=None, **kwa
             fold = i
             print_message(f"  Fold number {fold}", logger, SCRIPT_NAME)
 
-        if "sample_weight" in kwargs.keys():
-            array_check(kwargs["sample_weight"])
-            array_dim_check(y_train, kwargs["sample_weight"])
-
         if type(model) is AIRiskNN:
             # Pass test data for epoch print
             model.fit(
-                X_train, y_train.ravel(), X_test, y_test.ravel(), **kwargs
+                X_train,
+                y_train,
+                X_test,
+                y_test,
+                sample_weight=sample_weight[train_idx],
+                **kwargs,
             )  # Train model
         else:
-            model.fit(X_train, y_train.ravel(), **kwargs)  # Train model
+            model.fit(
+                X_train, y_train.ravel(), sample_weight=sample_weight[train_idx]
+            )  # Train model
         metric_dict = test_model(model, X_test, y_test.ravel())
         model_metrics.update({fold: metric_dict})
 
@@ -193,7 +213,7 @@ def train_model(model, data, kfold_it, labels, group_name="", logger=None, **kwa
 
         if metric_dict["precision"] > precision:
             # Temporarily save model with best precision
-            print("  New best model")
+            print_message("  New best model", logger, SCRIPT_NAME)
             precision = metric_dict["precision"]
             best_fold = fold
             model_tmp = model
