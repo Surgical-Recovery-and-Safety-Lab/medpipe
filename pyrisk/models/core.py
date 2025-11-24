@@ -34,7 +34,7 @@ def create_model(model_type: str, n_features: int = -1, logger=None, **config_pa
 
     Parameters
     ----------
-    model_type : {"hgb", "svm", "nn", "tabp"}
+    model_type : {"hgb", "svm", "nn"}
         Type of model to create.
             hgb: histogram gradient boosting.
             svm: support vector machine.
@@ -49,7 +49,7 @@ def create_model(model_type: str, n_features: int = -1, logger=None, **config_pa
 
     Returns
     -------
-    model : HistGradBoostingClassifier, SVC, AIRiskNN or TabPFNClassifier.
+    model : HistGradBoostingClassifier, SVC or AIRiskNN.
         Created model.
 
     Raises
@@ -86,10 +86,6 @@ def create_model(model_type: str, n_features: int = -1, logger=None, **config_pa
             device = current_accelerator().type if is_available() else "cpu"
             print_message(f"Using {device} device", logger, SCRIPT_NAME)
             model = AIRiskNN(n_features, logger, **config_params).to(device)
-
-        case "tabp":
-            print_message("Creating a TabP Foundational Model", logger, SCRIPT_NAME)
-            model = TabPFNClassifier()
 
         case _:
             raise ValueError(f"{model_type} invalid model type. See function docstring")
