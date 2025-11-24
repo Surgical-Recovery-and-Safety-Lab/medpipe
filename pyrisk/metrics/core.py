@@ -12,6 +12,7 @@ Functions:
 """
 
 import numpy as np
+import sklearn as skl
 from scipy.stats import bootstrap
 
 from pyrisk.utils.exceptions import array_check
@@ -174,3 +175,145 @@ def extract_metric(model_metrics, metric_name):
         metric_list.append(metrics[metric_name])
 
     return metric_list
+
+
+def compute_pred_metrics(metric_list, y_true, y_pred):
+    """
+    Computes the metrics that require the prediction labels.
+
+    Parameters
+    ----------
+    metric_list : list[str]
+        List of metrics. Possible values:
+         - accuracy
+         - f1
+         - precision
+         - recall
+    y_true : array-like of shape (n_samples, n_classes)
+        Ground truth labels.
+    y_pred : array-like of shape (n_samples, n_classes)
+        Predicted labels.
+
+    Returns
+    -------
+    metric_dict : dict[str, float or list[float]]
+        Dictionary of the metrics. The keys are the name of the metric
+        and the values are the computed metric value.
+        If multilabel then the list contains the value for each class and
+        the last value is the average value.
+
+    Raises
+    ------
+    ValueError
+        If the metric is not recognised.
+
+    """
+    metric_dict = {}
+    multilabel = False
+    average = "binary"
+
+    if len(y_true.shape) > 1:
+        # Multilabel situation
+        multilabel = True
+        average = None
+
+    if "accuracy" in metric_list:
+        metric_dict.update({"accuracy": skl.metrics.accuracy_score(y_true, y_pred)})
+        metric_list.remove("accuracy")
+
+    for metric in metric_list:
+        match metric:
+            case "f1":
+                values = skl.metrics.f1_score(y_true, y_pred, average=average)
+                if multilabel:
+                    values = np.append(
+                        values,
+                        skl.metrics.f1_score(y_true, y_pred, average="macro"),
+                    )
+                metric_dict.update({metric: values})
+
+            case "precision":
+                values = skl.metrics.precision_score(y_true, y_pred, average=average)
+                if multilabel:
+                    values = np.append(
+                        values,
+                        skl.metrics.precision_score(y_true, y_pred, average="macro"),
+                    )
+                metric_dict.update({metric: values})
+
+            case "recall":
+                values = skl.metrics.recall_score(y_true, y_pred, average=average)
+                if multilabel:
+                    values = np.append(
+                        values,
+                        skl.metrics.recall_score(y_true, y_pred, average="macro"),
+                    )
+                metric_dict.update({metric: values})
+
+            case _:
+                raise ValueError(f"{metric} is an unrecognised metric")
+
+    return metric_dict
+
+
+def compute_score_metrics(metric_list, y_true, y_pred_proba):
+    """
+    Computes the metrics that require the score.
+
+    Parameters
+    ----------
+    metric_list : list[str]
+        List of metrics. Possible values:
+         - roc
+         - auroc (area under the curve)
+         - prc (precision-recall curve)
+         - ap (average precision)
+    y_true : array-like of shape (n_samples, n_classes)
+        Ground truth labels.
+    y_pred_proba : np.array or list[np.array]
+        Predicted scores for each label.
+
+    Returns
+    -------
+    metric_dict : dict[str, list[tuple]]
+        Dictionary of the metrics. The keys are the name of the metric
+        and the values are the computed metric values.
+        If multilabel then the list contains the value for each class.
+
+    Raises
+    ------
+    ValueError
+        If the metric is not recognised.
+
+    """
+    metric_dict = {}
+
+    if type(y_pred_proba) is not type(list()):
+        # Make into a list
+        y_pred_proba = [y_pred_proba]
+
+    for metric in metric_list:
+        values = []  # Create empty list to hold the metrics for each label
+        for i, scores in enumerate(y_pred_proba):
+            match metric:
+                case "roc":
+                    values.append(skl.metrics.roc_curve(y_true[:, i], scores[:, 1]))
+                case "auroc":
+                    values.append(skl.metrics.roc_auc_score(y_true[:, i], scores[:, 1]))
+                case "prc":
+                    values.append(
+                        skl.metrics.precision_recall_curve(y_true[:, i], scores[:, 1])
+                    )
+                case "ap":
+                    values.append(
+                        skl.metrics.average_precision_score(y_true[:, i], scores[:, 1])
+                    )
+                case _:
+                    raise ValueError(f"{metric} is an unrecognised metric")
+
+            metric_dict.update({metric: values})
+
+        if metric == "ap" or metric == "auroc":
+            # Add the average AUROC of AP score
+            metric_dict[metric].append(np.mean(metric_dict[metric]))
+    return metric_dict
