@@ -58,6 +58,9 @@ def print_metrics(metric_dict, label_list, logger=None) -> None:
         else:
             print_message("  Global metrics:", logger, SCRIPT_NAME)
 
+        print_message(
+            f"    Accuracy: {metric_dict["accuracy"][i]:.3f}", logger, SCRIPT_NAME
+        )
         print_message(f"    F1: {metric_dict["f1"][i]:.3f}", logger, SCRIPT_NAME)
         print_message(
             f"    Precision: {metric_dict["precision"][i]:.3f}", logger, SCRIPT_NAME
@@ -67,12 +70,8 @@ def print_metrics(metric_dict, label_list, logger=None) -> None:
         )
         print_message(f"    AUROC: {metric_dict["auroc"][i]:.3f}", logger, SCRIPT_NAME)
 
-    print_message(
-        f"    Accuracy: {metric_dict["accuracy"][0]:.3f}", logger, SCRIPT_NAME
-    )
 
-
-def print_metrics_CI(ci_dict, logger=None):
+def print_metrics_CI(ci_dict, label_list, logger=None):
     """
     Prints the metrics with their confidence intervals.
 
@@ -92,13 +91,26 @@ def print_metrics_CI(ci_dict, logger=None):
         Nothing is returned.
 
     """
-    for metric in ci_dict.keys():
-        stat, lower_b, upper_b = ci_dict[metric]
-        print_message(
-            f"  {metric.capitalize()}: {stat:.3f} CI [{lower_b:.3f}, {upper_b:.3f}]",
-            logger,
-            SCRIPT_NAME,
-        )
+    accuracy_flag = False
+
+    n_it = len(label_list)  # Number of print iterations
+    if n_it > 1:
+        n_it += 1  # Add one for the global values if multilabel
+
+    for i in range(n_it):
+        # If label_list is a list
+        if i < len(label_list):
+            print_message(f"  {label_list[i]} metrics:", logger, SCRIPT_NAME)
+        else:
+            print_message("  Global metrics:", logger, SCRIPT_NAME)
+
+        for metric in ci_dict.keys():
+            stat, lb, ub = ci_dict[metric]
+            print_message(
+                f"  {metric.capitalize()}: {stat[i]:.3f} CI [{lb[i]:.3f}, {ub[i]:.3f}]",
+                logger,
+                SCRIPT_NAME,
+            )
 
 
 def compute_all_CI(model_metrics, **kwargs):
@@ -168,7 +180,7 @@ def compute_CI(data, statistic=np.mean, **kwargs):
 
     lower_b, upper_b = bootstrap_res.confidence_interval
 
-    return statistic(data), lower_b, upper_b
+    return statistic(data, axis=0), lower_b, upper_b
 
 
 def extract_metric(model_metrics, metric_name):
@@ -238,7 +250,16 @@ def compute_pred_metrics(metric_list, y_true, y_pred):
         average = None
 
     if "accuracy" in metric_list:
-        metric_dict.update({"accuracy": [skl.metrics.accuracy_score(y_true, y_pred)]})
+        # Deal with accuracy separately to get accuracy for each label
+        values = []  # Store values
+
+        if multilabel:
+            # Iterate over each label and add individual label accuracy
+            for i in range(len(y_true.shape)):
+                values.append(skl.metrics.accuracy_score(y_true[:, i], y_pred[:, i]))
+
+        values.append(skl.metrics.accuracy_score(y_true, y_pred))
+        metric_dict.update({"accuracy": values})
         metric_list.remove("accuracy")
 
     for metric in metric_list:
