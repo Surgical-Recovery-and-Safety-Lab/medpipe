@@ -47,6 +47,8 @@ class AIRiskNN(nn.Module):
         Predicts probabilities from input data.
     predict(X)
         Predicts labels from input data.
+    parse_architecture(architecture, n_features)
+        Parse the architecture of the model.
     compute_precision(y_true, y_pred)
         Computes precision based on true and predicted labels.
     """
@@ -100,6 +102,7 @@ class AIRiskNN(nn.Module):
         y,
         X_test=[],
         y_test=[],
+        class_weights=[],
         epochs=50,
         batch_size=64,
         lr=0.001,
@@ -119,6 +122,8 @@ class AIRiskNN(nn.Module):
             Test data.
         y_test : array-like, default: []
             Test labels.
+        class_weights : array-like, default: []
+            Class weights for loss function.
         epochs : int, default: 50
             Number of training epochs.
         batch_size : int, default: 64
@@ -140,30 +145,34 @@ class AIRiskNN(nn.Module):
 
         # Convert data to tensors
         X_train = torch.tensor(X.to_numpy(dtype=float), dtype=torch.float32)
-        y_train = torch.tensor(y, dtype=torch.float32)
+        y_train = torch.tensor(y.squeeze(), dtype=torch.float32)
         X_test = torch.tensor(X_test.to_numpy(dtype=float), dtype=torch.float32)
-        y_test = torch.tensor(y_test, dtype=torch.float32)
+        y_test = torch.tensor(y_test.squeeze(), dtype=torch.float32)
+
+        if len(class_weights) == 0:
+            # No weigths provided, default to 1
+            class_weights = torch.ones(y_test.shape[1])
 
         # Define the loss function and optimiser
-        criterion = getattr(nn, loss_name)()
+        criterion = getattr(nn, loss_name)(
+            pos_weight=torch.tensor(class_weights, dtype=torch.float32)
+        )
+        breakpoint()
         optimiser = getattr(optim, optim_name)(self.parameters(), lr=lr)
 
         # Create data loaders for batching
         dataset = torch.utils.data.TensorDataset(X_train, y_train)
-        train_loader = torch.utils.data.DataLoader(
-            dataset, batch_size=batch_size, shuffle=True
-        )
+        train_loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size)
 
         # Training loop
         for epoch in range(epochs):
-
             start_time = time.time()
             running_loss = 0.0
             train_predictions = []
             train_labels = []
             message = f"    Epoch {epoch}/{epochs} | "
 
-            for inputs, labels in train_loader:
+            for batch, (inputs, labels) in enumerate(train_loader):
                 optimiser.zero_grad()  # Zero the gradients
 
                 outputs = self(inputs)  # Forward pass
@@ -185,7 +194,6 @@ class AIRiskNN(nn.Module):
             # Compute train statistics
             avg_loss = running_loss / len(train_loader)
             train_precision = self.compute_precision(train_labels, train_predictions)
-
             message += f"Loss {avg_loss:.4f} | Train precision {train_precision:.4f} | "
 
             # Compute test statistics
