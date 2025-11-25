@@ -38,6 +38,7 @@ def print_metrics(metric_dict, label_list, logger=None) -> None:
          - precision
          - recall
          - auroc (Area Under Receiver Operator Characteristic)
+         - ap (Average Precision)
     label_list : list[str]
         List of predicted labels.
     logger : logging.Logger, default: None
@@ -71,6 +72,7 @@ def print_metrics(metric_dict, label_list, logger=None) -> None:
             f"    Recall: {metric_dict["recall"][i]:.3f}", logger, SCRIPT_NAME
         )
         print_message(f"    AUROC: {metric_dict["auroc"][i]:.3f}", logger, SCRIPT_NAME)
+        print_message(f"    AP: {metric_dict["ap"][i]:.3f}", logger, SCRIPT_NAME)
 
 
 def print_metrics_CI(ci_dict, label_list, logger=None):
