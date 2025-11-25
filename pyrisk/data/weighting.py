@@ -52,3 +52,31 @@ def inverse_frequency_sum_sample_weights(labels):
     neg_weight = neg_counts * ~np.array(labels, dtype=bool)  # Invert for negatives
 
     return np.sum(len(labels) / (pos_weight + neg_weight), axis=1)
+
+
+def inverse_frequency_class_weights(labels):
+    """
+    Create class weights using inverse frequency of classes.
+
+    Parameters
+    ----------
+    labels : array-like
+        Binary prediction labels of shape (n_samples, n_classes)
+
+    Returns
+    -------
+    class_weights : np.array(n_classes,)
+        Weight for each class.
+
+    Raises
+    ------
+    TypeError
+        If labels is not array-like.
+
+    """
+    array_check(labels)
+
+    class_count = np.sum(labels, axis=0)
+    n_samples, _ = labels.shape
+
+    return n_samples / class_count
