@@ -5,13 +5,16 @@ This module provides functions to plot results.
 
 Functions:
 - plot_from_display: Plot results from a Display class.
+- plot_mean_ROC_curve: Plots the ROC curve of each fold and the mean ROC curve.
+- plot_mean_PR_curve: Plots the precision-recall curve of each fold and the mean PRC.
+- plot_metrics_CI: Plots the metrics with confidence intrevals for each fold.
 """
 
 import matplotlib.pyplot as plt
 import numpy as np
 import sklearn as skl
 
-from pyrisk.utils.exceptions import array_check, array_dim_check
+from pyrisk.utils.exceptions import array_check
 
 
 def plot_from_display(y_true, y_pred, display, **kwargs) -> None:

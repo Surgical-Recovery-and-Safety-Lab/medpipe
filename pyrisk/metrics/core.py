@@ -9,6 +9,8 @@ Functions:
 - compute_all_CI: computes the confidence interval for all metrics.
 - compute_CI: computes the confidence interval.
 - extract_metric : extracts a metric for each fold.
+- compute_pred_metrics : computes the metrics that require the prediction labels.
+- compute_score_metrics : computes the metrics that require the score.
 """
 
 import numpy as np
