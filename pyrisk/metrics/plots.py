@@ -266,3 +266,83 @@ def plot_mean_PR_curve(model_metrics, label_list, nb_points=500):
         plt.title(f"Cross-Validated {metric} PRC")
         plt.legend(loc="upper right")
         plt.show()
+
+
+def plot_metrics_CI(ci_dict, label_list):
+    """
+    Plots the metrics with confidence intrevals for each fold.
+
+    Parameters
+    ----------
+    ci_dict : dict[str, tuple(float, float, float)]
+        Dictionary containing the metric value and confidence intervals.
+        The keys are the name of the metrics and the values are a tuple with
+        first element the metric value, second the lower bound, and third the
+        upper bound.
+    label_list : list[str]
+        List of predicted labels.
+
+    Returns
+    -------
+    None
+        Nothing is returned.
+
+    """
+    n_it = len(label_list)  # Number of iterations
+    if n_it > 1:
+        n_it += 1  # Add one for the global values if multilabel
+
+    # Set up the figure and axis
+    _, ax = plt.subplots(dpi=300)
+    bar_width = 0.15
+    colours = plt.get_cmap("Pastel1")
+    index = np.arange(len(ci_dict.keys()))
+
+    # Loop through each metric
+    for i, values in enumerate(ci_dict.values()):
+        for j in range(n_it):
+            if j < len(label_list):
+                label = label_list[j]
+            else:
+                label = "Global"
+
+            value = values[0][j]
+            lower_b = values[1][j]
+            upper_b = values[2][j]
+
+            # Plot the metric for each label with error bars (CI bounds)
+            ax.bar(
+                index[i] + (j * bar_width),
+                value,
+                bar_width,
+                color=colours(j),
+                label=label if i == 0 else "",
+                zorder=3,
+            )
+            # Error bars for confidence interval
+            ax.errorbar(
+                index[i] + (j * bar_width),
+                value,
+                yerr=[[value - lower_b], [upper_b - value]],
+                fmt="none",
+                color="black",
+                capsize=2,
+                zorder=2,
+            )
+
+    # Customize the chart
+    ax.set_xlabel("Metrics")
+    ax.set_ylabel("Values")
+    ax.set_title("Metrics Comparison with Confidence Intervals")
+    ax.set_ylim(ymin=0, ymax=1)
+
+    # Set the x-ticks to be at the center of each group of bars
+    ax.set_xticks(index + bar_width * (n_it / 2))
+    ax.set_xticklabels(ci_dict.keys(), rotation=45)
+
+    # Adding a legend and space for labels
+    ax.legend(title="Labels", loc="best", bbox_to_anchor=(1.05, 1))
+
+    # Tight layout to avoid overlapping
+    plt.tight_layout()
+    plt.show()
