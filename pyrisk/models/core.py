@@ -12,6 +12,7 @@ Functions:
 """
 
 import pickle
+from copy import deepcopy
 
 import pandas as pd
 import sklearn as skl
@@ -229,7 +230,7 @@ def train_model(
             print_message("  New best model", logger, SCRIPT_NAME)
             precision = metric_dict["precision"][-1]
             best_fold = fold
-            model_tmp = model
+            model_tmp = deepcopy(model)
 
     model = model_tmp  # Set model with best precision
     print_message(f"  Best fold number {best_fold}", logger, SCRIPT_NAME)
