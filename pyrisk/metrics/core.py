@@ -93,8 +93,6 @@ def print_metrics_CI(ci_dict, label_list, logger=None):
         Nothing is returned.
 
     """
-    accuracy_flag = False
-
     n_it = len(label_list)  # Number of print iterations
     if n_it > 1:
         n_it += 1  # Add one for the global values if multilabel
