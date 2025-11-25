@@ -107,7 +107,7 @@ def print_metrics_CI(ci_dict, label_list, logger=None):
         for metric in ci_dict.keys():
             stat, lb, ub = ci_dict[metric]
             print_message(
-                f"  {metric.capitalize()}: {stat[i]:.3f} CI [{lb[i]:.3f}, {ub[i]:.3f}]",
+                f"    {metric.capitalize()}: {stat[i]:.3f} CI [{lb[i]:.3f}, {ub[i]:.3f}]",
                 logger,
                 SCRIPT_NAME,
             )
