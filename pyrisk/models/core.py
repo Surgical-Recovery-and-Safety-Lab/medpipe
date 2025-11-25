@@ -169,6 +169,7 @@ def train_model(
     group_flag = False
     precision = 0.0  # Precision used to select the best model
     best_fold = 0  # Fold with best precision
+    untrained_model = deepcopy(model)  # Untouched model to reset at each fold
     model_tmp = model  # Temporary model variable to keep best model
     model_metrics = {}  # Dict to store model metrics for each fold
     X, y = extract_labels(data, labels)  # Get prediction labels from data
@@ -231,6 +232,8 @@ def train_model(
             precision = metric_dict["precision"][-1]
             best_fold = fold
             model_tmp = deepcopy(model)
+
+        model = untrained_model  # Reset the model to the original
 
     model = model_tmp  # Set model with best precision
     print_message(f"  Best fold number {best_fold}", logger, SCRIPT_NAME)
