@@ -5,8 +5,10 @@ This module provides functions to create sample weigths to address
 class imbalance.
 
 Functions:
-- inverse_class_sum_weighting: Create sample weights using inverse number of
+- inverse_frequency_sum_sample_weights: Create sample weights using inverse number of
     classes summed over the labels.
+- inverse_frequency_class_weights: Create class weights using inverse frequency
+    of classes.
 """
 
 import numpy as np
@@ -14,7 +16,7 @@ import numpy as np
 from pyrisk.utils.exceptions import array_check
 
 
-def inverse_class_sum_weighting(labels):
+def inverse_frequency_sum_sample_weights(labels):
     """
     Create sample weights using inverse number of classes summed over the labels.
 
