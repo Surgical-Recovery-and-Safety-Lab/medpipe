@@ -99,6 +99,10 @@ def plot_mean_ROC_curve(model_metrics, label_list, nb_points=500):
     global_aucs = []
 
     for i in range(n_it):
+        # Set up figure and colours
+        _, ax = plt.subplots(dpi=300)
+        colours = plt.get_cmap("tab20b")
+
         tprs = []
         aucs = []
         metric = ""
@@ -117,12 +121,12 @@ def plot_mean_ROC_curve(model_metrics, label_list, nb_points=500):
                 tprs = np.mean(global_tprs, axis=0)
                 aucs = np.mean(global_aucs, axis=0)
 
-            plt.plot(
+            ax.plot(
                 mean_fpr,
                 tprs[k],
                 lw=1,
-                alpha=0.3,
                 label=f"Fold number {fold} (AUC {aucs[k]:.3f})",
+                color=colours(k),
             )
 
         global_tprs.append(tprs)
@@ -139,29 +143,31 @@ def plot_mean_ROC_curve(model_metrics, label_list, nb_points=500):
         lower_std = np.maximum(mean_tpr - std_tprs, 0)
 
         # Plot mean curve with shaded std
-        plt.plot(
+        ax.plot(
             mean_fpr,
             mean_tpr,
-            color="b",
-            alpha=0.8,
+            color="k",
             lw=2,
             label=rf"Mean {metric} ROC curve (AUC {mean_auroc:.3f} $\pm$ {std_auroc:.3f})",
         )
-        plt.fill_between(
+        ax.fill_between(
             mean_fpr,
             lower_std,
             upper_std,
             color="grey",
-            alpha=0.2,
+            alpha=0.5,
             label=r"Mean $\pm$ 1 SD",
         )
 
-        plt.xlim([-0.01, 1.01])
-        plt.ylim([-0.01, 1.01])
-        plt.xlabel("False Positive Rate")
-        plt.ylabel("True Positive Rate")
-        plt.title(f"Cross-Validated {metric} ROC")
-        plt.legend(loc="lower right")
+        ax.set_xlim(xmin=0, xmax=1)
+        ax.set_ylim(ymin=0, ymax=1)
+        ax.set_xlabel("False Positive Rate")
+        ax.set_ylabel("True Positive Rate")
+        ax.set_title(f"Cross-Validated {metric} ROC")
+        ax.legend(ncol=2, fontsize=5, loc="lower right")
+
+        # Tight layout to avoid overlapping
+        plt.tight_layout()
         plt.show()
 
 
@@ -202,6 +208,10 @@ def plot_mean_PR_curve(model_metrics, label_list, nb_points=500):
     global_aps = []
 
     for i in range(n_it):
+        # Set up figure and colours
+        _, ax = plt.subplots(dpi=300)
+        colours = plt.get_cmap("tab20b")
+
         recalls = []
         aps = []
         metric = ""
@@ -220,12 +230,12 @@ def plot_mean_PR_curve(model_metrics, label_list, nb_points=500):
                 recalls = np.mean(global_recalls, axis=0)
                 aps = np.mean(global_aps, axis=0)
 
-            plt.plot(
+            ax.plot(
                 recalls[k],
                 mean_precision,
                 lw=1,
-                alpha=0.5,
                 label=f"Fold number {fold} (AP {aps[k]:.3f})",
+                color=colours(k),
             )
 
         global_recalls.append(recalls)
@@ -242,29 +252,33 @@ def plot_mean_PR_curve(model_metrics, label_list, nb_points=500):
         lower_std = np.maximum(mean_recall - std_recall, 0)
 
         # Plot mean curve with shaded std
-        plt.plot(
+        ax.plot(
             mean_recall,
             mean_precision,
-            color="b",
-            alpha=0.8,
+            color="k",
             lw=2,
             label=rf"Mean {metric} PRC curve (AP {mean_ap:.3f} $\pm$ {std_ap:.3f})",
+            zorder=3,
         )
-        plt.fill_betweenx(
+        ax.fill_betweenx(
             mean_precision,
             lower_std,
             upper_std,
             color="grey",
-            alpha=0.3,
+            alpha=0.5,
             label=r"Mean $\pm$ 1 SD",
+            zorder=2,
         )
 
-        plt.xlim([-0.01, 1.01])
-        plt.ylim([-0.01, 1.01])
-        plt.xlabel("Recall")
-        plt.ylabel("Precision")
-        plt.title(f"Cross-Validated {metric} PRC")
-        plt.legend(loc="upper right")
+        ax.set_xlim(xmin=0, xmax=1)
+        ax.set_ylim(ymin=0, ymax=1)
+        ax.set_xlabel("Recall")
+        ax.set_ylabel("Precision")
+        ax.set_title(f"Cross-Validated {metric} PRC")
+        ax.legend(ncol=2, fontsize=5, loc="best", bbox_to_anchor=(1, 1))
+
+        # Tight layout to avoid overlapping
+        plt.tight_layout()
         plt.show()
 
 
