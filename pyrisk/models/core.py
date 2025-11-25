@@ -182,9 +182,9 @@ def train_model(
 
     if weighting_fn:
         # Get sample weights if needed
-        sample_weight = getattr(weight, weighting_fn)(y)
+        weights = getattr(weight, weighting_fn)(y)
     else:
-        sample_weight = None
+        weights = []
 
     n_folds = kfold_it.get_n_splits(X, y[:, 0], groups=groups)
 
@@ -213,12 +213,16 @@ def train_model(
                 y_train,
                 X_test,
                 y_test,
-                sample_weight=sample_weight[train_idx],
+                weights,
                 **kwargs,
             )  # Train model
         else:
+            if len(weights) == 0:
+                sample_weights = None
+            else:
+                sample_weights = weights[train_idx]
             model.fit(
-                X_train, y_train.squeeze(), sample_weight=sample_weight[train_idx]
+                X_train, y_train.squeeze(), sample_weight=sample_weights
             )  # Train model
         metric_dict = test_model(model, X_test, y_test.squeeze())
         model_metrics.update({fold: metric_dict})
