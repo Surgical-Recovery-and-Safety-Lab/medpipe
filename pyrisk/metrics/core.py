@@ -335,7 +335,7 @@ def compute_score_metrics(metric_list, y_true, y_pred_proba):
     metric_dict = {}
     multilabel = True
 
-    if type(y_pred_proba) is not type(list()):
+    if len(y_true.shape) == 1:
         # Make into a list
         y_pred_proba = [y_pred_proba]
         y_true = np.expand_dims(y_true, 1)

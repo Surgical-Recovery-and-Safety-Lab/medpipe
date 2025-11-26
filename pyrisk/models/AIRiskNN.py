@@ -8,6 +8,7 @@ This class creates an AI Risk neural network.
 import time
 from collections import OrderedDict
 
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -157,7 +158,6 @@ class AIRiskNN(nn.Module):
         criterion = getattr(nn, loss_name)(
             pos_weight=torch.tensor(class_weights, dtype=torch.float32)
         )
-        breakpoint()
         optimiser = getattr(optim, optim_name)(self.parameters(), lr=lr)
 
         # Create data loaders for batching
@@ -227,12 +227,14 @@ class AIRiskNN(nn.Module):
 
         Returns
         -------
-        probabilities : array-like of shape (n_samples, n_classes)
+        probabilities : np.array (n_classes,) of arrays (n_samples, 2)
             Predicted probabilities.
 
         """
         # Set to evaluate mode
         self.eval()
+
+        probabilities = []
 
         # Convert data to be correct
         X_pred = torch.tensor(X.to_numpy(dtype=float), dtype=torch.float32)
@@ -242,8 +244,15 @@ class AIRiskNN(nn.Module):
             logits = self(X_pred)
 
             # Apply sigmoid to convert logits to probabilities
-            probabilities = torch.sigmoid(logits)
-        return torch.cat([1 - probabilities, probabilities], dim=1)
+            outputs = torch.sigmoid(logits)
+
+        for i in range(outputs.shape[1]):
+            probabilities.append(np.array([1 - outputs[:, i], outputs[:, i]]).T)
+
+        if outputs.shape[1] == 1:
+            return probabilities[0]
+        else:
+            return probabilities
 
     def predict(self, X):
         """
@@ -263,7 +272,12 @@ class AIRiskNN(nn.Module):
         probabilities = self.predict_proba(X)  # Get probabilities
 
         # Convert probabilities to binary predictions (0 or 1)
-        predictions = torch.argmax(probabilities, dim=1)
+        if type(probabilities) is not type(list()):
+            # Single label
+            predictions = np.argmax(probabilities, axis=1)
+        else:
+            # Multilabel
+            predictions = np.argmax(probabilities, axis=0)
 
         return predictions
 
