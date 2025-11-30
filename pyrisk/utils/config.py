@@ -105,17 +105,16 @@ def split_version_number(v_number: str):
     return data_v_number, "v" + model_v_number
 
 
-def parse_data_version_number(v_number: str) -> list[str]:
+def parse_version_number(v_number: str) -> list[str]:
     """
-    Parses a data version number.
+    Parses a version number.
 
-    Expecting a version number in the format vX.Y.Z, where X, Y, and Z
-    are integers.
+    Expecting a version number in the format vX.Y.Z.
 
     Parameters
     ----------
     v_number
-        Data version number to parse.
+        Version number to parse.
 
     Returns
     -------
@@ -138,44 +137,7 @@ def parse_data_version_number(v_number: str) -> list[str]:
     return v_number.split(".")
 
 
-def parse_model_version_number(v_number: str) -> list[str]:
-    """
-    Parses a model version number.
-
-    Expecting a version number in the format vxX, where x can be any
-    letter and X any integer.
-
-    Parameters
-    ----------
-    v_number
-        Model version number to parse.
-
-    Returns
-    -------
-    v_list : list[str]
-        List containing [prediction x, model X] numbers.
-
-    Raises
-    ------
-    TypeError
-        If v_number is not a string.
-
-    """
-    if type(v_number) is not type(""):
-        raise TypeError(f"v_number should be a string, but got {type(v_number)}")
-
-    if v_number[0] == "v":
-        # Remove v prefix if present
-        v_number = v_number[1:]
-
-    # Get all letters and digits in case multiple are present
-    alpha = "".join([c for c in v_number if c.isalpha()])
-    digit = "".join([c for c in v_number if c.isdigit()])
-
-    return [alpha, digit]
-
-
-def get_configuration(parameters: dict, v_number: str, join_token: str = ".") -> dict:
+def get_configuration(parameters: dict, v_number: str) -> dict:
     """
     Gets the configuration by chaining .toml configurations.
 
@@ -205,36 +167,21 @@ def get_configuration(parameters: dict, v_number: str, join_token: str = ".") ->
     if type(parameters) is not type(dict()):
         raise TypeError(f"parameters should be a dict, but got f{type(parameters)}")
 
-    match join_token:
-        case ".":
-            v_list = parse_data_version_number(
-                v_number
-            )  # Parse data version number to identify path
-
-        case "":
-            v_list = parse_model_version_number(
-                v_number
-            )  # Parse model version number to identify path
-        case _:
-            raise ValueError(f"join_token should be . or '', but got {join_token}")
-
     config_dict = {}  # Create empty configuration dictionary
     path = parameters["dir"]
+    v_list = parse_version_number(v_number)
 
-    for i in range(len(v_list)):
+    for i, folder in enumerate(parameters["subfolders"]):
+        if folder[-1] != "/":
+            folder += "/"
         file_path = (
             path
+            + folder
             + parameters["name"]
-            + f"v{join_token.join(v_list[:i+1])}"
+            + folder[:-1]
+            + f"-v{v_list[i]}"
             + parameters["extension"]
         )
         config_dict.update(read_toml_configuration(file_path))
-
-        if i == len(v_list) - 1:
-            # Exit early to avoid out of range error
-            break
-
-        # Update file path with next version folder
-        path += f"v{v_list[i+1]}/"
 
     return config_dict
