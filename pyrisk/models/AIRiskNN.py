@@ -170,9 +170,9 @@ class AIRiskNN(nn.Module):
             running_loss = 0.0
             train_predictions = []
             train_labels = []
-            message = f"    Epoch {epoch}/{epochs} | "
+            message = f"    Epoch {epoch+1}/{epochs} | "
 
-            for batch, (inputs, labels) in enumerate(train_loader):
+            for inputs, labels in train_loader:
                 optimiser.zero_grad()  # Zero the gradients
 
                 outputs = self(inputs)  # Forward pass
