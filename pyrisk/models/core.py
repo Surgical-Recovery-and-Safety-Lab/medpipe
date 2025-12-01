@@ -139,7 +139,7 @@ def train_model(
         Logger object to log prints. If None print to terminal.
     weighting_fn : str, default: ""
         Name of the weighting function to use for the samples.
-    **kwargs
+    **model_config
         Additional argument dictionary for fitting.
 
     Returns
