@@ -21,6 +21,7 @@ from torch.accelerator import current_accelerator, is_available
 
 import pyrisk.data.weighting as weight
 from pyrisk.data.preprocessing import extract_labels
+from pyrisk.data.sampler import data_sampler
 from pyrisk.metrics.core import (
     compute_pred_metrics,
     compute_score_metrics,
@@ -112,11 +113,10 @@ def train_model(
     model,
     data,
     kfold_it,
-    labels,
+    label_list,
     group_name="",
     logger=None,
-    weighting_fn="",
-    **kwargs,
+    **model_config,
 ):
     """
     Trains an AI model.
@@ -131,7 +131,7 @@ def train_model(
         Data to train on.
     kfold_it : StratifiedKFold or GroupKFold
         KFold iterator to create train and test sets.
-    labels : str or list[str]
+    label_list : list[str]
         Labels to predict.
     group_name : str, default: ""
         Group name used to extract the group data for splitting.
@@ -172,7 +172,9 @@ def train_model(
     untrained_model = deepcopy(model)  # Untouched model to reset at each fold
     model_tmp = model  # Temporary model variable to keep best model
     model_metrics = {}  # Dict to store model metrics for each fold
-    X, y = extract_labels(data, labels)  # Get prediction labels from data
+    weights = []  # Weights for class imbalance
+
+    X, y = extract_labels(data, label_list)  # Get prediction labels from data
 
     if group_name != "":
         group_flag = True
@@ -180,19 +182,24 @@ def train_model(
     else:
         groups = None
 
+    sampler_fn = model_config["sampler"]["sampler_fn"]
+    weighting_fn = model_config["weighting"]["weighting_fn"]
+
+    if sampler_fn:
+        # Sample data first
+        X, y, groups = data_sampler(X, y, groups=groups, **model_config["sampler"])
+
     if weighting_fn:
         # Get sample weights if needed
         weights = getattr(weight, weighting_fn)(y)
-    else:
-        weights = []
 
     n_folds = kfold_it.get_n_splits(X, y[:, 0], groups=groups)
 
     for i, (train_idx, test_idx) in enumerate(
         kfold_it.split(X, y[:, 0], groups=groups)
     ):
-        X_train, y_train = extract_labels(data.iloc[train_idx], labels)
-        X_test, y_test = extract_labels(data.iloc[test_idx], labels)
+        X_train, y_train = extract_labels(data.iloc[train_idx], label_list)
+        X_test, y_test = extract_labels(data.iloc[test_idx], label_list)
 
         if group_flag:
             fold = int(groups.iloc[test_idx[0]])  # Use the test year as the fold number
@@ -214,7 +221,7 @@ def train_model(
                 X_test,
                 y_test,
                 weights,
-                **kwargs,
+                **model_config["hyperparameters"],
             )  # Train model
         else:
             if len(weights) == 0:
@@ -228,7 +235,7 @@ def train_model(
         model_metrics.update({fold: metric_dict})
 
         # Print model metrics
-        print_metrics(metric_dict, labels, logger)
+        print_metrics(metric_dict, label_list, logger)
 
         if metric_dict["precision"][-1] > precision:
             # Temporarily save model with best precision
