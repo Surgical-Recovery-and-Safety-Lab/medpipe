@@ -272,7 +272,7 @@ def compute_pred_metrics(metric_list, y_true, y_pred):
                 if multilabel:
                     values = np.append(
                         values,
-                        skl.metrics.f1_score(y_true, y_pred, average="macro"),
+                        skl.metrics.f1_score(y_true, y_pred, average="weighted"),
                     )
                 metric_dict.update({metric: values})
 
@@ -283,7 +283,7 @@ def compute_pred_metrics(metric_list, y_true, y_pred):
                 if multilabel:
                     values = np.append(
                         values,
-                        skl.metrics.precision_score(y_true, y_pred, average="macro"),
+                        skl.metrics.precision_score(y_true, y_pred, average="weighted"),
                     )
                 metric_dict.update({metric: values})
 
@@ -292,7 +292,7 @@ def compute_pred_metrics(metric_list, y_true, y_pred):
                 if multilabel:
                     values = np.append(
                         values,
-                        skl.metrics.recall_score(y_true, y_pred, average="macro"),
+                        skl.metrics.recall_score(y_true, y_pred, average="weighted"),
                     )
                 metric_dict.update({metric: values})
 
