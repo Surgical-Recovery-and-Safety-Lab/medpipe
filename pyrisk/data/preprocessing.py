@@ -7,12 +7,16 @@ Functions:
 - test_train_it: Creates a KFold iterator to split data into
     test and train sets.
 - convert_object_to_categorical: Converts object columns to categoricals.
-- label_encode_data: Encodes data columns with a label encoder.
+- preprocess_data: Processed select data columns based on preprocessing function.
 - extract_labels: Extracts prediction labels from data.
 """
 
+from copy import deepcopy
+
+import numpy as np
 import pandas as pd
 import sklearn as skl
+from sklearn.preprocessing import LabelEncoder, PowerTransformer, StandardScaler
 
 
 def test_train_it(temporal_k_fold=False, **kwargs):
@@ -98,9 +102,9 @@ def convert_object_to_categorical(data: pd.DataFrame) -> pd.DataFrame:
     return processed_data
 
 
-def label_encode_data(data, features):
+def preprocess_data(data, features, preprocess):
     """
-    Encodes data columns with a label encoder.
+    Processed select data columns based on preprocessing function.
 
     Parameters
     ----------
@@ -108,6 +112,8 @@ def label_encode_data(data, features):
         DataFrame to manipulate.
     features : list(str)
         List of features to encode from the data.
+    preprocess : {"label_encoder", "standardise", "power_transform"}
+        Preprocessing function.
 
     Returns
     -------
@@ -118,10 +124,11 @@ def label_encode_data(data, features):
     ------
     TypeError
         If data is not a pd.DataFrame.
-    TypeError
-        If features is not a list(str)
+        If features is not a list(str).
     KeyError
         If a features is not a valid key.
+    ValueError
+        If preprocess is not a valid preprocessing function.
 
     """
     if type(data) is not type(pd.DataFrame()):
@@ -136,12 +143,22 @@ def label_encode_data(data, features):
         )
 
     # Create a copy of data to work on
-    processed_data = data
+    processed_data = deepcopy(data)
 
     for feature in features:
-        processed_data[feature] = skl.preprocessing.LabelEncoder().fit_transform(
-            data[feature]
-        )
+        match preprocess:
+            case "label_encoder":
+                processed_data[feature] = LabelEncoder().fit_transform(data[feature])
+            case "standardise":
+                processed_data[feature] = StandardScaler().fit_transform(
+                    np.expand_dims(data[feature].to_numpy(), axis=1)
+                )
+            case "power_transform":
+                processed_data[feature] = PowerTransformer().fit_transform(
+                    np.expand_dims(data[feature].to_numpy(), axis=1)
+                )
+            case _:
+                raise ValueError(f"{preprocess} invalid preprocessing function")
 
     return processed_data
 
