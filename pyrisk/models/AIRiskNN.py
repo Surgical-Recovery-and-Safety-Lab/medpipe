@@ -76,6 +76,7 @@ class AIRiskNN(nn.Module):
         super().__init__()
         layers_dict = self.parse_architecture(architecture, n_features)
         self.model = nn.Sequential(layers_dict)
+        self.model.compile()
         self.logger = logger
         stats = summary(self.model, (n_features,), verbose=0)
         print_message(str(stats), logger, "models/AIRiskNN")
