@@ -344,6 +344,6 @@ class AIRiskNN(nn.Module):
             precision = precision_score(y_true, y_pred, zero_division=0.0)
         else:
             precision = precision_score(
-                y_true, y_pred, average="macro", zero_division=0.0
+                y_true, y_pred, average="weighted", zero_division=0.0
             )
         return precision
