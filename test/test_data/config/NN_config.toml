@@ -1,0 +1,20 @@
+version = "v0.2.1.1-b.2.2.2"
+model_type = "nn"
+base_dir = "test/test_data/"
+
+[model_parameters]
+dir = "config/NN/"
+subfolders = [ "labels", "imbalance", "hyperparameters", "architecture" ]
+name = "ai_risk_NN_"
+extension = ".toml"
+
+[io_parameters]
+dir = "models/"
+name = "ai_risk_NN-"
+extension = ".pkl"
+
+[data_parameters]
+dir = "config/data/"
+subfolders = [ "general", "features", "splitting", "preprocessing" ]
+name = "ai_risk_data_"
+extension = ".toml"
