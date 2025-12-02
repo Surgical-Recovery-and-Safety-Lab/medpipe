@@ -117,6 +117,10 @@ def print_message(message, logger=None, script_name="") -> None:
     """
     Wrapper function to print message or log them.
 
+    If the logger.level is less than 0, only log message.
+    If the logger.level is greater than 0, log and print.
+    If logger is None, only print.
+
     Parameters
     ----------
     message : str
@@ -132,8 +136,13 @@ def print_message(message, logger=None, script_name="") -> None:
         Nothing is returned.
 
     """
-    if logger:
+    if logger.level >= 0:
+        # Print to file and screen
         logger.info(f"{message} in {script_name}")
         sys.stdout.write(f"[INFO] {message}\n")
+    elif logger.level < 0:
+        # Don't print to screen
+        logger.info(f"{message} in {script_name}")
     else:
+        # Only print to screen
         print(f"[INFO] {message} in {script_name}")
