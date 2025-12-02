@@ -117,7 +117,7 @@ def random_sampler(labels, target_ratio):
     n_min_class = np.sum(label_sums != 0)  # Minority class examples
     n_maj_class = np.round(n_min_class / target_ratio)  # Majority class examples
 
-    min_idx = np.where(label_sums > 1)[0]
+    min_idx = np.where(label_sums > 0)[0]
     maj_idx = np.random.choice(  # Select examples so that target ratio is achieved
         np.where(label_sums == 0)[0], size=int(n_maj_class), replace=False
     )
