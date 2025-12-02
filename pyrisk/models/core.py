@@ -198,8 +198,10 @@ def train_model(
     for i, (train_idx, test_idx) in enumerate(
         kfold_it.split(X, y[:, 0], groups=groups)
     ):
-        X_train, y_train = extract_labels(data.iloc[train_idx], label_list)
-        X_test, y_test = extract_labels(data.iloc[test_idx], label_list)
+        X_train = X.iloc[train_idx]
+        y_train = y[train_idx]
+        X_test = X.iloc[test_idx]
+        y_test = y[test_idx]
 
         if group_flag:
             fold = int(groups.iloc[test_idx[0]])  # Use the test year as the fold number
