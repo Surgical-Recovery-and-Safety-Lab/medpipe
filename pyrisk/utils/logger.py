@@ -136,13 +136,14 @@ def print_message(message, logger=None, script_name="") -> None:
         Nothing is returned.
 
     """
-    if logger.level >= 0:
-        # Print to file and screen
-        logger.info(f"{message} in {script_name}")
-        sys.stdout.write(f"[INFO] {message}\n")
-    elif logger.level < 0:
-        # Don't print to screen
-        logger.info(f"{message} in {script_name}")
+    if logger:
+        if logger.level >= 0:
+            # Print to file and screen
+            logger.info(f"{message} in {script_name}")
+            sys.stdout.write(f"[INFO] {message}\n")
+        elif logger.level < 0:
+            # Don't print to screen
+            logger.info(f"{message} in {script_name}")
     else:
         # Only print to screen
         print(f"[INFO] {message} in {script_name}")

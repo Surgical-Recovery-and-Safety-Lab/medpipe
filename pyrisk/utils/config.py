@@ -5,8 +5,9 @@ This module provides helper functions for reading configuration files.
 
 Functions:
 - get_file_path: Gets a file path from a configuration dictionary.
+- get_configuration: Gets the configuration by chaining .toml configurations.
 - parse_version_number: Function that parses a version number.
-- get_data_configuration: Chains data configuration to return full configuration.
+- split_version_number: Splits a version number into the data and model version numbers.
 """
 
 from pyrisk.utils.exceptions import file_checks
@@ -147,9 +148,6 @@ def get_configuration(parameters: dict, v_number: str) -> dict:
         Parameters for the configuration chaining.
     v_number
         Version number of the data to recuperate.
-    join_token : default: "."
-        Token used to join the version numbers. For data configurations use "."
-        and for model configurations use "".
 
     Returns
     -------
@@ -160,8 +158,6 @@ def get_configuration(parameters: dict, v_number: str) -> dict:
     ------
     TypeError
         If parameters is not a dict.
-    ValueError
-        If join_token is not "." or "".
 
     """
     if type(parameters) is not type(dict()):
