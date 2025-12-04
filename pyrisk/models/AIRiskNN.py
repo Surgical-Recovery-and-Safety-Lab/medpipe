@@ -13,7 +13,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from sklearn.metrics import precision_score
-from torchsummary import summary
+from torchinfo import summary
 
 from pyrisk.utils.logger import print_message
 
@@ -78,7 +78,7 @@ class AIRiskNN(nn.Module):
         self.model = nn.Sequential(layers_dict)
         self.model.compile()
         self.logger = logger
-        stats = summary(self.model, (n_features,), verbose=0)
+        stats = summary(self.model, verbose=0)
         print_message(str(stats), logger, "models/AIRiskNN")
 
     def forward(self, X):
