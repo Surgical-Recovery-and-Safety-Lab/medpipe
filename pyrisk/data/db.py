@@ -4,8 +4,8 @@ Database functions module.
 This module provides functions to open, query, and save data from databases.
 
 Functions:
-- parquet_to_sqlite3: Converts a .parquet file to a sqlite3.
-- extract_data_from_sqlite3: Queries a sqlite3 to extract data.
+- parquet_to_db: Converts a .parquet file to a .db fil.
+- extract_data_from_db: Queries a SQL .db to extract data.
 """
 
 import sqlite3
