@@ -26,7 +26,7 @@ DATA_DIR = str(CWD / "test/test_data/")
     [
         ("test_text.txt", ".txt", True),
         ("test_data.csv", ".csv", True),
-        ("test_config.toml", ".toml", True),
+        ("config/HGB_config.toml", ".toml", True),
         ("not_a_file.csv", ".csv", False),
     ],
 )
@@ -45,7 +45,7 @@ def test_file_checks_not_str():
     [
         ("test_text.txt", ".csv"),
         ("test_data.csv", ".toml"),
-        ("test_config.toml", ".txt"),
+        ("config/HGB_config.toml", ".txt"),
     ],
 )
 def test_file_checks_not_extension_file(file_name, extension):
@@ -100,7 +100,7 @@ def test_path_checks_dir_not_found():
     [
         ("test_text.txt"),
         ("test_data.csv"),
-        ("test_config.toml"),
+        ("config/HGB_config.toml"),
     ],
 )
 def test_path_checks_is_a_file(file_name):
