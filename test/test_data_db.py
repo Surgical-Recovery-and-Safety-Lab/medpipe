@@ -9,81 +9,81 @@ import pathlib
 
 import pytest
 
-from pyrisk.data.db import extract_data_from_duckdb, parquet_to_duckdb
+from pyrisk.data.db import extract_data_from_db, parquet_to_db
 
 CWD = pathlib.Path.cwd()
 PARQUET_PATH = str(CWD / "test/test_data/test_data.parquet")
-DUCKDB_PATH = str(CWD / "test/test_data/test_data.duckdb")
+DB_PATH = str(CWD / "test/test_data/test_data.db")
 TXT_PATH = str(CWD / "test/test_data/test_text.txt")
 QUERY = "SELECT * FROM main"
 
 
-def test_parquet_to_duckdb_success(tmp_path):
-    duckdb_path = str(tmp_path / "save_db.duckdb")
-    parquet_to_duckdb(PARQUET_PATH, duckdb_path)
+def test_parquet_to_db_success(tmp_path):
+    db_path = str(tmp_path / "save_db.db")
+    parquet_to_db(PARQUET_PATH, db_path)
 
 
 @pytest.mark.parametrize(
-    "parquet_path, duckdb_path",
+    "parquet_path, db_path",
     [
         (PARQUET_PATH, 12),
-        (12, DUCKDB_PATH),
+        (12, DB_PATH),
     ],
 )
-def test_parquet_to_duckdb_not_str(parquet_path, duckdb_path):
+def test_parquet_to_db_not_str(parquet_path, db_path):
     with pytest.raises(TypeError):
-        parquet_to_duckdb(parquet_path, duckdb_path)
+        parquet_to_db(parquet_path, db_path)
 
 
 @pytest.mark.parametrize(
-    "parquet_path, duckdb_path",
-    [(PARQUET_PATH, TXT_PATH), (TXT_PATH, DUCKDB_PATH)],
+    "parquet_path, db_path",
+    [(PARQUET_PATH, TXT_PATH), (TXT_PATH, DB_PATH)],
 )
-def test_parquet_to_duckdb_not_extension_file(parquet_path, duckdb_path):
+def test_parquet_to_db_not_extension_file(parquet_path, db_path):
     with pytest.raises(ValueError):
-        parquet_to_duckdb(parquet_path, duckdb_path)
+        parquet_to_db(parquet_path, db_path)
 
 
-def test_parquet_to_duckdb_file_not_found():
+def test_parquet_to_db_file_not_found():
     with pytest.raises(FileNotFoundError):
         parquet_path = str(CWD / "test/test_data/not_exist.parquet")
-        parquet_to_duckdb(parquet_path, DUCKDB_PATH)
+        parquet_to_db(parquet_path, DB_PATH)
 
 
-def test_parquet_to_duckdb_not_a_file():
+def test_parquet_to_db_not_a_file():
     with pytest.raises(IsADirectoryError):
         parquet_path = str(CWD / "test/test_data/")
-        parquet_to_duckdb(parquet_path, DUCKDB_PATH)
+        parquet_to_db(parquet_path, DB_PATH)
 
 
-def test_extract_data_from_duckdb_success():
-    extract_data_from_duckdb(DUCKDB_PATH, QUERY)
+def test_extract_data_from_db_success():
+    extract_data_from_db(DB_PATH, QUERY)
 
 
 @pytest.mark.parametrize(
-    "duckdb_path, query",
+    "db_path, query",
     [
         (12, QUERY),
-        (DUCKDB_PATH, 12),
+        (DB_PATH, 12),
     ],
 )
-def test_extract_data_from_duckdb_not_str(duckdb_path, query):
+def test_extract_data_from_db_not_str(db_path, query):
     with pytest.raises(TypeError):
-        extract_data_from_duckdb(duckdb_path, query)
+        extract_data_from_db(db_path, query)
 
 
-def test_extract_data_from_duckdb_not_extension_file():
+def test_extract_data_from_db_not_extension_file():
     with pytest.raises(ValueError):
-        extract_data_from_duckdb(TXT_PATH, QUERY)
+        extract_data_from_db(TXT_PATH, QUERY)
 
 
-def test_extract_data_from_duckdb_file_not_found():
+def test_extract_data_from_db_file_not_found():
     with pytest.raises(FileNotFoundError):
-        duckdb_path = str(CWD / "test/test_data/not_exist.duckdb")
-        extract_data_from_duckdb(duckdb_path, QUERY)
+        db_path = str(CWD / "test/test_data/not_exist.db")
+        extract_data_from_db(db_path, QUERY)
 
 
-def test_extract_data_from_duckdb_not_a_file():
+def test_extract_data_from_db_not_a_file():
     with pytest.raises(IsADirectoryError):
-        duckdb_path = str(CWD / "test/test_data/")
-        extract_data_from_duckdb(duckdb_path, QUERY)
+        db_path = str(CWD / "test/test_data/")
+        extract_data_from_db(db_path, QUERY)
