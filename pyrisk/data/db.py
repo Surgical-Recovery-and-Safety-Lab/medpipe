@@ -54,7 +54,7 @@ def parquet_to_db(parquet_file: str, db_file: str, table_name: str = "main") -> 
 
     try:
         pyrisk.utils.exceptions.file_checks(db_file, ".db", exists=False)
-    except (TypeError, ValueError, IsADirectoryError):
+    except (FileNotFoundError, TypeError, ValueError, IsADirectoryError):
         raise
 
     conn = sqlite3.connect(db_file)
