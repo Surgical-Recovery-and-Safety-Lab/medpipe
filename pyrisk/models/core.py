@@ -215,6 +215,8 @@ def train_model(
             fold = i
             print_message(f"  Fold number {fold+1}/{n_folds}", logger, SCRIPT_NAME)
 
+        print_message(f"  Train set size: {len(X_train)} examples", logger, SCRIPT_NAME)
+
         if type(model) is AIRiskNN:
             # Pass test data for epoch print
             device = current_accelerator().type if is_available() else "cpu"
