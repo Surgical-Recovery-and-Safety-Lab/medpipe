@@ -217,6 +217,8 @@ def train_model(
 
         if type(model) is AIRiskNN:
             # Pass test data for epoch print
+            device = current_accelerator().type if is_available() else "cpu"
+            model.to(device)  # Load untrained model to device
             model.fit(
                 X_train,
                 y_train,
