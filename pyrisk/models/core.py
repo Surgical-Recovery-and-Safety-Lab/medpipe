@@ -248,7 +248,7 @@ def train_model(
             best_fold = fold
             model_tmp = deepcopy(model)
 
-        model = untrained_model  # Reset the model to the original
+        model = deepcopy(untrained_model)  # Reset the model to the original
 
     model = model_tmp  # Set model with best precision
     print_message(f"  Best fold number {best_fold}", logger, SCRIPT_NAME)
