@@ -175,11 +175,14 @@ class AIRiskNN(nn.Module):
 
         if len(class_weights) == 0:
             # No weigths provided, default to 1
-            class_weights = torch.ones(y_test.shape[1])
+            if len(y_train.shape) == 1:
+                class_weights = torch.ones(1)
+            else:
+                class_weights = torch.ones(y_train.shape[1])
 
         # Define the loss function and optimiser
         criterion = getattr(nn, loss_name)(
-            pos_weight=torch.tensor(class_weights, dtype=torch.float32).to(self.device)
+            pos_weight=class_weights.detach().clone().to(self.device).float()
         )
         optimiser = getattr(optim, optim_name)(self.parameters(), lr=lr)
 
