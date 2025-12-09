@@ -24,7 +24,7 @@ from pyrisk.utils.exceptions import array_check, array_dim_check
 
 
 def data_sampler(
-    data, labels, target_ratio=0.25, sampler_fn="random_sampler", groups=[], **kwargs
+    data, labels, target_ratio=0.25, sampler_fn="random_sampler", groups=None, **kwargs
 ):
     """
     Samples the data and labels to adjust the class imbalance.
@@ -41,7 +41,7 @@ def data_sampler(
         Target ratio between the minority and majority classes.
     sampler_fn : str, default: "random_sampler"
         Sampler function to use to sample the data.
-    groups : pd.Series, default: []
+    groups : pd.Series or None, default: None
         List containing groups for the group_sampler function.
     **kwargs
         Extra arguments for the sampler functions.
@@ -62,6 +62,10 @@ def data_sampler(
 
     """
     sample_idx = np.array([])  # Empty sample index
+
+    if groups is None:
+        # Convert groups to an empty list if nothing is provided
+        groups = np.array([])
 
     match sampler_fn:
         case "random_sampler":
