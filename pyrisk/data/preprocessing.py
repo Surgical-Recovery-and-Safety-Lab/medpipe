@@ -18,6 +18,8 @@ import pandas as pd
 import sklearn as skl
 from sklearn.preprocessing import LabelEncoder, PowerTransformer, StandardScaler
 
+from pyrisk.utils.exceptions import array_check, array_dim_check
+
 
 def test_train_it(temporal_k_fold=False, **kwargs):
     """
@@ -68,6 +70,56 @@ def test_train_it(temporal_k_fold=False, **kwargs):
         kfold_it = skl.model_selection.GroupKFold(**args_dict)
 
     return kfold_it
+
+
+def get_validation_idx(idx_list, groups=None, val_size=0.1):
+    """
+    Removes some of the indices to create a validation set.
+
+    If groups are provided, all the indices of the group with the largest
+    value are selected as the validation set.
+
+    Parameters
+    ----------
+    idx_list : np.array(n_samples,)
+        Indices of the set to split.
+    groups : pd.Series(n_samples,) or None, default: None
+        Groups to which the train indices belong. Must be numeric.
+    val_size : float, default: 0.1
+        Size of the validation set if groups are None.
+
+    Returns
+    -------
+    train_idx : np.array
+        Train indices.
+    val_idx : np.array
+        Validation indices.
+
+    Raises
+    ------
+    Error
+        Add exceptions that might be raised.
+
+    """
+    array_check(idx_list)
+    if groups is not None:
+        # If groups are provided
+        groups = groups.to_numpy()  # Convert to array
+        array_check(idx_list)
+        array_dim_check(idx_list, groups, dim=0)
+
+        if not np.isscalar(groups[0]):
+            raise ValueError(f"groups should be scalar but instead got {groups.dtype}")
+        group_max = np.max(groups)
+        val_idx = np.where(groups == group_max)[0]
+        train_idx = np.where(groups != group_max)[0]
+
+    else:
+        train_idx, val_idx = skl.model_selection.train_test_split(
+            idx_list, test_size=val_size, random_state=42
+        )
+
+    return train_idx, val_idx
 
 
 def convert_object_to_categorical(data: pd.DataFrame) -> pd.DataFrame:
