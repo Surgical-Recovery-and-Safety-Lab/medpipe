@@ -20,7 +20,7 @@ from sklearn.multioutput import MultiOutputClassifier
 from torch.accelerator import current_accelerator, is_available
 
 import pyrisk.data.weighting as weight
-from pyrisk.data.preprocessing import extract_labels
+from pyrisk.data.preprocessing import extract_labels, get_validation_idx
 from pyrisk.data.sampler import data_sampler
 from pyrisk.metrics.core import (
     compute_pred_metrics,
@@ -198,24 +198,33 @@ def train_model(
     for i, (train_idx, test_idx) in enumerate(
         kfold_it.split(X, y[:, 0], groups=groups)
     ):
-        X_train = X.iloc[train_idx]
-        y_train = y[train_idx]
-        X_test = X.iloc[test_idx]
-        y_test = y[test_idx]
-
         if group_flag:
+            # Extract a validation set for calibration
+            X_fold = X.drop(groups.name, axis=1)
+            train_idx, val_idx = get_validation_idx(train_idx, groups.iloc[train_idx])
             fold = int(groups.iloc[test_idx[0]])  # Use the test year as the fold number
-            # Drop the group (OP_YEAR) from data
-            X_train = X_train.drop(groups.name, axis=1)
-            X_test = X_test.drop(groups.name, axis=1)
-            print_message(
-                f"  Fold number {fold} ({i+1}/{n_folds})", logger, SCRIPT_NAME
-            )
+            fold_message = f"  Fold number {fold} ({i+1}/{n_folds})"
         else:
+            # Extract a validation set for calibration
+            X_fold = X
+            train_idx, val_idx = get_validation_idx(train_idx, groups)
             fold = i
-            print_message(f"  Fold number {fold+1}/{n_folds}", logger, SCRIPT_NAME)
+            fold_message = f"  Fold number {fold+1}/{n_folds}"
 
+        # Create the different data sets
+        X_train = X_fold.iloc[train_idx]
+        y_train = y[train_idx]
+        X_test = X_fold.iloc[test_idx]
+        y_test = y[test_idx]
+        X_val = X_fold.iloc[val_idx]
+        y_val = X_fold.iloc[val_idx]
+
+        print_message(fold_message, logger, SCRIPT_NAME)
         print_message(f"  Train set size: {len(X_train)} examples", logger, SCRIPT_NAME)
+        print_message(
+            f"  Validation set size: {len(X_val)} examples", logger, SCRIPT_NAME
+        )
+        print_message(f"  Test set size: {len(X_test)} examples", logger, SCRIPT_NAME)
 
         if type(model) is AIRiskNN:
             # Pass test data for epoch print
