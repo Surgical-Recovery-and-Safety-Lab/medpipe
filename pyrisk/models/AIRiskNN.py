@@ -223,7 +223,7 @@ class AIRiskNN(nn.Module):
 
             # Compute train statistics
             avg_loss = running_loss / len(train_loader)
-            train_precision = self.precision(train_labels, train_predictions)
+            train_precision = self.precision(train_predictions, train_labels)
             message += f"Loss {avg_loss:.4f} | Train precision {train_precision:.4f} | "
 
             # Compute test statistics
@@ -232,7 +232,7 @@ class AIRiskNN(nn.Module):
                 with torch.no_grad():  # Disable gradient calculation
                     outputs = self(X_test)
                     test_predictions = torch.round(torch.sigmoid(outputs))
-                    test_precision = self.precision(y_test, test_predictions.squeeze())
+                    test_precision = self.precision(test_predictions.squeeze(), y_test)
                     message += f"Test precision {test_precision:.4f} | "
 
                 self.train()  # Reset to train
