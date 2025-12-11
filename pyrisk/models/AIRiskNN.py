@@ -179,11 +179,11 @@ class AIRiskNN(nn.Module):
                 class_weights = torch.ones(1)
             else:
                 class_weights = torch.ones(y_train.shape[1])
+        else:
+            class_weights = torch.tensor(class_weights)
 
         # Define the loss function and optimiser
-        criterion = getattr(nn, loss_name)(
-            pos_weight=class_weights.detach().clone().to(self.device).float()
-        )
+        criterion = getattr(nn, loss_name)(pos_weight=class_weights.to(self.device))
         optimiser = getattr(optim, optim_name)(self.parameters(), lr=lr)
 
         # Create data loaders for batching
