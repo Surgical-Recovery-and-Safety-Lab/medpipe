@@ -342,7 +342,14 @@ def test_model(model, X_test, y_test):
     return metric_dict
 
 
-def save_model(model, save_file, model_metrics=None, extension=".pkl") -> None:
+def save_model(
+    model,
+    save_file,
+    calibration_model,
+    model_metrics=None,
+    calibration_metrics=None,
+    extension=".pkl",
+) -> None:
     """
     Saves an AI model to file.
 
@@ -382,7 +389,9 @@ def save_model(model, save_file, model_metrics=None, extension=".pkl") -> None:
 
     else:
         with open(save_file, "wb") as f:
-            pickle.dump([model, model_metrics], f)
+            pickle.dump(
+                [model, model_metrics, calibration_model, calibration_metrics], f
+            )
 
 
 def load_model(load_file: str):
@@ -418,10 +427,12 @@ def load_model(load_file: str):
     with open(load_file, "rb") as f:
         loaded_data = pickle.load(f)
 
-    return loaded_data[0], loaded_data[1]
+    return loaded_data[0], loaded_data[1], loaded_data[2], loaded_data[3]
 
 
 def get_positive_proba(probabilities):
+    if type(probabilities) is type(np.array([])):
+        return probabilities
     pos_proba = np.zeros((probabilities[0].shape[0], len(probabilities)))
     for i, proba in enumerate(probabilities):
         pos_proba[:, i] = proba[:, 1]
