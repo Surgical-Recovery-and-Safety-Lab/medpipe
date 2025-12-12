@@ -306,10 +306,12 @@ class AIRiskNN(nn.Module):
         # Convert probabilities to binary predictions (0 or 1)
         if type(probabilities) is not type(list()):
             # Single label
-            predictions = np.argmax(probabilities, axis=1)
+            predictions = np.round(probabilities)
         else:
             # Multilabel
-            predictions = np.argmax(probabilities, axis=0)
+            predictions = np.zeros((probabilities[0].shape[0], len(probabilities)))
+            for i, proba in enumerate(probabilities):
+                predictions[:, i] = np.round(proba[:, 1])
 
         return predictions
 
