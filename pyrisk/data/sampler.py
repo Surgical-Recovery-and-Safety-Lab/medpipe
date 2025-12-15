@@ -59,10 +59,14 @@ def data_sampler(
     ------
     TypeError
         If labels is not array-like.
+    ValueError
+        If target_ratio is less than 0.0.
 
     """
     sample_idx = np.array([])  # Empty sample index
 
+    if target_ratio <= 0:
+        raise ValueError(f"Target ratio should be positive, but got {target_ratio}")
     if groups is None:
         # Convert groups to an empty list if nothing is provided
         groups = np.array([])
@@ -113,9 +117,14 @@ def random_sampler(labels, target_ratio):
     ------
     TypeError
         If labels is not array-like.
+    ValueError
+        If target_ratio is less than 0.0.
 
     """
     array_check(labels)  # Check that labels is array-like
+
+    if target_ratio <= 0:
+        raise ValueError(f"Target ratio should be positive, but got {target_ratio}")
 
     label_sums = np.sum(labels, axis=1)  # Sum to find example with at least one 1
     n_min_class = np.sum(label_sums != 0)  # Minority class examples
@@ -154,10 +163,14 @@ def group_random_sampler(labels, target_ratio, groups):
         If labels is not array-like.
     ValueError
         If labels and group do not have the same dimension.
+        If target_ratio is less than 0.0.
 
     """
     array_check(labels)
     array_dim_check(labels, groups, dim=0)
+
+    if target_ratio <= 0:
+        raise ValueError(f"Target ratio should be positive, but got {target_ratio}")
 
     sample_idx = np.array([], dtype=int)  # Empty array for the majority class index
     n_groups = np.unique(groups)
@@ -205,6 +218,7 @@ def mean_dist_sampler(data, labels, target_ratio, hard_percent=0.5):
         If labels is not array-like.
     ValueError
         If hard_percent is not between 0 and 1.
+        If target_ratio is less than 0.0.
 
     """
     array_check(labels)
@@ -212,6 +226,8 @@ def mean_dist_sampler(data, labels, target_ratio, hard_percent=0.5):
         raise ValueError(
             f"hard_percent should be between 0 and 1, but got {hard_percent}"
         )
+    if target_ratio <= 0:
+        raise ValueError(f"Target ratio should be positive, but got {target_ratio}")
 
     label_sums = np.sum(labels, axis=1)  # Sum to find example with at least one 1
     n_min_class = np.sum(label_sums != 0)  # Minority class examples
