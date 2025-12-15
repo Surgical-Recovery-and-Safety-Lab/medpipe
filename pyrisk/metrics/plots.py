@@ -44,9 +44,6 @@ def plot_from_display(y_true, y_pred, display, **kwargs) -> None:
     array_check(y_pred)
     array_check(y_true)
 
-    if display not in ["roc", "confusion", "precision-recall"]:
-        raise ValueError(f"Invalid display, got {display}")
-
     match display:
         case "roc":
             print("[INFO] Plotting ROC curve")
@@ -57,9 +54,10 @@ def plot_from_display(y_true, y_pred, display, **kwargs) -> None:
         case "precision-recall":
             print("[INFO] Plotting precision-recall curve")
             display_fct = skl.metrics.PrecisionRecallDisplay.from_predictions
+        case "calibration":
+            display_fct = skl.calibration.CalibrationDisplay.from_predictions
         case _:
-            # Default to ROC curve just in case
-            display_fct = skl.metrics.RocCurveDisplay.from_predictions
+            raise ValueError(f"Invalid display, got {display}")
 
     display_fct(y_true, y_pred, **kwargs)
     plt.show()

@@ -14,9 +14,10 @@ Functions:
 import pickle
 from copy import deepcopy
 
+import numpy as np
 import pandas as pd
 import sklearn as skl
-from sklearn.multioutput import MultiOutputClassifier
+from sklearn.multioutput import MultiOutputClassifier, MultiOutputRegressor
 from torch.accelerator import current_accelerator, is_available
 
 import pyrisk.data.weighting as weight
@@ -114,6 +115,7 @@ def train_model(
     data,
     kfold_it,
     label_list,
+    calibration_model,
     group_name="",
     logger=None,
     **model_config,
@@ -133,6 +135,8 @@ def train_model(
         KFold iterator to create train and test sets.
     label_list : list[str]
         Labels to predict.
+    calibration_model : LogisticRegression or MultiOutputRegression
+        Calibration model.
     group_name : str, default: ""
         Group name used to extract the group data for splitting.
     logger : logging.Logger, default: None
@@ -170,8 +174,11 @@ def train_model(
     precision = 0.0  # Precision used to select the best model
     best_fold = 0  # Fold with best precision
     untrained_model = deepcopy(model)  # Untouched model to reset at each fold
+    uncalibrated_model = deepcopy(model)
     model_tmp = model  # Temporary model variable to keep best model
+    calibration_tmp = calibration_model
     model_metrics = {}  # Dict to store model metrics for each fold
+    calibration_metrics = {}  # Dict to store calibration metrics for each fold
     weights = []  # Weights for class imbalance
 
     X, y = extract_labels(data, label_list)  # Get prediction labels from data
@@ -217,7 +224,7 @@ def train_model(
         X_test = X_fold.iloc[test_idx]
         y_test = y[test_idx]
         X_val = X_fold.iloc[val_idx]
-        y_val = X_fold.iloc[val_idx]
+        y_val = y[val_idx]
 
         print_message(fold_message, logger, SCRIPT_NAME)
         print_message(f"  Train set size: {len(X_train)} examples", logger, SCRIPT_NAME)
@@ -246,11 +253,25 @@ def train_model(
             model.fit(
                 X_train, y_train.squeeze(), sample_weight=sample_weights
             )  # Train model
+
+        calibration_model.fit(
+            get_positive_proba(model.predict_proba(X_val)),
+            y_val.squeeze(),
+        )
         metric_dict = test_model(model, X_test, y_test.squeeze())
+        calibration_dict = test_model(
+            calibration_model,
+            get_positive_proba(model.predict_proba(X_test)),
+            y_test.squeeze(),
+        )
         model_metrics.update({fold: metric_dict})
+        calibration_metrics.update({fold: calibration_dict})
 
         # Print model metrics
+        print_message("Uncalibrated metrics", logger, SCRIPT_NAME)
         print_metrics(metric_dict, label_list, logger)
+        print_message("Calibrated metrics", logger, SCRIPT_NAME)
+        print_metrics(calibration_dict, label_list, logger)
 
         if metric_dict["precision"][-1] > precision:
             # Temporarily save model with best precision
@@ -258,12 +279,15 @@ def train_model(
             precision = metric_dict["precision"][-1]
             best_fold = fold
             model_tmp = deepcopy(model)
+            calibration_model = calibration_tmp
 
         model = deepcopy(untrained_model)  # Reset the model to the original
+        # calibration_model = deepcopy(uncalibrated_model)
 
     model = model_tmp  # Set model with best precision
+    calibration_model = calibration_tmp
     print_message(f"  Best fold number {best_fold}", logger, SCRIPT_NAME)
-    return model_metrics
+    return model_metrics, calibration_metrics
 
 
 def test_model(model, X_test, y_test):
@@ -272,7 +296,7 @@ def test_model(model, X_test, y_test):
 
     Parameters
     ----------
-    model : HistGradBoostingClassier, SVC, or AIRiskNN
+    model : HistGradBoostingClassifier, SVC, or AIRiskNN
         Model to test.
     X_test : array-like of shape (n_samples, n_features)
         Test data to make predictions on.
@@ -318,7 +342,14 @@ def test_model(model, X_test, y_test):
     return metric_dict
 
 
-def save_model(model, save_file, model_metrics=None, extension=".pkl") -> None:
+def save_model(
+    model,
+    save_file,
+    calibration_model,
+    model_metrics=None,
+    calibration_metrics=None,
+    extension=".pkl",
+) -> None:
     """
     Saves an AI model to file.
 
@@ -358,7 +389,9 @@ def save_model(model, save_file, model_metrics=None, extension=".pkl") -> None:
 
     else:
         with open(save_file, "wb") as f:
-            pickle.dump([model, model_metrics], f)
+            pickle.dump(
+                [model, model_metrics, calibration_model, calibration_metrics], f
+            )
 
 
 def load_model(load_file: str):
@@ -394,4 +427,14 @@ def load_model(load_file: str):
     with open(load_file, "rb") as f:
         loaded_data = pickle.load(f)
 
-    return loaded_data[0], loaded_data[1]
+    return loaded_data[0], loaded_data[1], loaded_data[2], loaded_data[3]
+
+
+def get_positive_proba(probabilities):
+    if type(probabilities) is type(np.array([])):
+        return probabilities
+    pos_proba = np.zeros((probabilities[0].shape[0], len(probabilities)))
+    for i, proba in enumerate(probabilities):
+        pos_proba[:, i] = proba[:, 1]
+
+    return pos_proba

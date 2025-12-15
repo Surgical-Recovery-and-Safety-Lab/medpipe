@@ -6,6 +6,7 @@ This module provides functions to preprocess data before training.
 Functions:
 - test_train_it: Creates a KFold iterator to split data into
     test and train sets.
+- get_validation_idx: Removes some of the indices to create a validation set.
 - convert_object_to_categorical: Converts object columns to categoricals.
 - preprocess_data: Processed select data columns based on preprocessing function.
 - extract_labels: Extracts prediction labels from data.
