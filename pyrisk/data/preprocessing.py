@@ -96,11 +96,6 @@ def get_validation_idx(idx_list, groups=None, val_size=0.1):
     val_idx : np.array
         Validation indices.
 
-    Raises
-    ------
-    Error
-        Add exceptions that might be raised.
-
     """
     array_check(idx_list)
     if groups is not None:
@@ -172,6 +167,8 @@ def preprocess_data(data, features, preprocess):
     -------
     processed_data : pd.DataFrame
         Processed DataFrame.
+    preprocess_dict : dict[preprocess, obj]
+        Dictionary of the different preprocessing objects.
 
     Raises
     ------
@@ -197,23 +194,30 @@ def preprocess_data(data, features, preprocess):
 
     # Create a copy of data to work on
     processed_data = deepcopy(data)
+    preprocess_dict = dict()
 
     for feature in features:
         match preprocess:
             case "label_encoder":
-                processed_data[feature] = LabelEncoder().fit_transform(data[feature])
+                le = LabelEncoder()
+                processed_data[feature] = le.fit_transform(data[feature])
+                preprocess_dict[preprocess] = le
             case "standardise":
-                processed_data[feature] = StandardScaler().fit_transform(
+                scaler = StandardScaler()
+                processed_data[feature] = scaler.fit_transform(
                     np.expand_dims(data[feature].to_numpy(), axis=1)
                 )
+                preprocess_dict[preprocess] = scaler
             case "power_transform":
-                processed_data[feature] = PowerTransformer().fit_transform(
+                power_transform = PowerTransformer()
+                processed_data[feature] = power_transform.fit_transform(
                     np.expand_dims(data[feature].to_numpy(), axis=1)
                 )
+                preprocess_dict[preprocess] = power_transform
             case _:
                 raise ValueError(f"{preprocess} invalid preprocessing function")
 
-    return processed_data
+    return processed_data, preprocess_dict
 
 
 def extract_labels(data, labels):
