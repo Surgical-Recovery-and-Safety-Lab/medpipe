@@ -17,6 +17,8 @@ from copy import deepcopy
 import numpy as np
 import pandas as pd
 import sklearn as skl
+from sklearn.isotonic import IsotonicRegression
+from sklearn.linear_model import LogisticRegression
 from sklearn.multioutput import MultiOutputClassifier, MultiOutputRegressor
 from torch.accelerator import current_accelerator, is_available
 
@@ -47,11 +49,13 @@ def create_model(
 
     Parameters
     ----------
-    model_type : {"hgb", "svm", "nn"}
+    model_type : {"hgb", "svm", "nn", "logistic", "isotonic"}
         Type of model to create.
             hgb: histogram gradient boosting.
             svm: support vector machine.
             nn: AIRiskNN neural network.
+            logistic: logistic regression.
+            isotonic: isotonic regression.
     n_features : int, default: -1
         Number of features in the data, only needed for NN models.
     n_classes : int, default: 1
@@ -63,8 +67,11 @@ def create_model(
 
     Returns
     -------
-    model : HistGradBoostingClassifier, SVC or AIRiskNN.
+    model : HistGradBoostingClassifier, SVC, AIRiskNN,
+            LogisticRegression, IsotonicRegression,
+            MultiOutputClassifier or MultiOuputRegressor.
         Created model.
+        If n_classes > 1 and not AIRiskNN then MultiOutput models are created.
 
     Raises
     ------
@@ -72,7 +79,7 @@ def create_model(
         If model_type is not a str.
         If an unexpected keyword argument is present.
     ValueError
-        If model_type is not "hgb", "svm", "nn", or "tabp".
+        If model_type is not "hgb", "svm", "nn", "logistic" or "isotonic".
 
     """
     if type(model_type) is not str:
@@ -107,6 +114,23 @@ def create_model(
             print_message(f"Using {device} device", logger, SCRIPT_NAME)
             model = AIRiskNN(n_features, logger, **config_params).to(device)
 
+        case "logistic":
+            print_message(
+                "Creating a Logistic Regression calibrator", logger, SCRIPT_NAME
+            )
+            model = LogisticRegression()
+
+            if n_classes > 1:
+                model = MultiOutputRegressor(model)
+
+        case "isotonic":
+            print_message(
+                "Creating an Isotonic Regression calibrator", logger, SCRIPT_NAME
+            )
+            model = IsotonicRegression()
+
+            if n_classes > 1:
+                model = MultiOutputRegressor(model)
         case _:
             raise ValueError(f"{model_type} invalid model type. See function docstring")
 
