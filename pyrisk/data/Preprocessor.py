@@ -31,8 +31,12 @@ class Preprocessor:
         Init method.
     _clean_data(X)
         Cleans data in preparation for transformation.
+    fit_transform(X)
+        Fits the operations and transforms the input data.
+    fit(X)
+        Fits the operations based on input data.
     transform(X)
-        Transforms input data based on transformation sequence.
+        Transforms input data based on fitted operations.
     """
 
     def __init__(self, preprocessor_config, logger=None):
@@ -54,6 +58,7 @@ class Preprocessor:
         """
         self.preprocess = preprocessor_config.pop("preprocess")
         self.transform_seq = preprocessor_config
+        self.operations = dict()  # Empty dict to contain operations
         self.logger = logger
 
     def _clean_data(self, X):
@@ -87,9 +92,9 @@ class Preprocessor:
 
         return data
 
-    def transform(self, X):
+    def fit_transform(self, X):
         """
-        Transforms input data based on transformation sequence.
+        Fits the operations and transforms the input data.
 
         Parameters
         ----------
@@ -99,7 +104,7 @@ class Preprocessor:
         Returns
         -------
         data : pd.Dataframe of shape (n_samples, n_features)
-             Cleaned data.
+             Transformed data.
 
         """
         data = self._clean_data(X)  # Clean data before transformation
@@ -107,9 +112,55 @@ class Preprocessor:
         if self.preprocess:
             # If the preprocess flag is true
             print_message("Preprocessing data", self.logger, SCRIPT_NAME)
-            for key in self.transform_seq.keys():
-                data = preprocess_data(
-                    data, self.transform_seq[key]["feature_list"], key
+            data, self.operations = preprocess_data(data, self.transform_seq)
+
+        return data
+
+    def fit(self, X):
+        """
+        Fits the operations based on input data.
+
+        Parameters
+        ----------
+        X : pd.Dataframe of shape (n_samples, n_features)
+            Data to clean.
+
+        Returns
+        -------
+        None
+            Nothings is returned.
+
+        """
+        data = self._clean_data(X)  # Clean data before transformation
+
+        if self.preprocess:
+            # If the preprocess flag is true
+            print_message("Fitting preprocessing operations", self.logger, SCRIPT_NAME)
+            _, self.operations = preprocess_data(data, self.transform_seq)
+
+    def transform(self, X):
+        """
+        Transforms input data based on fitted operations.
+
+        Parameters
+        ----------
+        X : pd.Dataframe of shape (n_samples, n_features)
+            Data to clean.
+
+        Returns
+        -------
+        data : pd.Dataframe of shape (n_samples, n_features)
+             Transformed data.
+
+        """
+        data = self._clean_data(X)  # Clean data before transformation
+
+        if self.preprocess:
+            # If the preprocess flag is true
+            print_message("Preprocessing data", self.logger, SCRIPT_NAME)
+            for operation in self.operations:
+                data = self.operations[operation].transform(
+                    X[self.transform_seq[operation]["feature_list"]]
                 )
 
         return data
