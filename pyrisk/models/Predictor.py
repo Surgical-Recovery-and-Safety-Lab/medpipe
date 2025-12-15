@@ -7,8 +7,6 @@ This class creates a Predictor to train and make predictions.
 
 from torch.accelerator import current_accelerator, is_available
 
-from pyrisk.utils.logger import print_message
-
 from .core import create_model
 
 SCRIPT_NAME = "data/Predictor"
