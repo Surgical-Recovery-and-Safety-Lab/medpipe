@@ -112,6 +112,57 @@ class Pipeline:
             self.preprocessor_config["preprocessing"], logger=self.logger
         )
 
+    def fit_preprocessor(self, X):
+        """
+        Fits the preprocessor operations based on input data.
+
+        Parameters
+        ----------
+        X : pd.Dataframe of shape (n_samples, n_features)
+            Data to clean.
+
+        Returns
+        -------
+        None
+            Nothings is returned.
+
+        """
+        self.preprocessor.fit(X)
+
+    def transform(self, X):
+        """
+        Transforms input data based on preprocessor fitted operations.
+
+        Parameters
+        ----------
+        X : pd.Dataframe of shape (n_samples, n_features)
+            Data to clean.
+
+        Returns
+        -------
+        data : pd.Dataframe of shape (n_samples, n_features)
+             Transformed data.
+
+        """
+        return self.preprocessor.transform(X)
+
+    def fit_transform(self, X):
+        """
+        Fits the preprocessor operations and transforms the input data.
+
+        Parameters
+        ----------
+        X : pd.Dataframe of shape (n_samples, n_features)
+            Data to clean.
+
+        Returns
+        -------
+        data : pd.Dataframe of shape (n_samples, n_features)
+             Transformed data.
+
+        """
+        return self.preprocessor.fit_transform(X)
+
     def fit(self, X, y):
         """
         Train the model on the provided dataset.
