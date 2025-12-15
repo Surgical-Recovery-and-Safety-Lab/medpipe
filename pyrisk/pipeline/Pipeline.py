@@ -22,6 +22,17 @@ class Pipeline:
     ----------
     version : str
         Version number.
+    predictor_type : str
+        Model type of the predictor.
+    calibrator_type : str
+        Model type of the calibrator.
+    preprocessor_config : dict[str, attr]
+        Configuration dictionary for the preprocessor.
+    predictor_config : dict[str, attr]
+        Configuration dictionary for the predictor.
+        Model type of the predictor.
+    calibrator_config : dict[str, attr]
+        Configuration dictionary for the calibrator.
     preprocessor : Preprocessor
         Data preprocessor object.
     predictor : Predictor
@@ -35,6 +46,12 @@ class Pipeline:
     -------
     __init__(pipeline_config={}, logger=None)
         Init method.
+    fit_preprocessor(X)
+        Fits the preprocessor operations based on input data.
+    transform(X)
+        Transforms input data based on preprocessor fitted operations.
+    fit_transform(X)
+        Fits the preprocessor operations and transforms the input data.
     fit(X, y, **kwargs)
         Fits the predictor and calibrator.
     predict_proba(X)
