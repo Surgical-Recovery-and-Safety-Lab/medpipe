@@ -17,7 +17,7 @@ from copy import deepcopy
 import numpy as np
 import pandas as pd
 import sklearn as skl
-from sklearn.preprocessing import LabelEncoder, PowerTransformer, StandardScaler
+from sklearn.preprocessing import OrdinalEncoder, PowerTransformer, StandardScaler
 
 from pyrisk.utils.exceptions import array_check, array_dim_check
 
@@ -160,14 +160,14 @@ def preprocess_data(data, features, preprocess):
         DataFrame to manipulate.
     features : list(str)
         List of features to encode from the data.
-    preprocess : {"label_encoder", "standardise", "power_transform"}
+    preprocess : {"ordinal_encoder", "standardise", "power_transform"}
         Preprocessing function.
 
     Returns
     -------
     processed_data : pd.DataFrame
         Processed DataFrame.
-    preprocess_dict : dict[preprocess, obj]
+    preprocess_dict : dict[]
         Dictionary of the different preprocessing objects.
 
     Raises
@@ -196,26 +196,18 @@ def preprocess_data(data, features, preprocess):
     processed_data = deepcopy(data)
     preprocess_dict = dict()
 
-    for feature in features:
-        match preprocess:
-            case "label_encoder":
-                le = LabelEncoder()
-                processed_data[feature] = le.fit_transform(data[feature])
-                preprocess_dict[preprocess] = le
-            case "standardise":
-                scaler = StandardScaler()
-                processed_data[feature] = scaler.fit_transform(
-                    np.expand_dims(data[feature].to_numpy(), axis=1)
-                )
-                preprocess_dict[preprocess] = scaler
-            case "power_transform":
-                power_transform = PowerTransformer()
-                processed_data[feature] = power_transform.fit_transform(
-                    np.expand_dims(data[feature].to_numpy(), axis=1)
-                )
-                preprocess_dict[preprocess] = power_transform
-            case _:
-                raise ValueError(f"{preprocess} invalid preprocessing function")
+    match preprocess:
+        case "ordinal_encoder":
+            operation = OrdinalEncoder()
+        case "standardise":
+            operation = StandardScaler()
+        case "power_transform":
+            operation = PowerTransformer()
+        case _:
+            raise ValueError(f"{preprocess} invalid preprocessing function")
+
+    processed_data[features] = operation.fit_transform(data[features])
+    preprocess_dict[preprocess] = operation
 
     return processed_data, preprocess_dict
 
