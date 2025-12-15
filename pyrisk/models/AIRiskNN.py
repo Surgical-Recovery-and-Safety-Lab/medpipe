@@ -175,12 +175,15 @@ class AIRiskNN(nn.Module):
 
         if len(class_weights) == 0:
             # No weigths provided, default to 1
-            class_weights = torch.ones(y_test.shape[1])
+            if len(y_train.shape) == 1:
+                class_weights = torch.ones(1)
+            else:
+                class_weights = torch.ones(y_train.shape[1])
+        else:
+            class_weights = torch.tensor(class_weights)
 
         # Define the loss function and optimiser
-        criterion = getattr(nn, loss_name)(
-            pos_weight=torch.tensor(class_weights, dtype=torch.float32).to(self.device)
-        )
+        criterion = getattr(nn, loss_name)(pos_weight=class_weights.to(self.device))
         optimiser = getattr(optim, optim_name)(self.parameters(), lr=lr)
 
         # Create data loaders for batching
@@ -220,7 +223,7 @@ class AIRiskNN(nn.Module):
 
             # Compute train statistics
             avg_loss = running_loss / len(train_loader)
-            train_precision = self.precision(train_labels, train_predictions)
+            train_precision = self.precision(train_predictions, train_labels)
             message += f"Loss {avg_loss:.4f} | Train precision {train_precision:.4f} | "
 
             # Compute test statistics
@@ -229,7 +232,7 @@ class AIRiskNN(nn.Module):
                 with torch.no_grad():  # Disable gradient calculation
                     outputs = self(X_test)
                     test_predictions = torch.round(torch.sigmoid(outputs))
-                    test_precision = self.precision(y_test, test_predictions.squeeze())
+                    test_precision = self.precision(test_predictions.squeeze(), y_test)
                     message += f"Test precision {test_precision:.4f} | "
 
                 self.train()  # Reset to train
@@ -303,10 +306,12 @@ class AIRiskNN(nn.Module):
         # Convert probabilities to binary predictions (0 or 1)
         if type(probabilities) is not type(list()):
             # Single label
-            predictions = np.argmax(probabilities, axis=1)
+            predictions = np.round(probabilities)
         else:
             # Multilabel
-            predictions = np.argmax(probabilities, axis=0)
+            predictions = np.zeros((probabilities[0].shape[0], len(probabilities)))
+            for i, proba in enumerate(probabilities):
+                predictions[:, i] = np.round(proba[:, 1])
 
         return predictions
 

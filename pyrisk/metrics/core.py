@@ -257,7 +257,7 @@ def compute_pred_metrics(metric_list, y_true, y_pred):
 
         if multilabel:
             # Iterate over each label and add individual label accuracy
-            for i in range(len(y_true.shape)):
+            for i in range(y_true.shape[1]):
                 values.append(skl.metrics.accuracy_score(y_true[:, i], y_pred[:, i]))
 
         values.append(skl.metrics.accuracy_score(y_true, y_pred))
