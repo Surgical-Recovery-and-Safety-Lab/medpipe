@@ -150,7 +150,7 @@ def convert_object_to_categorical(data: pd.DataFrame) -> pd.DataFrame:
     return processed_data
 
 
-def preprocess_data(data, features, preprocess):
+def preprocess_data(data, preprocessing_dict):
     """
     Processed select data columns based on preprocessing function.
 
@@ -158,16 +158,14 @@ def preprocess_data(data, features, preprocess):
     ----------
     data : pd.DataFrame
         DataFrame to manipulate.
-    features : list(str)
-        List of features to encode from the data.
-    preprocess : {"ordinal_encoder", "standardise", "power_transform"}
-        Preprocessing function.
+    preprocessing_dict : dict[str, list[str]]
+        Dictionary of the operations and the features on which to operate.
 
     Returns
     -------
     processed_data : pd.DataFrame
         Processed DataFrame.
-    preprocess_dict : dict[]
+    operation_dict : dict[]
         Dictionary of the different preprocessing objects.
 
     Raises
@@ -184,32 +182,35 @@ def preprocess_data(data, features, preprocess):
     if type(data) is not type(pd.DataFrame()):
         raise TypeError(f"data should be a pd.DataFrame, but got {type(data)}")
 
-    if type(features) is not type([]):
-        raise TypeError(f"features should be a list, but got {type(features)}")
-
-    if type(features[0]) is not type(""):
-        raise TypeError(
-            f"features should be a list(str), but got list({type(features[0])}"
-        )
-
     # Create a copy of data to work on
     processed_data = deepcopy(data)
-    preprocess_dict = dict()
+    operation_dict = dict()
 
-    match preprocess:
-        case "ordinal_encoder":
-            operation = OrdinalEncoder()
-        case "standardise":
-            operation = StandardScaler()
-        case "power_transform":
-            operation = PowerTransformer()
-        case _:
-            raise ValueError(f"{preprocess} invalid preprocessing function")
+    for preprocess in preprocessing_dict.keys():
+        features = preprocessing_dict[preprocess]["feature_list"]
 
-    processed_data[features] = operation.fit_transform(data[features])
-    preprocess_dict[preprocess] = operation
+        if type(features) is not type([]):
+            raise TypeError(f"features should be a list, but got {type(features)}")
 
-    return processed_data, preprocess_dict
+        if type(features[0]) is not type(""):
+            raise TypeError(
+                f"features should be a list(str), but got list({type(features[0])}"
+            )
+
+        match preprocess:
+            case "ordinal_encoder":
+                operation = OrdinalEncoder()
+            case "standardise":
+                operation = StandardScaler()
+            case "power_transform":
+                operation = PowerTransformer()
+            case _:
+                raise ValueError(f"{preprocess} invalid preprocessing function")
+
+        processed_data[features] = operation.fit_transform(processed_data[features])
+        operation_dict[preprocess] = operation
+
+    return processed_data, operation_dict
 
 
 def extract_labels(data, labels):
