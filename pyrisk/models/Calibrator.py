@@ -1,7 +1,7 @@
 """
 Calibrator class.
 
-This class creates a Calibrator to train and make predictions.
+This class creates a Calibrator to calibrate predictions.
 
 """
 
