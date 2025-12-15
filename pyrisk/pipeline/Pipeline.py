@@ -10,6 +10,7 @@ from pyrisk.data.Preprocessor import Preprocessor
 from pyrisk.models.Calibrator import Calibrator
 from pyrisk.models.Predictor import Predictor
 from pyrisk.utils.config import get_configuration, split_version_number
+from pyrisk.utils.logger import print_message
 
 SCRIPT_NAME = "pipeline/Pipeline"
 
@@ -80,6 +81,8 @@ class Pipeline:
         self.version = pipeline_config["version"]
         self.predictor_type = pipeline_config["predictor_type"]
         self.logger = logger
+
+        print_message("Setting up Pipeline", self.logger, SCRIPT_NAME)
 
         # Get the different configuration dictionaries
         data_version, model_version = split_version_number(pipeline_config["version"])
