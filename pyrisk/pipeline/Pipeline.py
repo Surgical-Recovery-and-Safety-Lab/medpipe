@@ -1,7 +1,7 @@
 """
 Pipeline class.
 
-This class creates an Pipeline to prepare data, fit a predictor and
+This class creates a Pipeline to prepare data, fit a predictor and
 a calibrator.
 
 """
@@ -15,8 +15,8 @@ class Pipeline:
 
     Attributes
     ----------
-    loader : Loader
-        Data loader object.
+    preprocessor : Preprocessor
+        Data preprocessor object.
     predictor : Predictor
         Prediction model object.
     calibrator : Calibrator
@@ -26,7 +26,7 @@ class Pipeline:
 
     Methods
     -------
-    __init__(loader_config, predictor_config, calibrator_config, logger)
+    __init__(preprocessor_config, predictor_config, calibrator_config, logger)
     fit(X, y, **kwargs)
         Fits the predictor and calibrator.
     predict_proba(X)
@@ -35,14 +35,16 @@ class Pipeline:
         Predicts probabilities from calibrator based on input data.
     """
 
-    def __init__(self, loader_config, predictor_config, calibrator_config, logger=None):
+    def __init__(
+        self, preprocessor_config, predictor_config, calibrator_config, logger=None
+    ):
         """
         Initialise a Pipeline class instance.
 
         Parameters
         ----------
-        loader_config : dict[]
-            Configuration parameters for the loader object.
+        preprocessor_config : dict[]
+            Configuration parameters for the preprocessor object.
         predictor_config : dict[]
             Configuration parameters for the predictor object.
         calibrator_config : dict[]
