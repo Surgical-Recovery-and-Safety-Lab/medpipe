@@ -36,7 +36,11 @@ SCRIPT_NAME = "models/core"
 
 
 def create_model(
-    model_type: str, n_features: int = -1, logger=None, n_classes=1, **config_params
+    model_type: str,
+    n_features: int = -1,
+    n_classes: int = 1,
+    logger=None,
+    **config_params,
 ):
     """
     Creates a AI model.
@@ -48,13 +52,12 @@ def create_model(
             hgb: histogram gradient boosting.
             svm: support vector machine.
             nn: AIRiskNN neural network.
-            tabp: TabP foundational model.
     n_features : int, default: -1
         Number of features in the data, only needed for NN models.
-    logger : logging.Logger, default: None
-        Logger object to log prints. If None print to terminal.
     n_classes : int, default: 1
         Number of classes. Used to call MultiOutputClassifier.
+    logger : logging.Logger, default: None
+        Logger object to log prints. If None print to terminal.
     **config_params
         Configuration parameters for the model.
 
