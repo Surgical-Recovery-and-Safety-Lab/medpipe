@@ -6,6 +6,11 @@ a calibrator.
 
 """
 
+from pyrisk.data.Preprocessor import Preprocessor
+from pyrisk.models.Calibrator import Calibrator
+from pyrisk.models.Predictor import Predictor
+from pyrisk.utils.config import get_configuration, split_version_number
+
 SCRIPT_NAME = "pipeline/Pipeline"
 
 
@@ -15,6 +20,8 @@ class Pipeline:
 
     Attributes
     ----------
+    version : str
+        Version number.
     preprocessor : Preprocessor
         Data preprocessor object.
     predictor : Predictor
@@ -26,7 +33,8 @@ class Pipeline:
 
     Methods
     -------
-    __init__(preprocessor_config, predictor_config, calibrator_config, logger)
+    __init__(pipeline_config={}, logger=None)
+        Init method.
     fit(X, y, **kwargs)
         Fits the predictor and calibrator.
     predict_proba(X)
@@ -35,20 +43,14 @@ class Pipeline:
         Predicts probabilities from calibrator based on input data.
     """
 
-    def __init__(
-        self, preprocessor_config, predictor_config, calibrator_config, logger=None
-    ):
+    def __init__(self, pipeline_config={}, logger=None):
         """
         Initialise a Pipeline class instance.
 
         Parameters
         ----------
-        preprocessor_config : dict[]
-            Configuration parameters for the preprocessor object.
-        predictor_config : dict[]
-            Configuration parameters for the predictor object.
-        calibrator_config : dict[]
-            Configuration parameters for the calibrator object.
+        pipeline_config : dict[str, parameters]
+            Configuration parameters for the pipeline object.
         logger : logging.Logger or None, default: None
             Logger object to log prints. If None print to terminal.
 
@@ -58,7 +60,57 @@ class Pipeline:
             Nothing is returned.
 
         """
+        self.version = pipeline_config["version"]
+        self.predictor_type = pipeline_config["predictor_type"]
         self.logger = logger
+
+        # Get the different configuration dictionaries
+        data_version, model_version = split_version_number(pipeline_config["version"])
+
+        # Get predictor configuration parameters
+        self.predictor_config = get_configuration(
+            pipeline_config["model_parameters"],
+            model_version,
+        )
+
+        # Get data configuration parameters
+        self.preprocessor_config = get_configuration(
+            pipeline_config["data_parameters"],
+            data_version,
+        )
+
+        # Get the calibrator configuration parameters from the predictor config
+        self.calibrator_type = self.predictor_config["calibrator"]["calibrator_type"]
+        self.calibrator_config = self.predictor_config["calibrator"]["hyperparameters"]
+
+        # Define variables needed to initialise other objects
+        label_list = self.predictor_config["labels"]["label_list"]
+        n_features = len(self.preprocessor_config["features"]["feature_list"]) - len(
+            label_list
+        )
+        if self.preprocessor_config["split_variables"]["group_name"]:
+            # Remove group name if using GroupKFold
+            n_features -= 1
+        n_classes = len(label_list)
+
+        self.predictor = Predictor(
+            self.predictor_type,
+            hyperparameters=self.predictor_config["hyperparameters"],
+            n_features=n_features,
+            n_classes=n_classes,
+            logger=self.logger,
+        )
+        if self.calibrator_type:
+            # Only if a calibrator type is provided
+            self.calibrator = Calibrator(
+                self.calibrator_type,
+                n_classes=n_classes,
+                logger=self.logger,
+                **self.calibrator_config,
+            )
+        self.preprocessor = Preprocessor(
+            self.preprocessor_config["preprocessing"], logger=self.logger
+        )
 
     def fit(self, X, y):
         """
