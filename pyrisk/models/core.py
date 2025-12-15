@@ -118,7 +118,7 @@ def create_model(
             print_message(
                 "Creating a Logistic Regression calibrator", logger, SCRIPT_NAME
             )
-            model = LogisticRegression()
+            model = LogisticRegression(**config_params)
 
             if n_classes > 1:
                 model = MultiOutputRegressor(model)
@@ -127,7 +127,7 @@ def create_model(
             print_message(
                 "Creating an Isotonic Regression calibrator", logger, SCRIPT_NAME
             )
-            model = IsotonicRegression()
+            model = IsotonicRegression(**config_params)
 
             if n_classes > 1:
                 model = MultiOutputRegressor(model)
