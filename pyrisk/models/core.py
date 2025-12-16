@@ -369,27 +369,18 @@ def test_model(model, X_test, y_test):
     return metric_dict
 
 
-def save_model(
-    model,
-    save_file,
-    calibration_model,
-    model_metrics=None,
-    calibration_metrics=None,
-    extension=".pkl",
-) -> None:
+def save_pipeline(pipeline, save_file, extension=".pkl") -> None:
     """
-    Saves an AI model to file.
+    Saves a Pipeline to file.
 
     Parameters
     ----------
-    model : HistGradBoostingClassifier, SVC, or AIRiskNN
-        Model to save.
+    pipeline : Pipeline
+        Pipeline to save.
     save_file : str
         Path to the file to save the model.
     extension : str, default: ".pkl"
         Extension of the save file.
-    model_metrics : dict[int, dict[str, float or tuple(array-like)]], default None
-        Model metrics for different folds.
 
     Returns
     -------
@@ -410,32 +401,23 @@ def save_model(
     """
     file_checks(save_file, extension, exists=False)
 
-    if extension != ".pkl":
-        # Saving an AIRiskNN model
-        model.save_model(save_file)
-
-    else:
-        with open(save_file, "wb") as f:
-            pickle.dump(
-                [model, model_metrics, calibration_model, calibration_metrics], f
-            )
+    with open(save_file, "wb") as f:
+        pickle.dump(pipeline, f)
 
 
-def load_model(load_file: str):
+def load_pipeline(load_file: str):
     """
-    Loads an AI model and its metric data from a .pkl file.
+    Loads a saved Pipeline from a .pkl file.
 
     Parameters
     ----------
     load_file : str
-        Path to the file to load the model from.
+        Path to the file to load the Pipeline from.
 
     Returns
     -------
-    model : HistGradBoostingClassifier, SVC, or AIRiskNN
-        Loaded model or state_dict in the case of an AIRiskNN.
-    model_metrics : dict[int, dict[str, float or tuple(array-like)]]
-        Model metrics for different folds.
+    pipeline : Pipeline
+        Loaded pipeline.
 
     Raises
     ------
@@ -452,9 +434,9 @@ def load_model(load_file: str):
     file_checks(load_file, ".pkl")
 
     with open(load_file, "rb") as f:
-        loaded_data = pickle.load(f)
+        pipeline = pickle.load(f)
 
-    return loaded_data[0], loaded_data[1], loaded_data[2], loaded_data[3]
+    return pipeline
 
 
 def get_positive_proba(probabilities):
