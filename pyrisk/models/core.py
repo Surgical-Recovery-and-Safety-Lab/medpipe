@@ -143,12 +143,12 @@ def test_model(y_test, y_pred, y_pred_proba):
 
     Parameters
     ----------
-    model : HistGradBoostingClassifier, SVC, or AIRiskNN
-        Model to test.
-    X_test : array-like of shape (n_samples, n_features)
-        Test data to make predictions on.
     y_test : array-like of shape (n_samples, n_classes)
         Ground truth test labels.
+    y_pred : array-like of shape (n_samples, n_classes)
+        Predicted labels.
+    y_pred_proba : np.array (n_classes,) of arrays (n_samples, 2)
+        Predicted probabilities.
 
     Returns
     -------
@@ -174,12 +174,9 @@ def test_model(y_test, y_pred, y_pred_proba):
 
     """
     # Check that inputs are correct
-    array_check(X_test)
-    array_check(y_test)
-    array_dim_check(X_test, y_test, 0)
+    array_check(y_pred)
+    array_check(y_pred_proba)
 
-    y_pred = model.predict(X_test)
-    y_pred_proba = model.predict_proba(X_test)
     metric_dict = compute_pred_metrics(
         ["accuracy", "f1", "recall", "precision"], y_test, y_pred
     )
