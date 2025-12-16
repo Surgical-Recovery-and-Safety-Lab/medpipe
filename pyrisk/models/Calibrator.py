@@ -120,7 +120,7 @@ class Calibrator:
 
         """
         for i in range(self.n_classes):
-            self.model[i].fit(X[:, i], y[:, i].squeeze())
+            self.model[i].fit(X[:, i].reshape(-1, 1), y[:, i])
 
     def predict_proba(self, X):
         """
@@ -139,7 +139,7 @@ class Calibrator:
         """
         predictions = []
         for i in range(self.n_classes):
-            predictions.append(self.model[i].predict(X[:, i]))
+            predictions.append(self.model[i].predict(X[:, i].reshape(-1, 1)))
         return get_full_proba(array(predictions).T)
 
     def predict(self, X):
@@ -159,5 +159,5 @@ class Calibrator:
         """
         labels = []
         for i in range(self.n_classes):
-            labels.append(round(self.model[i].predict(X[:, i])))
+            labels.append(round(self.model[i].predict(X[:, i].reshape(-1, 1))))
         return array(labels).T
