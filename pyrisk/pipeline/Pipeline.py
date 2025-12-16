@@ -226,9 +226,9 @@ class Pipeline:
         """
         return self.preprocessor.fit_transform(X)
 
-    def fit(self, X, y):
+    def fit_model(self, X, y, model, **kwargs):
         """
-        Train the model on the provided dataset.
+        Fits the predictor or calibrator model on the provided dataset.
 
         Parameters
         ----------
@@ -236,17 +236,96 @@ class Pipeline:
             Training data.
         y : array-like of shape (n_samples, n_classes)
             Prediction labels.
+        model : {"predictor", "calibrator"}
+            Model to fit.
+        **kwargs
+            Extra arguments for fitting the models.
 
         Returns
         -------
         None
             Nothing is returned.
 
-        """
+        Raises
+        ------
+        ValueError
+            If model is not "predictor" or "calibrator"
 
-    def predict_proba(self, X):
         """
-        Predicts probabilities from predictor based on input data.
+        match model:
+            case "predictor":
+                self.predictor.fit(X, y, **kwargs)
+            case "calibrator":
+                self.calibrator.fit(X, y, **kwargs)
+            case _:
+                raise ValueError(
+                    f"Model should be predictor or calibrator, but got {model}"
+                )
+
+    def test_model(self, X, y, model, label_list, key=None):
+        """
+        Tests the predictor or calibrator model on the provided dataset.
+
+        Parameters
+        ----------
+        X : pd.DataFrame of shape (n_samples, n_features)
+            Training data.
+        y : array-like of shape (n_samples, n_classes)
+            Prediction labels.
+        model : {"predictor", "calibrator"}
+            Model to test.
+        label_list : list[str]
+            List of labels to predict.
+        key : str or None, default: None
+            Key for updating the metric dictionaries.
+            If None, the dictionaries are not updated.
+
+        Returns
+        -------
+        None
+            Nothing is returned.
+
+        Raises
+        ------
+        ValueError
+            If model is not "predictor" or "calibrator"
+
+        """
+        match model:
+            case "predictor":
+                message = "Uncalibrated metrics"
+                metric_dict = test_model(
+                    y,
+                    self.predictor.predict(X),
+                    self.predictor.predict_proba(X),
+                )
+
+                if key:
+                    self.predictor_metrics.update({key: metric_dict})
+
+            case "calibrator":
+                message = "Calibrated metrics"
+                X_calibrator = get_positive_proba(self.predictor.predict_proba(X))
+                metric_dict = test_model(
+                    y,
+                    self.calibrator.predict(X_calibrator),
+                    self.calibrator.predict_proba(X_calibrator),
+                )
+
+                if key:
+                    self.calibrator_metrics.update({key: metric_dict})
+
+            case _:
+                raise ValueError(
+                    f"Model should be predictor or calibrator, but got {model}"
+                )
+
+        print_message(message, self.logger, SCRIPT_NAME)
+        print_metrics(metric_dict, label_list, self.logger)
+
+    def run(self, X):
+        """
+        Run pipeline with input data.
 
         Parameters
         ----------
@@ -255,13 +334,236 @@ class Pipeline:
 
         Returns
         -------
+        None
+            Nothing is returned.
+
+        """
+        if self.preprocessor.operations:
+            # If operations are already set then simply transform the data
+            data = self.transform(X)
+        else:
+            # Fit and transform
+            data = self.fit_transform(X)
+
+        label_list = self.predictor_config["labels"]["label_list"]
+        group_name = self.preprocessor_config["split_variables"]["group_name"]
+        best_precision = 0.0
+        best_fold = 0
+
+        # Temporary storage for best models
+        tmp_predictor = deepcopy(self.predictor.model)
+        tmp_calibrator = deepcopy(self.calibrator.model)
+
+        if group_name:
+            groups = data[group_name]  # Get the groups for splitting
+        else:
+            groups = None
+
+        X, y = extract_labels(data, label_list)  # Get prediction labels from data
+
+        # Sample and weight if needed
+        X, y, groups = self._sample_data(X, y, groups)
+        weights = self._weight_data(y)
+
+        kfold_it = test_train_it(**self.preprocessor_config["split_variables"])
+        n_folds = kfold_it.get_n_splits(X, y[:, 0], groups=groups)
+
+        for i, (train_idx, test_idx) in enumerate(
+            kfold_it.split(X, y[:, 0], groups=groups)
+        ):
+            if group_name:
+                # Extract a validation set for calibration
+                X_fold = X.drop(groups.name, axis=1)
+                train_idx, val_idx = get_validation_idx(
+                    train_idx, groups.iloc[train_idx]
+                )
+                fold = int(
+                    groups.iloc[test_idx[0]]
+                )  # Use the test year as the fold number
+                fold_message = f"  Fold number {fold} ({i+1}/{n_folds})"
+            else:
+                # Extract a validation set for calibration
+                X_fold = X
+                train_idx, val_idx = get_validation_idx(train_idx, groups)
+                fold = i
+                fold_message = f"  Fold number {fold+1}/{n_folds}"
+
+            # Create the different data sets
+            X_train = X_fold.iloc[train_idx]
+            y_train = y[train_idx]
+            X_test = X_fold.iloc[test_idx]
+            y_test = y[test_idx]
+            X_val = X_fold.iloc[val_idx]
+            y_val = y[val_idx]
+
+            print_message(fold_message, self.logger, SCRIPT_NAME)
+            print_message(
+                f"  Train set size: {len(X_train)} examples", self.logger, SCRIPT_NAME
+            )
+            print_message(
+                f"  Validation set size: {len(X_val)} examples",
+                self.logger,
+                SCRIPT_NAME,
+            )
+            print_message(
+                f"  Test set size: {len(X_test)} examples", self.logger, SCRIPT_NAME
+            )
+
+            # Fit predictor on train set
+            self.fit_model(
+                X_train,
+                y_train,
+                "predictor",
+                **{"X_test": X_test, "y_test": y_test, "weights": weights[train_idx]},
+            )
+
+            # Fit calibrator on validation set
+            self.fit_model(
+                get_positive_proba(self.predictor.predict_proba(X_val)),
+                y_val,
+                "calibrator",
+            )
+
+            # Test predictor and calibrator on test set
+            self.test_model(X_test, y_test, "predictor", label_list, fold)
+            self.test_model(X_test, y_test, "calibrator", label_list, fold)
+            cur_precision = self.predictor_metrics[fold]["precision"][-1]
+
+            if cur_precision > best_precision:
+                # Temporarily save model with best precision
+                print_message("  New best model", self.logger, SCRIPT_NAME)
+                best_fold = fold
+                best_precision = cur_precision
+                tmp_predictor = deepcopy(self.predictor.model)
+                tmp_calibrator = deepcopy(self.calibrator.model)
+
+            # Rest predictor and calibrator
+            self.predictor._set_model()
+            self.calibrator._set_model()
+
+        # Replace models with best ones
+        self.predictor.model = tmp_predictor
+        self.calibrator_model = tmp_calibrator
+        print_message(f"  Best fold number {best_fold}", self.logger, SCRIPT_NAME)
+
+    def predict_proba(self, X, model="calibrator"):
+        """
+        Predicts probabilities from predictor or calibrator based on input data.
+
+        Parameters
+        ----------
+        X : pd.DataFrame of shape (n_samples, n_features)
+            Data to make predictions on.
+        model : {"predictor", "calibrator"}
+            Model to fit.
+
+        Returns
+        -------
         probabilities : np.array (n_classes,) of arrays (n_samples, 2)
             Predicted probabilities.
 
-        """
-        probabilities = []
+        Raises
+        ------
+        ValueError
+            If model is not "predictor" or "calibrator"
 
-        if outputs.shape[1] == 1:
-            return probabilities[0]
-        else:
-            return probabilities
+        """
+        match model:
+            case "predictor":
+                self.predictor.predict_proba(X)
+            case "calibrator":
+                self.calibrator.predict_proba(
+                    get_positive_proba(self.predictor.predict_proba(X))
+                )
+            case _:
+                raise ValueError(
+                    f"Model should be predictor or calibrator, but got {model}"
+                )
+
+    def predict(self, X, model="calibrator"):
+        """
+        Predicts labels from predictor or calibrator based on input data.
+
+        Parameters
+        ----------
+        X : pd.DataFrame of shape (n_samples, n_features)
+            Data to make predictions on.
+        model : {"predictor", "calibrator"}
+            Model to fit.
+
+        Returns
+        -------
+        probabilities : np.array (n_classes,) of arrays (n_samples, 2)
+            Predicted probabilities.
+
+        Raises
+        ------
+        ValueError
+            If model is not "predictor" or "calibrator"
+
+        """
+        match model:
+            case "predictor":
+                self.predictor.predict(X)
+            case "calibrator":
+                self.calibrator.predict(
+                    get_positive_proba(self.predictor.predict_proba(X))
+                )
+            case _:
+                raise ValueError(
+                    f"Model should be predictor or calibrator, but got {model}"
+                )
+
+    def _sample_data(self, X, y, groups):
+        """
+        Samples the data based on configuration.
+
+        Parameters
+        ----------
+        X : pd.DataFrame of shape (n_samples, n_features)
+            Data to sample.
+        y : np.array of shape (n_samples,)
+            Labels to sample.
+        groups : pd.Series of shape (n_samples,) or None
+            Groups of the examples, None if not specified.
+
+        Returns
+        -------
+        X_sampled : pd.DataFrame of shape (n_sampled_samples, n_features)
+            Sampled data.
+        y_sampled : np.array of shape (n_sampled_samples,)
+            Sampled labels.
+        groups_sampled : pd.Series of shape(n_sampled_samples,) or None
+            Groups of the examples, None if not specified.
+
+        """
+        sampler_fn = self.predictor_config["sampler"]["sampler_fn"]
+
+        if sampler_fn:
+            return data_sampler(X, y, groups=groups, **self.predictor_config["sampler"])
+
+        return X, y, groups
+
+    def _weight_data(self, y):
+        """
+        Gets the weights for the data based on configuration.
+
+        Parameters
+        ----------
+        y : np.array of shape (n_samples,)
+            Labels needed for creation of weights.
+
+        Returns
+        -------
+        weights : np.array of shape (n_samples,) or (n_classes,) or None
+            Sample or class weights based on labels.
+            Sample weights are of shape (n_samples,).
+            Class weights are of shape (n_classes,).
+            None if no weighting function is provided.
+
+        """
+        weighting_fn = self.predictor_config["weighting"]["weighting_fn"]
+        if weighting_fn:
+            return getattr(weight, weighting_fn)(y)
+
+        return ones(y.shape)
