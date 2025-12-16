@@ -49,6 +49,30 @@ class Pipeline:
         Prediction model object.
     calibrator : Calibrator
         Calibration model object.
+    predictor_metrics : dict[str, dict[str, list[float or tuple(array-like)]]
+        Dictionary of the predictor performance.
+        Keys are the metric name and values are the metric value.
+        The test metrics used are:
+         - accuracy
+         - f1
+         - precision
+         - recall
+         - roc (Receiver Operator Characteristic)
+         - auroc (Area Under Receiver Operator Characteristic)
+         - prc (Precision-Recall Curve)
+         - ap (Average Precision)
+    calibrator_metrics : dict[str, dict[str, list[float or tuple(array-like)]]
+        Dictionary of the calibrator performance.
+        Keys are the metric name and values are the metric value.
+        The test metrics used are:
+         - accuracy
+         - f1
+         - precision
+         - recall
+         - roc (Receiver Operator Characteristic)
+         - auroc (Area Under Receiver Operator Characteristic)
+         - prc (Precision-Recall Curve)
+         - ap (Average Precision)
     logger : logging.Logger or None, default: None
         Logger object to log prints. If None print to terminal.
 
@@ -62,12 +86,20 @@ class Pipeline:
         Transforms input data based on preprocessor fitted operations.
     fit_transform(X)
         Fits the preprocessor operations and transforms the input data.
-    fit(X, y, **kwargs)
-        Fits the predictor and calibrator.
+    fit_model(X, y, model, **kwargs)
+        Fits the predictor or calibrator model on the provided dataset.
+    test_model(X, y, model, label_list, key=None)
+        Tests the predictor or calibrator model on the provided dataset.
+    run(X)
+        Run pipeline with input data.
     predict_proba(X)
-        Predicts probabilities from predictor based on input data.
-    predict_calibrated_proba(X)
-        Predicts probabilities from calibrator based on input data.
+        Predicts probabilities from predictor or calibrator based on input data.
+    predict(X)
+        Predicts labels from predictor or calibrator based on input data.
+    _sample_data(X, y, groups)
+        Samples the data based on configuration.
+    _weight_data(y)
+        Gets the weights for the data based on configuration.
     """
 
     def __init__(self, pipeline_config={}, logger=None):
