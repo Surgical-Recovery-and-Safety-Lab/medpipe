@@ -462,3 +462,26 @@ def get_positive_proba(probabilities):
         pos_proba[:, i] = proba[:, 1]
 
     return pos_proba
+
+
+def get_full_proba(pos_proba):
+    """
+    Returns probabilities for both labels.
+
+    Parameters
+    ----------
+    pos_proba : array-like of shape (n_samples, n_classes)
+        Probabilities of the positive labels for each class.
+
+    Returns
+    -------
+    probabilities : array-like of shape (n_classes, (n_samples, 2))
+        Probabilities for each class.
+
+    """
+    probabilities = []  # Empty list for the probabilities
+
+    for i in range(pos_proba.shape[1]):
+        probabilities.append(np.array([1 - pos_proba[:, i], pos_proba[:, i]]).T)
+
+    return probabilities
