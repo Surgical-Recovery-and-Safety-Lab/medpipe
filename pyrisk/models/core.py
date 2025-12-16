@@ -1,14 +1,15 @@
 """
 Models functions module.
 
-This module provides functions to create, train, and test models.
+This module provides functions to core functions for models and pipelines.
 
 Functions:
 - create_model: Creates a new model.
-- train_model: Trains a given model on some train data.
 - test_model: Tests a model on some test data.
-- save_model: Pickles a model.
-- load_model: Loads a pickled model.
+- save_pipeline: Pickles a pipeline.
+- load_pipeline: Loads a pickled pipeline.
+- get_positive_proba: Returns just the positive label probabilities of the each class.
+- get_full_proba: Returns probabilities for both labels.
 """
 
 import pickle
