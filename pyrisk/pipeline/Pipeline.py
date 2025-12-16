@@ -460,8 +460,8 @@ class Pipeline:
             )
 
             # Test predictor and calibrator on test set
-            self.test_model(X_test, y_test, "predictor", label_list, fold)
-            self.test_model(X_test, y_test, "calibrator", label_list, fold)
+            self.test_model(X_test, y_test.squeeze(), "predictor", label_list, fold)
+            self.test_model(X_test, y_test.squeeze(), "calibrator", label_list, fold)
             cur_precision = self.predictor_metrics[fold]["precision"][-1]
 
             if cur_precision > best_precision:
