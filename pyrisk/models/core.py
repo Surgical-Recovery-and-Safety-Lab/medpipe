@@ -440,8 +440,23 @@ def load_pipeline(load_file: str):
 
 
 def get_positive_proba(probabilities):
+    """
+    Returns just the positive label probabilities of the each class.
+
+    Parameters
+    ----------
+    probabilities : array-like of shape (n_classes, (n_samples, 2))
+        Probabilities for each class.
+
+    Returns
+    -------
+    pos_proba : array-like of shape (n_samples, n_classes)
+        Probabilities of the positive labels for each class.
+
+    """
     if type(probabilities) is type(np.array([])):
         return probabilities
+
     pos_proba = np.zeros((probabilities[0].shape[0], len(probabilities)))
     for i, proba in enumerate(probabilities):
         pos_proba[:, i] = proba[:, 1]
