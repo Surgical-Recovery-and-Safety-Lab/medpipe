@@ -287,4 +287,7 @@ def get_full_proba(pos_proba):
     for i in range(pos_proba.shape[1]):
         probabilities.append(np.array([1 - pos_proba[:, i], pos_proba[:, i]]).T)
 
-    return probabilities
+    if len(probabilities) == 1:
+        return probabilities[0]
+    else:
+        return probabilities
