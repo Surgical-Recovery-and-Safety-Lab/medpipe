@@ -133,8 +133,8 @@ class Calibrator:
 
         Returns
         -------
-        predictions : array-like of shape (n_samples, n_classes)
-            Predicted labels.
+        probabilities : np.array (n_classes,) of arrays (n_samples, 2)
+            Predicted probabilities.
 
         """
         predictions = []

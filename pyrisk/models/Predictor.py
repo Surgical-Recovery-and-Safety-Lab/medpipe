@@ -177,8 +177,8 @@ class Predictor:
 
         Returns
         -------
-        predictions : array-like of shape (n_samples, n_classes)
-            Predicted labels.
+        probabilities : np.array (n_classes,) of arrays (n_samples, 2)
+            Predicted probabilities.
 
         """
         return self.model.predict_proba(X)
@@ -194,7 +194,7 @@ class Predictor:
 
         Returns
         -------
-        predictions : array-like of shape (n_samples, n_classes)
+        labels : array-like of shape (n_samples, n_classes)
             Predicted labels.
 
         """
