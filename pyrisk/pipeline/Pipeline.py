@@ -505,15 +505,16 @@ class Pipeline:
         """
         match model:
             case "predictor":
-                self.predictor.predict_proba(X)
+                probabilities = self.predictor.predict_proba(X)
             case "calibrator":
-                self.calibrator.predict_proba(
+                probabilities = self.calibrator.predict_proba(
                     get_positive_proba(self.predictor.predict_proba(X))
                 )
             case _:
                 raise ValueError(
                     f"Model should be predictor or calibrator, but got {model}"
                 )
+        return probabilities
 
     def predict(self, X, model="calibrator"):
         """
@@ -528,8 +529,8 @@ class Pipeline:
 
         Returns
         -------
-        probabilities : np.array (n_classes,) of arrays (n_samples, 2)
-            Predicted probabilities.
+        labels : array-like of shape (n_samples, n_classes)
+            Predicted labels.
 
         Raises
         ------
@@ -539,15 +540,16 @@ class Pipeline:
         """
         match model:
             case "predictor":
-                self.predictor.predict(X)
+                labels = self.predictor.predict(X)
             case "calibrator":
-                self.calibrator.predict(
+                labels = self.calibrator.predict(
                     get_positive_proba(self.predictor.predict_proba(X))
                 )
             case _:
                 raise ValueError(
                     f"Model should be predictor or calibrator, but got {model}"
                 )
+        return labels
 
     def _sample_data(self, X, y, groups):
         """
