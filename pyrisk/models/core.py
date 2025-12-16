@@ -12,26 +12,17 @@ Functions:
 """
 
 import pickle
-from copy import deepcopy
 
 import numpy as np
-import pandas as pd
 import sklearn as skl
 from sklearn.isotonic import IsotonicRegression
 from sklearn.linear_model import LogisticRegression
-from sklearn.multioutput import MultiOutputClassifier, MultiOutputRegressor
+from sklearn.multioutput import MultiOutputClassifier
 from torch.accelerator import current_accelerator, is_available
 
-import pyrisk.data.weighting as weight
-from pyrisk.data.preprocessing import extract_labels, get_validation_idx
-from pyrisk.data.sampler import data_sampler
-from pyrisk.metrics.core import (
-    compute_pred_metrics,
-    compute_score_metrics,
-    print_metrics,
-)
+from pyrisk.metrics.core import compute_pred_metrics, compute_score_metrics
 from pyrisk.models.AIRiskNN import AIRiskNN
-from pyrisk.utils.exceptions import array_check, array_dim_check, file_checks
+from pyrisk.utils.exceptions import array_check, file_checks
 from pyrisk.utils.logger import print_message
 
 SCRIPT_NAME = "models/core"
