@@ -603,4 +603,4 @@ class Pipeline:
         if weighting_fn:
             return getattr(weight, weighting_fn)(y)
 
-        return ones(y.shape)
+        return ones(y.shape[0])
