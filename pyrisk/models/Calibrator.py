@@ -5,9 +5,9 @@ This class creates a Calibrator to calibrate predictions.
 
 """
 
-from numpy import round
+from numpy import array, round
 
-from .core import create_model
+from .core import create_model, get_full_proba
 
 SCRIPT_NAME = "data/Calibrator"
 
@@ -18,8 +18,8 @@ class Calibrator:
 
     Attributes
     ----------
-    model : LogisticRegression, IsotonicRegression, or MultiOutputRegressor
-        Calibrator model.
+    model : list[LogisticRegression or IsotonicRegression]
+        List of calibrator model (one per class).
     model_type : {"logistic", "isotonic"}
         Model type.
     n_classes : int
@@ -44,6 +44,7 @@ class Calibrator:
     def __init__(
         self,
         model_type,
+        hyperparameters={},
         n_classes=1,
         logger=None,
     ):
@@ -54,6 +55,8 @@ class Calibrator:
         ----------
         model_type : {"logistic", "isotonic"}
             Model type.
+        hyperparameters : dict[str, value]
+            Model hyperparameter dictionary.
         n_classes : int, default: 1
             Number of classes to predict.
         logger : logging.Logger or None, default: None
@@ -66,8 +69,10 @@ class Calibrator:
 
         """
         self.model_type = model_type
+        self.hyperparameters = hyperparameters
         self.n_classes = n_classes
         self.logger = logger
+        self.model = []  # Empty list of models (one per class)
 
         # Create model based on attributes
         self._set_model()
@@ -87,9 +92,15 @@ class Calibrator:
             Nothing is returned.
 
         """
-        self.model = create_model(
-            self.model_type, n_classes=self.n_classes, logger=self.logger
-        )
+        for i in range(self.n_classes):
+            self.model.append(
+                create_model(
+                    self.model_type,
+                    n_classes=1,
+                    logger=self.logger,
+                    **self.hyperparameters,
+                )
+            )
 
     def fit(self, X, y):
         """
@@ -97,7 +108,7 @@ class Calibrator:
 
         Parameters
         ----------
-        X : array-like of shape (n_samples, n_features)
+        X : array-like of shape (n_samples, n_classes)
             Training data.
         y : array-like of shape (n_samples, n_classes)
             Prediction data.
@@ -108,7 +119,8 @@ class Calibrator:
             Nothing is returned.
 
         """
-        self.model.fit(X, y.squeeze())
+        for i in range(self.n_classes):
+            self.model[i].fit(X[:, i], y[:, i].squeeze())
 
     def predict_proba(self, X):
         """
@@ -116,7 +128,7 @@ class Calibrator:
 
         Parameters
         ----------
-        X : array-like of shape (n_samples, n_features)
+        X : array-like of shape (n_samples, n_classes)
             Training data.
 
         Returns
@@ -125,7 +137,10 @@ class Calibrator:
             Predicted labels.
 
         """
-        return self.model.predict(X)
+        predictions = []
+        for i in range(self.n_classes):
+            predictions.append(self.model[i].predict(X[:, i]))
+        return get_full_proba(array(predictions).T)
 
     def predict(self, X):
         """
@@ -133,7 +148,7 @@ class Calibrator:
 
         Parameters
         ----------
-        X : array-like of shape (n_samples, n_features)
+        X : array-like of shape (n_samples, n_classes)
             Training data.
 
         Returns
@@ -142,4 +157,7 @@ class Calibrator:
             Predicted labels.
 
         """
-        return round(self.model.predict(X))
+        labels = []
+        for i in range(self.n_classes):
+            labels.append(round(self.model[i].predict(X[:, i])))
+        return array(labels).T
