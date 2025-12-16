@@ -122,6 +122,8 @@ class Pipeline:
         self.version = pipeline_config["version"]
         self.predictor_type = pipeline_config["predictor_type"]
         self.logger = logger
+        self.predictor_metrics = {}  # Empty dict for predictor metrics
+        self.calibrator_metrics = {}  # Empty dict for calibrator metrics
 
         print_message("Setting up Pipeline", self.logger, SCRIPT_NAME)
 
@@ -142,7 +144,7 @@ class Pipeline:
 
         # Get the calibrator configuration parameters from the predictor config
         self.calibrator_type = self.predictor_config["calibrator"]["calibrator_type"]
-        self.calibrator_config = self.predictor_config["calibrator"]["hyperparameters"]
+        self.calibrator_config = self.predictor_config["calibrator"]
 
         # Define variables needed to initialise other objects
         label_list = self.predictor_config["labels"]["label_list"]
@@ -165,9 +167,9 @@ class Pipeline:
             # Only if a calibrator type is provided
             self.calibrator = Calibrator(
                 self.calibrator_type,
+                hyperparameters=self.calibrator_config["hyperparameters"],
                 n_classes=n_classes,
                 logger=self.logger,
-                **self.calibrator_config,
             )
         self.preprocessor = Preprocessor(
             self.preprocessor_config["preprocessing"], logger=self.logger
