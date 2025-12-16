@@ -67,11 +67,11 @@ def create_model(
 
     Returns
     -------
-    model : HistGradBoostingClassifier, SVC, AIRiskNN,
+    model : HistGradBoostingClassifier, SVC, AIRiskNN or MultiOutputClassifier.
             LogisticRegression, IsotonicRegression,
-            MultiOutputClassifier or MultiOuputRegressor.
         Created model.
-        If n_classes > 1 and not AIRiskNN then MultiOutput models are created.
+        If n_classes > 1 and not AIRiskNN then MultiOutputClassifier model is
+        created.
 
     Raises
     ------
@@ -120,17 +120,12 @@ def create_model(
             )
             model = LogisticRegression(**config_params)
 
-            if n_classes > 1:
-                model = MultiOutputRegressor(model)
-
         case "isotonic":
             print_message(
                 "Creating an Isotonic Regression calibrator", logger, SCRIPT_NAME
             )
             model = IsotonicRegression(**config_params)
 
-            if n_classes > 1:
-                model = MultiOutputRegressor(model)
         case _:
             raise ValueError(f"{model_type} invalid model type. See function docstring")
 
