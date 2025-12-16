@@ -5,6 +5,8 @@ This class creates a Preprocessor to prepare data.
 
 """
 
+from copy import deepcopy
+
 from pyrisk.utils.logger import print_message
 
 from .preprocessing import convert_object_to_categorical, preprocess_data
@@ -107,7 +109,7 @@ class Preprocessor:
              Transformed data.
 
         """
-        data = self._clean_data(X)  # Clean data before transformation
+        data = self._clean_data(deepcopy(X))  # Clean data before transformation
 
         if self.preprocess:
             # If the preprocess flag is true
@@ -153,14 +155,14 @@ class Preprocessor:
              Transformed data.
 
         """
-        data = self._clean_data(X)  # Clean data before transformation
+        data = self._clean_data(deepcopy(X))  # Clean data before transformation
 
         if self.preprocess:
             # If the preprocess flag is true
             print_message("Preprocessing data", self.logger, SCRIPT_NAME)
             for operation in self.operations:
-                data = self.operations[operation].transform(
-                    X[self.transform_seq[operation]["feature_list"]]
-                )
+                features = self.transform_seq[operation]["feature_list"]
+                transformed_data = self.operations[operation].transform(data[features])
+                data[features] = transformed_data
 
         return data
