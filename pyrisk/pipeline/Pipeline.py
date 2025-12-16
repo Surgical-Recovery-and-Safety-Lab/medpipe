@@ -8,7 +8,7 @@ a calibrator.
 
 from copy import deepcopy
 
-from numpy import ones
+from numpy import arange, ones
 
 import pyrisk.data.weighting as weight
 from pyrisk.data.preprocessing import extract_labels, get_validation_idx, test_train_it
@@ -225,6 +225,41 @@ class Pipeline:
 
         """
         return self.preprocessor.fit_transform(X)
+
+    def get_test_data(self, X):
+        """
+        Returns train and test data based on input data.
+
+        Parameters
+        ----------
+        X : pd.DataFrame of shape (n_samples, n_features)
+            Data to split.
+
+        Returns
+        -------
+        X_train : pd.DataFrame of shape (n_samples, n_features)
+            Train set.
+        X_test : pd.DataFrame of shape (n_samples, n_features)
+            Test set.
+
+        """
+        split_vars = self.preprocessor_config["split_variables"]
+
+        if split_vars["group_name"]:
+            train_idx, test_idx = get_validation_idx(
+                arange(len(X), dtype=int), X[split_vars["group_name"]]
+            )
+            X_test = X.iloc[test_idx]
+            X_test = X_test.drop(split_vars["group_name"], axis=1)
+
+        else:
+            # No groups just get 10 percent of the data
+            train_idx, test_idx = get_validation_idx(arange(len(X), dtype=int))
+            X_test = X.iloc[test_idx]
+
+        X_train = X.iloc[train_idx]
+
+        return X_train, X_test
 
     def fit_model(self, X, y, model, **kwargs):
         """
