@@ -32,6 +32,8 @@ class Pipeline:
     ----------
     version : str
         Version number.
+    label_list : list[str]
+        List of labels to predict.
     predictor_type : str
         Model type of the predictor.
     calibrator_type : str
@@ -147,14 +149,14 @@ class Pipeline:
         self.calibrator_config = self.predictor_config["calibrator"]
 
         # Define variables needed to initialise other objects
-        label_list = self.predictor_config["labels"]["label_list"]
+        self.label_list = self.predictor_config["labels"]["label_list"]
         n_features = len(self.preprocessor_config["features"]["feature_list"]) - len(
-            label_list
+            self.label_list
         )
         if self.preprocessor_config["split_variables"]["group_name"]:
             # Remove group name if using GroupKFold
             n_features -= 1
-        n_classes = len(label_list)
+        n_classes = len(self.label_list)
 
         self.predictor = Predictor(
             self.predictor_type,
@@ -297,7 +299,7 @@ class Pipeline:
                     f"Model should be predictor or calibrator, but got {model}"
                 )
 
-    def test_model(self, X, y, model, label_list, key=None):
+    def test_model(self, X, y, model, key=None):
         """
         Tests the predictor or calibrator model on the provided dataset.
 
@@ -309,8 +311,6 @@ class Pipeline:
             Prediction labels.
         model : {"predictor", "calibrator"}
             Model to test.
-        label_list : list[str]
-            List of labels to predict.
         key : str or None, default: None
             Key for updating the metric dictionaries.
             If None, the dictionaries are not updated.
@@ -356,7 +356,7 @@ class Pipeline:
                 )
 
         print_message(message, self.logger, SCRIPT_NAME)
-        print_metrics(metric_dict, label_list, self.logger)
+        print_metrics(metric_dict, self.label_list, self.logger)
 
     def run(self, X):
         """
@@ -380,7 +380,6 @@ class Pipeline:
             # Fit and transform
             data = self.fit_transform(X)
 
-        label_list = self.predictor_config["labels"]["label_list"]
         group_name = self.preprocessor_config["split_variables"]["group_name"]
         best_precision = 0.0
         best_fold = 0
@@ -394,7 +393,7 @@ class Pipeline:
         else:
             groups = None
 
-        X, y = extract_labels(data, label_list)  # Get prediction labels from data
+        X, y = extract_labels(data, self.label_list)  # Get prediction labels from data
 
         # Sample and weight if needed
         X, y, groups = self._sample_data(X, y, groups)
@@ -460,8 +459,8 @@ class Pipeline:
             )
 
             # Test predictor and calibrator on test set
-            self.test_model(X_test, y_test.squeeze(), "predictor", label_list, fold)
-            self.test_model(X_test, y_test.squeeze(), "calibrator", label_list, fold)
+            self.test_model(X_test, y_test.squeeze(), "predictor", fold)
+            self.test_model(X_test, y_test.squeeze(), "calibrator", fold)
             cur_precision = self.predictor_metrics[fold]["precision"][-1]
 
             if cur_precision > best_precision:
