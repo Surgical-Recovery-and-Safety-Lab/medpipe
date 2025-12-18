@@ -8,6 +8,7 @@ Functions:
 - plot_mean_ROC_curve: Plots the ROC curve of each fold and the mean ROC curve.
 - plot_mean_PR_curve: Plots the precision-recall curve of each fold and the mean PRC.
 - plot_metrics_CI: Plots the metrics with confidence intrevals for each fold.
+- plot_prediction_distribution: Plots the prediction probabilities.
 """
 
 import matplotlib.pyplot as plt
@@ -31,7 +32,7 @@ def plot_from_display(y_true, y_pred, display, **kwargs) -> None:
         Ground truth labels.
     y_pred : array-like of shape (n_samples,)
         Predicted labels.
-    display : str {"roc", "confusion", "precision-recall"}
+    display : str {"roc", "confusion", "precision-recall", "calibration"}
         Type of display class to use.
     **kwargs :
         Extra arguments for the display classes.
