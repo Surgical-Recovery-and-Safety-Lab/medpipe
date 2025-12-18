@@ -8,13 +8,18 @@ Functions:
 - plot_mean_ROC_curve: Plots the ROC curve of each fold and the mean ROC curve.
 - plot_mean_PR_curve: Plots the precision-recall curve of each fold and the mean PRC.
 - plot_metrics_CI: Plots the metrics with confidence intrevals for each fold.
+- plot_prediction_distribution: Plots the prediction probabilities.
+- plot_reliability_diagrams: Plots the reliability diagrams.
 """
 
 import matplotlib.pyplot as plt
 import numpy as np
 import sklearn as skl
+from matplotlib.axes._axes import Axes
+from matplotlib.figure import Figure
+from sklearn.calibration import calibration_curve
 
-from pyrisk.utils.exceptions import array_check
+from pyrisk.utils.exceptions import array_check, array_dim_check, file_checks
 
 
 def plot_from_display(y_true, y_pred, display, **kwargs) -> None:
@@ -29,7 +34,7 @@ def plot_from_display(y_true, y_pred, display, **kwargs) -> None:
         Ground truth labels.
     y_pred : array-like of shape (n_samples,)
         Predicted labels.
-    display : str {"roc", "confusion", "precision-recall"}
+    display : str {"roc", "confusion", "precision-recall", "calibration"}
         Type of display class to use.
     **kwargs :
         Extra arguments for the display classes.
@@ -63,7 +68,15 @@ def plot_from_display(y_true, y_pred, display, **kwargs) -> None:
     plt.show()
 
 
-def plot_mean_ROC_curve(model_metrics, label_list, nb_points=500):
+def plot_mean_ROC_curve(
+    model_metrics,
+    label_list,
+    save_path="",
+    extension=".png",
+    show_fig=True,
+    nb_points=500,
+    **kwargs,
+):
     """
     Plots the ROC curve of each fold and the mean ROC curve.
 
@@ -73,8 +86,16 @@ def plot_mean_ROC_curve(model_metrics, label_list, nb_points=500):
         Model metrics for different folds.
     label_list : list[str]
         List of predicted labels.
+    save_path : str, default: []
+        Path to the save file.
+    extension : str, default: ".png"
+        Extension to save figure in.
+    show_fig : bool, default: True
+        Flag to show the figure.
     nb_points : int, default: 500
         Number of points for the mean ROC curve.
+    **kwargs
+        Extra arguments for the figure or axes objects.
 
     Returns
     -------
@@ -87,7 +108,6 @@ def plot_mean_ROC_curve(model_metrics, label_list, nb_points=500):
         If nb_points is not an int.
 
     """
-
     if type(nb_points) is not type(0):
         raise TypeError(f"nb_points should be an int, but got {type(nb_points)}")
 
@@ -99,9 +119,13 @@ def plot_mean_ROC_curve(model_metrics, label_list, nb_points=500):
     global_tprs = []
     global_aucs = []
 
+    # Split arguments based on where they should be sent
+    ax_kwargs = {key: value for key, value in kwargs.items() if key in dir(Axes)}
+    fig_kwargs = {key: value for key, value in kwargs.items() if key in dir(Figure)}
+
     for i in range(n_it):
         # Set up figure and colours
-        _, ax = plt.subplots(dpi=300)
+        _, ax = plt.subplots(**fig_kwargs)
         colours = plt.get_cmap("tab20b")
 
         tprs = []
@@ -167,12 +191,29 @@ def plot_mean_ROC_curve(model_metrics, label_list, nb_points=500):
         ax.set_title(f"Cross-Validated {metric} ROC")
         ax.legend(ncol=2, fontsize=5, loc="lower right")
 
+        # Set ax_kwargs to override if needed
+        for key, val in ax_kwargs.items():
+            getattr(ax, key)(val)
+
         # Tight layout to avoid overlapping
         plt.tight_layout()
-        plt.show()
+        if save_path:
+            save_file = save_path + f"_{label_list[i]}" + extension
+            file_checks(save_file, extension=extension, exists=False)
+            plt.savefig(save_file)
+        if show_fig:
+            plt.show()
 
 
-def plot_mean_PR_curve(model_metrics, label_list, nb_points=500):
+def plot_mean_PR_curve(
+    model_metrics,
+    label_list,
+    save_path="",
+    extension=".png",
+    show_fig=True,
+    nb_points=500,
+    **kwargs,
+):
     """
     Plots the PR curve of each fold and the mean PR curve.
 
@@ -182,8 +223,16 @@ def plot_mean_PR_curve(model_metrics, label_list, nb_points=500):
         Model metrics for different folds.
     label_list : list[str]
         List of predicted labels.
+    save_path : str, default: []
+        Path to the save file.
+    extension : str, default: ".png"
+        Extension to save figure in.
+    show_fig : bool, default: True
+        Flag to show the figure.
     nb_points : int, default: 500
         Number of points for the mean curve.
+    **kwargs
+        Extra arguments for the figure or axes objects.
 
     Returns
     -------
@@ -196,7 +245,6 @@ def plot_mean_PR_curve(model_metrics, label_list, nb_points=500):
         If nb_points is not an int.
 
     """
-
     if type(nb_points) is not type(0):
         raise TypeError(f"nb_points should be an int, but got {type(nb_points)}")
 
@@ -208,9 +256,13 @@ def plot_mean_PR_curve(model_metrics, label_list, nb_points=500):
     global_recalls = []
     global_aps = []
 
+    # Split arguments based on where they should be sent
+    ax_kwargs = {key: value for key, value in kwargs.items() if key in dir(Axes)}
+    fig_kwargs = {key: value for key, value in kwargs.items() if key in dir(Figure)}
+
     for i in range(n_it):
         # Set up figure and colours
-        _, ax = plt.subplots(dpi=300)
+        _, ax = plt.subplots(**fig_kwargs)
         colours = plt.get_cmap("tab20b")
 
         recalls = []
@@ -278,12 +330,24 @@ def plot_mean_PR_curve(model_metrics, label_list, nb_points=500):
         ax.set_title(f"Cross-Validated {metric} PRC")
         ax.legend(ncol=2, fontsize=5, loc="best", bbox_to_anchor=(1, 1))
 
+        # Set ax_kwargs to override if needed
+        for key, val in ax_kwargs.items():
+            getattr(ax, key)(val)
+
         # Tight layout to avoid overlapping
         plt.tight_layout()
-        plt.show()
+
+        if save_path:
+            save_file = save_path + f"_{label_list[i]}" + extension
+            file_checks(save_file, extension=extension, exists=False)
+            plt.savefig(save_file)
+        if show_fig:
+            plt.show()
 
 
-def plot_metrics_CI(ci_dict, label_list):
+def plot_metrics_CI(
+    ci_dict, label_list, save_path="", extension=".png", show_fig=True, **kwargs
+):
     """
     Plots the metrics with confidence intrevals for each fold.
 
@@ -296,6 +360,14 @@ def plot_metrics_CI(ci_dict, label_list):
         upper bound.
     label_list : list[str]
         List of predicted labels.
+    save_path : str, default: []
+        Path to the save file.
+    extension : str, default: ".png"
+        Extension to save figure in.
+    show_fig : bool, default: True
+        Flag to show the figure.
+    **kwargs
+        Extra arguments for the figure or axes objects.
 
     Returns
     -------
@@ -307,8 +379,12 @@ def plot_metrics_CI(ci_dict, label_list):
     if n_it > 1:
         n_it += 1  # Add one for the global values if multilabel
 
+    # Split arguments based on where they should be sent
+    ax_kwargs = {key: value for key, value in kwargs.items() if key in dir(Axes)}
+    fig_kwargs = {key: value for key, value in kwargs.items() if key in dir(Figure)}
+
     # Set up the figure and axis
-    _, ax = plt.subplots(dpi=300)
+    fig, ax = plt.subplots(**fig_kwargs)
     bar_width = 0.15
     colours = plt.get_cmap("Pastel1")
     index = np.arange(len(ci_dict.keys()))
@@ -355,9 +431,324 @@ def plot_metrics_CI(ci_dict, label_list):
     ax.set_xticks(index + bar_width * (n_it / 2))
     ax.set_xticklabels(ci_dict.keys(), rotation=45)
 
-    # Adding a legend and space for labels
-    ax.legend(title="Labels", loc="best", bbox_to_anchor=(1.05, 1))
+    # Set ax_kwargs to override if needed
+    for key, val in ax_kwargs.items():
+        getattr(ax, key)(val)
 
-    # Tight layout to avoid overlapping
+    ax.legend(title="Labels", loc="upper right", bbox_to_anchor=(1.5, 0.9))
     plt.tight_layout()
-    plt.show()
+    fig.subplots_adjust(right=0.68)
+
+    if save_path:
+        save_file = save_path + extension
+        file_checks(save_file, extension=extension, exists=False)
+        plt.savefig(save_file)
+    if show_fig:
+        plt.show()
+
+
+def plot_prediction_distribution(
+    y_pred_proba=[],
+    y_pred_proba_calib=[],
+    label_list=[],
+    n_bins=10,
+    save_path="",
+    extension=".png",
+    show_fig=True,
+    **kwargs,
+):
+    """
+    Plots the prediction probabilities.
+
+    Parameters
+    ----------
+    y_pred_proba : array-like of shape (n_samples, n_classes), default: []
+        Predicted probabilities from the predictor.
+    y_pred_proba_calib : array-like of shape (n_samples, n_classes), default: []
+        Predicted probabilities from the calibrator.
+    label_list : list[str], default: []
+        List of predicted labels.
+    n_bins : int, default: 10
+        Number of bins for the histogram.
+    save_path : str, default: []
+        Path to the save file.
+    extension : str, default: ".png"
+        Extension to save figure in.
+    show_fig : bool, default: True
+        Flag to show the figure.
+    **kwargs
+        Extra arguments for the figure or axes objects.
+
+    Returns
+    -------
+    None
+        Nothing is returned.
+
+    Raises
+    ------
+    ValueError
+        If y_pred_proba and y_pred_proba_calib are both empty.
+
+    """
+    array_check(y_pred_proba)
+    array_check(y_pred_proba_calib)
+
+    n_classes = 1  # Default number of classes
+    alpha = 1  # Default alpha value
+    title = kwargs["set_title"] if "set_title" in kwargs.keys() else ""
+
+    if len(y_pred_proba) > 0 and len(y_pred_proba_calib) > 0:
+        if len(y_pred_proba) > 1:
+            # If multiple labels, check that n_classes agree
+            array_dim_check(y_pred_proba, y_pred_proba_calib, dim=1)
+            n_classes = y_pred_proba.shape[1]
+        else:
+            y_pred_proba = y_pred_proba.reshape(-1, 1)
+            y_pred_proba_calib = y_pred_proba_calib(-1, 1)
+        alpha = 0.7
+
+    elif len(y_pred_proba) > 0:
+        if len(y_pred_proba) > 1:
+            n_classes = y_pred_proba.shape[1]
+        else:
+            y_pred_proba = y_pred_proba.reshape(-1, 1)
+
+    elif len(y_pred_proba_calib) > 0:
+        if len(y_pred_proba_calib) > 1:
+            n_classes = y_pred_proba_calib.shape[1]
+        else:
+            y_pred_proba_calib = y_pred_proba_calib(-1, 1)
+
+    else:
+        raise ValueError("At least one set of predicted probabilities is needed")
+
+    colours = plt.get_cmap("Pastel1")
+
+    # Split arguments based on where they should be sent
+    ax_kwargs = {key: value for key, value in kwargs.items() if key in dir(Axes)}
+    fig_kwargs = {key: value for key, value in kwargs.items() if key in dir(Figure)}
+
+    for i in range(n_classes):
+        # Set figure and axes properties
+        fig, ax = plt.subplots(**fig_kwargs)  # Create a new figure
+        colour_val = 0
+
+        # Default settings that are overwritten if kwargs are passed
+        ax.set_xlabel("Predicted probabilities")
+        ax.set_ylabel("Count")
+        ax.set_yscale("log")
+        ax.set_title(f"Predicted probabilities distribution for {label_list[i]}")
+
+        if "set_title" in kwargs.keys() and len(label_list) > 0:
+            kwargs["set_title"] = title + label_list[i]
+
+        if len(y_pred_proba) > 0:
+            ax.hist(
+                y_pred_proba[:, i],
+                color=colours(colour_val),
+                label="Uncalibrated",
+                bins=n_bins,
+                alpha=alpha,
+            )
+
+            colour_val += 1
+
+        if len(y_pred_proba_calib) > 0:
+            ax.hist(
+                y_pred_proba_calib[:, i],
+                color=colours(colour_val),
+                label="Calibrated",
+                bins=n_bins,
+                alpha=alpha,
+            )
+
+        colour_val += 1
+
+        # Set ax_kwargs to override if needed
+        for key, val in ax_kwargs.items():
+            getattr(ax, key)(val)
+
+        ax.legend(loc="upper right", bbox_to_anchor=(1.4, 0.9))
+        plt.tight_layout()
+        fig.subplots_adjust(right=0.7, bottom=0.14)
+
+        if save_path:
+            save_file = save_path + f"_{label_list[i]}" + extension
+            file_checks(save_file, extension=extension, exists=False)
+            plt.savefig(save_file)
+        if show_fig:
+            plt.show()
+
+
+def plot_reliability_diagrams(
+    y_test,
+    y_pred_proba=[],
+    y_pred_proba_calib=[],
+    label_list=[],
+    save_path="",
+    extension=".png",
+    show_fig=True,
+    display_kwargs={},
+    **kwargs,
+):
+    """
+    Plots the reliability diagrams using CalibrationDisplay from
+    sklearn.calibration.
+
+    Parameters
+    ----------
+    y_test : array-like of shape (n_samples, n_classes)
+        Ground truth labels.
+    y_pred_proba : array-like of shape (n_samples, n_classes), default: []
+        Predicted probabilities from the predictor.
+    y_pred_proba_calib : array-like of shape (n_samples, n_classes), default: []
+        Predicted probabilities from the calibrator.
+    label_list : list[str], default: []
+    save_path : str, default: []
+        Path to the save file.
+    extension : str, default: ".png"
+        Extension to save figure in.
+    show_fig : bool, default: True
+        Flag to show the figure.
+    display_kwargs : dict[str, value], default: {}
+        Extra arguments for the CalibrationDisplay.
+    **kwargs
+        Extra arguments for the figure or axes objects.
+
+    Returns
+    -------
+    None
+        Nothing is returned.
+
+    """
+    n_classes = 1  # Default number of classes
+    title = kwargs["set_title"] if "set_title" in kwargs.keys() else ""
+
+    if len(y_pred_proba) > 0 and len(y_pred_proba_calib) > 0:
+        if len(y_pred_proba) > 1:
+            # If multiple labels, check that n_classes agree
+            array_dim_check(y_pred_proba, y_pred_proba_calib, dim=1)
+            n_classes = y_pred_proba.shape[1]
+        else:
+            y_pred_proba = y_pred_proba.reshape(-1, 1)
+            y_pred_proba_calib = y_pred_proba_calib(-1, 1)
+
+    elif len(y_pred_proba) > 0:
+        if len(y_pred_proba) > 1:
+            n_classes = y_pred_proba.shape[1]
+        else:
+            y_pred_proba = y_pred_proba.reshape(-1, 1)
+
+    elif len(y_pred_proba_calib) > 0:
+        if len(y_pred_proba_calib) > 1:
+            n_classes = y_pred_proba_calib.shape[1]
+        else:
+            y_pred_proba_calib = y_pred_proba_calib(-1, 1)
+
+    else:
+        raise ValueError("At least one set of predicted probabilities is needed")
+
+    colours = plt.get_cmap("Pastel1")
+
+    # Split arguments based on where they should be sent
+    ax_kwargs = {key: value for key, value in kwargs.items() if key in dir(Axes)}
+    fig_kwargs = {key: value for key, value in kwargs.items() if key in dir(Figure)}
+
+    for i in range(n_classes):
+        # Set figure and axes properties
+        fig, ax = plt.subplots(**fig_kwargs)  # Create a new figure
+        colour_val = 0
+        max_val = 0
+
+        # Plot perfect calibration
+        ax.plot(
+            np.linspace(0, 1, 100),
+            np.linspace(0, 1, 100),
+            "k--",
+            label="Perfectly calibrated",
+        )
+
+        if len(y_pred_proba) > 0:
+            prob_true, prob_pred = calibration_curve(
+                y_test[:, i],
+                y_pred_proba[:, i],
+                **display_kwargs,
+            )
+            max_val = _get_max_calibration_value(
+                max_val, prob_pred.max(), prob_true.max()
+            )
+            ax.plot(
+                prob_pred,
+                prob_true,
+                marker="s",
+                color=colours(colour_val),
+                label="Uncalibrated",
+            )
+
+            colour_val += 1
+
+        if len(y_pred_proba_calib) > 0:
+            prob_true, prob_pred = calibration_curve(
+                y_test[:, i],
+                y_pred_proba_calib[:, i],
+                **display_kwargs,
+            )
+            max_val = _get_max_calibration_value(
+                max_val, prob_pred.max(), prob_true.max()
+            )
+            ax.plot(
+                prob_pred,
+                prob_true,
+                marker="s",
+                color=colours(colour_val),
+                label="Calibrated",
+            )
+
+        colour_val += 1
+
+        ax.set_title(f"Reliability diagram for {label_list[i]}")
+        ax.set_xlabel("Mean predicted probability")
+        ax.set_ylabel("Fraction of positives")
+        ax.set_xlim((-0.01, max_val + 0.05))
+        ax.set_ylim((-0.01, max_val + 0.05))
+
+        # Set ax_kwargs to override if needed
+        for key, val in ax_kwargs.items():
+            getattr(ax, key)(val)
+
+        ax.legend(loc="upper right", bbox_to_anchor=(1.6, 0.9))
+        plt.tight_layout()
+        fig.subplots_adjust(right=0.66, bottom=0.14)
+
+        if save_path:
+            save_file = save_path + f"_{label_list[i]}" + extension
+            file_checks(save_file, extension=extension, exists=False)
+            plt.savefig(save_file)
+        if show_fig:
+            plt.show()
+
+
+def _get_max_calibration_value(cur_max, prob_pred_max, prob_true_max):
+    """
+    Returns the maximum between inputs.
+
+    Parameters
+    ----------
+    cur_max : float
+        Current maximum value.
+    prob_pred_max : float
+        Predicted probabilities maximum.
+    prob_true_max : float
+        True probabilities maximum.
+
+    Returns
+    -------
+    cur_max : float
+        New current maximum.
+
+    """
+    if prob_pred_max > cur_max:
+        cur_max = prob_pred_max
+    if prob_true_max > cur_max:
+        cur_max = prob_true_max
+    return cur_max

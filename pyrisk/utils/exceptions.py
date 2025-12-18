@@ -11,7 +11,6 @@ Functions:
 """
 
 import pathlib
-import sys
 
 from pandas.api.types import is_list_like
 

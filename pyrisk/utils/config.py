@@ -10,8 +10,8 @@ Functions:
 - split_version_number: Splits a version number into the data and model version numbers.
 """
 
-from pyrisk.utils.exceptions import file_checks
-from pyrisk.utils.io import read_toml_configuration
+from .exceptions import file_checks
+from .io import read_toml_configuration
 
 
 def get_file_path(
@@ -20,13 +20,15 @@ def get_file_path(
     """
     Gets the path to a file from a configuration dictionary.
 
+    If the path_type is "fig", the extension is removed.
+
     Parameters
     ----------
     config_dict
         Dictionary from a loaded .TOML file.
     v_number : default: ""
         Version number.
-    path_type : {"io", "db", "data"}, default: "io"
+    path_type : {"io", "db", "data", "fig"}, default: "io"
         Path type in the configuration file.
     exists : default: True
         Flag to indicate if the file should exists.
@@ -44,7 +46,7 @@ def get_file_path(
     if type(path_type) is not type(""):
         raise TypeError(f"path_type should be a str, but got {type(path_type)}")
 
-    if path_type not in ["io", "db", "data"]:
+    if path_type not in ["io", "db", "data", "fig"]:
         raise ValueError(f"path_type should be io, db, or data, but got {path_type}")
 
     key = path_type + "_parameters"
@@ -59,6 +61,10 @@ def get_file_path(
 
     # Run file checks before returning
     file_checks(file_path, parameters["extension"], exists=exists)
+
+    if path_type == "fig":
+        return file_path[: -len(parameters["extension"])]
+
     return file_path
 
 

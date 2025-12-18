@@ -17,7 +17,7 @@ from copy import deepcopy
 import numpy as np
 import pandas as pd
 import sklearn as skl
-from sklearn.preprocessing import LabelEncoder, PowerTransformer, StandardScaler
+from sklearn.preprocessing import OrdinalEncoder, PowerTransformer, StandardScaler
 
 from pyrisk.utils.exceptions import array_check, array_dim_check
 
@@ -96,11 +96,6 @@ def get_validation_idx(idx_list, groups=None, val_size=0.1):
     val_idx : np.array
         Validation indices.
 
-    Raises
-    ------
-    Error
-        Add exceptions that might be raised.
-
     """
     array_check(idx_list)
     if groups is not None:
@@ -155,7 +150,7 @@ def convert_object_to_categorical(data: pd.DataFrame) -> pd.DataFrame:
     return processed_data
 
 
-def preprocess_data(data, features, preprocess):
+def preprocess_data(data, preprocessing_dict):
     """
     Processed select data columns based on preprocessing function.
 
@@ -163,15 +158,15 @@ def preprocess_data(data, features, preprocess):
     ----------
     data : pd.DataFrame
         DataFrame to manipulate.
-    features : list(str)
-        List of features to encode from the data.
-    preprocess : {"label_encoder", "standardise", "power_transform"}
-        Preprocessing function.
+    preprocessing_dict : dict[str, list[str]]
+        Dictionary of the operations and the features on which to operate.
 
     Returns
     -------
     processed_data : pd.DataFrame
         Processed DataFrame.
+    operation_dict : dict[]
+        Dictionary of the different preprocessing objects.
 
     Raises
     ------
@@ -187,33 +182,35 @@ def preprocess_data(data, features, preprocess):
     if type(data) is not type(pd.DataFrame()):
         raise TypeError(f"data should be a pd.DataFrame, but got {type(data)}")
 
-    if type(features) is not type([]):
-        raise TypeError(f"features should be a list, but got {type(features)}")
-
-    if type(features[0]) is not type(""):
-        raise TypeError(
-            f"features should be a list(str), but got list({type(features[0])}"
-        )
-
     # Create a copy of data to work on
     processed_data = deepcopy(data)
+    operation_dict = dict()
 
-    for feature in features:
+    for preprocess in preprocessing_dict.keys():
+        features = preprocessing_dict[preprocess]["feature_list"]
+
+        if type(features) is not type([]):
+            raise TypeError(f"features should be a list, but got {type(features)}")
+
+        if type(features[0]) is not type(""):
+            raise TypeError(
+                f"features should be a list(str), but got list({type(features[0])}"
+            )
+
         match preprocess:
-            case "label_encoder":
-                processed_data[feature] = LabelEncoder().fit_transform(data[feature])
+            case "ordinal_encoder":
+                operation = OrdinalEncoder()
             case "standardise":
-                processed_data[feature] = StandardScaler().fit_transform(
-                    np.expand_dims(data[feature].to_numpy(), axis=1)
-                )
+                operation = StandardScaler()
             case "power_transform":
-                processed_data[feature] = PowerTransformer().fit_transform(
-                    np.expand_dims(data[feature].to_numpy(), axis=1)
-                )
+                operation = PowerTransformer()
             case _:
                 raise ValueError(f"{preprocess} invalid preprocessing function")
 
-    return processed_data
+        processed_data[features] = operation.fit_transform(processed_data[features])
+        operation_dict[preprocess] = operation
+
+    return processed_data, operation_dict
 
 
 def extract_labels(data, labels):
