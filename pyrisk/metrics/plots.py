@@ -65,7 +65,14 @@ def plot_from_display(y_true, y_pred, display, **kwargs) -> None:
     plt.show()
 
 
-def plot_mean_ROC_curve(model_metrics, label_list, nb_points=500):
+def plot_mean_ROC_curve(
+    model_metrics,
+    label_list,
+    save_path="",
+    extension=".png",
+    show_fig=True,
+    nb_points=500,
+):
     """
     Plots the ROC curve of each fold and the mean ROC curve.
 
@@ -77,6 +84,12 @@ def plot_mean_ROC_curve(model_metrics, label_list, nb_points=500):
         List of predicted labels.
     nb_points : int, default: 500
         Number of points for the mean ROC curve.
+    save_path : str, default: []
+        Path to the save file.
+    extension : str, default: ".png"
+        Extension to save figure in.
+    show_fig : bool, default: True
+        Flag to show the figure.
 
     Returns
     -------
@@ -89,7 +102,6 @@ def plot_mean_ROC_curve(model_metrics, label_list, nb_points=500):
         If nb_points is not an int.
 
     """
-
     if type(nb_points) is not type(0):
         raise TypeError(f"nb_points should be an int, but got {type(nb_points)}")
 
@@ -171,10 +183,22 @@ def plot_mean_ROC_curve(model_metrics, label_list, nb_points=500):
 
         # Tight layout to avoid overlapping
         plt.tight_layout()
-        plt.show()
+        if save_path:
+            save_file = save_path + f"_{label_list[i]}" + extension
+            file_checks(save_file, extension=extension, exists=False)
+            plt.savefig(save_file)
+        if show_fig:
+            plt.show()
 
 
-def plot_mean_PR_curve(model_metrics, label_list, nb_points=500):
+def plot_mean_PR_curve(
+    model_metrics,
+    label_list,
+    save_path="",
+    extension=".png",
+    show_fig=True,
+    nb_points=500,
+):
     """
     Plots the PR curve of each fold and the mean PR curve.
 
@@ -186,6 +210,12 @@ def plot_mean_PR_curve(model_metrics, label_list, nb_points=500):
         List of predicted labels.
     nb_points : int, default: 500
         Number of points for the mean curve.
+    save_path : str, default: []
+        Path to the save file.
+    extension : str, default: ".png"
+        Extension to save figure in.
+    show_fig : bool, default: True
+        Flag to show the figure.
 
     Returns
     -------
@@ -198,7 +228,6 @@ def plot_mean_PR_curve(model_metrics, label_list, nb_points=500):
         If nb_points is not an int.
 
     """
-
     if type(nb_points) is not type(0):
         raise TypeError(f"nb_points should be an int, but got {type(nb_points)}")
 
@@ -282,10 +311,18 @@ def plot_mean_PR_curve(model_metrics, label_list, nb_points=500):
 
         # Tight layout to avoid overlapping
         plt.tight_layout()
-        plt.show()
+
+        if save_path:
+            save_file = save_path + f"_{label_list[i]}" + extension
+            file_checks(save_file, extension=extension, exists=False)
+            plt.savefig(save_file)
+        if show_fig:
+            plt.show()
 
 
-def plot_metrics_CI(ci_dict, label_list):
+def plot_metrics_CI(
+    ci_dict, label_list, save_path="", extension=".png", show_fig=True, **kwargs
+):
     """
     Plots the metrics with confidence intrevals for each fold.
 
@@ -298,6 +335,14 @@ def plot_metrics_CI(ci_dict, label_list):
         upper bound.
     label_list : list[str]
         List of predicted labels.
+    save_path : str, default: []
+        Path to the save file.
+    extension : str, default: ".png"
+        Extension to save figure in.
+    show_fig : bool, default: True
+        Flag to show the figure.
+    **kwargs
+        Extra arguments for the figure or axes objects.
 
     Returns
     -------
@@ -309,8 +354,12 @@ def plot_metrics_CI(ci_dict, label_list):
     if n_it > 1:
         n_it += 1  # Add one for the global values if multilabel
 
+    # Split arguments based on where they should be sent
+    ax_kwargs = {key: value for key, value in kwargs.items() if key in dir(Axes)}
+    fig_kwargs = {key: value for key, value in kwargs.items() if key in dir(Figure)}
+
     # Set up the figure and axis
-    _, ax = plt.subplots(dpi=300)
+    fig, ax = plt.subplots(**fig_kwargs)
     bar_width = 0.15
     colours = plt.get_cmap("Pastel1")
     index = np.arange(len(ci_dict.keys()))
@@ -357,12 +406,19 @@ def plot_metrics_CI(ci_dict, label_list):
     ax.set_xticks(index + bar_width * (n_it / 2))
     ax.set_xticklabels(ci_dict.keys(), rotation=45)
 
-    # Adding a legend and space for labels
-    ax.legend(title="Labels", loc="best", bbox_to_anchor=(1.05, 1))
+    for key, val in ax_kwargs.items():
+        getattr(ax, key)(val)
 
-    # Tight layout to avoid overlapping
+    ax.legend(title="Labels", loc="upper right", bbox_to_anchor=(1.5, 0.9))
     plt.tight_layout()
-    plt.show()
+    fig.subplots_adjust(right=0.68)
+
+    if save_path:
+        save_file = save_path + extension
+        file_checks(save_file, extension=extension, exists=False)
+        plt.savefig(save_file)
+    if show_fig:
+        plt.show()
 
 
 def plot_prediction_distribution(
@@ -371,6 +427,7 @@ def plot_prediction_distribution(
     label_list=[],
     n_bins=10,
     save_path="",
+    extension=".png",
     show_fig=True,
     **kwargs,
 ):
@@ -389,6 +446,8 @@ def plot_prediction_distribution(
         Number of bins for the histogram.
     save_path : str, default: []
         Path to the save file.
+    extension : str, default: ".png"
+        Extension to save figure in.
     show_fig : bool, default: True
         Flag to show the figure.
     **kwargs
@@ -500,6 +559,8 @@ def plot_prediction_distribution(
         fig.subplots_adjust(right=0.7, bottom=0.14)
 
         if save_path:
-            plt.savefig(save_path + f"_{label_list[i]}")
+            save_file = save_path + f"_{label_list[i]}" + extension
+            file_checks(save_file, extension=extension, exists=False)
+            plt.savefig(save_file)
         if show_fig:
             plt.show()
