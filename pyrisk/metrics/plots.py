@@ -72,6 +72,7 @@ def plot_mean_ROC_curve(
     extension=".png",
     show_fig=True,
     nb_points=500,
+    **kwargs,
 ):
     """
     Plots the ROC curve of each fold and the mean ROC curve.
@@ -82,14 +83,16 @@ def plot_mean_ROC_curve(
         Model metrics for different folds.
     label_list : list[str]
         List of predicted labels.
-    nb_points : int, default: 500
-        Number of points for the mean ROC curve.
     save_path : str, default: []
         Path to the save file.
     extension : str, default: ".png"
         Extension to save figure in.
     show_fig : bool, default: True
         Flag to show the figure.
+    nb_points : int, default: 500
+        Number of points for the mean ROC curve.
+    **kwargs
+        Extra arguments for the figure or axes objects.
 
     Returns
     -------
@@ -113,9 +116,13 @@ def plot_mean_ROC_curve(
     global_tprs = []
     global_aucs = []
 
+    # Split arguments based on where they should be sent
+    ax_kwargs = {key: value for key, value in kwargs.items() if key in dir(Axes)}
+    fig_kwargs = {key: value for key, value in kwargs.items() if key in dir(Figure)}
+
     for i in range(n_it):
         # Set up figure and colours
-        _, ax = plt.subplots(dpi=300)
+        _, ax = plt.subplots(**fig_kwargs)
         colours = plt.get_cmap("tab20b")
 
         tprs = []
@@ -181,6 +188,10 @@ def plot_mean_ROC_curve(
         ax.set_title(f"Cross-Validated {metric} ROC")
         ax.legend(ncol=2, fontsize=5, loc="lower right")
 
+        # Set ax_kwargs to override if needed
+        for key, val in ax_kwargs.items():
+            getattr(ax, key)(val)
+
         # Tight layout to avoid overlapping
         plt.tight_layout()
         if save_path:
@@ -198,6 +209,7 @@ def plot_mean_PR_curve(
     extension=".png",
     show_fig=True,
     nb_points=500,
+    **kwargs,
 ):
     """
     Plots the PR curve of each fold and the mean PR curve.
@@ -208,14 +220,16 @@ def plot_mean_PR_curve(
         Model metrics for different folds.
     label_list : list[str]
         List of predicted labels.
-    nb_points : int, default: 500
-        Number of points for the mean curve.
     save_path : str, default: []
         Path to the save file.
     extension : str, default: ".png"
         Extension to save figure in.
     show_fig : bool, default: True
         Flag to show the figure.
+    nb_points : int, default: 500
+        Number of points for the mean curve.
+    **kwargs
+        Extra arguments for the figure or axes objects.
 
     Returns
     -------
@@ -239,9 +253,13 @@ def plot_mean_PR_curve(
     global_recalls = []
     global_aps = []
 
+    # Split arguments based on where they should be sent
+    ax_kwargs = {key: value for key, value in kwargs.items() if key in dir(Axes)}
+    fig_kwargs = {key: value for key, value in kwargs.items() if key in dir(Figure)}
+
     for i in range(n_it):
         # Set up figure and colours
-        _, ax = plt.subplots(dpi=300)
+        _, ax = plt.subplots(**fig_kwargs)
         colours = plt.get_cmap("tab20b")
 
         recalls = []
@@ -308,6 +326,10 @@ def plot_mean_PR_curve(
         ax.set_ylabel("Precision")
         ax.set_title(f"Cross-Validated {metric} PRC")
         ax.legend(ncol=2, fontsize=5, loc="best", bbox_to_anchor=(1, 1))
+
+        # Set ax_kwargs to override if needed
+        for key, val in ax_kwargs.items():
+            getattr(ax, key)(val)
 
         # Tight layout to avoid overlapping
         plt.tight_layout()
@@ -406,6 +428,7 @@ def plot_metrics_CI(
     ax.set_xticks(index + bar_width * (n_it / 2))
     ax.set_xticklabels(ci_dict.keys(), rotation=45)
 
+    # Set ax_kwargs to override if needed
     for key, val in ax_kwargs.items():
         getattr(ax, key)(val)
 
@@ -551,6 +574,7 @@ def plot_prediction_distribution(
 
         colour_val += 1
 
+        # Set ax_kwargs to override if needed
         for key, val in ax_kwargs.items():
             getattr(ax, key)(val)
 
