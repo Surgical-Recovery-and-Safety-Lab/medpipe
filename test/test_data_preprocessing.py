@@ -11,7 +11,7 @@ import numpy as np
 import pandas as pd
 import pytest
 from sklearn.model_selection import GroupKFold, StratifiedKFold
-from sklearn.preprocessing import LabelEncoder, PowerTransformer, StandardScaler
+from sklearn.preprocessing import OrdinalEncoder, PowerTransformer, StandardScaler
 
 from pyrisk.data.preprocessing import (
     convert_object_to_categorical,
@@ -24,7 +24,9 @@ from pyrisk.utils.io import load_data_from_csv
 CWD = pathlib.Path.cwd()
 DATA_DIR = str(CWD / "test/test_data/")
 DATA_FILE = str(CWD / DATA_DIR / "test_data.csv")
-SAMPLE_DATA = pd.DataFrame({"age": [25, 30, 35], "sex": ["M", "F", "M"]})
+SAMPLE_DATA = pd.DataFrame(
+    {"age": [25, 30, 35], "sex": ["M", "F", "M"], "dummy": [10, 20, 30]}
+)
 
 
 @pytest.mark.parametrize(
@@ -99,6 +101,7 @@ def test_train_it_success(temporal_k_fold, kwargs, expected_type):
     assert kfold_it.n_splits == kwargs["n_splits"]
     assert kfold_it.shuffle == kwargs["shuffle"]
     assert kfold_it.random_state == kwargs["random_state"]
+    return None
 
 
 @pytest.mark.parametrize(
@@ -111,64 +114,56 @@ def test_train_it_success(temporal_k_fold, kwargs, expected_type):
 )
 def test_train_it_value_error(kwargs):
     with pytest.raises(ValueError):
-        kfold_it = test_train_it(temporal_k_fold=False, **kwargs)
+        _ = test_train_it(temporal_k_fold=False, **kwargs)
         return None
 
 
-@pytest.mark.parametrize(
-    "preprocess, method",
-    [
-        ("label_encoder", LabelEncoder),
-        ("standardise", StandardScaler),
-        ("power_transform", PowerTransformer),
-    ],
-)
-def test_preprocess_data_success(preprocess, method):
-    if preprocess == "label_encoder":
-        features = ["sex"]  # Column that can be processed for each type
-    else:
-        features = ["age"]
-    processed_data = preprocess_data(SAMPLE_DATA, features, preprocess)
+def test_preprocess_data_success():
+    preprocessing_dict = {
+        "ordinal_encoder": {"feature_list": ["sex"]},
+        "standardise": {"feature_list": ["age"]},
+        "power_transform": {"feature_list": ["age", "dummy"]},
+    }
+    processed_data, _ = preprocess_data(SAMPLE_DATA, preprocessing_dict)
+    assert isinstance(processed_data, pd.DataFrame)
 
-    assert isinstance(
-        processed_data, pd.DataFrame
-    )  # Ensure the result is a pd.DataFrame
+    sex_data = OrdinalEncoder().fit_transform(
+        np.ravel(SAMPLE_DATA["sex"]).reshape(-1, 1)
+    )
+    dummy_data = PowerTransformer().fit_transform(
+        np.ravel(SAMPLE_DATA["dummy"]).reshape(-1, 1)
+    )
+    age_data = PowerTransformer().fit_transform(
+        StandardScaler().fit_transform(np.ravel(SAMPLE_DATA["age"]).reshape(-1, 1))
+    )
 
-    if preprocess == "label_encoder":
-        assert processed_data[features].iloc[0].dtype == int
-        assert (
-            np.squeeze(processed_data[features].to_numpy())
-            == method().fit_transform(np.ravel(SAMPLE_DATA[features]))
-        ).all
-    else:
-        assert (
-            np.squeeze(processed_data[features].to_numpy())
-            == method().fit_transform(SAMPLE_DATA[features])
-        ).all
+    assert (np.squeeze(processed_data["sex"].to_numpy()) == sex_data).all
+    assert (np.squeeze(processed_data["dummy"].to_numpy()) == dummy_data).all
+    assert (np.squeeze(processed_data["age"].to_numpy()) == age_data).all
 
 
 @pytest.mark.parametrize(
-    "data, features, preprocess",
+    "data, preprocessing_dict",
     [
-        (None, ["age"], "label_encoder"),  # Invalid data type
-        (SAMPLE_DATA, "age", "label_encoder"),  # Invalid features type (not a list)
-        (SAMPLE_DATA, ["age", 1], "label_encoder"),  # Invalid feature in list
-        (SAMPLE_DATA, ["age"], "invalid_function"),  # Invalid preprocess function
+        (None, {"ordinal_encoder": {"feature_list": ["age"]}}),  # Invalid data type
+        (
+            SAMPLE_DATA,
+            {"ordinal_encoder": {"feature_list": "age"}},
+        ),  # Invalid features type (not a list)
+        (
+            SAMPLE_DATA,
+            {"ordinal_encoder": {"feature_list": ["age", 1]}},
+        ),  # Invalid feature in list
+        (
+            SAMPLE_DATA,
+            {"invalid_function": {"feature_list": ["age"]}},
+        ),  # Invalid preprocess function
+        (
+            SAMPLE_DATA,
+            {"ordinal_encoder": {"feature_list": ["invalid_feature"]}},
+        ),  # Feature does not exist
     ],
 )
-def test_preprocess_data_errors(data, features, preprocess):
+def test_preprocess_data_errors(data, preprocessing_dict):
     with pytest.raises((TypeError, KeyError, ValueError)):
-        preprocess_data(data, features, preprocess)
-
-
-@pytest.mark.parametrize(
-    "data, features",
-    [
-        (None, ["age"]),  # Invalid data type
-        (SAMPLE_DATA, "age"),  # Invalid features type (not a list)
-        (SAMPLE_DATA, ["age", "non_existing_feature"]),  # Feature doesn't exist in data
-    ],
-)
-def test_preprocess_data_invalid_input(data, features):
-    with pytest.raises((TypeError, KeyError)):
-        preprocess_data(data, features, "label_encoder")
+        preprocess_data(data, preprocessing_dict)
