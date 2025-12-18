@@ -9,6 +9,7 @@ Functions:
 - plot_mean_PR_curve: Plots the precision-recall curve of each fold and the mean PRC.
 - plot_metrics_CI: Plots the metrics with confidence intrevals for each fold.
 - plot_prediction_distribution: Plots the prediction probabilities.
+- plot_reliability_diagrams: Plots the reliability diagrams.
 """
 
 import matplotlib.pyplot as plt
@@ -16,6 +17,7 @@ import numpy as np
 import sklearn as skl
 from matplotlib.axes._axes import Axes
 from matplotlib.figure import Figure
+from sklearn.calibration import calibration_curve
 
 from pyrisk.utils.exceptions import array_check, array_dim_check, file_checks
 
@@ -670,28 +672,53 @@ def plot_reliability_diagrams(
             prob_true, prob_pred = calibration_curve(
                 y_test[:, i],
                 y_pred_proba[:, i],
+                **display_kwargs,
+            )
+            max_val = _get_max_calibration_value(
+                max_val, prob_pred.max(), prob_true.max()
+            )
+            ax.plot(
+                prob_pred,
+                prob_true,
+                marker="s",
                 color=colours(colour_val),
                 label="Uncalibrated",
-                bins=n_bins,
             )
 
-        elif len(y_pred_proba_calib) > 0:
-            ax.hist(
+            colour_val += 1
+
+        if len(y_pred_proba_calib) > 0:
+            prob_true, prob_pred = calibration_curve(
+                y_test[:, i],
                 y_pred_proba_calib[:, i],
+                **display_kwargs,
+            )
+            max_val = _get_max_calibration_value(
+                max_val, prob_pred.max(), prob_true.max()
+            )
+            ax.plot(
+                prob_pred,
+                prob_true,
+                marker="s",
                 color=colours(colour_val),
                 label="Calibrated",
-                bins=n_bins,
             )
 
         colour_val += 1
+
+        ax.set_title(f"Reliability diagram for {label_list[i]}")
+        ax.set_xlabel("Mean predicted probability")
+        ax.set_ylabel("Fraction of positives")
+        ax.set_xlim((-0.01, max_val + 0.05))
+        ax.set_ylim((-0.01, max_val + 0.05))
 
         # Set ax_kwargs to override if needed
         for key, val in ax_kwargs.items():
             getattr(ax, key)(val)
 
-        ax.legend(loc="upper right", bbox_to_anchor=(1.4, 0.9), borderaxespad=0.0)
+        ax.legend(loc="upper right", bbox_to_anchor=(1.6, 0.9))
         plt.tight_layout()
-        fig.subplots_adjust(right=0.7, bottom=0.14)
+        fig.subplots_adjust(right=0.66, bottom=0.14)
 
         if save_path:
             save_file = save_path + f"_{label_list[i]}" + extension
