@@ -16,7 +16,7 @@ import sklearn as skl
 from matplotlib.axes._axes import Axes
 from matplotlib.figure import Figure
 
-from pyrisk.utils.exceptions import array_check
+from pyrisk.utils.exceptions import array_check, array_dim_check, file_checks
 
 
 def plot_from_display(y_true, y_pred, display, **kwargs) -> None:
