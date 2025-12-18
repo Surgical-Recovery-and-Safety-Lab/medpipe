@@ -139,8 +139,14 @@ class Calibrator:
         """
         predictions = []
         for i in range(self.n_classes):
-            predictions.append(self.model[i].predict(X[:, i].reshape(-1, 1)))
-        return get_full_proba(array(predictions).T)
+            if self.model_type == "isotonic":
+                predictions.append(self.model[i].predict(X[:, i].reshape(-1, 1)))
+            else:
+                predictions.append(self.model[i].predict_proba(X[:, i].reshape(-1, 1)))
+        if self.model_type == "isotonic":
+            return get_full_proba(array(predictions).T)
+        else:
+            return predictions
 
     def predict(self, X):
         """
