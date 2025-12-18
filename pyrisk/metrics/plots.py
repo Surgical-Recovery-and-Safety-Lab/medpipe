@@ -492,6 +492,7 @@ def plot_prediction_distribution(
     array_check(y_pred_proba_calib)
 
     n_classes = 1  # Default number of classes
+    alpha = 1  # Default alpha value
     title = kwargs["set_title"] if "set_title" in kwargs.keys() else ""
 
     if len(y_pred_proba) > 0 and len(y_pred_proba_calib) > 0:
@@ -502,6 +503,7 @@ def plot_prediction_distribution(
         else:
             y_pred_proba = y_pred_proba.reshape(-1, 1)
             y_pred_proba_calib = y_pred_proba_calib(-1, 1)
+        alpha = 0.7
 
     elif len(y_pred_proba) > 0:
         if len(y_pred_proba) > 1:
@@ -538,27 +540,135 @@ def plot_prediction_distribution(
         if "set_title" in kwargs.keys() and len(label_list) > 0:
             kwargs["set_title"] = title + label_list[i]
 
-        if len(y_pred_proba) > 0 and len(y_pred_proba_calib) > 0:
+        if len(y_pred_proba) > 0:
             ax.hist(
                 y_pred_proba[:, i],
                 color=colours(colour_val),
-                alpha=0.5,
                 label="Uncalibrated",
                 bins=n_bins,
+                alpha=alpha,
             )
 
             colour_val += 1
 
+        if len(y_pred_proba_calib) > 0:
             ax.hist(
                 y_pred_proba_calib[:, i],
                 color=colours(colour_val),
-                alpha=0.5,
                 label="Calibrated",
                 bins=n_bins,
+                alpha=alpha,
             )
 
-        elif len(y_pred_proba) > 0:
-            ax.hist(
+        colour_val += 1
+
+        # Set ax_kwargs to override if needed
+        for key, val in ax_kwargs.items():
+            getattr(ax, key)(val)
+
+        ax.legend(loc="upper right", bbox_to_anchor=(1.4, 0.9))
+        plt.tight_layout()
+        fig.subplots_adjust(right=0.7, bottom=0.14)
+
+        if save_path:
+            save_file = save_path + f"_{label_list[i]}" + extension
+            file_checks(save_file, extension=extension, exists=False)
+            plt.savefig(save_file)
+        if show_fig:
+            plt.show()
+
+
+def plot_reliability_diagrams(
+    y_test,
+    y_pred_proba=[],
+    y_pred_proba_calib=[],
+    label_list=[],
+    save_path="",
+    extension=".png",
+    show_fig=True,
+    display_kwargs={},
+    **kwargs,
+):
+    """
+    Plots the reliability diagrams using CalibrationDisplay from
+    sklearn.calibration.
+
+    Parameters
+    ----------
+    y_test : array-like of shape (n_samples, n_classes)
+        Ground truth labels.
+    y_pred_proba : array-like of shape (n_samples, n_classes), default: []
+        Predicted probabilities from the predictor.
+    y_pred_proba_calib : array-like of shape (n_samples, n_classes), default: []
+        Predicted probabilities from the calibrator.
+    label_list : list[str], default: []
+    save_path : str, default: []
+        Path to the save file.
+    extension : str, default: ".png"
+        Extension to save figure in.
+    show_fig : bool, default: True
+        Flag to show the figure.
+    display_kwargs : dict[str, value], default: {}
+        Extra arguments for the CalibrationDisplay.
+    **kwargs
+        Extra arguments for the figure or axes objects.
+
+    Returns
+    -------
+    None
+        Nothing is returned.
+
+    """
+    n_classes = 1  # Default number of classes
+    title = kwargs["set_title"] if "set_title" in kwargs.keys() else ""
+
+    if len(y_pred_proba) > 0 and len(y_pred_proba_calib) > 0:
+        if len(y_pred_proba) > 1:
+            # If multiple labels, check that n_classes agree
+            array_dim_check(y_pred_proba, y_pred_proba_calib, dim=1)
+            n_classes = y_pred_proba.shape[1]
+        else:
+            y_pred_proba = y_pred_proba.reshape(-1, 1)
+            y_pred_proba_calib = y_pred_proba_calib(-1, 1)
+
+    elif len(y_pred_proba) > 0:
+        if len(y_pred_proba) > 1:
+            n_classes = y_pred_proba.shape[1]
+        else:
+            y_pred_proba = y_pred_proba.reshape(-1, 1)
+
+    elif len(y_pred_proba_calib) > 0:
+        if len(y_pred_proba_calib) > 1:
+            n_classes = y_pred_proba_calib.shape[1]
+        else:
+            y_pred_proba_calib = y_pred_proba_calib(-1, 1)
+
+    else:
+        raise ValueError("At least one set of predicted probabilities is needed")
+
+    colours = plt.get_cmap("Pastel1")
+
+    # Split arguments based on where they should be sent
+    ax_kwargs = {key: value for key, value in kwargs.items() if key in dir(Axes)}
+    fig_kwargs = {key: value for key, value in kwargs.items() if key in dir(Figure)}
+
+    for i in range(n_classes):
+        # Set figure and axes properties
+        fig, ax = plt.subplots(**fig_kwargs)  # Create a new figure
+        colour_val = 0
+        max_val = 0
+
+        # Plot perfect calibration
+        ax.plot(
+            np.linspace(0, 1, 100),
+            np.linspace(0, 1, 100),
+            "k--",
+            label="Perfectly calibrated",
+        )
+
+        if len(y_pred_proba) > 0:
+            prob_true, prob_pred = calibration_curve(
+                y_test[:, i],
                 y_pred_proba[:, i],
                 color=colours(colour_val),
                 label="Uncalibrated",
