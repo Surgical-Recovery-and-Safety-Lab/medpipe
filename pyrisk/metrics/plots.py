@@ -13,6 +13,8 @@ Functions:
 import matplotlib.pyplot as plt
 import numpy as np
 import sklearn as skl
+from matplotlib.axes._axes import Axes
+from matplotlib.figure import Figure
 
 from pyrisk.utils.exceptions import array_check
 
@@ -361,3 +363,143 @@ def plot_metrics_CI(ci_dict, label_list):
     # Tight layout to avoid overlapping
     plt.tight_layout()
     plt.show()
+
+
+def plot_prediction_distribution(
+    y_pred_proba=[],
+    y_pred_proba_calib=[],
+    label_list=[],
+    n_bins=10,
+    save_path="",
+    show_fig=True,
+    **kwargs,
+):
+    """
+    Plots the prediction probabilities.
+
+    Parameters
+    ----------
+    y_pred_proba : array-like of shape (n_samples, n_classes), default: []
+        Predicted probabilities from the predictor.
+    y_pred_proba_calib : array-like of shape (n_samples, n_classes), default: []
+        Predicted probabilities from the calibrator.
+    label_list : list[str], default: []
+        List of predicted labels.
+    n_bins : int, default: 10
+        Number of bins for the histogram.
+    save_path : str, default: []
+        Path to the save file.
+    show_fig : bool, default: True
+        Flag to show the figure.
+    **kwargs
+        Extra arguments for the figure or axes objects.
+
+    Returns
+    -------
+    None
+        Nothing is returned.
+
+    Raises
+    ------
+    ValueError
+        If y_pred_proba and y_pred_proba_calib are both empty.
+
+    """
+    array_check(y_pred_proba)
+    array_check(y_pred_proba_calib)
+
+    n_classes = 1  # Default number of classes
+    title = kwargs["set_title"] if "set_title" in kwargs.keys() else ""
+
+    if len(y_pred_proba) > 0 and len(y_pred_proba_calib) > 0:
+        if len(y_pred_proba) > 1:
+            # If multiple labels, check that n_classes agree
+            array_dim_check(y_pred_proba, y_pred_proba_calib, dim=1)
+            n_classes = y_pred_proba.shape[1]
+        else:
+            y_pred_proba = y_pred_proba.reshape(-1, 1)
+            y_pred_proba_calib = y_pred_proba_calib(-1, 1)
+
+    elif len(y_pred_proba) > 0:
+        if len(y_pred_proba) > 1:
+            n_classes = y_pred_proba.shape[1]
+        else:
+            y_pred_proba = y_pred_proba.reshape(-1, 1)
+
+    elif len(y_pred_proba_calib) > 0:
+        if len(y_pred_proba_calib) > 1:
+            n_classes = y_pred_proba_calib.shape[1]
+        else:
+            y_pred_proba_calib = y_pred_proba_calib(-1, 1)
+
+    else:
+        raise ValueError("At least one set of predicted probabilities is needed")
+
+    colours = plt.get_cmap("Pastel1")
+
+    # Split arguments based on where they should be sent
+    ax_kwargs = {key: value for key, value in kwargs.items() if key in dir(Axes)}
+    fig_kwargs = {key: value for key, value in kwargs.items() if key in dir(Figure)}
+
+    for i in range(n_classes):
+        # Set figure and axes properties
+        fig, ax = plt.subplots(**fig_kwargs)  # Create a new figure
+        colour_val = 0
+
+        # Default settings that are overwritten if kwargs are passed
+        ax.set_xlabel("Predicted probabilities")
+        ax.set_ylabel("Count")
+        ax.set_yscale("log")
+        ax.set_title(f"Predicted probabilities distribution for {label_list[i]}")
+
+        if "set_title" in kwargs.keys() and len(label_list) > 0:
+            kwargs["set_title"] = title + label_list[i]
+
+        if len(y_pred_proba) > 0 and len(y_pred_proba_calib) > 0:
+            ax.hist(
+                y_pred_proba[:, i],
+                color=colours(colour_val),
+                alpha=0.5,
+                label="Uncalibrated",
+                bins=n_bins,
+            )
+
+            colour_val += 1
+
+            ax.hist(
+                y_pred_proba_calib[:, i],
+                color=colours(colour_val),
+                alpha=0.5,
+                label="Calibrated",
+                bins=n_bins,
+            )
+
+        elif len(y_pred_proba) > 0:
+            ax.hist(
+                y_pred_proba[:, i],
+                color=colours(colour_val),
+                label="Uncalibrated",
+                bins=n_bins,
+            )
+
+        elif len(y_pred_proba_calib) > 0:
+            ax.hist(
+                y_pred_proba_calib[:, i],
+                color=colours(colour_val),
+                label="Calibrated",
+                bins=n_bins,
+            )
+
+        colour_val += 1
+
+        for key, val in ax_kwargs.items():
+            getattr(ax, key)(val)
+
+        ax.legend(loc="upper right", bbox_to_anchor=(1.4, 0.9), borderaxespad=0.0)
+        plt.tight_layout()
+        fig.subplots_adjust(right=0.7, bottom=0.14)
+
+        if save_path:
+            plt.savefig(save_path + f"_{label_list[i]}")
+        if show_fig:
+            plt.show()
