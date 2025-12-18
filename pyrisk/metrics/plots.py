@@ -589,3 +589,29 @@ def plot_prediction_distribution(
             plt.savefig(save_file)
         if show_fig:
             plt.show()
+
+
+def _get_max_calibration_value(cur_max, prob_pred_max, prob_true_max):
+    """
+    Returns the maximum between inputs.
+
+    Parameters
+    ----------
+    cur_max : float
+        Current maximum value.
+    prob_pred_max : float
+        Predicted probabilities maximum.
+    prob_true_max : float
+        True probabilities maximum.
+
+    Returns
+    -------
+    cur_max : float
+        New current maximum.
+
+    """
+    if prob_pred_max > cur_max:
+        cur_max = prob_pred_max
+    if prob_true_max > cur_max:
+        cur_max = prob_true_max
+    return cur_max
