@@ -50,6 +50,8 @@ def file_checks(file: str, extension: str, exists: bool = True) -> None:
 
     path_object = pathlib.Path(file)  # Create a Path object
 
+    path_checks(str(path_object.parent))
+
     if not path_object.exists() and exists:
         raise FileNotFoundError(f"{file} does not exist")
 
