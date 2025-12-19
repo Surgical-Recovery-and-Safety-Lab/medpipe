@@ -32,9 +32,9 @@ def test_setup_logger_not_str(script_name, log_path):
         setup_logger(script_name, log_path)
 
 
-def test_setup_logger_file_not_found():
+def test_setup_logger_file_not_found(tmp_path):
     with pytest.raises(FileNotFoundError):
-        log_path = str(CWD / "not_a_dir")
+        log_path = str(tmp_path / "not_a_dir.txt")
         setup_logger("script_name", log_path)
 
 
