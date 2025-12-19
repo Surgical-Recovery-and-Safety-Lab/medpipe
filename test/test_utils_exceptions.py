@@ -84,27 +84,37 @@ def test_path_checks_success():
     path_checks(DATA_DIR)
 
 
-def test_path_checks_not_str():
+def test_path_checks_create_dir(tmp_path):
+    data_path = tmp_path / "not_a_dir/"
+    path_checks(str(data_path))
+    assert data_path.exists()
+
+
+@pytest.mark.parametrize(
+    "file_name",
+    [42, 3.14, [1, 2, 3], None],
+)
+def test_path_checks_not_str(file_name):
     with pytest.raises(TypeError):
-        path_checks(12)
+        path_checks(file_name)
 
 
-def test_path_checks_dir_not_found():
-    with pytest.raises(FileNotFoundError):
-        data_path = str(CWD / "not_a_dir/")
+@pytest.mark.parametrize(
+    "file_name",
+    ["test_text.txt", "test_data.csv", "config/HGB_config.toml"],
+)
+def test_path_checks_is_a_file(file_name):
+    with pytest.raises(NotADirectoryError):
+        data_path = str(CWD / DATA_DIR / file_name)
         path_checks(data_path)
 
 
 @pytest.mark.parametrize(
     "file_name",
-    [
-        ("test_text.txt"),
-        ("test_data.csv"),
-        ("config/HGB_config.toml"),
-    ],
+    ["test_text.tx", "test_data.cs", "config/HGB_config.tom"],
 )
-def test_path_checks_is_a_file(file_name):
-    with pytest.raises(NotADirectoryError):
+def test_path_checks_file_not_found(file_name):
+    with pytest.raises(FileNotFoundError):
         data_path = str(CWD / DATA_DIR / file_name)
         path_checks(data_path)
 
