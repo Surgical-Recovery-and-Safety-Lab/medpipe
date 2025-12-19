@@ -8,7 +8,7 @@ a calibrator.
 
 from copy import deepcopy
 
-from numpy import arange, ones
+from numpy import arange, array, ones
 
 import pyrisk.data.weighting as weight
 from pyrisk.data.preprocessing import extract_labels, get_validation_idx, test_train_it
@@ -158,9 +158,15 @@ class Pipeline:
             n_features -= 1
         n_classes = len(self.label_list)
 
+        if self.predictor_type == "nn":
+            architecture = self.predictor_config["architecture"]
+        else:
+            architecture = {}
+
         self.predictor = Predictor(
             self.predictor_type,
             hyperparameters=self.predictor_config["hyperparameters"],
+            architecture=architecture,
             n_features=n_features,
             n_classes=n_classes,
             logger=self.logger,
@@ -443,12 +449,15 @@ class Pipeline:
                 f"  Test set size: {len(X_test)} examples", self.logger, SCRIPT_NAME
             )
 
+            if self.predictor_type != "nn":  # Non NN models use sample weights
+                weights = weights[train_idx]
+
             # Fit predictor on train set
             self.fit_model(
                 X_train,
                 y_train,
                 "predictor",
-                **{"X_test": X_test, "y_test": y_test, "weights": weights[train_idx]},
+                **{"X_test": X_test, "y_test": y_test, "weights": weights},
             )
 
             # Fit calibrator on validation set
@@ -601,5 +610,10 @@ class Pipeline:
         weighting_fn = self.predictor_config["weighting"]["weighting_fn"]
         if weighting_fn:
             return getattr(weight, weighting_fn)(y)
+
+        if self.predictor_type == "nn":
+            if len(y) > 1:
+                return ones(y.shape[1])
+            return array([1])
 
         return ones(y.shape[0])
