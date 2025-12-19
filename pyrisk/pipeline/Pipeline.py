@@ -449,15 +449,18 @@ class Pipeline:
                 f"  Test set size: {len(X_test)} examples", self.logger, SCRIPT_NAME
             )
 
-            if self.predictor_type != "nn":  # Non NN models use sample weights
-                weights = weights[train_idx]
+            if self.predictor_type != "nn":
+                # Non NN models use sample weights
+                cur_weights = weights[train_idx]
+            else:
+                cur_weights = weights
 
             # Fit predictor on train set
             self.fit_model(
                 X_train,
                 y_train,
                 "predictor",
-                **{"X_test": X_test, "y_test": y_test, "weights": weights},
+                **{"X_test": X_test, "y_test": y_test, "weights": cur_weights},
             )
 
             # Fit calibrator on validation set
