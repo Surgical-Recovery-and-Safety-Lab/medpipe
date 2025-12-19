@@ -91,8 +91,21 @@ def path_checks(path: str) -> None:
         raise TypeError(f"{path} should be a string")
 
     path_object = pathlib.Path(path)  # Create a Path object
+    path_suffix = path_object.suffix
+    dir = False
 
-    if not path_object.exists() and path_object.suffix == "":
+    if path_suffix != "":
+        try:
+            # If suffix ends with a digit because of version number
+            int(path_suffix[1:])
+            dir = True
+        except ValueError:
+            pass
+    else:
+        # If there is no suffix
+        dir = True
+
+    if not path_object.exists() and dir:
         path_object.mkdir(parents=True)
 
     if not path_object.exists():
