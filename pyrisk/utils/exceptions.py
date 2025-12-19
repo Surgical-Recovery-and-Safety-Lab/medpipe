@@ -62,7 +62,8 @@ def file_checks(file: str, extension: str, exists: bool = True) -> None:
 
 def path_checks(path: str) -> None:
     """
-    Performs checks to ensure that a path is correct.
+    Performs checks to ensure that a path is correct and creates it
+    if it does not exist.
 
     Parameters
     ----------
@@ -88,6 +89,9 @@ def path_checks(path: str) -> None:
         raise TypeError(f"{path} should be a string")
 
     path_object = pathlib.Path(path)  # Create a Path object
+
+    if not path_object.exists() and path_object.suffix == "":
+        path_object.mkdir(parents=True)
 
     if not path_object.exists():
         raise FileNotFoundError(f"{path} does not exist")
