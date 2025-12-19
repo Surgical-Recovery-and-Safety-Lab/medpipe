@@ -95,14 +95,14 @@ class Predictor:
         # Create device to load the model on GPU if available
         self.device = current_accelerator().type if is_available() else "cpu"
 
-    def _set_model(self):
+    def _set_model(self, quiet: bool = False):
         """
         Set the model to default parameters.
 
         Parameters
         ----------
-        None
-            No parameters
+        quiet : bool, default: False
+            Flag to create a model without printing.
 
         Returns
         -------
@@ -116,6 +116,7 @@ class Predictor:
                 self.n_features,
                 self.n_classes,
                 self.logger,
+                quiet=quiet,
                 **deepcopy(self.architecture),
             )
 
@@ -125,6 +126,7 @@ class Predictor:
                 self.n_features,
                 self.n_classes,
                 self.logger,
+                quiet=quiet,
                 **self.hyperparameters,
             )
 

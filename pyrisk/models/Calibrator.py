@@ -77,14 +77,14 @@ class Calibrator:
         # Create model based on attributes
         self._set_model()
 
-    def _set_model(self):
+    def _set_model(self, quiet: bool = False):
         """
         Set the model to default parameters.
 
         Parameters
         ----------
-        None
-            No parameters
+        quiet : bool, default: False
+            Flag to create a model without printing.
 
         Returns
         -------
@@ -98,6 +98,7 @@ class Calibrator:
                     self.model_type,
                     n_classes=1,
                     logger=self.logger,
+                    quiet=quiet,
                     **self.hyperparameters,
                 )
             )

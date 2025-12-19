@@ -34,6 +34,7 @@ def create_model(
     n_features: int = -1,
     n_classes: int = 1,
     logger=None,
+    quiet=False,
     **config_params,
 ):
     """
@@ -54,6 +55,8 @@ def create_model(
         Number of classes. Used to call MultiOutputClassifier.
     logger : logging.Logger, default: None
         Logger object to log prints. If None print to terminal.
+    quiet : bool, default: False
+        Flag to create a model without printing.
     **config_params
         Configuration parameters for the model.
 
@@ -79,25 +82,28 @@ def create_model(
 
     match model_type:
         case "hgb":
-            print_message(
-                "Creating a Histogram Gradient Boosting model", logger, SCRIPT_NAME
-            )
+            if not quiet:
+                print_message(
+                    "Creating a Histogram Gradient Boosting model", logger, SCRIPT_NAME
+                )
             model = skl.ensemble.HistGradientBoostingClassifier(**config_params)
 
             if n_classes > 1:
                 model = MultiOutputClassifier(model)
 
         case "svm":
-            print_message(
-                "Creating a Support Vector Machine model", logger, SCRIPT_NAME
-            )
+            if not quiet:
+                print_message(
+                    "Creating a Support Vector Machine model", logger, SCRIPT_NAME
+                )
             model = skl.svm.SVC(**config_params)
 
             if n_classes > 1:
                 model = MultiOutputClassifier(model)
 
         case "nn":
-            print_message("Creating a Neural Network model", logger, SCRIPT_NAME)
+            if not quiet:
+                print_message("Creating a Neural Network model", logger, SCRIPT_NAME)
 
             if n_features == -1:
                 raise ValueError("For nn models, please specify feature number")
@@ -107,15 +113,17 @@ def create_model(
             model = AIRiskNN(n_features, logger, **config_params).to(device)
 
         case "logistic":
-            print_message(
-                "Creating a Logistic Regression calibrator", logger, SCRIPT_NAME
-            )
+            if not quiet:
+                print_message(
+                    "Creating a Logistic Regression calibrator", logger, SCRIPT_NAME
+                )
             model = LogisticRegression(**config_params)
 
         case "isotonic":
-            print_message(
-                "Creating an Isotonic Regression calibrator", logger, SCRIPT_NAME
-            )
+            if not quiet:
+                print_message(
+                    "Creating an Isotonic Regression calibrator", logger, SCRIPT_NAME
+                )
             model = IsotonicRegression(**config_params)
 
         case _:

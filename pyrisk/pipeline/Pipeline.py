@@ -483,9 +483,9 @@ class Pipeline:
                 tmp_predictor = deepcopy(self.predictor.model)
                 tmp_calibrator = deepcopy(self.calibrator.model)
 
-            # Rest predictor and calibrator
-            self.predictor._set_model()
-            self.calibrator._set_model()
+            # Rest predictor and calibrator without printing
+            self.predictor._set_model(quiet=True)
+            self.calibrator._set_model(quiet=True)
 
         # Replace models with best ones
         self.predictor.model = tmp_predictor
