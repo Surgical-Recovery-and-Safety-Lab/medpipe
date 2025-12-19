@@ -433,15 +433,15 @@ class Pipeline:
             y_train = y[train_idx]
             X_test = X_fold.iloc[test_idx]
             y_test = y[test_idx]
-            X_val = X_fold.iloc[val_idx]
-            y_val = y[val_idx]
+            X_cal = X_fold.iloc[val_idx]
+            y_cal = y[val_idx]
 
             print_message(fold_message, self.logger, SCRIPT_NAME)
             print_message(
                 f"  Train set size: {len(X_train)} examples", self.logger, SCRIPT_NAME
             )
             print_message(
-                f"  Validation set size: {len(X_val)} examples",
+                f"  Calibration set size: {len(X_cal)} examples",
                 self.logger,
                 SCRIPT_NAME,
             )
@@ -465,8 +465,8 @@ class Pipeline:
 
             # Fit calibrator on validation set
             self.fit_model(
-                get_positive_proba(self.predictor.predict_proba(X_val)),
-                y_val,
+                get_positive_proba(self.predictor.predict_proba(X_cal)),
+                y_cal,
                 "calibrator",
             )
 
