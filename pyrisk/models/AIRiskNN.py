@@ -188,7 +188,9 @@ class AIRiskNN(nn.Module):
 
         # Create data loaders for batching
         dataset = torch.utils.data.TensorDataset(X_train, y_train)
-        train_loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size)
+        train_loader = torch.utils.data.DataLoader(
+            dataset, batch_size=batch_size, drop_last=True
+        )
 
         # Training loop
         for epoch in range(epochs):
