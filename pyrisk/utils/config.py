@@ -55,14 +55,24 @@ def get_file_path(
 
     parameters = config_dict[key]
 
-    file_path = (
-        parameters["dir"] + parameters["name"] + v_number + parameters["extension"]
-    )
+    if path_type == "fig":
+        # Create a fig folder for each version number
+        file_path = (
+            parameters["dir"]
+            + f"{v_number}/"
+            + parameters["name"]
+            + v_number
+            + parameters["extension"]
+        )
+    else:
+        file_path = (
+            parameters["dir"] + parameters["name"] + v_number + parameters["extension"]
+        )
 
     # Run file checks before returning
     file_checks(file_path, parameters["extension"], exists=exists)
 
-    if path_type == "fig":
+    if path_type == "fig":  # If figure remove extension
         return file_path[: -len(parameters["extension"])]
 
     return file_path
