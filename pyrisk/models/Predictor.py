@@ -5,6 +5,8 @@ This class creates a Predictor to train and make predictions.
 
 """
 
+from copy import deepcopy
+
 from torch.accelerator import current_accelerator, is_available
 
 from .core import create_model
@@ -114,7 +116,7 @@ class Predictor:
                 self.n_features,
                 self.n_classes,
                 self.logger,
-                **self.architecture,
+                **deepcopy(self.architecture),
             )
 
         else:
