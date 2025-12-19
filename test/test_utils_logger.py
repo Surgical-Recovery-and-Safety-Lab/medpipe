@@ -8,7 +8,6 @@ Test functions for the utils.logger module
 import pathlib
 
 import pytest
-from numpy.__config__ import CONFIG
 
 from pyrisk.utils.logger import setup_logger
 
