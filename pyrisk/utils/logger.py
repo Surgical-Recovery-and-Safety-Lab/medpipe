@@ -110,7 +110,7 @@ def exception_handler(logger, log_path, log_config, script_name):
 
     """
     logger.exception(log_config["log_message"] + f"{script_name}")
-    sys.stderr.write(log_config["print_message"] + f"{log_path}/{script_name}.log")
+    sys.stderr.write(log_config["print_message"] + f"{log_path}/{script_name}.log\n")
 
 
 def print_message(message, logger=None, script_name="") -> None:
