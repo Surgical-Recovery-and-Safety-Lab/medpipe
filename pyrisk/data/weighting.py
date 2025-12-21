@@ -56,7 +56,7 @@ def inverse_frequency_sum_sample_weights(labels):
 
 def inverse_frequency_class_weights(labels):
     """
-    Create class weights using inverse frequency of classes.
+    Create class weights of the positive class using inverse frequency of classes.
 
     Parameters
     ----------
@@ -72,11 +72,21 @@ def inverse_frequency_class_weights(labels):
     ------
     TypeError
         If labels is not array-like.
+    ValueError
+        If labels is empty.
+    ZeroDivisionError
+        If there are no positive labels.
 
     """
     array_check(labels)
 
-    class_count = np.sum(labels, axis=0)
-    n_samples, _ = labels.shape
+    if len(labels) == 0:
+        raise ValueError("labels is empty")
 
-    return n_samples / class_count
+    pos_counts = np.sum(labels, axis=0)
+    neg_counts = len(labels) - pos_counts
+
+    if pos_counts.any() == 0:
+        raise ZeroDivisionError("No positive labels found")
+
+    return neg_counts / pos_counts
