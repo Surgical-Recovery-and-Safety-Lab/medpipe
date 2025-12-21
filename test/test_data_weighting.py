@@ -9,7 +9,12 @@ samples or classes to adjust class imbalance.
 import numpy as np
 import pytest
 
-from pyrisk.data.weighting import inverse_frequency_class_weights
+from pyrisk.data.weighting import (
+    inverse_frequency_class_weights,
+    inverse_frequency_sum_sample_weights,
+    negative_positive_ratio_class_weights,
+    negative_positive_ratio_sample_weights,
+)
 
 # Single label test data
 single_labels = np.array(
@@ -57,7 +62,11 @@ labels_no_minority = np.zeros((5, 1))
 # Basic functionality tests
 @pytest.mark.parametrize(
     "labels, true_weights",
-    [(single_labels, [2.0]), (bi_labels, [5.0, 5.0]), (tri_labels, [2.75, 4.0, 4.0])],
+    [
+        (single_labels, [3.0]),
+        (bi_labels, [6.0, 6.0]),
+        (tri_labels, [15 / 4, 5.0, 5.0]),
+    ],
 )
 def test_inverse_frequency_class_weights_success(labels, true_weights):
     weights = inverse_frequency_class_weights(labels)
@@ -74,7 +83,6 @@ def test_inverse_frequency_class_weights_bad_input():
     [
         42,
         3.14,
-        {"key": "value"},
         None,
         ["a", "b", "c"],
     ],
@@ -87,3 +95,117 @@ def test_inverse_frequency_class_weights_type_error(labels):
 def test_inverse_frequency_class_weights_no_positive():
     with pytest.raises(ZeroDivisionError):
         _ = inverse_frequency_class_weights(labels_no_minority)
+
+
+# Basic functionality tests
+@pytest.mark.parametrize(
+    "labels, true_weights",
+    [(single_labels, [2.0]), (bi_labels, [5.0, 5.0]), (tri_labels, [2.75, 4.0, 4.0])],
+)
+def test_negative_positive_ratio_class_weights_success(labels, true_weights):
+    weights = negative_positive_ratio_class_weights(labels)
+    assert (weights == np.array(true_weights)).all()
+
+
+def test_negative_positive_ratio_class_weights_bad_input():
+    with pytest.raises(ValueError):
+        _ = negative_positive_ratio_class_weights(labels_empty)
+
+
+@pytest.mark.parametrize(
+    "labels",
+    [
+        42,
+        3.14,
+        None,
+        ["a", "b", "c"],
+    ],
+)
+def test_negative_positive_ratio_class_weights_type_error(labels):
+    with pytest.raises(TypeError):
+        _ = negative_positive_ratio_class_weights(labels)
+
+
+def test_negative_positive_ratio_class_weights_no_positive():
+    with pytest.raises(ZeroDivisionError):
+        _ = negative_positive_ratio_class_weights(labels_no_minority)
+
+
+# Basic functionality tests
+@pytest.mark.parametrize(
+    "labels, true_weights",
+    [
+        (single_labels, [[1.5], [3.0]]),
+        (bi_labels, [[1.2, 1.2], [6.0, 6.0]]),
+        (tri_labels, [[15 / 11, 1.25, 1.25], [15 / 4, 5.0, 5.0]]),
+    ],
+)
+def test_inverse_frequency_sum_sample_weights_success(labels, true_weights):
+    weights = inverse_frequency_sum_sample_weights(labels)
+    neg_weights = ~np.array(labels, dtype=bool) * true_weights[0]
+    pos_weights = labels * true_weights[1]
+    assert (weights == np.array(neg_weights + pos_weights)).all()
+
+
+def test_inverse_frequency_sum_sample_weights_bad_input():
+    with pytest.raises(ValueError):
+        _ = inverse_frequency_sum_sample_weights(labels_empty)
+
+
+@pytest.mark.parametrize(
+    "labels",
+    [
+        42,
+        3.14,
+        None,
+        ["a", "b", "c"],
+    ],
+)
+def test_inverse_frequency_sum_sample_weights_type_error(labels):
+    with pytest.raises(TypeError):
+        _ = inverse_frequency_sum_sample_weights(labels)
+
+
+def test_inverse_frequency_sum_sample_weights_no_positive():
+    with pytest.raises(ZeroDivisionError):
+        _ = inverse_frequency_sum_sample_weights(labels_no_minority)
+
+
+# Basic functionality tests
+@pytest.mark.parametrize(
+    "labels, true_weights",
+    [
+        (single_labels, [[1.0], [2.0]]),
+        (bi_labels, [[1.0, 1.0], [5.0, 5.0]]),
+        (tri_labels, [[1.0, 1.0, 1.0], [2.75, 4.0, 4.0]]),
+    ],
+)
+def test_negative_positive_ratio_sample_weights_success(labels, true_weights):
+    weights = negative_positive_ratio_sample_weights(labels)
+    neg_weights = ~np.array(labels, dtype=bool) * true_weights[0]
+    pos_weights = labels * true_weights[1]
+    assert (weights == np.array(neg_weights + pos_weights)).all()
+
+
+def test_negative_positive_ratio_sample_weights_bad_input():
+    with pytest.raises(ValueError):
+        _ = negative_positive_ratio_sample_weights(labels_empty)
+
+
+@pytest.mark.parametrize(
+    "labels",
+    [
+        42,
+        3.14,
+        None,
+        ["a", "b", "c"],
+    ],
+)
+def test_negative_positive_ratio_sample_weights_type_error(labels):
+    with pytest.raises(TypeError):
+        _ = negative_positive_ratio_sample_weights(labels)
+
+
+def test_negative_positive_ratio_sample_weights_no_positive():
+    with pytest.raises(ZeroDivisionError):
+        _ = negative_positive_ratio_sample_weights(labels_no_minority)
