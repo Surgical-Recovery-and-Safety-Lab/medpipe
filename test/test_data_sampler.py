@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-test_random_sampler.py
+test_data_sampler.py
 
-Test functions for the random_sampler function, which balances the class distribution
-by selecting a target ratio between the minority and majority classes.
+Test functions for data sampling functions which balances the class distribution.
 """
 import numpy as np
 import pytest
