@@ -20,10 +20,13 @@ import numpy as np
 from pyrisk.utils.exceptions import array_check
 
 
-def inverse_frequency_sum_sample_weights(labels):
+def inverse_frequency_multiclass_sample_weights(labels):
     """
     Create sample weights using the total number of samples over the number of
     positive and negative samples.
+
+    Each class has its own set of weights for positive and negative examples
+    based on the number of positive and negative examples in that class.
 
     Parameters
     ----------
@@ -46,10 +49,11 @@ def inverse_frequency_sum_sample_weights(labels):
 
     Notes
     -----
-    The number of class instances is counted and the weight is calculated as:
-        len(labels) / (pos_weight + neg_weight)
-    where pos_weight is an array with 1 for the positive labels for the classes and
-    neg_weight is an array with 1 for negative labels for the classes.
+    For each class, the weights are calculated as:
+        len(labels) / (pos_weight + neg_weight),
+    where pos_weight is an array of shape (n_samples, n_classes) for the positive examples
+    with the total number of positive samples in each class, and neg_weight is similar
+    but for the negative examples.
 
     """
     array_check(labels)  # Check that labels is array-like
