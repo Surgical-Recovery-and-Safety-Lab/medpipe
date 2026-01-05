@@ -5,8 +5,10 @@ This module provides functions to create sample weigths to address
 class imbalance.
 
 Functions:
-- inverse_frequency_sum_sample_weights: Create sample weights using inverse number of
-    classes summed over the labels.
+- inverse_frequency_multiclass_sample_weights: Create sample weights using the total
+    number of samples over the number of positive and negative samples.
+- inverse_frequency_single_sample_weights: Create sample weights using the inverse
+    frequency of positive and negative samples.
 - inverse_frequency_class_weights: Create class weights using inverse frequency
     of classes.
 - negative_positive_ratio_sample_weights: Create sample weights using the ratio betwee
@@ -20,10 +22,13 @@ import numpy as np
 from pyrisk.utils.exceptions import array_check
 
 
-def inverse_frequency_sum_sample_weights(labels):
+def inverse_frequency_multiclass_sample_weights(labels):
     """
     Create sample weights using the total number of samples over the number of
     positive and negative samples.
+
+    Each class has its own set of weights for positive and negative examples
+    based on the number of positive and negative examples in that class.
 
     Parameters
     ----------
@@ -46,10 +51,11 @@ def inverse_frequency_sum_sample_weights(labels):
 
     Notes
     -----
-    The number of class instances is counted and the weight is calculated as:
-        len(labels) / (pos_weight + neg_weight)
-    where pos_weight is an array with 1 for the positive labels for the classes and
-    neg_weight is an array with 1 for negative labels for the classes.
+    For each class, the weights are calculated as:
+        len(labels) / (pos_weight + neg_weight),
+    where pos_weight is an array of shape (n_samples, n_classes) for the positive examples
+    with the total number of positive samples in each class, and neg_weight is similar
+    but for the negative examples.
 
     """
     array_check(labels)  # Check that labels is array-like
@@ -65,8 +71,55 @@ def inverse_frequency_sum_sample_weights(labels):
 
     pos_weight = pos_counts * labels
     neg_weight = neg_counts * ~np.array(labels, dtype=bool)  # Invert for negatives
-
     return len(labels) / (pos_weight + neg_weight)
+
+
+def inverse_frequency_single_sample_weights(labels):
+    """
+    Create sample weights using the inverse frequency of positive
+    and negative samples.
+
+    One set of weights is created and used for each class based on the
+    total number of positive and negative examples. Weights are normalised
+    so that negative weights are 1.
+
+    Parameters
+    ----------
+    labels : array-like
+        Binary prediction labels of shape (n_samples, n_classes)
+
+    Returns
+    -------
+    sample_weights : np.array(n_samples,)
+        Weight for each sample.
+
+    Raises
+    ------
+    TypeError
+        If labels is not array-like.
+    ValueError
+        If labels is empty.
+    ZeroDivisionError
+        If there are no positive labels.
+
+    """
+    array_check(labels)  # Check that labels is array-like
+
+    if len(labels) == 0:
+        raise ValueError("The input labels are empty")
+
+    pos_examples = np.sum(labels, axis=1) > 0
+    pos_count = np.sum(pos_examples)
+
+    if pos_count == 0:
+        raise ZeroDivisionError("No positive labels found")
+
+    # Create weights
+    weights = np.ones(len(labels))  # Negative weight is 1
+    pos_weight = (len(labels) - pos_count) / pos_count
+    weights[pos_examples] *= pos_weight
+
+    return weights
 
 
 def inverse_frequency_class_weights(labels):
