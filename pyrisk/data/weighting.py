@@ -5,8 +5,10 @@ This module provides functions to create sample weigths to address
 class imbalance.
 
 Functions:
-- inverse_frequency_sum_sample_weights: Create sample weights using inverse number of
-    classes summed over the labels.
+- inverse_frequency_multiclass_sample_weights: Create sample weights using the total
+    number of samples over the number of positive and negative samples.
+- inverse_frequency_single_sample_weights: Create sample weights using the inverse
+    frequency of positive and negative samples.
 - inverse_frequency_class_weights: Create class weights using inverse frequency
     of classes.
 - negative_positive_ratio_sample_weights: Create sample weights using the ratio betwee
@@ -69,7 +71,6 @@ def inverse_frequency_multiclass_sample_weights(labels):
 
     pos_weight = pos_counts * labels
     neg_weight = neg_counts * ~np.array(labels, dtype=bool)  # Invert for negatives
-
     return len(labels) / (pos_weight + neg_weight)
 
 
