@@ -59,6 +59,7 @@ class Pipeline:
          - f1
          - precision
          - recall
+         - log_loss
          - roc (Receiver Operator Characteristic)
          - auroc (Area Under Receiver Operator Characteristic)
          - prc (Precision-Recall Curve)
@@ -71,6 +72,7 @@ class Pipeline:
          - f1
          - precision
          - recall
+         - log_loss
          - roc (Receiver Operator Characteristic)
          - auroc (Area Under Receiver Operator Characteristic)
          - prc (Precision-Recall Curve)

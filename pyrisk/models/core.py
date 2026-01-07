@@ -155,6 +155,7 @@ def test_model(y_test, y_pred, y_pred_proba):
          - f1
          - precision
          - recall
+         - log_loss
          - roc (Receiver Operator Characteristic)
          - auroc (Area Under Receiver Operator Characteristic)
          - prc (Precision-Recall Curve)
@@ -176,7 +177,9 @@ def test_model(y_test, y_pred, y_pred_proba):
         ["accuracy", "f1", "recall", "precision"], y_test, y_pred
     )
     metric_dict.update(
-        compute_score_metrics(["roc", "auroc", "prc", "ap"], y_test, y_pred_proba)
+        compute_score_metrics(
+            ["roc", "auroc", "prc", "ap", "log_loss"], y_test, y_pred_proba
+        )
     )
     return metric_dict
 
