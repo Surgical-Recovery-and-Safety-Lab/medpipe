@@ -28,13 +28,13 @@ DATA_DIR = str(CWD / "test/test_data/")
             "config/HGB_config.toml",
             "io",
             False,
-            "test/test_data/models/ai_risk_HGB-v0.2.1.3-a.3.2.pkl",
+            "test/test_data/models/ai_risk_HGB-v0.1.1.3-a.1.1.1.pkl",
         ),
         (
             "config/NN_config.toml",
             "data",
             False,
-            "test/test_data/config/data/ai_risk_data_v0.2.1.1-b.2.2.2.toml",
+            "test/test_data/config/data/ai_risk_data_v0.1.1.3-b.1.1.1.2.toml",
         ),
         (
             "config/AI_risk_data_config.toml",
@@ -193,22 +193,22 @@ def test_parse_version_number_error(v_number):
         (
             "config/HGB_config.toml",
             "data_parameters",
-            "v0.2.1.3",
+            "v0.1.1.3",
         ),
         (
             "config/HGB_config.toml",
             "model_parameters",
-            "va.3.2",
+            "va.1.1.1",
         ),
         (
             "config/NN_config.toml",
             "model_parameters",
-            "vb.2.2.2",
+            "vb.1.1.1.2",
         ),
         (
             "config/NN_config.toml",
             "data_parameters",
-            "v0.2.1.1",
+            "v0.1.1.2",
         ),
     ],
 )
