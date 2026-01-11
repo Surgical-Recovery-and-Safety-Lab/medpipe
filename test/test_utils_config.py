@@ -28,19 +28,19 @@ DATA_DIR = str(CWD / "test/test_data/")
             "config/HGB_config.toml",
             "io",
             False,
-            "test/test_data/models/ai_risk_HGB-v0.1.1.3-a.1.1.1.pkl",
+            "test/test_data/models/ai_risk_HGB-v0.1.1.2-a.1.1.1.pkl",
         ),
         (
             "config/NN_config.toml",
             "data",
             False,
-            "test/test_data/config/data/ai_risk_data_v0.1.1.3-b.1.1.1.2.toml",
+            "test/test_data/config/data/ai_risk_data_v0.1.1.2-b.1.1.1.2.toml",
         ),
         (
             "config/AI_risk_data_config.toml",
             "data",
             True,
-            "test/test_data/config/test_config_v0.2.toml",
+            "test/test_data/config/test_config_v0.1.toml",
         ),
     ],
 )

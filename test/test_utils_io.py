@@ -44,7 +44,7 @@ def test_load_data_from_csv_not_a_file():
 
 
 def test_read_toml_configuration_success():
-    data_path = str(CWD / "test/test_data/config/test_config_v0.2.toml")
+    data_path = str(CWD / "test/test_data/config/test_config_v0.1.toml")
     contents = read_toml_configuration(data_path)
     assert contents == {"features": ["DUMMY"]}
 
