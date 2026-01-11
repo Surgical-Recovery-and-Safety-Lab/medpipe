@@ -3,16 +3,17 @@
 """
 test_data_sampler.py
 
-Test functions for data sampling functions which balances the class distribution.
+Test functions for the sampler functions, which balances the class distribution
+by selecting a target ratio between the minority and majority classes.
 """
 import numpy as np
 import pytest
 
 from pyrisk.data.sampler import (
     group_mean_dist_sampler,
-    group_random_sampler,
+    group_random_undersampler,
     mean_dist_sampler,
-    random_sampler,
+    random_undersampler,
 )
 
 # Single label test data
@@ -113,8 +114,8 @@ labels_groups_no_maj = np.array(
         (0.5, tri_labels, 5),
     ],
 )
-def test_random_sampler_success(target_ratio, labels, n_min_class):
-    sample_idx = random_sampler(labels, target_ratio)
+def test_random_undersampler_success(target_ratio, labels, n_min_class):
+    sample_idx = random_undersampler(labels, target_ratio)
     sampled_labels = labels[sample_idx]
 
     if sampled_labels.shape[1] == 1:
@@ -142,8 +143,8 @@ def test_random_sampler_success(target_ratio, labels, n_min_class):
         (5.0, tri_labels, 1),
     ],
 )
-def test_random_sampler_target_ratio(target_ratio, labels, n_maj_class):
-    sample_idx = random_sampler(labels, target_ratio)
+def test_random_undersampler_target_ratio(target_ratio, labels, n_maj_class):
+    sample_idx = random_undersampler(labels, target_ratio)
     sampled_labels = labels[sample_idx]
 
     if sampled_labels.shape[1] == 1:
@@ -165,8 +166,8 @@ def test_random_sampler_target_ratio(target_ratio, labels, n_maj_class):
 
 
 # Edge case: No minority class samples
-def test_random_sampler_no_minority():
-    sample_idx = random_sampler(labels_no_minority, target_ratio=0.5)
+def test_random_undersampler_no_minority():
+    sample_idx = random_undersampler(labels_no_minority, target_ratio=0.5)
     sampled_labels = labels_no_minority[sample_idx]
 
     # If no minority class, only majority class samples should be selected
@@ -186,9 +187,9 @@ def test_random_sampler_no_minority():
         (-0.1, tri_labels),
     ],
 )
-def test_random_sampler_value_error(target_ratio, labels):
+def test_random_undersampler_value_error(target_ratio, labels):
     with pytest.raises(ValueError):
-        random_sampler(labels, target_ratio)
+        random_undersampler(labels, target_ratio)
 
 
 # Raises a TypeError
@@ -196,9 +197,9 @@ def test_random_sampler_value_error(target_ratio, labels):
     "labels",
     [0.5, "string"],
 )
-def test_random_sampler_type_error(labels):
+def test_random_undersampler_type_error(labels):
     with pytest.raises(TypeError):
-        random_sampler(labels, target_ratio=0.5)
+        random_undersampler(labels, target_ratio=0.5)
 
 
 # Basic functionality test
@@ -210,10 +211,10 @@ def test_random_sampler_type_error(labels):
         (1.0, tri_labels, tri_groups, [3, 2]),
     ],
 )
-def test_group_random_sampler_success(
+def test_group_random_undersampler_success(
     target_ratio, labels, groups, n_min_class_per_group
 ):
-    sample_idx = group_random_sampler(labels, target_ratio, groups)
+    sample_idx = group_random_undersampler(labels, target_ratio, groups)
     sampled_labels = labels[sample_idx]
 
     for group, n_min_class in zip(np.unique(groups), n_min_class_per_group):
@@ -245,10 +246,10 @@ def test_group_random_sampler_success(
         (0.5, tri_labels, tri_groups, [6, 4]),
     ],
 )
-def test_group_random_sampler_target_ratio(
+def test_group_random_undersampler_target_ratio(
     target_ratio, labels, groups, n_maj_class_per_group
 ):
-    sample_idx = group_random_sampler(labels, target_ratio, groups)
+    sample_idx = group_random_undersampler(labels, target_ratio, groups)
     sampled_labels = labels[sample_idx]
 
     for group, n_maj_class in zip(np.unique(groups), n_maj_class_per_group):
@@ -277,21 +278,21 @@ def test_group_random_sampler_target_ratio(
     "labels",
     [0.5, "string", None],  # Invalid inputs (should raise TypeError)
 )
-def test_group_random_sampler_type_error(labels):
+def test_group_random_undersampler_type_error(labels):
     with pytest.raises(TypeError):
-        group_random_sampler(labels, target_ratio=0.5, groups=single_groups)
+        group_random_undersampler(labels, target_ratio=0.5, groups=single_groups)
 
 
 # Labels and groups should have the same number of samples
-def test_group_random_sampler_mismatched_dimensions():
+def test_group_random_undersampler_mismatched_dimensions():
     with pytest.raises(ValueError):
         groups = np.array([0, 1])
-        group_random_sampler(single_labels, target_ratio=0.5, groups=groups)
+        group_random_undersampler(single_labels, target_ratio=0.5, groups=groups)
 
 
 # Edge case: No minority class samples in any group
-def test_group_random_sampler_no_minority():
-    sample_idx = group_random_sampler(
+def test_group_random_undersampler_no_minority():
+    sample_idx = group_random_undersampler(
         labels_no_minority, target_ratio=0.5, groups=labels_groups_no_maj
     )
     sampled_labels = single_labels[sample_idx]
