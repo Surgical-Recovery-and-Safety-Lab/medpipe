@@ -287,12 +287,16 @@ def compute_pred_metrics(metric_list, y_true, y_pred):
 
             case "precision":
                 values.append(
-                    skl.metrics.precision_score(y_true, y_pred, average=average)
+                    skl.metrics.precision_score(
+                        y_true, y_pred, average=average, zero_division=0.0
+                    )
                 )
                 if multilabel:
                     values = np.append(
                         values,
-                        skl.metrics.precision_score(y_true, y_pred, average="weighted"),
+                        skl.metrics.precision_score(
+                            y_true, y_pred, average="weighted", zero_division=0.0
+                        ),
                     )
                 metric_dict.update({metric: values})
 
