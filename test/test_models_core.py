@@ -59,7 +59,7 @@ def test_create_model_HGB_SVM_success(model_type, config_file):
             n_features=1,
             logger=None,
             n_classes=1,
-            **model_config["config_parameters"],
+            **model_config["hyperparameters"],
         )
 
     else:
