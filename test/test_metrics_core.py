@@ -6,7 +6,6 @@ test_metrics_core.py
 Test functions for the metrics.core submodule.
 """
 import pathlib
-from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -31,13 +30,14 @@ def test_print_metrics_single_label(capsys):
         "recall": [0.94],
         "auroc": [0.96],
         "ap": [0.97],
+        "log_loss": [0.96],
     }
     label_list = ["Label1"]
 
     print_metrics(metric_dict, label_list)
 
     # Verify the printed messages
-    expected_messages = "[INFO]   Label1 metrics: in metrics/core\n[INFO]     Accuracy: 0.950 in metrics/core\n[INFO]     F1: 0.920 in metrics/core\n[INFO]     Precision: 0.930 in metrics/core\n[INFO]     Recall: 0.940 in metrics/core\n[INFO]     AUROC: 0.960 in metrics/core\n[INFO]     AP: 0.970 in metrics/core\n"
+    expected_messages = "[INFO]   Label1 metrics: in metrics/core\n[INFO]     Accuracy: 0.950 in metrics/core\n[INFO]     F1: 0.920 in metrics/core\n[INFO]     Precision: 0.930 in metrics/core\n[INFO]     Recall: 0.940 in metrics/core\n[INFO]     Log loss: 0.960 in metrics/core\n[INFO]     AUROC: 0.960 in metrics/core\n[INFO]     AP: 0.970 in metrics/core\n"
 
     captured = capsys.readouterr()
     assert captured.out == expected_messages

@@ -71,6 +71,9 @@ def print_metrics(metric_dict, label_list, logger=None) -> None:
         print_message(
             f"    Recall: {metric_dict["recall"][i]:.3f}", logger, SCRIPT_NAME
         )
+        print_message(
+            f"    Log loss: {metric_dict["log_loss"][i]:.3f}", logger, SCRIPT_NAME
+        )
         print_message(f"    AUROC: {metric_dict["auroc"][i]:.3f}", logger, SCRIPT_NAME)
         print_message(f"    AP: {metric_dict["ap"][i]:.3f}", logger, SCRIPT_NAME)
 
@@ -115,7 +118,7 @@ def print_metrics_CI(ci_dict, label_list, logger=None):
             )
 
 
-def compute_all_CI(model_metrics, **kwargs):
+def compute_all_CI(model_metrics, metric_list=[], **kwargs):
     """
     Computes the confidence intervals for all metrics.
 
@@ -123,6 +126,8 @@ def compute_all_CI(model_metrics, **kwargs):
     ----------
     model_metrics : dict[int, dict[str, float or tuple(array-like)]]
         Model metrics for different folds.
+    metric_list : list[str], default: []
+        List of metrics to calculate confidence interval.
     **kwargs
         Extra arguments for the compute_CI function.
 
@@ -138,12 +143,16 @@ def compute_all_CI(model_metrics, **kwargs):
     ci_dict = {}  # Empty dict to contain the confidence intervals for metrics
     metrics = next(iter(model_metrics.values())).keys()
 
+    if metric_list == []:
+        # Default to all metrics if not specified
+        metric_list = list(metrics)
+
     for metric in metrics:
-        if metric == "roc" or metric == "prc":
-            # Skip ROC and PRC metrics
+        if metric == "roc" or metric == "prc" or metric not in metric_list:
+            # Skip ROC, PRC, and metrics not in the given list
             continue
-        metric_list = extract_metric(model_metrics, metric)
-        ci_dict.update({metric: compute_CI(metric_list, **kwargs)})
+        metric_values = extract_metric(model_metrics, metric)
+        ci_dict.update({metric: compute_CI(metric_values, **kwargs)})
 
     return ci_dict
 
@@ -278,12 +287,16 @@ def compute_pred_metrics(metric_list, y_true, y_pred):
 
             case "precision":
                 values.append(
-                    skl.metrics.precision_score(y_true, y_pred, average=average)
+                    skl.metrics.precision_score(
+                        y_true, y_pred, average=average, zero_division=0.0
+                    )
                 )
                 if multilabel:
                     values = np.append(
                         values,
-                        skl.metrics.precision_score(y_true, y_pred, average="weighted"),
+                        skl.metrics.precision_score(
+                            y_true, y_pred, average="weighted", zero_division=0.0
+                        ),
                     )
                 metric_dict.update({metric: values})
 
@@ -314,6 +327,7 @@ def compute_score_metrics(metric_list, y_true, y_pred_proba):
          - auroc (area under the curve)
          - prc (precision-recall curve)
          - ap (average precision)
+         - log_loss
     y_true : array-like of shape (n_samples, n_classes)
         Ground truth labels.
     y_pred_proba : np.array or list[np.array]
@@ -337,7 +351,6 @@ def compute_score_metrics(metric_list, y_true, y_pred_proba):
 
     if len(y_true.shape) == 1:
         # Make into a list
-        y_pred_proba = [y_pred_proba]
         y_true = np.expand_dims(y_true, 1)
         multilabel = False
 
@@ -357,13 +370,15 @@ def compute_score_metrics(metric_list, y_true, y_pred_proba):
                     values.append(
                         skl.metrics.average_precision_score(y_true[:, i], scores[:, 1])
                     )
+                case "log_loss":
+                    values.append(skl.metrics.log_loss(y_true[:, i], scores[:, 1]))
                 case _:
                     raise ValueError(f"{metric} is an unrecognised metric")
 
             metric_dict.update({metric: values})
 
         if multilabel:
-            if metric == "ap" or metric == "auroc":
-                # Add the average AUROC of AP score
+            if metric == "ap" or metric == "auroc" or metric == "log_loss":
+                # Add the average log loss, AUROC, and AP score
                 metric_dict[metric].append(np.mean(metric_dict[metric]))
     return metric_dict

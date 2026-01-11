@@ -1,10 +1,10 @@
-version = "v0.2.1.3-a.3.2"
-model_type = "hgb"
+version = "v0.1.1.2-a.1.1.1"
+predictor_type = "hgb"
 base_dir = "test/test_data/"
 
 [model_parameters]
 dir = "config/HGB/"
-subfolders = [ "labels", "imbalance", "hyperparameters" ]
+subfolders = [ "labels", "imbalance", "calibrator", "hyperparameters" ]
 name = "ai_risk_HGB_"
 extension = ".toml"
 
