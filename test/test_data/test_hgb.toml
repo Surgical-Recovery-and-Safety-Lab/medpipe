@@ -1,3 +1,0 @@
-[parameters]
-loss = "log_loss"
-learning_rate = 0.1
