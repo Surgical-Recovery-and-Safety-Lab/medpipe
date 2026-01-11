@@ -8,12 +8,10 @@ a calibrator.
 
 from copy import deepcopy
 
-from numpy import arange, array, ones
+from numpy import arange
 
-import pyrisk.data.weighting as weight
 from pyrisk.data.preprocessing import extract_labels, get_validation_idx, test_train_it
 from pyrisk.data.Preprocessor import Preprocessor
-from pyrisk.data.sampler import data_sampler
 from pyrisk.metrics.core import print_metrics
 from pyrisk.models.Calibrator import Calibrator
 from pyrisk.models.core import get_positive_proba, test_model
@@ -100,10 +98,6 @@ class Pipeline:
         Predicts probabilities from predictor or calibrator based on input data.
     predict(X)
         Predicts labels from predictor or calibrator based on input data.
-    _sample_data(X, y, groups)
-        Samples the data based on configuration.
-    _weight_data(y)
-        Gets the weights for the data based on configuration.
     """
 
     def __init__(self, pipeline_config={}, logger=None):
@@ -403,10 +397,6 @@ class Pipeline:
 
         X, y = extract_labels(data, self.label_list)  # Get prediction labels from data
 
-        # Sample and weight if needed
-        X, y, groups = self._sample_data(X, y, groups)
-        weights = self._weight_data(y)
-
         kfold_it = test_train_it(**self.preprocessor_config["split_variables"])
         n_folds = kfold_it.get_n_splits(X, y[:, 0], groups=groups)
 
@@ -451,18 +441,18 @@ class Pipeline:
                 f"  Test set size: {len(X_test)} examples", self.logger, SCRIPT_NAME
             )
 
-            if self.predictor_type != "nn":
-                # Non NN models use sample weights
-                cur_weights = weights[train_idx]
-            else:
-                cur_weights = weights
-
             # Fit predictor on train set
             self.fit_model(
                 X_train,
                 y_train,
                 "predictor",
-                **{"X_test": X_test, "y_test": y_test, "weights": cur_weights},
+                **{
+                    "X_test": X_test,
+                    "y_test": y_test,
+                    "groups": groups.iloc[train_idx],
+                    "sampler_config": self.predictor_config["sampler"],
+                    "weighting_config": self.predictor_config["weighting"],
+                },
             )
 
             # Fit calibrator on validation set
@@ -563,62 +553,3 @@ class Pipeline:
                     f"Model should be predictor or calibrator, but got {model}"
                 )
         return labels
-
-    def _sample_data(self, X, y, groups):
-        """
-        Samples the data based on configuration.
-
-        Parameters
-        ----------
-        X : pd.DataFrame of shape (n_samples, n_features)
-            Data to sample.
-        y : np.array of shape (n_samples,)
-            Labels to sample.
-        groups : pd.Series of shape (n_samples,) or None
-            Groups of the examples, None if not specified.
-
-        Returns
-        -------
-        X_sampled : pd.DataFrame of shape (n_sampled_samples, n_features)
-            Sampled data.
-        y_sampled : np.array of shape (n_sampled_samples,)
-            Sampled labels.
-        groups_sampled : pd.Series of shape(n_sampled_samples,) or None
-            Groups of the examples, None if not specified.
-
-        """
-        sampler_fn = self.predictor_config["sampler"]["sampler_fn"]
-
-        if sampler_fn:
-            return data_sampler(X, y, groups=groups, **self.predictor_config["sampler"])
-
-        return X, y, groups
-
-    def _weight_data(self, y):
-        """
-        Gets the weights for the data based on configuration.
-
-        Parameters
-        ----------
-        y : np.array of shape (n_samples,)
-            Labels needed for creation of weights.
-
-        Returns
-        -------
-        weights : np.array of shape (n_samples,) or (n_classes,) or None
-            Sample or class weights based on labels.
-            Sample weights are of shape (n_samples,).
-            Class weights are of shape (n_classes,).
-            None if no weighting function is provided.
-
-        """
-        weighting_fn = self.predictor_config["weighting"]["weighting_fn"]
-        if weighting_fn:
-            return getattr(weight, weighting_fn)(y)
-
-        if self.predictor_type == "nn":
-            if len(y) > 1:
-                return ones(y.shape[1])
-            return array([1])
-
-        return ones(y.shape[0])
