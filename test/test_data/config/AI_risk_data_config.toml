@@ -1,4 +1,4 @@
-version = "v0.2"
+version = "v0.1"
 base_dir = "test/"
 
 [data_parameters]

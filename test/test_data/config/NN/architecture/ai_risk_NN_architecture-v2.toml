@@ -1,7 +1,3 @@
-
-
-## Note in_features are automatically identified during model creation
-
 [architecture]
 [[architecture.layers]]
 type = "Linear"
