@@ -6,8 +6,6 @@ a calibrator.
 
 """
 
-from copy import deepcopy
-
 from numpy import arange
 
 from pyrisk.data.preprocessing import extract_labels, get_validation_idx, test_train_it
@@ -383,19 +381,20 @@ class Pipeline:
             data = self.fit_transform(X)
 
         group_name = self.preprocessor_config["split_variables"]["group_name"]
-        best_precision = 0.0
-        best_fold = 0
 
-        # Temporary storage for best models
-        tmp_predictor = deepcopy(self.predictor.model)
-        tmp_calibrator = deepcopy(self.calibrator.model)
+        X, y = extract_labels(data, self.label_list)  # Get prediction labels from data
 
         if group_name:
             groups = data[group_name]  # Get the groups for splitting
         else:
             groups = None
 
-        X, y = extract_labels(data, self.label_list)  # Get prediction labels from data
+        # Create independent calibration set
+        train_idx, val_idx = get_validation_idx(arange(len(y)), groups)
+        X_cal = X[val_idx]
+        y_cal = y[val_idx]
+        X = X[train_idx]
+        y = y[train_idx]
 
         kfold_it = test_train_it(**self.preprocessor_config["split_variables"])
         n_folds = kfold_it.get_n_splits(X, y[:, 0], groups=groups)
@@ -406,9 +405,6 @@ class Pipeline:
             if group_name:
                 # Extract a validation set for calibration
                 X_fold = X.drop(groups.name, axis=1)
-                train_idx, val_idx = get_validation_idx(
-                    train_idx, groups.iloc[train_idx]
-                )
                 fold = int(
                     groups.iloc[test_idx[0]]
                 )  # Use the test year as the fold number
@@ -416,7 +412,6 @@ class Pipeline:
             else:
                 # Extract a validation set for calibration
                 X_fold = X
-                train_idx, val_idx = get_validation_idx(train_idx, groups)
                 fold = i
                 fold_message = f"  Fold number {fold+1}/{n_folds}"
 
@@ -425,8 +420,6 @@ class Pipeline:
             y_train = y[train_idx]
             X_test = X_fold.iloc[test_idx]
             y_test = y[test_idx]
-            X_cal = X_fold.iloc[val_idx]
-            y_cal = y[val_idx]
 
             print_message(fold_message, self.logger, SCRIPT_NAME)
             print_message(
@@ -465,24 +458,31 @@ class Pipeline:
             # Test predictor and calibrator on test set
             self.test_model(X_test, y_test.squeeze(), "predictor", fold)
             self.test_model(X_test, y_test.squeeze(), "calibrator", fold)
-            cur_precision = self.predictor_metrics[fold]["precision"][-1]
-
-            if cur_precision > best_precision:
-                # Temporarily save model with best precision
-                print_message("  New best model", self.logger, SCRIPT_NAME)
-                best_fold = fold
-                best_precision = cur_precision
-                tmp_predictor = deepcopy(self.predictor.model)
-                tmp_calibrator = deepcopy(self.calibrator.model)
 
             # Rest predictor and calibrator without printing
             self.predictor._set_model(quiet=True)
             self.calibrator._set_model(quiet=True)
 
-        # Replace models with best ones
-        self.predictor.model = tmp_predictor
-        self.calibrator_model = tmp_calibrator
-        print_message(f"  Best fold number {best_fold}", self.logger, SCRIPT_NAME)
+        # Train final model on complete training set
+        # Fit predictor on train set
+        print_message("  Final training on all examples", self.logger, SCRIPT_NAME)
+        self.fit_model(
+            X,
+            y,
+            "predictor",
+            **{
+                "groups": groups,
+                "sampler_config": self.predictor_config["sampler"],
+                "weighting_config": self.predictor_config["weighting"],
+            },
+        )
+
+        # Fit calibrator on validation set
+        self.fit_model(
+            get_positive_proba(self.predictor.predict_proba(X_cal)),
+            y_cal,
+            "calibrator",
+        )
 
     def predict_proba(self, X, model="calibrator"):
         """
