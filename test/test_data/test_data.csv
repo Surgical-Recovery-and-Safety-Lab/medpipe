@@ -1,11 +1,25 @@
-AGE,SEX,DUMMY_VAR
-79.0,F,True
-49.0,F,True
-75.0,M,False
-19.0,M,True
-45.0,M,False
-38.0,F,True
-78.0,F,True
-19.0,M,False
-22.0,F,False
-40.0,M,True
+AGE,SEX,PRIOR_CANCER,ADMISSION_ACUITY,ADMISSION_SOURCE,CATEGORY_LEVEL_1,OP_SEVERITY,TRAUMA,OP_YEAR,MORTALITY_30D,ANY_COMP
+19.0,F,0,Acute,Routine,Obstetrics & Gynaecology,2,0,2016.0,0,1
+29.0,M,1,Acute,Routine,General Surgery,3,0,2016.0,1,1
+23.0,M,1,Acute,Routine,Plastics,2,1,2016.0,1,0
+33.0,M,1,Acute,Routine,Plastics,2,1,2016.0,0,0
+18.0,M,0,Elective,Routine,Orthopaedics,3,0,2015.0,0,1
+50.0,M,0,Acute,Routine,Plastics,2,1,2015.0,1,1
+63.0,F,0,Acute,Routine,General Surgery,2,0,2015.0,1,0
+65.0,F,0,Acute,Routine,Plastics,1,0,2015.0,0,0
+19.0,F,0,Acute,Routine,Obstetrics & Gynaecology,2,0,2014.0,0,1
+84.0,M,1,Acute,Routine,General Surgery,3,0,2014.0,1,1
+27.0,M,1,Acute,Routine,Plastics,2,1,2014.0,1,0
+41.0,M,0,Acute,Routine,Plastics,2,1,2014.0,0,0
+88.0,M,0,Elective,Routine,Orthopaedics,3,0,2013.0,0,0
+20.0,M,0,Acute,Routine,Plastics,2,1,2013.0,1,0
+75.0,F,0,Acute,Routine,General Surgery,2,0,2013.0,0,1
+35.0,F,1,Acute,Routine,Plastics,1,0,2013.0,1,1
+19.0,F,0,Acute,Routine,Obstetrics & Gynaecology,2,0,2011.0,1,0
+21.0,M,0,Acute,Routine,General Surgery,3,0,2011.0,0,1
+20.0,M,0,Acute,Routine,Plastics,2,1,2011.0,1,1
+90.0,M,1,Acute,Routine,Plastics,2,1,2011.0,0,0
+48.0,M,0,Elective,Routine,Orthopaedics,3,0,2012.0,1,0
+20.0,M,1,Acute,Routine,Plastics,2,1,2012.0,0,1
+50.0,F,1,Acute,Routine,General Surgery,2,0,2012.0,1,1
+25.0,F,0,Acute,Routine,Plastics,1,0,2012.0,0,0
