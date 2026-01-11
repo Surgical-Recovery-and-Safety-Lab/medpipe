@@ -168,10 +168,11 @@ class AIRiskNN(nn.Module):
             self.device
         )
         y_train = torch.tensor(y.squeeze(), dtype=torch.float32).to(self.device)
-        X_test = torch.tensor(X_test.to_numpy(dtype=float), dtype=torch.float32).to(
-            self.device
-        )
-        y_test = torch.tensor(y_test.squeeze(), dtype=torch.float32).to(self.device)
+        if len(X_test) > 0 and len(y_test) > 0:
+            X_test = torch.tensor(X_test.to_numpy(dtype=float), dtype=torch.float32).to(
+                self.device
+            )
+            y_test = torch.tensor(y_test.squeeze(), dtype=torch.float32).to(self.device)
 
         if len(class_weights) == 0:
             # No weigths provided, default to 1
@@ -282,11 +283,7 @@ class AIRiskNN(nn.Module):
 
         for i in range(outputs.shape[1]):
             probabilities.append(np.array([1 - outputs[:, i], outputs[:, i]]).T)
-
-        if outputs.shape[1] == 1:
-            return probabilities[0]
-        else:
-            return probabilities
+        return probabilities
 
     def predict(self, X):
         """
@@ -306,9 +303,9 @@ class AIRiskNN(nn.Module):
         probabilities = self.predict_proba(X)  # Get probabilities
 
         # Convert probabilities to binary predictions (0 or 1)
-        if type(probabilities) is not type(list()):
+        if len(probabilities) == 1:
             # Single label
-            predictions = np.round(probabilities)
+            predictions = np.round(probabilities)[0][:, 1]
         else:
             # Multilabel
             predictions = np.zeros((probabilities[0].shape[0], len(probabilities)))

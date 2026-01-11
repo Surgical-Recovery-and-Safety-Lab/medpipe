@@ -7,7 +7,7 @@ This class creates a Predictor to train and make predictions.
 
 from copy import deepcopy
 
-from numpy import array, expand_dims, ones
+from numpy import array, expand_dims, ones, round
 from torch.accelerator import current_accelerator, is_available
 
 import pyrisk.data.weighting as weight
@@ -224,7 +224,7 @@ class Predictor:
         else:
             predictions = []
             for i in range(self.n_classes):
-                predictions.append(self.model[i].predict_proba(X[:, i].reshape(-1, 1)))
+                predictions.append(self.model[i].predict_proba(X))
             return predictions
 
     def predict(self, X):
@@ -247,7 +247,7 @@ class Predictor:
         else:
             labels = []
             for i in range(self.n_classes):
-                labels.append(round(self.model[i].predict(X[:, i].reshape(-1, 1))))
+                labels.append(round(self.model[i].predict(X)))
             return array(labels).T
 
     def _sample_data(self, X, y, groups, sampler_config):

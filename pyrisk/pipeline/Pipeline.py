@@ -391,10 +391,14 @@ class Pipeline:
 
         # Create independent calibration set
         train_idx, val_idx = get_validation_idx(arange(len(y)), groups)
-        X_cal = X[val_idx]
+        X_cal = X.iloc[val_idx]
         y_cal = y[val_idx]
-        X = X[train_idx]
+        X = X.iloc[train_idx]
         y = y[train_idx]
+
+        if group_name:
+            groups = groups.iloc[train_idx]
+            X_cal = X_cal.drop(groups.name, axis=1)  # Remove groups in calibration
 
         kfold_it = test_train_it(**self.preprocessor_config["split_variables"])
         n_folds = kfold_it.get_n_splits(X, y[:, 0], groups=groups)
@@ -403,16 +407,16 @@ class Pipeline:
             kfold_it.split(X, y[:, 0], groups=groups)
         ):
             if group_name:
-                # Extract a validation set for calibration
                 X_fold = X.drop(groups.name, axis=1)
                 fold = int(
                     groups.iloc[test_idx[0]]
                 )  # Use the test year as the fold number
+                fold_groups = groups.iloc[train_idx]
                 fold_message = f"  Fold number {fold} ({i+1}/{n_folds})"
             else:
-                # Extract a validation set for calibration
                 X_fold = X
                 fold = i
+                fold_groups = None
                 fold_message = f"  Fold number {fold+1}/{n_folds}"
 
             # Create the different data sets
@@ -442,7 +446,7 @@ class Pipeline:
                 **{
                     "X_test": X_test,
                     "y_test": y_test,
-                    "groups": groups.iloc[train_idx],
+                    "groups": fold_groups,
                     "sampler_config": self.predictor_config["sampler"],
                     "weighting_config": self.predictor_config["weighting"],
                 },
@@ -464,8 +468,11 @@ class Pipeline:
             self.calibrator._set_model(quiet=True)
 
         # Train final model on complete training set
-        # Fit predictor on train set
         print_message("  Final training on all examples", self.logger, SCRIPT_NAME)
+        if group_name:
+            # Drop group names for final dataset
+            X = X.drop(groups.name, axis=1)
+
         self.fit_model(
             X,
             y,
