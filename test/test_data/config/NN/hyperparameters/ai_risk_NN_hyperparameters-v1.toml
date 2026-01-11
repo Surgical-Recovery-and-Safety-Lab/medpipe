@@ -2,5 +2,5 @@
 loss_name = "BCEWithLogitsLoss"
 optim_name = "Adam"
 epochs = 2
-batch_size = 64
+batch_size = 5
 lr = 0.01

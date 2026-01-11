@@ -1,5 +1,5 @@
 [weighting]
-weighting_fn = "inverse_frequency_multiclass_sample_weights"
+weighting_fn = "inverse_frequency_class_weights"
 
 [sampler]
 sampler_fn = ""
