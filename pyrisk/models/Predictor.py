@@ -7,11 +7,8 @@ This class creates a Predictor to train and make predictions.
 
 from copy import deepcopy
 
-from numpy import array, expand_dims, ones, round
+from numpy import array, expand_dims, ones, round, squeeze
 from torch.accelerator import current_accelerator, is_available
-
-import pyrisk.data.weighting as weight
-from pyrisk.data.sampler import data_sampler
 
 from .core import create_model
 
@@ -142,16 +139,7 @@ class Predictor:
                     )
                 )
 
-    def fit(
-        self,
-        X_train,
-        y_train,
-        X_test=[],
-        y_test=[],
-        groups=[],
-        sampler_config={},
-        weighting_config={},
-    ):
+    def fit(self, X_train, y_train, X_test=[], y_test=[], weights=None):
         """
         Fits the predictor to the training data.
 
@@ -165,12 +153,10 @@ class Predictor:
             Test data.
         y_test : array-like, default: []
             Test labels.
-        groups : array-like
-            List of groups in which labels belong of shape (n_samples,).
-        sampler_config : dict[str, str]
-            Configuration parameters for the sampler function.
-        weighting_config : dict[str, str]
-            Configuration parameters for the weighting function.
+        weights : array-like or None, default: None
+            Weights to address class imbalance.
+            Class weights for nn of shape (n_classes,).
+            Sample weights for hgb and svm of shape (n_samples,).
 
         Returns
         -------
@@ -179,11 +165,9 @@ class Predictor:
 
         """
         if self.model_type == "nn":
-            # Sample and weight if needed
-            X_train, y_train, _ = self._sample_data(
-                X_train, y_train, groups, sampler_config
-            )
-            weights = self._weight_data(y_train, weighting_config)
+            if weights is None:
+                # Convert to avoid issue in AIRiskNN
+                weights = []
 
             self.model.fit(
                 X_train,
@@ -195,14 +179,25 @@ class Predictor:
             )
 
         else:
-            for i in range(self.n_classes):
-                # Sample and weight if needed
-                X, y, _ = self._sample_data(
-                    X_train, expand_dims(y_train[:, i], 1), groups, sampler_config
-                )
-                weights = self._weight_data(y, weighting_config)
+            if weights is None:
+                # Convert to avoir errors
+                weights = ones((y_train.shape[0], y_train.shape[1]))
 
-                self.model[i].fit(X, y.squeeze(), sample_weight=weights)
+            if type(X_train) is type([]):
+                for i in range(len(X_train)):
+                    self.model[i].fit(
+                        X_train[i],
+                        y_train[i].squeeze(),
+                        sample_weight=array(weights[i]).squeeze(),
+                    )
+            else:
+                if array(weights).shape[1] != self.n_classes:
+                    weights = array(weights).T
+
+                for i in range(self.n_classes):
+                    self.model[i].fit(
+                        X_train, y_train[:, i].squeeze(), sample_weight=weights[:, i]
+                    )
 
     def predict_proba(self, X):
         """
@@ -249,66 +244,3 @@ class Predictor:
             for i in range(self.n_classes):
                 labels.append(round(self.model[i].predict(X)))
             return array(labels).T
-
-    def _sample_data(self, X, y, groups, sampler_config):
-        """
-        Samples the data based on configuration.
-
-        Parameters
-        ----------
-        X : pd.DataFrame of shape (n_samples, n_features)
-            Data to sample.
-        y : np.array of shape (n_samples,)
-            Labels to sample.
-        groups : pd.Series of shape (n_samples,) or None
-            Groups of the examples, None if not specified.
-        sampler_config : dict[str, str]
-            Configuration parameters for the sampler function.
-
-        Returns
-        -------
-        X_sampled : pd.DataFrame of shape (n_sampled_samples, n_features)
-            Sampled data.
-        y_sampled : np.array of shape (n_sampled_samples,)
-            Sampled labels.
-        groups_sampled : pd.Series of shape(n_sampled_samples,) or None
-            Groups of the examples, None if not specified.
-
-        """
-        sampler_fn = sampler_config["sampler_fn"]
-
-        if sampler_fn:
-            return data_sampler(X, y, groups=groups, **sampler_config)
-
-        return X, y, groups
-
-    def _weight_data(self, y, weighting_config):
-        """
-        Gets the weights for the data based on configuration.
-
-        Parameters
-        ----------
-        y : np.array of shape (n_samples,)
-            Labels needed for creation of weights.
-        weighting_config : dict[str, str]
-            Configuration parameters for the weighting function.
-
-        Returns
-        -------
-        weights : np.array of shape (n_samples,) or (n_classes,) or None
-            Sample or class weights based on labels.
-            Sample weights are of shape (n_samples,).
-            Class weights are of shape (n_classes,).
-            None if no weighting function is provided.
-
-        """
-        weighting_fn = weighting_config["weighting_fn"]
-        if weighting_fn:
-            return getattr(weight, weighting_fn)(y)
-
-        if self.model_type == "nn":
-            if len(y) > 1:
-                return ones(y.shape[1])
-            return array([1])
-
-        return ones(y.shape[0])

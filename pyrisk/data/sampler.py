@@ -104,10 +104,12 @@ def data_sampler(
                 data, labels, target_ratio, groups, kwargs["hard_percent"]
             )
         case "smote":
-            X_gen, y_gen = smote(data, labels, target_ratio)
+            X_gen, y_gen = smote(data, labels, target_ratio, kwargs["k_neighbors"])
             return concat((data, X_gen)), np.concatenate((labels, y_gen)), None
         case "group_smote":
-            X_gen, y_gen, group_gen = group_smote(data, labels, target_ratio, groups)
+            X_gen, y_gen, group_gen = group_smote(
+                data, labels, target_ratio, groups, kwargs["k_neighbors"]
+            )
             return (
                 concat((data, X_gen)),
                 np.concatenate((labels, y_gen)),
@@ -430,7 +432,7 @@ def group_mean_dist_sampler(data, labels, target_ratio, groups, hard_percent=0.5
     return sample_idx
 
 
-def smote(data, labels, target_ratio):
+def smote(data, labels, target_ratio, k_neighbors):
     """
     Oversample minority class using Synthetic Minority Over-Sampling Technique
     (SMOTE).
@@ -443,6 +445,8 @@ def smote(data, labels, target_ratio):
         Binary prediction labels of shape (n_samples, n_classes).
     target_ratio : float
         Ratio of minority over majority classes to achieve.
+    k_neighbors : int
+        Number of neighbors to use for SMOTE knn.
 
     Returns
     -------
@@ -472,7 +476,7 @@ def smote(data, labels, target_ratio):
     # Convert labels into unique classes
     unique_multilabels, class_labels = np.unique(labels, axis=0, return_inverse=True)
 
-    sm = SMOTE()
+    sm = SMOTE(k_neighbors=k_neighbors)
     X_gen, y_gen = sm.fit_resample(X, class_labels)
 
     if "SEX_ORIGINAL" in X_gen.columns:
@@ -484,7 +488,7 @@ def smote(data, labels, target_ratio):
     return X_gen.iloc[min_idx], unique_multilabels[y_gen[min_idx]]
 
 
-def group_smote(data, labels, target_ratio, groups):
+def group_smote(data, labels, target_ratio, groups, k_neighbors):
     """
     Oversample minority class using Synthetic Minority Over-Sampling Technique
     (SMOTE) in each group.
@@ -499,6 +503,8 @@ def group_smote(data, labels, target_ratio, groups):
         Ratio of minority over majority classes to achieve.
     groups : array-like
         List of groups in which labels belong of shape (n_samples,).
+    k_neighbors : int
+        Number of neighbors to use for SMOTE knn.
 
     Returns
     -------
@@ -532,7 +538,7 @@ def group_smote(data, labels, target_ratio, groups):
         group_labels = labels[group_idx]
 
         # Generate new data for groups
-        X_gen, y_gen = smote(group_data, group_labels, target_ratio)
+        X_gen, y_gen = smote(group_data, group_labels, target_ratio, k_neighbors)
         group_gen = group * np.ones(y_gen.shape)
 
         X = concat((X, X_gen))

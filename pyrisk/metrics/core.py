@@ -37,6 +37,7 @@ def print_metrics(metric_dict, label_list, logger=None) -> None:
          - f1
          - precision
          - recall
+         - log_loss
          - auroc (Area Under Receiver Operator Characteristic)
          - ap (Average Precision)
     label_list : list[str]

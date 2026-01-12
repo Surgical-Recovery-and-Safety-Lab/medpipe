@@ -6,10 +6,12 @@ a calibrator.
 
 """
 
-from numpy import arange
+from numpy import arange, array, expand_dims, ones
 
+import pyrisk.data.weighting as weight
 from pyrisk.data.preprocessing import extract_labels, get_validation_idx, test_train_it
 from pyrisk.data.Preprocessor import Preprocessor
+from pyrisk.data.sampler import data_sampler
 from pyrisk.metrics.core import print_metrics
 from pyrisk.models.Calibrator import Calibrator
 from pyrisk.models.core import get_positive_proba, test_model
@@ -381,7 +383,7 @@ class Pipeline:
             data = self.fit_transform(X)
 
         group_name = self.preprocessor_config["split_variables"]["group_name"]
-
+        weights = None
         X, y = extract_labels(data, self.label_list)  # Get prediction labels from data
 
         if group_name:
@@ -399,6 +401,11 @@ class Pipeline:
         if group_name:
             groups = groups.iloc[train_idx]
             X_cal = X_cal.drop(groups.name, axis=1)  # Remove groups in calibration
+
+        if self.predictor_type == "nn":
+            # Labels not independant so can sample/weight once
+            X, y, groups = self._sample_data(X, y, groups)
+            weights = self._weight_data(y)
 
         kfold_it = test_train_it(**self.preprocessor_config["split_variables"])
         n_folds = kfold_it.get_n_splits(X, y[:, 0], groups=groups)
@@ -425,6 +432,13 @@ class Pipeline:
             X_test = X_fold.iloc[test_idx]
             y_test = y[test_idx]
 
+            # Sample and weight data if needed
+            if self.predictor_type != "nn":
+                X_train, y_train, fold_groups = self._sample_data(
+                    X_train, y_train, fold_groups
+                )
+                weights = self._weight_data(y_train)
+
             print_message(fold_message, self.logger, SCRIPT_NAME)
             print_message(
                 f"  Train set size: {len(X_train)} examples", self.logger, SCRIPT_NAME
@@ -446,9 +460,7 @@ class Pipeline:
                 **{
                     "X_test": X_test,
                     "y_test": y_test,
-                    "groups": fold_groups,
-                    "sampler_config": self.predictor_config["sampler"],
-                    "weighting_config": self.predictor_config["weighting"],
+                    "weights": weights,
                 },
             )
 
@@ -477,11 +489,6 @@ class Pipeline:
             X,
             y,
             "predictor",
-            **{
-                "groups": groups,
-                "sampler_config": self.predictor_config["sampler"],
-                "weighting_config": self.predictor_config["weighting"],
-            },
         )
 
         # Fit calibrator on validation set
@@ -560,3 +567,103 @@ class Pipeline:
                     f"Model should be predictor or calibrator, but got {model}"
                 )
         return labels
+
+    def _sample_data(self, X, y, groups):
+        """
+        Samples the data based on configuration.
+
+        Parameters
+        ----------
+        X : pd.DataFrame of shape (n_samples, n_features)
+            Data to sample.
+        y : np.array of shape (n_samples, n_classes)
+            Labels to sample.
+        groups : pd.Series of shape (n_samples,) or None
+            Groups of the examples, None if not specified.
+
+        Returns
+        -------
+        If predictor_type is nn:
+        X_sampled : pd.DataFrame of shape (n_sampled_samples, n_features)
+            Sampled data.
+        y_sampled : np.array of shape (n_sampled_samples, n_classes)
+            Sampled labels.
+        groups_sampled : pd.Series of shape (n_sampled_samples,) or None
+            Groups of the examples, None if not specified.
+
+        Else:
+        X_sampled : list[pd.DataFrame]
+            Sampled data list with n_classes elements of shape
+            (n_sampled_samples, n_features).
+        y_sampled : list[np.array]
+            Sampled labels list with n_classes elements of shape
+            (n_sampled_samples, n_classes).
+        groups_sampled : list[pd.Series] or None
+            List of sampled groups with n_classes elements of shape
+            (n_sampled_samples,), None if not specified.
+
+        """
+        sampler_fn = self.predictor_config["sampler"]["sampler_fn"]
+
+        if sampler_fn and self.predictor_type == "nn":
+            return data_sampler(X, y, groups=groups, **self.predictor_config["sampler"])
+        elif sampler_fn:
+            X_sampled, y_sampled, groups_sampled = [], [], []
+
+            for i in range(y.shape[1]):
+                _X, _y, _groups = data_sampler(
+                    X,
+                    expand_dims(y[:, i], 1),
+                    groups=groups,
+                    **self.predictor_config["sampler"],
+                )
+                X_sampled.append(_X)
+                y_sampled.append(_y)
+                groups_sampled.append(_groups)
+
+            return X_sampled, y_sampled, groups_sampled
+
+        return X, y, groups
+
+    def _weight_data(self, y):
+        """
+        Gets the weights for the data based on configuration.
+
+        Parameters
+        ----------
+        y : np.array of shape (n_samples, n_classes)
+            Labels needed for creation of weights.
+
+        Returns
+        -------
+        weights : np.array of shape (n_samples, n_classes), (n_classes,) or None
+            Sample or class weights based on labels.
+            Sample weights are of shape (n_samples, n_classes).
+            Class weights are of shape (n_classes,).
+            None if no weighting function is provided.
+
+        """
+        weighting_fn = self.predictor_config["weighting"]["weighting_fn"]
+
+        if weighting_fn and self.predictor_type == "nn":
+            return getattr(weight, weighting_fn)(y)
+        elif weighting_fn:
+            weights = []
+
+            if type(y) is type([]):
+                for i in range(len(y)):
+                    w = expand_dims(getattr(weight, weighting_fn)(y[i]), 1)
+                    weights.append(w)
+            else:
+                for i in range(y.shape[1]):
+                    w = getattr(weight, weighting_fn)(expand_dims(y[:, i], 1))
+                    weights.append(w)
+
+            return weights
+
+        if self.predictor_type == "nn":
+            if len(y) > 1:
+                return ones(y.shape[1])
+            return array([1])
+
+        return ones((array(y).shape[0], array(y).shape[1]))
