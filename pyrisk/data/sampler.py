@@ -10,15 +10,25 @@ Functions:
     between minority and majority classes by undersampling majority class.
 - group_random_undersampler: Randomly select labels to achieve the target ratio
     between minority and majority classes in each group.
+- random_oversampler: Randomly select labels to achieve the target ratio
+    between minority and majority classes by oversampling minority class.
+- group_random_oversampler: Randomly select labels to achieve the target ratio
+    between minority and majority classes in each group.
 - mean_dist_sampler: Computes the mean data sample of the majority class
     and uses the distance to it to select examples.
 - group_mean_dist_sampler: Computes the mean data sample of the majority
     class in each group and uses the distance to it to select examples.
+- smote: Oversample minority class using Synthetic Minority Over-Sampling
+    Technique (SMOTE).
+- group_smote: Oversample minority class using Synthetic Minority
+    Over-Sampling Technique (SMOTE) in each group.
 """
 
 from copy import deepcopy
 
 import numpy as np
+from imblearn.over_sampling import SMOTE
+from pandas import concat
 
 from pyrisk.utils.exceptions import array_check, array_dim_check
 
@@ -92,6 +102,16 @@ def data_sampler(
         case "group_mean_dist_sampler":
             sample_idx = group_mean_dist_sampler(
                 data, labels, target_ratio, groups, kwargs["hard_percent"]
+            )
+        case "smote":
+            X_gen, y_gen = smote(data, labels, target_ratio)
+            return concat((data, X_gen)), np.concatenate((labels, y_gen)), None
+        case "group_smote":
+            X_gen, y_gen, group_gen = group_smote(data, labels, target_ratio, groups)
+            return (
+                concat((data, X_gen)),
+                np.concatenate((labels, y_gen)),
+                np.concatenate((groups, group_gen)),
             )
         case _:
             raise ValueError(f"{sampler_fn} invalid sampler function")
@@ -283,38 +303,6 @@ def group_random_oversampler(labels, target_ratio, groups):
     return sample_idx
 
 
-def smote(data, labels, target_ratio):
-    """
-    Oversample minority class using Synthetic Minority Over-Sampling Technique
-    (SMOTE).
-
-    Parameters
-    ----------
-    data : pd.DataFrame
-        Data to sample of shape (n_samples, n_features).
-    labels : array-like
-        Binary prediction labels of shape (n_samples, n_classes).
-    target_ratio : float
-        Ratio of minority over majority classes to achieve.
-
-    Returns
-    -------
-    sample_idx : np.array(n_samples,)
-        Index list of examples to achieve target ratio.
-
-    Raises
-    ------
-    TypeError
-        If labels is not array-like.
-    ValueError
-        If target_ratio is less than 0.0.
-
-    """
-    array_check(labels)
-    if target_ratio <= 0:
-        raise ValueError(f"Target ratio should be positive, but got {target_ratio}")
-
-
 def mean_dist_sampler(data, labels, target_ratio, hard_percent=0.5):
     """
     Computes the mean data sample of the majority class and uses the
@@ -440,3 +428,115 @@ def group_mean_dist_sampler(data, labels, target_ratio, groups, hard_percent=0.5
         )
 
     return sample_idx
+
+
+def smote(data, labels, target_ratio):
+    """
+    Oversample minority class using Synthetic Minority Over-Sampling Technique
+    (SMOTE).
+
+    Parameters
+    ----------
+    data : pd.DataFrame
+        Data to sample of shape (n_samples, n_features).
+    labels : array-like
+        Binary prediction labels of shape (n_samples, n_classes).
+    target_ratio : float
+        Ratio of minority over majority classes to achieve.
+
+    Returns
+    -------
+    X_gen : pd.DataFrame
+        Generated data.
+    multilabels_gen : np.array
+        Generated labels.
+
+    Raises
+    ------
+    TypeError
+        If labels is not array-like.
+    ValueError
+        If target_ratio is less than 0.0.
+
+    """
+    array_check(labels)
+    X = deepcopy(data)
+
+    if target_ratio <= 0:
+        raise ValueError(f"Target ratio should be positive, but got {target_ratio}")
+
+    label_sums = np.sum(labels, axis=1)  # Sum to find example with at least one 1
+    n_maj_class = np.sum(label_sums == 0)  # Majority class examples
+    n_min_class = np.round(n_maj_class * target_ratio)  # Minority class examples
+
+    # Convert labels into unique classes
+    unique_multilabels, class_labels = np.unique(labels, axis=0, return_inverse=True)
+
+    sm = SMOTE()
+    X_gen, y_gen = sm.fit_resample(X, class_labels)
+
+    if "SEX_ORIGINAL" in X_gen.columns:
+        X_gen["SEX_ORIGINAL"] = X_gen["SEX_ORIGINAL"].round()
+
+    min_idx = np.random.choice(  # Select examples so that target ratio is achieved
+        np.arange(len(labels), len(y_gen)), size=int(n_min_class), replace=False
+    )
+    return X_gen.iloc[min_idx], unique_multilabels[y_gen[min_idx]]
+
+
+def group_smote(data, labels, target_ratio, groups):
+    """
+    Oversample minority class using Synthetic Minority Over-Sampling Technique
+    (SMOTE) in each group.
+
+    Parameters
+    ----------
+    data : pd.DataFrame
+        Data to sample of shape (n_samples, n_features).
+    labels : array-like
+        Binary prediction labels of shape (n_samples, n_classes).
+    target_ratio : float
+        Ratio of minority over majority classes to achieve.
+    groups : array-like
+        List of groups in which labels belong of shape (n_samples,).
+
+    Returns
+    -------
+    X_gen : pd.DataFrame
+        Generated data.
+    multilabels_gen : np.array
+        Generated labels.
+    groups_gen : array-like
+        Generated groups.
+
+    Raises
+    ------
+    TypeError
+        If labels is not array-like.
+    ValueError
+        If labels and group do not have the same dimension.
+
+    """
+    array_check(labels)
+    array_dim_check(labels, groups, dim=0)
+    X = deepcopy(data)  # Create copy of data to not mess with actual data
+    y = deepcopy(labels)
+    grps = deepcopy(groups)
+
+    sample_idx = np.array([], dtype=int)  # Empty array for the majority class index
+    n_groups = np.unique(groups)
+
+    for group in n_groups:
+        group_idx = np.where(groups == group)[0]
+        group_data = X.iloc[group_idx]
+        group_labels = labels[group_idx]
+
+        # Generate new data for groups
+        X_gen, y_gen = smote(group_data, group_labels, target_ratio)
+        group_gen = group * np.ones(y_gen.shape)
+
+        X = concat((X, X_gen))
+        y = np.concatenate((y, y_gen))
+        grps = np.concatenate((grps, group_gen))
+
+    return X, y, grps
