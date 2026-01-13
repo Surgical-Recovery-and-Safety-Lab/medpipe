@@ -99,7 +99,7 @@ def test_run_Pipeline_NN_single_label(version_number):
         "v0.1.0.2-b.2.1.1.2",
         "v0.1.1.2-b.3.1.1.2",
         "v0.1.0.2-b.4.1.1.2",
-        "v0.1.1.2-b.5.1.1.1",
+        "v0.1.1.2-b.5.1.1.2",
     ],
 )
 def test_run_Pipeline_NN_multi_label(version_number):
