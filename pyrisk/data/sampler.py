@@ -107,13 +107,8 @@ def data_sampler(
             X_gen, y_gen = smote(data, labels, target_ratio, kwargs["k_neighbors"])
             return concat((data, X_gen)), np.concatenate((labels, y_gen)), None
         case "group_smote":
-            X_gen, y_gen, group_gen = group_smote(
+            return group_smote(
                 data, labels, target_ratio, groups, kwargs["k_neighbors"]
-            )
-            return (
-                concat((data, X_gen)),
-                np.concatenate((labels, y_gen)),
-                concat((groups, group_gen)),
             )
         case _:
             raise ValueError(f"{sampler_fn} invalid sampler function")
@@ -471,7 +466,9 @@ def smote(data, labels, target_ratio, k_neighbors):
 
     label_sums = np.sum(labels, axis=1)  # Sum to find example with at least one 1
     n_maj_class = np.sum(label_sums == 0)  # Majority class examples
-    n_min_class = np.round(n_maj_class * target_ratio)  # Minority class examples
+    n_min_class = np.round(n_maj_class * target_ratio) - np.sum(
+        label_sums > 0
+    )  # Minority class examples
 
     # Convert labels into unique classes
     unique_multilabels, class_labels = np.unique(labels, axis=0, return_inverse=True)
@@ -534,7 +531,7 @@ def group_smote(data, labels, target_ratio, groups, k_neighbors):
 
     for group in n_groups:
         group_idx = np.where(groups == group)[0]
-        group_data = X.iloc[group_idx]
+        group_data = data.iloc[group_idx]
         group_labels = labels[group_idx]
 
         # Generate new data for groups
