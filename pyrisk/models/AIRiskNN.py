@@ -38,6 +38,8 @@ class AIRiskNN(nn.Module):
 
     Methods
     -------
+    __init__(n_feature, logger=None, quiet=False, **architecture)
+        Init method.
     forward(X)
         Forward pass method.
     fit(X,
@@ -59,7 +61,7 @@ class AIRiskNN(nn.Module):
         Parse the architecture of the model.
     """
 
-    def __init__(self, n_features, logger=None, **architecture):
+    def __init__(self, n_features, logger=None, quiet=False, **architecture):
         """
         Initialise an AIRiskNN class instance.
 
@@ -69,6 +71,8 @@ class AIRiskNN(nn.Module):
             Number of features in the data.
         logger : logging.Logger or None, default: None
             Logger object to log prints. If None print to terminal.
+        quiet : bool, default: False
+            Flag to create a model without printing.
         architecture
             Model architecture dictionary.
 
@@ -96,8 +100,9 @@ class AIRiskNN(nn.Module):
                 zero_division=0,
             )
 
-        stats = summary(self.model, verbose=0)
-        print_message(str(stats), logger, SCRIPT_NAME)
+        if not quiet:
+            stats = summary(self.model, verbose=0)
+            print_message(str(stats), logger, SCRIPT_NAME)
 
     def forward(self, X):
         """
