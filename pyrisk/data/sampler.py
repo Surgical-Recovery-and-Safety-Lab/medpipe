@@ -28,7 +28,7 @@ from copy import deepcopy
 
 import numpy as np
 from imblearn.over_sampling import SMOTE
-from pandas import concat
+from pandas import Series, concat
 
 from pyrisk.utils.exceptions import array_check, array_dim_check
 
@@ -113,7 +113,7 @@ def data_sampler(
             return (
                 concat((data, X_gen)),
                 np.concatenate((labels, y_gen)),
-                np.concatenate((groups, group_gen)),
+                concat((groups, group_gen)),
             )
         case _:
             raise ValueError(f"{sampler_fn} invalid sampler function")
@@ -539,10 +539,9 @@ def group_smote(data, labels, target_ratio, groups, k_neighbors):
 
         # Generate new data for groups
         X_gen, y_gen = smote(group_data, group_labels, target_ratio, k_neighbors)
-        group_gen = group * np.ones(y_gen.shape)
-
+        group_gen = group * np.ones(y_gen.shape[0])
         X = concat((X, X_gen))
         y = np.concatenate((y, y_gen))
-        grps = np.concatenate((grps, group_gen))
+        grps = concat((grps, Series(group_gen.squeeze(), name=grps.name)))
 
     return X, y, grps
