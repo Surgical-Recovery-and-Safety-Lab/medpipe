@@ -10,7 +10,6 @@ import pathlib
 
 import pytest
 from sklearn.ensemble import HistGradientBoostingClassifier
-from sklearn.multioutput import MultiOutputClassifier
 from sklearn.svm import SVC
 
 from pyrisk.models.AIRiskNN import AIRiskNN
@@ -36,7 +35,6 @@ def test_create_model_NN_success(model_type, config_file):
         model_type,
         n_features=1,
         logger=None,
-        n_classes=1,
         **model_config["architecture"],
     )
 
@@ -58,12 +56,11 @@ def test_create_model_HGB_SVM_success(model_type, config_file):
             model_type,
             n_features=1,
             logger=None,
-            n_classes=1,
             **model_config["hyperparameters"],
         )
 
     else:
-        model = create_model(model_type, n_features=1, logger=None, n_classes=1)
+        model = create_model(model_type, n_features=1, logger=None)
 
     if model_type == "svm":
         assert isinstance(model, SVC)
@@ -79,7 +76,7 @@ def test_create_model_not_valid_model():
 @pytest.mark.parametrize("model_type", [123, [], {}, 1.5, None])
 def test_create_model_invalid_model_type(model_type):
     with pytest.raises(TypeError):
-        create_model(model_type, n_features=1, logger=None, n_classes=1)
+        create_model(model_type, n_features=1, logger=None)
 
 
 # Test invalid configuration parameters for the model
@@ -92,7 +89,6 @@ def test_create_model_invalid_config(model_type):
             model_type,
             n_features=-1,
             logger=None,
-            n_classes=2,
             **model_config,
         )
 
@@ -106,7 +102,6 @@ def test_create_model_nn_invalid_config():
             "nn",
             n_features=10,
             logger=None,
-            n_classes=2,
             **model_config,
         )
 
@@ -118,26 +113,7 @@ def test_create_model_nn_missing_n_features():
             "nn",
             n_features=-1,  # This is an invalid value for `n_features`
             logger=None,
-            n_classes=2,
         )
-
-
-# Test MultiOutputClassifier for hgb and svm with multiple classes (n_classes > 1)
-@pytest.mark.parametrize(
-    "model_type",
-    ["hgb", "svm"],
-)
-def test_create_model_multioutput(model_type):
-    model = create_model(
-        model_type,
-        n_features=10,
-        logger=None,
-        n_classes=3,  # More than 1 class should trigger MultiOutputClassifier
-    )
-    if model_type == "hgb":
-        assert isinstance(model, MultiOutputClassifier)
-    elif model_type == "svm":
-        assert isinstance(model, MultiOutputClassifier)
 
 
 # Test passing a logger to see if log messages are printed
@@ -145,13 +121,13 @@ def test_create_model_multioutput(model_type):
 def test_create_model_with_logger(model_type):
     # Here we'll check if logger prints the expected message to stdout/stderr
     logger = None  # Use a mock or None for simplicity in this case
-    create_model(model_type, n_features=10, logger=logger, n_classes=2)
+    create_model(model_type, n_features=10, logger=logger)
 
 
 # Test `create_model` when no config file is passed
 @pytest.mark.parametrize("model_type", ["hgb", "svm"])
 def test_create_model_without_config(model_type):
-    model = create_model(model_type, n_features=10, logger=None, n_classes=1)
+    model = create_model(model_type, n_features=10, logger=None)
 
     if model_type == "hgb":
         assert isinstance(model, HistGradientBoostingClassifier)
