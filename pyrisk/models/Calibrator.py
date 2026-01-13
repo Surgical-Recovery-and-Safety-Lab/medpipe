@@ -5,11 +5,11 @@ This class creates a Calibrator to calibrate predictions.
 
 """
 
-from numpy import array, round
+from numpy import array, expand_dims, round
 
 from .core import create_model, get_full_proba
 
-SCRIPT_NAME = "data/Calibrator"
+SCRIPT_NAME = "models/Calibrator"
 
 
 class Calibrator:
@@ -18,12 +18,10 @@ class Calibrator:
 
     Attributes
     ----------
-    model : list[LogisticRegression or IsotonicRegression]
-        List of calibrator model (one per class).
+    model : LogisticRegression or IsotonicRegression
+        Calibrator model.
     model_type : {"logistic", "isotonic"}
         Model type.
-    n_classes : int
-        Number of classes to predict.
     logger : logging.Logger or None, default: None
         Logger object to log prints. If None print to terminal.
 
@@ -45,7 +43,6 @@ class Calibrator:
         self,
         model_type,
         hyperparameters={},
-        n_classes=1,
         logger=None,
     ):
         """
@@ -57,8 +54,6 @@ class Calibrator:
             Model type.
         hyperparameters : dict[str, value]
             Model hyperparameter dictionary.
-        n_classes : int, default: 1
-            Number of classes to predict.
         logger : logging.Logger or None, default: None
             Logger object to log prints. If None print to terminal.
 
@@ -70,7 +65,6 @@ class Calibrator:
         """
         self.model_type = model_type
         self.hyperparameters = hyperparameters
-        self.n_classes = n_classes
         self.logger = logger
         self.model = []  # Empty list of models (one per class)
 
@@ -92,16 +86,12 @@ class Calibrator:
             Nothing is returned.
 
         """
-        for i in range(self.n_classes):
-            self.model.append(
-                create_model(
-                    self.model_type,
-                    n_classes=1,
-                    logger=self.logger,
-                    quiet=quiet,
-                    **self.hyperparameters,
-                )
-            )
+        self.model = create_model(
+            self.model_type,
+            logger=self.logger,
+            quiet=quiet,
+            **self.hyperparameters,
+        )
 
     def fit(self, X, y):
         """
@@ -109,9 +99,9 @@ class Calibrator:
 
         Parameters
         ----------
-        X : array-like of shape (n_samples, n_classes)
+        X : array-like of shape (n_samples,)
             Training data.
-        y : array-like of shape (n_samples, n_classes)
+        y : array-like of shape (n_samples,)
             Prediction data.
 
         Returns
@@ -120,8 +110,7 @@ class Calibrator:
             Nothing is returned.
 
         """
-        for i in range(self.n_classes):
-            self.model[i].fit(X[:, i].reshape(-1, 1), y[:, i])
+        self.model.fit(X, y)
 
     def predict_proba(self, X):
         """
@@ -129,25 +118,20 @@ class Calibrator:
 
         Parameters
         ----------
-        X : array-like of shape (n_samples, n_classes)
+        X : array-like of shape (n_samples,)
             Training data.
 
         Returns
         -------
-        probabilities : np.array (n_classes,) of arrays (n_samples, 2)
+        probabilities : np.array of shape (n_samples, 2)
             Predicted probabilities.
 
         """
-        predictions = []
-        for i in range(self.n_classes):
-            if self.model_type == "isotonic":
-                predictions.append(self.model[i].predict(X[:, i].reshape(-1, 1)))
-            else:
-                predictions.append(self.model[i].predict_proba(X[:, i].reshape(-1, 1)))
         if self.model_type == "isotonic":
-            return get_full_proba(array(predictions).T)
+            predictions = self.model.predict(X)
+            return get_full_proba(expand_dims(predictions, 1))
         else:
-            return predictions
+            return self.model.predict_proba(X)
 
     def predict(self, X):
         """
@@ -155,16 +139,14 @@ class Calibrator:
 
         Parameters
         ----------
-        X : array-like of shape (n_samples, n_classes)
+        X : array-like of shape (n_samples,)
             Training data.
 
         Returns
         -------
-        predictions : array-like of shape (n_samples, n_classes)
+        predictions : array-like of shape (n_samples,)
             Predicted labels.
 
         """
-        labels = []
-        for i in range(self.n_classes):
-            labels.append(round(self.model[i].predict(X[:, i].reshape(-1, 1))))
+        labels = round(self.model.predict(X))
         return array(labels).T

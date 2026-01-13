@@ -18,7 +18,6 @@ import numpy as np
 import sklearn as skl
 from sklearn.isotonic import IsotonicRegression
 from sklearn.linear_model import LogisticRegression
-from sklearn.multioutput import MultiOutputClassifier
 from torch.accelerator import current_accelerator, is_available
 
 from pyrisk.metrics.core import compute_pred_metrics, compute_score_metrics
@@ -32,7 +31,6 @@ SCRIPT_NAME = "models/core"
 def create_model(
     model_type: str,
     n_features: int = -1,
-    n_classes: int = 1,
     logger=None,
     quiet=False,
     **config_params,
@@ -51,9 +49,6 @@ def create_model(
             isotonic: isotonic regression.
     n_features : int, default: -1
         Number of features in the data, only needed for NN models.
-    n_classes : int, default: 1
-        Number of classes. Used to call MultiOutputClassifier.
-    logger : logging.Logger, default: None
         Logger object to log prints. If None print to terminal.
     quiet : bool, default: False
         Flag to create a model without printing.
@@ -62,11 +57,9 @@ def create_model(
 
     Returns
     -------
-    model : HistGradBoostingClassifier, SVC, AIRiskNN or MultiOutputClassifier.
+    model : HistGradBoostingClassifier, SVC, AIRiskNN
             LogisticRegression, IsotonicRegression,
         Created model.
-        If n_classes > 1 and not AIRiskNN then MultiOutputClassifier model is
-        created.
 
     Raises
     ------
@@ -88,18 +81,12 @@ def create_model(
                 )
             model = skl.ensemble.HistGradientBoostingClassifier(**config_params)
 
-            if n_classes > 1:
-                model = MultiOutputClassifier(model)
-
         case "svm":
             if not quiet:
                 print_message(
                     "Creating a Support Vector Machine model", logger, SCRIPT_NAME
                 )
             model = skl.svm.SVC(**config_params)
-
-            if n_classes > 1:
-                model = MultiOutputClassifier(model)
 
         case "nn":
             if not quiet:
@@ -110,7 +97,9 @@ def create_model(
 
             device = current_accelerator().type if is_available() else "cpu"
             print_message(f"Using {device} device", logger, SCRIPT_NAME)
-            model = AIRiskNN(n_features, logger, **config_params).to(device)
+            model = AIRiskNN(n_features, logger, quiet=quiet, **config_params).to(
+                device
+            )
 
         case "logistic":
             if not quiet:

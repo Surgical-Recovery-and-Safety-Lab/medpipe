@@ -53,7 +53,7 @@ def print_metrics(metric_dict, label_list, logger=None) -> None:
     """
     n_it = len(label_list)  # Number of print iterations
     if n_it > 1:
-        n_it += 1  # Add one for the global values if multilabel
+        n_it = 1  # Add one for the global values if multilabel
 
     for i in range(n_it):
         # If label_list is a list
@@ -101,7 +101,7 @@ def print_metrics_CI(ci_dict, label_list, logger=None):
     """
     n_it = len(label_list)  # Number of print iterations
     if n_it > 1:
-        n_it += 1  # Add one for the global values if multilabel
+        n_it = 1  # Add one for the global values if multilabel
 
     for i in range(n_it):
         # If label_list is a list
@@ -353,6 +353,8 @@ def compute_score_metrics(metric_list, y_true, y_pred_proba):
     if len(y_true.shape) == 1:
         # Make into a list
         y_true = np.expand_dims(y_true, 1)
+        if len(y_pred_proba.shape) == 2:
+            y_pred_proba = np.expand_dims(y_pred_proba, 0)
         multilabel = False
 
     for metric in metric_list:
