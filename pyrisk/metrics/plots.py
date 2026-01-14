@@ -113,7 +113,7 @@ def plot_mean_ROC_curve(
 
     n_it = len(label_list)  # Number of print iterations
     if n_it > 1:
-        n_it += 1
+        n_it = 1
 
     mean_fpr = np.linspace(0, 1, nb_points)
     global_tprs = []
@@ -250,7 +250,7 @@ def plot_mean_PR_curve(
 
     n_it = len(label_list)  # Number of print iterations
     if n_it > 1:
-        n_it += 1  # Add one for the global values if multilabel
+        n_it = 1  # Add one for the global values if multilabel
 
     mean_precision = np.linspace(0, 1, nb_points)
     global_recalls = []
@@ -377,7 +377,7 @@ def plot_metrics_CI(
     """
     n_it = len(label_list)  # Number of iterations
     if n_it > 1:
-        n_it += 1  # Add one for the global values if multilabel
+        n_it = 1  # Add one for the global values if multilabel
 
     # Split arguments based on where they should be sent
     ax_kwargs = {key: value for key, value in kwargs.items() if key in dir(Axes)}
@@ -666,7 +666,6 @@ def plot_reliability_diagrams(
             "k--",
             label="Perfectly calibrated",
         )
-
         if len(y_pred_proba) > 0:
             prob_true, prob_pred = calibration_curve(
                 y_test[:, i],
