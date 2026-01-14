@@ -622,7 +622,6 @@ def plot_reliability_diagrams(
 
     """
     n_classes = 1  # Default number of classes
-    title = kwargs["set_title"] if "set_title" in kwargs.keys() else ""
 
     if len(y_pred_proba) > 0 and len(y_pred_proba_calib) > 0:
         if len(y_pred_proba) > 1:
@@ -707,8 +706,8 @@ def plot_reliability_diagrams(
         colour_val += 1
 
         ax.set_title(f"Reliability diagram for {label_list[i]}")
-        ax.set_xlabel("Mean predicted probability")
-        ax.set_ylabel("Fraction of positives")
+        ax.set_xlabel("Predicted probabilities")
+        ax.set_ylabel("Observed proportion")
         ax.set_xlim((-0.01, max_val + 0.05))
         ax.set_ylim((-0.01, max_val + 0.05))
 
