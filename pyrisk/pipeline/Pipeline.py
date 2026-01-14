@@ -463,7 +463,7 @@ class Pipeline:
                 )
                 print_message(fold_message, self.logger, SCRIPT_NAME)
                 print_message(
-                    f"  Train set size: {len(X_train)} examples",
+                    f"  Train set size: {len(X_train_i)} examples",
                     self.logger,
                     SCRIPT_NAME,
                 )
@@ -503,8 +503,21 @@ class Pipeline:
             # Drop group names for final dataset
             X = X.drop(groups.name, axis=1)
 
-        for j in range(self.n_labels):
-            self._train_models(X, y[:, j], X_cal, y_cal[:, j], j)
+        for k in range(self.n_labels):
+            X_train, y_train, _ = self._sample_data(X, expand_dims(y[:, k], 1), groups)
+            weights = self._weight_data(y_train)
+
+            print_message(
+                f"Current metric: {self.label_list[k]}", self.logger, SCRIPT_NAME
+            )
+            print_message(
+                f"  Train set size: {len(X_train)} examples",
+                self.logger,
+                SCRIPT_NAME,
+            )
+            self._train_models(
+                X_train, y_train, X_cal, y_cal[:, k], k, **{"weigths": weights}
+            )
 
     def _train_models(self, X_train, y_train, X_cal, y_cal, idx=0, **kwargs):
         """
