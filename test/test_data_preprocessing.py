@@ -11,12 +11,12 @@ import numpy as np
 import pandas as pd
 import pytest
 from sklearn.model_selection import GroupKFold, StratifiedKFold
-from sklearn.preprocessing import OrdinalEncoder, PowerTransformer, StandardScaler
 
 from pyrisk.data.preprocessing import (
+    bin_score,
     convert_object_to_categorical,
     extract_labels,
-    preprocess_data,
+    fit_preprocess_operations,
     test_train_it,
 )
 from pyrisk.utils.io import load_data_from_csv
@@ -25,7 +25,12 @@ CWD = pathlib.Path.cwd()
 DATA_DIR = str(CWD / "test/test_data/")
 DATA_FILE = str(CWD / DATA_DIR / "test_data.csv")
 SAMPLE_DATA = pd.DataFrame(
-    {"age": [25, 30, 35], "sex": ["M", "F", "M"], "dummy": [10, 20, 30]}
+    {
+        "age": [25, 30, 35, 19, 80, 47],
+        "sex": ["M", "F", "M", "M", "M", "F"],
+        "dummy": [10, 20, 30, 10, 30, 40],
+        "M3_score": [0.1, 5.4, 2.9, 4.0, 0.0, 3.0],
+    }
 )
 
 
@@ -123,23 +128,11 @@ def test_preprocess_data_success():
         "ordinal_encoder": {"feature_list": ["sex"]},
         "standardise": {"feature_list": ["age"]},
         "power_transform": {"feature_list": ["age", "dummy"]},
+        "bin": {"feature_list": ["M3_score"]},
     }
-    processed_data, _ = preprocess_data(SAMPLE_DATA, preprocessing_dict)
-    assert isinstance(processed_data, pd.DataFrame)
-
-    sex_data = OrdinalEncoder().fit_transform(
-        np.ravel(SAMPLE_DATA["sex"]).reshape(-1, 1)
-    )
-    dummy_data = PowerTransformer().fit_transform(
-        np.ravel(SAMPLE_DATA["dummy"]).reshape(-1, 1)
-    )
-    age_data = PowerTransformer().fit_transform(
-        StandardScaler().fit_transform(np.ravel(SAMPLE_DATA["age"]).reshape(-1, 1))
-    )
-
-    assert (np.squeeze(processed_data["sex"].to_numpy()) == sex_data).all
-    assert (np.squeeze(processed_data["dummy"].to_numpy()) == dummy_data).all
-    assert (np.squeeze(processed_data["age"].to_numpy()) == age_data).all
+    operation_dict = fit_preprocess_operations(SAMPLE_DATA, preprocessing_dict)
+    assert isinstance(operation_dict, type({}))
+    assert len(operation_dict.keys()) == 4
 
 
 @pytest.mark.parametrize(
@@ -166,4 +159,9 @@ def test_preprocess_data_success():
 )
 def test_preprocess_data_errors(data, preprocessing_dict):
     with pytest.raises((TypeError, KeyError, ValueError)):
-        preprocess_data(data, preprocessing_dict)
+        fit_preprocess_operations(data, preprocessing_dict)
+
+
+def test_bin_score_success():
+    m3_data = bin_score(SAMPLE_DATA["M3_score"])
+    assert (m3_data == [1.0, 4.0, 3.0, 4.0, 0.0, 3.0]).all()

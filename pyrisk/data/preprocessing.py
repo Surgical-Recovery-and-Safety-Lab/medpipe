@@ -8,7 +8,8 @@ Functions:
     test and train sets.
 - get_validation_idx: Removes some of the indices to create a validation set.
 - convert_object_to_categorical: Converts object columns to categoricals.
-- preprocess_data: Processed select data columns based on preprocessing function.
+- fit_preprocess_operations: Fits processing operations to data.
+- bin_score: Bins the M3 score into 5 categories.
 - extract_labels: Extracts prediction labels from data.
 """
 
