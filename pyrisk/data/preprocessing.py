@@ -13,6 +13,8 @@ Functions:
 - extract_labels: Extracts prediction labels from data.
 """
 
+from copy import deepcopy
+
 import numpy as np
 import pandas as pd
 import sklearn as skl
@@ -180,6 +182,7 @@ def fit_preprocess_operations(data, preprocessing_dict):
         raise TypeError(f"data should be a pd.DataFrame, but got {type(data)}")
 
     # Operation dictionary to store fitted operations
+    data_copy = deepcopy(data)
     operation_dict = dict()
 
     for preprocess in preprocessing_dict.keys():
@@ -195,11 +198,20 @@ def fit_preprocess_operations(data, preprocessing_dict):
 
         match preprocess:
             case "ordinal_encoder":
-                operation_dict[preprocess] = OrdinalEncoder().fit(data[features])
+                operation_dict[preprocess] = OrdinalEncoder().fit(data_copy[features])
+                data_copy[features] = operation_dict[preprocess].transform(
+                    data_copy[features]
+                )
             case "standardise":
-                operation_dict[preprocess] = StandardScaler().fit(data[features])
+                operation_dict[preprocess] = StandardScaler().fit(data_copy[features])
+                data_copy[features] = operation_dict[preprocess].transform(
+                    data_copy[features]
+                )
             case "power_transform":
-                operation_dict[preprocess] = PowerTransformer().fit(data[features])
+                operation_dict[preprocess] = PowerTransformer().fit(data_copy[features])
+                data_copy[features] = operation_dict[preprocess].transform(
+                    data_copy[features]
+                )
             case "bin":
                 operation_dict[preprocess] = "bin"
             case _:
