@@ -593,7 +593,12 @@ class Pipeline:
             probabilities = []
             for i in range(self.n_labels):
                 # Loop over all labels to get probabilities for each model
-                probabilities.append(pred_fn(X, i, "predict_proba"))
+                pred_probas = pred_fn(X, i, "predict_proba")
+                if type(pred_probas) is type([]):
+                    # Account for potential multilabel
+                    probabilities += pred_probas
+                else:
+                    probabilities.append(pred_probas)
             return probabilities
         else:
             return pred_fn(X, idx, "predict_proba")
@@ -636,7 +641,12 @@ class Pipeline:
             labels = []
             for i in range(self.n_labels):
                 # Loop over all labels to get labels for each model
-                labels.append(pred_fn(X, i, "predict"))
+                pred_labels = pred_fn(X, i, "predict")
+                if type(pred_labels) is type([]):
+                    # Account for potential multilabel
+                    labels += pred_labels
+                else:
+                    labels.append(pred_labels)
             return labels
         else:
             return pred_fn(X, idx, "predict")
