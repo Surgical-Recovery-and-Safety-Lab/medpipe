@@ -12,8 +12,6 @@ Functions:
 - extract_labels: Extracts prediction labels from data.
 """
 
-from copy import deepcopy
-
 import numpy as np
 import pandas as pd
 import sklearn as skl
@@ -150,9 +148,9 @@ def convert_object_to_categorical(data: pd.DataFrame) -> pd.DataFrame:
     return processed_data
 
 
-def preprocess_data(data, preprocessing_dict):
+def fit_preprocess_operations(data, preprocessing_dict):
     """
-    Processed select data columns based on preprocessing function.
+    Fits processing operations to data.
 
     Parameters
     ----------
@@ -163,8 +161,6 @@ def preprocess_data(data, preprocessing_dict):
 
     Returns
     -------
-    processed_data : pd.DataFrame
-        Processed DataFrame.
     operation_dict : dict[]
         Dictionary of the different preprocessing objects.
 
@@ -182,8 +178,7 @@ def preprocess_data(data, preprocessing_dict):
     if type(data) is not type(pd.DataFrame()):
         raise TypeError(f"data should be a pd.DataFrame, but got {type(data)}")
 
-    # Create a copy of data to work on
-    processed_data = deepcopy(data)
+    # Operation dictionary to store fitted operations
     operation_dict = dict()
 
     for preprocess in preprocessing_dict.keys():
@@ -199,18 +194,37 @@ def preprocess_data(data, preprocessing_dict):
 
         match preprocess:
             case "ordinal_encoder":
-                operation = OrdinalEncoder()
+                operation_dict[preprocess] = OrdinalEncoder().fit(data[features])
             case "standardise":
-                operation = StandardScaler()
+                operation_dict[preprocess] = StandardScaler().fit(data[features])
             case "power_transform":
-                operation = PowerTransformer()
+                operation_dict[preprocess] = PowerTransformer().fit(data[features])
+            case "bin":
+                operation_dict[preprocess] = "bin"
             case _:
                 raise ValueError(f"{preprocess} invalid preprocessing function")
 
-        processed_data[features] = operation.fit_transform(processed_data[features])
-        operation_dict[preprocess] = operation
+    return operation_dict
 
-    return processed_data, operation_dict
+
+def bin_score(data):
+    """
+    Bins the M3 score into 5 categories.
+
+    Parameters
+    ----------
+    data : pd.DataFrame
+        M3 score data.
+
+    Returns
+    -------
+    binned_data : pd.DataFrame
+        Binned data.
+
+    """
+    binned_data = np.ceil(data)
+    binned_data[binned_data > 4] = 4
+    return binned_data
 
 
 def extract_labels(data, labels):

@@ -9,7 +9,11 @@ from copy import deepcopy
 
 from pyrisk.utils.logger import print_message
 
-from .preprocessing import convert_object_to_categorical, preprocess_data
+from .preprocessing import (
+    bin_score,
+    convert_object_to_categorical,
+    fit_preprocess_operations,
+)
 
 SCRIPT_NAME = "data/Preprocessor"
 
@@ -113,8 +117,9 @@ class Preprocessor:
 
         if self.preprocess:
             # If the preprocess flag is true
-            print_message("Preprocessing data", self.logger, SCRIPT_NAME)
-            data, self.operations = preprocess_data(data, self.transform_seq)
+            print_message("Fitting processing operations", self.logger, SCRIPT_NAME)
+            self.operations = fit_preprocess_operations(data, self.transform_seq)
+            data = self.transform(data)
 
         return data
 
@@ -138,7 +143,7 @@ class Preprocessor:
         if self.preprocess:
             # If the preprocess flag is true
             print_message("Fitting preprocessing operations", self.logger, SCRIPT_NAME)
-            _, self.operations = preprocess_data(data, self.transform_seq)
+            self.operations = fit_preprocess_operations(data, self.transform_seq)
 
     def transform(self, X):
         """
@@ -162,7 +167,13 @@ class Preprocessor:
             print_message("Preprocessing data", self.logger, SCRIPT_NAME)
             for operation in self.operations:
                 features = self.transform_seq[operation]["feature_list"]
-                transformed_data = self.operations[operation].transform(data[features])
+
+                if operation == "bin":
+                    transformed_data = bin_score(data[features])
+                else:
+                    transformed_data = self.operations[operation].transform(
+                        data[features]
+                    )
                 data[features] = transformed_data
 
         return data
