@@ -48,8 +48,9 @@ def test_fit_transform():
     test_data["age"] = StandardScaler().fit_transform(
         np.ravel(test_data["age"]).reshape(-1, 1)
     )
-    pt = PowerTransformer().fit(SAMPLE_DATA[["age", "dummy"]])
-    test_data[["age", "dummy"]] = pt.transform(test_data[["age", "dummy"]])
+    test_data[["age", "dummy"]] = PowerTransformer().fit_transform(
+        test_data[["age", "dummy"]]
+    )
     test_data["M3_score"] = bin_score(test_data["M3_score"])
 
     assert (processed_data.to_numpy() == test_data.to_numpy()).all()
@@ -83,9 +84,9 @@ def test_transform():
     test_data["age"] = StandardScaler().fit_transform(
         np.ravel(test_data["age"]).reshape(-1, 1)
     )
-    pt = PowerTransformer().fit(SAMPLE_DATA[["age", "dummy"]])
-    test_data[["age", "dummy"]] = pt.transform(test_data[["age", "dummy"]])
-    test_data["M3_score"] = bin_score(test_data["M3_score"])
+    test_data[["age", "dummy"]] = PowerTransformer().fit_transform(
+        test_data[["age", "dummy"]]
+    )
     test_data["M3_score"] = bin_score(test_data["M3_score"])
 
     assert (processed_data.to_numpy() == test_data.to_numpy()).all()
