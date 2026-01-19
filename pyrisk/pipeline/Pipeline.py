@@ -516,7 +516,7 @@ class Pipeline:
                 SCRIPT_NAME,
             )
             self._train_models(
-                X_train, y_train, X_cal, y_cal[:, k], k, **{"weigths": weights}
+                X_train, y_train, X_cal, y_cal[:, k], k, **{"weights": weights}
             )
 
     def _train_models(self, X_train, y_train, X_cal, y_cal, idx=0, **kwargs):
