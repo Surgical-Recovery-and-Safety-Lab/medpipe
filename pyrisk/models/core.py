@@ -259,7 +259,7 @@ def get_positive_proba(probabilities):
 
     """
     if type(probabilities) is type(np.array([])):
-        return probabilities
+        return np.expand_dims(probabilities[:, 1], 1)
 
     pos_proba = np.zeros((probabilities[0].shape[0], len(probabilities)))
     for i, proba in enumerate(probabilities):
