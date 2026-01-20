@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-test_pipeline_pipeline.py
+test_pipeline_Pipeline.py
 
 Test functions for the Pipeline class.
 """
