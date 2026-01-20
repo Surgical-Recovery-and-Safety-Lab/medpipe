@@ -10,9 +10,9 @@ import numpy as np
 import pytest
 
 from pyrisk.data.sampler import (
-    group_mean_dist_sampler,
+    group_random_oversampler,
     group_random_undersampler,
-    mean_dist_sampler,
+    random_oversampler,
     random_undersampler,
 )
 
@@ -299,3 +299,178 @@ def test_group_random_undersampler_no_minority():
 
     # If no minority class, only majority class samples should be selected
     assert np.all(sampled_labels == 0)
+
+
+# Basic functionality tests
+@pytest.mark.parametrize(
+    "target_ratio, labels, n_maj_class",
+    [
+        (0.5, single_labels, 16),
+        (0.5, bi_labels, 14),
+        (0.5, tri_labels, 15),
+    ],
+)
+def test_random_oversampler_success(target_ratio, labels, n_maj_class):
+    sample_idx = random_oversampler(labels, target_ratio)
+    sampled_labels = labels[sample_idx]
+
+    if sampled_labels.shape[1] == 1:
+        majority_count = np.sum(sampled_labels == 0)
+    else:
+        majority_count = np.sum(np.sum(sampled_labels, axis=1) == 0)
+
+    assert majority_count == n_maj_class
+    assert len(sampled_labels) == round(
+        n_maj_class + target_ratio * n_maj_class
+    )  # Total samples length based on target_ratio and class imbalance
+
+
+@pytest.mark.parametrize(
+    "target_ratio, labels, n_min_class",
+    [
+        (0.5, tri_labels, 7),
+        (1.0, tri_labels, 15),
+    ],
+)
+def test_random_oversampler_target_ratio(target_ratio, labels, n_min_class):
+    sample_idx = random_oversampler(labels, target_ratio)
+    sampled_labels = labels[sample_idx]
+
+    if sampled_labels.shape[1] == 1:
+        minority_count = np.sum(sampled_labels > 0)
+        majority_count = np.sum(sampled_labels == 0)
+    else:
+        minority_count = np.sum(np.sum(sampled_labels, axis=1) > 0)
+        majority_count = np.sum(np.sum(sampled_labels, axis=1) == 0)
+
+    # Check if the ratio is close to target ratio
+    if minority_count > 0:
+        ratio = majority_count / minority_count
+        assert np.isclose(
+            ratio, 1 / target_ratio, atol=0.2
+        )  # Allow for slight imprecision
+
+    # Assert that the target ratio is close to what we selected
+    assert minority_count == n_min_class  # Should match expected number of minority
+
+
+# Raises a ValueError
+@pytest.mark.parametrize(
+    "target_ratio, labels",
+    [
+        (1.0, labels_no_minority),
+        (0.5, labels_empty),
+        (0.0, single_labels),
+        (0.0, bi_labels),
+        (-0.1, tri_labels),
+    ],
+)
+def test_random_oversampler_value_error(target_ratio, labels):
+    with pytest.raises(ValueError):
+        random_oversampler(labels, target_ratio)
+
+
+# Raises a TypeError
+@pytest.mark.parametrize(
+    "labels",
+    [0.5, "string"],
+)
+def test_random_oversampler_type_error(labels):
+    with pytest.raises(TypeError):
+        random_oversampler(labels, target_ratio=0.5)
+
+
+# Basic functionality test
+@pytest.mark.parametrize(
+    "target_ratio, labels, groups, n_maj_class_per_group",
+    [
+        (1.0, single_labels, single_groups, [4, 12]),
+        (1.0, bi_labels, bi_groups, [3, 7, 4]),
+        (1.0, tri_labels, tri_groups, [10, 5]),
+    ],
+)
+def test_group_random_oversampler_success(
+    target_ratio, labels, groups, n_maj_class_per_group
+):
+    sample_idx = group_random_oversampler(labels, target_ratio, groups)
+    sampled_labels = labels[sample_idx]
+
+    for group, n_maj_class in zip(np.unique(groups), n_maj_class_per_group):
+        group_idx = np.where(groups == group)[0]
+        group_samples = sampled_labels[np.isin(sample_idx, group_idx)]
+
+        if group_samples.shape[1] == 1:  # Single class case (binary)
+            majority_count = np.sum(group_samples > 0)
+        else:  # Multiclass case
+            majority_count = np.sum(np.sum(group_samples, axis=1) > 0)
+
+        assert (
+            majority_count == n_maj_class
+        )  # Ensure the expected majority count for the group
+        assert (
+            len(group_samples) == n_maj_class + (1 / target_ratio) * n_maj_class
+        )  # Total samples length based on target_ratio and class imbalance
+
+
+# Basic functionality test
+@pytest.mark.parametrize(
+    "target_ratio, labels, groups, n_min_class_per_group",
+    [
+        (1.0, single_labels, single_groups, [4, 12]),
+        (1.0, bi_labels, bi_groups, [3, 7, 4]),
+        (1.0, tri_labels, tri_groups, [10, 5]),
+        (0.5, single_labels, single_groups, [2, 6]),
+        (0.5, bi_labels, bi_groups, [1, 3, 2]),
+        (0.5, tri_labels, tri_groups, [5, 2]),
+    ],
+)
+def test_group_random_oversampler_target_ratio(
+    target_ratio, labels, groups, n_min_class_per_group
+):
+    sample_idx = group_random_oversampler(labels, target_ratio, groups)
+    sampled_labels = labels[sample_idx]
+
+    for group, n_min_class in zip(np.unique(groups), n_min_class_per_group):
+        group_idx = np.where(groups == group)[0]
+        group_samples = sampled_labels[np.isin(sample_idx, group_idx)]
+
+        if group_samples.shape[1] == 1:  # Single class case (binary)
+            minority_count = np.sum(group_samples > 0)
+            majority_count = np.sum(group_samples == 0)
+        else:  # Multiclass case
+            minority_count = np.sum(np.sum(group_samples, axis=1) > 0)
+            majority_count = np.sum(np.sum(group_samples, axis=1) == 0)
+
+        # Check if the ratio is close to target ratio
+        if minority_count > 0:
+            ratio = majority_count / minority_count
+            assert np.isclose(
+                ratio, 1 / target_ratio, atol=1.0
+            )  # Allow for slight imprecision
+
+        assert minority_count == n_min_class  # Should match expected number of minority
+
+
+# Raises a TypeError if labels is not array-like
+@pytest.mark.parametrize(
+    "labels",
+    [0.5, "string", None],  # Invalid inputs (should raise TypeError)
+)
+def test_group_random_oversampler_type_error(labels):
+    with pytest.raises(TypeError):
+        group_random_oversampler(labels, target_ratio=0.5, groups=single_groups)
+
+
+# Labels and groups should have the same number of samples
+def test_group_random_oversampler_mismatched_dimensions():
+    with pytest.raises(ValueError):
+        groups = np.array([0, 1])
+        group_random_oversampler(single_labels, target_ratio=0.5, groups=groups)
+
+
+# Edge case: No minority class samples in any group
+def test_group_random_oversampler_no_minority():
+    with pytest.raises(ValueError):
+        group_random_oversampler(
+            labels_no_minority, target_ratio=0.5, groups=labels_groups_no_maj
+        )

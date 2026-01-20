@@ -244,6 +244,9 @@ def random_oversampler(labels, target_ratio):
     n_min_class = np.sum(label_sums != 0)  # Minority class examples
     n_maj_class = len(labels) - n_min_class  # Majority class examples
 
+    if n_min_class == 0:
+        raise ValueError("No minority examples found")
+
     # Indices of minority and majority examples
     maj_idx = np.where(label_sums == 0)[0]
     min_idx = np.random.choice(  # Select examples so that target ratio is achieved
