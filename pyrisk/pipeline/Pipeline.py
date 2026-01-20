@@ -47,10 +47,10 @@ class Pipeline:
         Configuration dictionary for the calibrator.
     preprocessor : Preprocessor
         Data preprocessor object.
-    predictor : Predictor
-        Prediction model object.
-    calibrator : Calibrator
-        Calibration model object.
+    predictor : list[Predictor]
+        List of Predictors instances.
+    calibrator : list[Calibrator]
+        List of Calibrator instances.
     predictor_metrics : dict[str, dict[str, list[float or tuple(array-like)]]
         Dictionary of the predictor performance.
         Keys are the metric name and values are the metric value.
