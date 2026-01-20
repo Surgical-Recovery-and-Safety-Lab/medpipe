@@ -51,32 +51,14 @@ class Pipeline:
         List of Predictors instances.
     calibrator : list[Calibrator]
         List of Calibrator instances.
-    predictor_metrics : dict[str, dict[str, list[float or tuple(array-like)]]
-        Dictionary of the predictor performance.
-        Keys are the metric name and values are the metric value.
-        The test metrics used are:
-         - accuracy
-         - f1
-         - precision
-         - recall
-         - log_loss
-         - roc (Receiver Operator Characteristic)
-         - auroc (Area Under Receiver Operator Characteristic)
-         - prc (Precision-Recall Curve)
-         - ap (Average Precision)
-    calibrator_metrics : dict[str, dict[str, list[float or tuple(array-like)]]
-        Dictionary of the calibrator performance.
-        Keys are the metric name and values are the metric value.
-        The test metrics used are:
-         - accuracy
-         - f1
-         - precision
-         - recall
-         - log_loss
-         - roc (Receiver Operator Characteristic)
-         - auroc (Area Under Receiver Operator Characteristic)
-         - prc (Precision-Recall Curve)
-         - ap (Average Precision)
+    predictor_probabilities : list[dict[int, array]]
+        List of predicted probabilities for each predictor
+        The dictionary keys are the folds and the values are
+        the predicted probabilities of the predictor for that fold.
+    calibrator_probabilities : list[dict[int, array]]
+        List of predicted probabilities for each calibrator
+        The dictionary keys are the folds and the values are
+        the predicted probabilities of the calibrator for that fold.
     logger : logging.Logger or None, default: None
         Logger object to log prints. If None print to terminal.
 
@@ -134,8 +116,12 @@ class Pipeline:
         self.version = pipeline_config["version"]
         self.predictor_type = pipeline_config["predictor_type"]
         self.logger = logger
-        self.predictor_metrics = {}  # Empty dict for predictor metrics
-        self.calibrator_metrics = {}  # Empty dict for calibrator metrics
+        self.predictor_probabilities = (
+            []
+        )  # Empty list for predictor predicted probabilities
+        self.calibrator_probabilities = (
+            []
+        )  # Empty list for calibrator predicted probabilities
 
         print_message("Setting up Pipeline", self.logger, SCRIPT_NAME)
 
@@ -187,6 +173,8 @@ class Pipeline:
                     logger=self.logger,
                 )
             )
+            self.predictor_probabilities.append({})
+
             if self.calibrator_type:
                 # Only if a calibrator type is provided
                 self.calibrator.append(
@@ -196,6 +184,7 @@ class Pipeline:
                         logger=self.logger,
                     )
                 )
+                self.calibrator_probabilities.append({})
         self.preprocessor = Preprocessor(
             self.preprocessor_config["preprocessing"], logger=self.logger
         )
@@ -324,7 +313,7 @@ class Pipeline:
                     f"Model should be predictor or calibrator, but got {model}"
                 )
 
-    def test_model(self, X, y, model, idx=0, key=None):
+    def test_model(self, X, y, model, idx=0):
         """
         Tests the predictor or calibrator model on the provided dataset.
 
@@ -338,9 +327,6 @@ class Pipeline:
             Model to test.
         idx : int, default: 0
             Index of model to test.
-        key : str or None, default: None
-            Key for updating the metric dictionaries.
-            If None, the dictionaries are not updated.
 
         Returns
         -------
@@ -356,31 +342,20 @@ class Pipeline:
         match model:
             case "predictor":
                 message = "Uncalibrated metrics"
-                metric_dict = test_model(
-                    y,
-                    self.predict(X, idx=idx, model_type="predictor"),
-                    array(self.predict_proba(X, idx=idx, model_type="predictor")),
-                )
-
-                if key:
-                    self.predictor_metrics.update({key: metric_dict})
 
             case "calibrator":
                 message = "Calibrated metrics"
-                metric_dict = test_model(
-                    y,
-                    self.predict(X, idx=idx, model_type="calibrator"),
-                    array(self.predict_proba(X, idx=idx, model_type="calibrator")),
-                )
-
-                if key:
-                    self.calibrator_metrics.update({key: metric_dict})
 
             case _:
                 raise ValueError(
                     f"Model should be predictor or calibrator, but got {model}"
                 )
 
+        metric_dict = test_model(
+            y,
+            self.predict(X, idx=idx, model_type=model),
+            array(self.predict_proba(X, idx=idx, model_type=model)),
+        )
         print_message(message, self.logger, SCRIPT_NAME)
         print_metrics(metric_dict, [self.label_list[idx]], self.logger)
 
@@ -453,7 +428,7 @@ class Pipeline:
 
             for j in range(self.n_labels):
                 # Sample and weight data if needed
-                X_train_i, y_train_i, fold_groups_i = self._sample_data(
+                X_train_i, y_train_i, _ = self._sample_data(
                     X_train, expand_dims(y_train[:, j], 1), fold_groups
                 )
                 weights = self._weight_data(y_train_i)
@@ -490,8 +465,16 @@ class Pipeline:
                 )
 
                 # Test predictor and calibrator on test set
-                self.test_model(X_test, y_test[:, j].squeeze(), "predictor", j, fold)
-                self.test_model(X_test, y_test[:, j].squeeze(), "calibrator", j, fold)
+                self.test_model(X_test, y_test[:, j].squeeze(), "predictor", j)
+                self.test_model(X_test, y_test[:, j].squeeze(), "calibrator", j)
+
+                # Save positive class predicted probabilities
+                self.predictor_probabilities[j][fold] = get_positive_proba(
+                    self.predict_proba(X_test, idx=j, model_type="predictor")
+                )
+                self.calibrator_probabilities[j][fold] = get_positive_proba(
+                    self.predict_proba(X_test, idx=j, model_type="calibrator")
+                )
 
                 # Rest predictor and calibrator without printing
                 self.predictor[j]._set_model(quiet=True)
