@@ -7,7 +7,6 @@ Test functions for the data.preprocessing module
 """
 import pathlib
 
-import numpy as np
 import pandas as pd
 import pytest
 from sklearn.model_selection import GroupKFold, StratifiedKFold
@@ -17,7 +16,7 @@ from pyrisk.data.preprocessing import (
     convert_object_to_categorical,
     extract_labels,
     fit_preprocess_operations,
-    test_train_it,
+    train_test_it,
 )
 from pyrisk.utils.io import load_data_from_csv
 
@@ -100,13 +99,12 @@ def test_convert_object_to_categorical_type_error(data):
         ),
     ],
 )
-def test_train_it_success(temporal_k_fold, kwargs, expected_type):
-    kfold_it = test_train_it(temporal_k_fold=temporal_k_fold, **kwargs)
+def test_train_test_it_success(temporal_k_fold, kwargs, expected_type):
+    kfold_it = train_test_it(temporal_k_fold=temporal_k_fold, **kwargs)
     assert isinstance(kfold_it, expected_type)
     assert kfold_it.n_splits == kwargs["n_splits"]
     assert kfold_it.shuffle == kwargs["shuffle"]
     assert kfold_it.random_state == kwargs["random_state"]
-    return None
 
 
 @pytest.mark.parametrize(
@@ -117,9 +115,9 @@ def test_train_it_success(temporal_k_fold, kwargs, expected_type):
         {"n_splits": -1},  # n_splits less than 2
     ],
 )
-def test_train_it_value_error(kwargs):
+def test_train_test_it_value_error(kwargs):
     with pytest.raises(ValueError):
-        _ = test_train_it(temporal_k_fold=False, **kwargs)
+        _ = train_test_it(temporal_k_fold=False, **kwargs)
         return None
 
 

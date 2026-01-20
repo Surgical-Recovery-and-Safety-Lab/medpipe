@@ -9,7 +9,7 @@ a calibrator.
 from numpy import arange, array, expand_dims, ones
 
 import pyrisk.data.weighting as weight
-from pyrisk.data.preprocessing import extract_labels, get_validation_idx, test_train_it
+from pyrisk.data.preprocessing import extract_labels, get_validation_idx, train_test_it
 from pyrisk.data.Preprocessor import Preprocessor
 from pyrisk.data.sampler import data_sampler
 from pyrisk.metrics.core import print_metrics
@@ -401,7 +401,7 @@ class Pipeline:
             groups = groups.iloc[train_idx]
             X_cal = X_cal.drop(groups.name, axis=1)  # Remove groups in calibration
 
-        kfold_it = test_train_it(**self.preprocessor_config["split_variables"])
+        kfold_it = train_test_it(**self.preprocessor_config["split_variables"])
         n_folds = kfold_it.get_n_splits(X, y[:, 0], groups=groups)
 
         for i, (train_idx, test_idx) in enumerate(
