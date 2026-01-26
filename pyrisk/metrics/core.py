@@ -15,7 +15,7 @@ Functions:
 
 import numpy as np
 import sklearn as skl
-from scipy.stats import bootstrap
+from scipy.stats import sem, t
 
 from pyrisk.utils.exceptions import array_check
 from pyrisk.utils.logger import print_message
@@ -158,27 +158,25 @@ def compute_all_CI(model_metrics, metric_list=[], **kwargs):
     return ci_dict
 
 
-def compute_CI(data, statistic=np.mean, **kwargs):
+def compute_CI(data):
     """
-    Computes the confidence interval using the bootstrap method.
+    Computes the confidence interval of the data.
+
+    The CI is calculated using the Student's t-distribution.
 
     Parameters
     ----------
-    data : array-like
+    data : array-like of shape (n_samples, n_sets)
         Data on which to compute the confidence interval.
-    statistic : callable, default: np.mean
-        Statistic for which the confidence interval is calculated.
-    **kwargs
-        Extra arguments for the scipy.stats.bootstrap method.
 
     Returns
     -------
-    stat : float
-        Value of the statistic that has been calculated.
-    lower_b : float
-        Lower bound of the confidence interval.
-    upper_b : float
-        Upper bound of the confidence interval.
+    mean_arr : np.array(float) of shape (n_sets,)
+        Mean values.
+    lower_b_arr : np.array(float) of shape (n_sets,)
+        Lower bound of the confidence intervals.
+    upper_b_arr : np.array(float) of shape (n_sets,)
+        Upper bound of the confidence intervals.
 
     Raises
     ------
@@ -187,12 +185,29 @@ def compute_CI(data, statistic=np.mean, **kwargs):
 
     """
     array_check(data)
+    if type(data) is type([]):
+        # Convert to array if needed
+        arr_data = np.array(data)
+    else:
+        arr_data = data
 
-    bootstrap_res = bootstrap((data,), statistic=statistic, **kwargs)
+    if len(arr_data.shape) == 1:
+        # Make sure there are 2 dimensions
+        arr_data = np.expand_dims(arr_data, 1)
 
-    lower_b, upper_b = bootstrap_res.confidence_interval
+    mean_arr = np.zeros(arr_data.shape[1])
+    lower_b_arr = np.zeros(arr_data.shape[1])
+    upper_b_arr = np.zeros(arr_data.shape[1])
 
-    return statistic(data, axis=0), lower_b, upper_b
+    for i in range(arr_data.shape[1]):
+        mean_arr[i] = np.mean(arr_data[:, i])
+        std_err = sem(arr_data[:, i])
+
+        lower_b_arr[i], upper_b_arr[i] = t.interval(
+            0.95, len(arr_data[:, i]) - 1, loc=mean_arr[i], scale=std_err
+        )
+
+    return mean_arr, lower_b_arr, upper_b_arr
 
 
 def extract_metric(model_metrics, metric_name):
@@ -332,7 +347,7 @@ def compute_score_metrics(metric_list, y_true, y_pred_proba):
     y_true : array-like of shape (n_samples, n_classes)
         Ground truth labels.
     y_pred_proba : np.array or list[np.array]
-        Predicted scores for each label.
+        Predicted scores for the positive labels.
 
     Returns
     -------
@@ -362,19 +377,19 @@ def compute_score_metrics(metric_list, y_true, y_pred_proba):
         for i, scores in enumerate(y_pred_proba):
             match metric:
                 case "roc":
-                    values.append(skl.metrics.roc_curve(y_true[:, i], scores[:, 1]))
+                    values.append(skl.metrics.roc_curve(y_true[:, i], scores))
                 case "auroc":
-                    values.append(skl.metrics.roc_auc_score(y_true[:, i], scores[:, 1]))
+                    values.append(skl.metrics.roc_auc_score(y_true[:, i], scores))
                 case "prc":
                     values.append(
-                        skl.metrics.precision_recall_curve(y_true[:, i], scores[:, 1])
+                        skl.metrics.precision_recall_curve(y_true[:, i], scores)
                     )
                 case "ap":
                     values.append(
-                        skl.metrics.average_precision_score(y_true[:, i], scores[:, 1])
+                        skl.metrics.average_precision_score(y_true[:, i], scores)
                     )
                 case "log_loss":
-                    values.append(skl.metrics.log_loss(y_true[:, i], scores[:, 1]))
+                    values.append(skl.metrics.log_loss(y_true[:, i], scores))
                 case _:
                     raise ValueError(f"{metric} is an unrecognised metric")
 
