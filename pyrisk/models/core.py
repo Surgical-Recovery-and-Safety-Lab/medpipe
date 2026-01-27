@@ -205,8 +205,18 @@ def save_pipeline(pipeline, save_file, extension=".pkl") -> None:
     """
     file_checks(save_file, extension, exists=False)
 
+    if pipeline.predictor_type == "nn":
+        for predictor in pipeline.predictor:
+            # Move NN model to CPU
+            predictor.model.cpu()
+
     with open(save_file, "wb") as f:
         pickle.dump(pipeline, f)
+
+    if pipeline.predictor_type == "nn":
+        for predictor in pipeline.predictor:
+            # Move NN model to back to GPU after saving
+            predictor.model.to(predictor.device)
 
 
 def load_pipeline(load_file: str):
@@ -239,6 +249,14 @@ def load_pipeline(load_file: str):
 
     with open(load_file, "rb") as f:
         pipeline = pickle.load(f)
+
+    if pipeline.predictor_type == "nn":
+        for predictor in pipeline.predictor:
+            # Make sure device is correct
+            predictor.device = current_accelerator().type if is_available() else "cpu"
+            predictor.model.device = (
+                current_accelerator().type if is_available() else "cpu"
+            )
 
     return pipeline
 
