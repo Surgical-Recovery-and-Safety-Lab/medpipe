@@ -347,7 +347,7 @@ def compute_score_metrics(metric_list, y_true, y_pred_proba):
     y_true : array-like of shape (n_samples, n_classes)
         Ground truth labels.
     y_pred_proba : np.array or list[np.array]
-        Predicted scores for the positive labels.
+        Predicted scores.
 
     Returns
     -------
@@ -377,19 +377,19 @@ def compute_score_metrics(metric_list, y_true, y_pred_proba):
         for i, scores in enumerate(y_pred_proba):
             match metric:
                 case "roc":
-                    values.append(skl.metrics.roc_curve(y_true[:, i], scores))
+                    values.append(skl.metrics.roc_curve(y_true[:, i], scores[:, 1]))
                 case "auroc":
-                    values.append(skl.metrics.roc_auc_score(y_true[:, i], scores))
+                    values.append(skl.metrics.roc_auc_score(y_true[:, i], scores[:, 1]))
                 case "prc":
                     values.append(
-                        skl.metrics.precision_recall_curve(y_true[:, i], scores)
+                        skl.metrics.precision_recall_curve(y_true[:, i], scores[:, 1])
                     )
                 case "ap":
                     values.append(
-                        skl.metrics.average_precision_score(y_true[:, i], scores)
+                        skl.metrics.average_precision_score(y_true[:, i], scores[:, 1])
                     )
                 case "log_loss":
-                    values.append(skl.metrics.log_loss(y_true[:, i], scores))
+                    values.append(skl.metrics.log_loss(y_true[:, i], scores[:, 1]))
                 case _:
                     raise ValueError(f"{metric} is an unrecognised metric")
 
