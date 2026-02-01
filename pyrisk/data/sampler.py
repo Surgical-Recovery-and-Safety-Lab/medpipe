@@ -45,6 +45,11 @@ def data_sampler(
     Samples the data and labels to adjust the class imbalance.
 
     The majority class is assumed to have a False or 0 label.
+    The new set will have an imbalance equal to:
+        IR * target_ratio, where IR is the current imbalance ratio.
+
+    If the target ratio is too small, the algorithm defaults to
+    obtain a balanced dataset.
 
     Parameters
     ----------
@@ -80,36 +85,45 @@ def data_sampler(
     """
     sample_idx = np.array([])  # Empty sample index
 
-    if target_ratio <= 0:
+    if target_ratio > 0:
+        imbalance_ratio = (len(labels) - np.sum(labels)) / np.sum(labels)
+        new_ratio = 1 / (imbalance_ratio * target_ratio)
+
+        if (imbalance_ratio * new_ratio) < 1:
+            # Set to 1 to get balanced dataset
+            new_ratio = 1
+
+    elif target_ratio == 0:
+        new_ratio = 1  # Set to 1 to get balanced dataset
+    else:
         raise ValueError(f"Target ratio should be positive, but got {target_ratio}")
+
     if groups is None:
         # Convert groups to an empty list if nothing is provided
         groups = np.array([])
 
     match sampler_fn:
         case "random_undersampler":
-            sample_idx = random_undersampler(labels, target_ratio)
+            sample_idx = random_undersampler(labels, new_ratio)
         case "group_random_undersampler":
-            sample_idx = group_random_undersampler(labels, target_ratio, groups)
+            sample_idx = group_random_undersampler(labels, new_ratio, groups)
         case "random_oversampler":
-            sample_idx = random_oversampler(labels, target_ratio)
+            sample_idx = random_oversampler(labels, new_ratio)
         case "group_random_oversampler":
-            sample_idx = group_random_oversampler(labels, target_ratio, groups)
+            sample_idx = group_random_oversampler(labels, new_ratio, groups)
         case "mean_dist_sampler":
             sample_idx = mean_dist_sampler(
-                data, labels, target_ratio, kwargs["hard_percent"]
+                data, labels, new_ratio, kwargs["hard_percent"]
             )
         case "group_mean_dist_sampler":
             sample_idx = group_mean_dist_sampler(
-                data, labels, target_ratio, groups, kwargs["hard_percent"]
+                data, labels, new_ratio, groups, kwargs["hard_percent"]
             )
         case "smote":
-            X_gen, y_gen = smote(data, labels, target_ratio, kwargs["k_neighbors"])
+            X_gen, y_gen = smote(data, labels, new_ratio, kwargs["k_neighbors"])
             return concat((data, X_gen)), np.concatenate((labels, y_gen)), None
         case "group_smote":
-            return group_smote(
-                data, labels, target_ratio, groups, kwargs["k_neighbors"]
-            )
+            return group_smote(data, labels, new_ratio, groups, kwargs["k_neighbors"])
         case _:
             raise ValueError(f"{sampler_fn} invalid sampler function")
 
