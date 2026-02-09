@@ -297,7 +297,7 @@ class Pipeline:
         Raises
         ------
         ValueError
-            If model is not "predictor" or "calibrator"
+            If model is not "predictor" or "calibrator".
 
         """
         match model:
@@ -333,7 +333,7 @@ class Pipeline:
         Raises
         ------
         ValueError
-            If model is not "predictor" or "calibrator"
+            If model is not "predictor" or "calibrator".
 
         """
         match model:
@@ -673,12 +673,12 @@ class Pipeline:
         Returns
         -------
         estimates : np.array(n_samples,) or np.array(n_samples, 2)
-            Labels or probabilities estimated from model based on prediction_type
+            Labels or probabilities estimated from model based on prediction_type.
 
         Raises
         ------
         ValueError
-            If prediction_type is not "predict" or "predict_proba"
+            If prediction_type is not "predict" or "predict_proba".
 
 
         """
@@ -709,12 +709,12 @@ class Pipeline:
         Returns
         -------
         estimates : np.array(n_samples,) or np.array(n_samples, 2)
-            Labels or probabilities estimated from model based on prediction_type
+            Labels or probabilities estimated from model based on prediction_type.
 
         Raises
         ------
         ValueError
-            If prediction_type is not "predict" or "predict_proba"
+            If prediction_type is not "predict" or "predict_proba".
 
         """
         match prediction_type:
