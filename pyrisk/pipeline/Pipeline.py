@@ -350,8 +350,8 @@ class Pipeline:
 
         metric_dict = test_model(
             y,
-            self.predict(X, label=label, model_type=model),
-            array(self.predict_proba(X, label=label, model_type=model)),
+            self.predict(X, label_list=label, model_type=model),
+            array(self.predict_proba(X, label_list=label, model_type=model)),
         )
         print_message(message, self.logger, SCRIPT_NAME)
         print_metrics(metric_dict, [label], self.logger)
