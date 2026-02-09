@@ -535,7 +535,7 @@ class Pipeline:
             label,
         )
 
-    def predict_proba(self, X, label="all", model_type="calibrator"):
+    def predict_proba(self, X, label_list="all", model_type="calibrator"):
         """
         Predicts probabilities from predictor or calibrator based on input data.
 
@@ -543,8 +543,8 @@ class Pipeline:
         ----------
         X : pd.DataFrame of shape (n_samples, n_features)
             Data to make predictions on.
-        label : str, default: "all"
-            Label associated with the model to use.
+        label_list : str or list[str], default: "all"
+            Label or list of labels associated with the model to use.
             If all, all models are used.
         model_type : {"predictor", "calibrator"}
             Model to use.
@@ -557,7 +557,9 @@ class Pipeline:
         Raises
         ------
         ValueError
-            If model is not "predictor" or "calibrator"
+            If model is not "predictor" or "calibrator".
+        TypeError
+            If label_list is not str or list.
 
         """
         match model_type:
@@ -570,21 +572,31 @@ class Pipeline:
                     f"Model should be predictor or calibrator, but got {model_type}"
                 )
 
-        if label == "all":
-            probabilities = []
-            for label in self.label_list:
-                # Loop over all labels to get probabilities for each model
-                pred_probas = pred_fn(X, label, "predict_proba")
-                if type(pred_probas) is type([]):
-                    # Account for potential multilabel
-                    probabilities += pred_probas
-                else:
-                    probabilities.append(pred_probas)
-            return probabilities
-        else:
-            return pred_fn(X, label, "predict_proba")
+        if type(label_list) is type(""):
+            if label_list == "all":
+                # Convert to list of all labels
+                label_list = self.label_list
+            else:
+                # Single label
+                return pred_fn(X, label_list, "predict_proba")
 
-    def predict(self, X, label="all", model_type="calibrator"):
+        if type(label_list) is not type([]):
+            raise TypeError(
+                f"Label list should be str or list, but got {type(label_list)}"
+            )
+
+        probabilities = []
+        for label in label_list:
+            # Loop over all labels to get probabilities for each model
+            pred_probas = pred_fn(X, label, "predict_proba")
+            if type(pred_probas) is type([]):
+                # Account for potential multilabel
+                probabilities += pred_probas
+            else:
+                probabilities.append(pred_probas)
+        return probabilities
+
+    def predict(self, X, label_list="all", model_type="calibrator"):
         """
         Predicts labels from predictor or calibrator based on input data.
 
@@ -592,8 +604,8 @@ class Pipeline:
         ----------
         X : pd.DataFrame of shape (n_samples, n_features)
             Data to make predictions on.
-        label : str, default: "all"
-            Label associated with the model to use.
+        label_list : str or list[str], default: "all"
+            Label or list of labels associated with the model to use.
             If all, all models are used.
         model_type : {"predictor", "calibrator"}
             Model to use.
@@ -606,7 +618,9 @@ class Pipeline:
         Raises
         ------
         ValueError
-            If model_type is not "predictor" or "calibrator"
+            If model_type is not "predictor" or "calibrator".
+        TypeError
+            If label_list is not str or list.
 
         """
         match model_type:
@@ -619,19 +633,29 @@ class Pipeline:
                     f"Model should be predictor or calibrator, but got {model_type}"
                 )
 
-        if label == "all":
-            labels = []
-            for _label in self.label_list:
-                # Loop over all labels to get labels for each model
-                pred_labels = pred_fn(X, _label, "predict")
-                if type(pred_labels) is type([]):
-                    # Account for potential multilabel
-                    labels += pred_labels
-                else:
-                    labels.append(pred_labels)
-            return labels
-        else:
-            return pred_fn(X, label, "predict")
+        if type(label_list) is type(""):
+            if label_list == "all":
+                # Convert to list of all labels
+                label_list = self.label_list
+            else:
+                # Single label
+                return pred_fn(X, label_list, "predict")
+
+        if type(label_list) is not type([]):
+            raise TypeError(
+                f"Label list should be str or list, but got {type(label_list)}"
+            )
+
+        labels = []
+        for _label in label_list:
+            # Loop over all labels to get labels for each model
+            pred_labels = pred_fn(X, _label, "predict")
+            if type(pred_labels) is type([]):
+                # Account for potential multilabel
+                labels += pred_labels
+            else:
+                labels.append(pred_labels)
+        return labels
 
     def _predictor_pred_wrapper(self, X, label, prediction_type):
         """
