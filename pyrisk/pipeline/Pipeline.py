@@ -47,17 +47,17 @@ class Pipeline:
         Configuration dictionary for the calibrator.
     preprocessor : Preprocessor
         Data preprocessor object.
-    predictor : list[Predictor]
-        List of Predictors instances.
-    calibrator : list[Calibrator]
-        List of Calibrator instances.
-    predictor_probabilities : list[dict[int, array]]
-        List of predicted probabilities for each predictor
-        The dictionary keys are the folds and the values are
+    predictor : dict[label, Predictor]
+        Dictionary of Predictors instances for each label.
+    calibrator : dict[label, Calibrator]
+        Dictionary of Calibrator instances for each label.
+    predictor_probabilities : dict[label, dict[int, array]]
+        Dictionary of predicted probabilities for each predictor
+        The dictionary keys are the labels and the values are
         the predicted probabilities of the predictor for that fold.
-    calibrator_probabilities : list[dict[int, array]]
-        List of predicted probabilities for each calibrator
-        The dictionary keys are the folds and the values are
+    calibrator_probabilities : dict[label, dict[int, array]]
+        Dictionary of predicted probabilities for each calibrator
+        The dictionary keys are the labels and the values are
         the predicted probabilities of the calibrator for that fold.
     logger : logging.Logger or None, default: None
         Logger object to log prints. If None print to terminal.
@@ -78,21 +78,21 @@ class Pipeline:
         Tests the predictor or calibrator model on the provided dataset.
     run(X)
         Run pipeline with input data.
-    _train_models(X_train, y_train, X_cal, y_cal, idx=0, **kwargs)
+    _train_models(X_train, y_train, X_cal, y_cal, label, **kwargs)
         Trains the predictor and calibrator models.
     predict_proba(X)
         Predicts probabilities from predictor or calibrator based on input data.
     predict(X)
         Predicts labels from predictor or calibrator based on input data.
-    _predictor_pred_wrapper(X, idx, prediction_type)
+    _predictor_pred_wrapper(X, label, prediction_type)
         Wrapper function to create predictions with the predictor.
-    _calibrator_pred_wrapper(X, idx, prediction_type)
+    _calibrator_pred_wrapper(X, label, prediction_type)
         Wrapper function to create predictions with the calibrator.
     _sample_data(X, y, groups)
         Samples the data based on configuration.
     _weight_data(y)
         Gets the weights for the data based on configuration.
-    _get_calibrator_data(X, idx)
+    _get_calibrator_data(X, label)
         Get the calibrator data based on the calibrator type.
     """
 
@@ -117,11 +117,11 @@ class Pipeline:
         self.predictor_type = pipeline_config["predictor_type"]
         self.logger = logger
         self.predictor_probabilities = (
-            []
-        )  # Empty list for predictor predicted probabilities
+            {}
+        )  # Empty dict for predictor predicted probabilities
         self.calibrator_probabilities = (
-            []
-        )  # Empty list for calibrator predicted probabilities
+            {}
+        )  # Empty dict for calibrator predicted probabilities
 
         print_message("Setting up Pipeline", self.logger, SCRIPT_NAME)
 
@@ -160,31 +160,28 @@ class Pipeline:
         else:
             architecture = {}
 
-        self.predictor = []
-        self.calibrator = []
+        self.predictor = {}
+        self.calibrator = {}
 
-        for i in range(self.n_labels):
-            self.predictor.append(
-                Predictor(
-                    self.predictor_type,
-                    hyperparameters=self.predictor_config["hyperparameters"],
-                    architecture=architecture,
-                    n_features=n_features,
-                    logger=self.logger,
-                )
+        for label in self.label_list:
+            self.predictor[label] = Predictor(
+                self.predictor_type,
+                hyperparameters=self.predictor_config["hyperparameters"],
+                architecture=architecture,
+                n_features=n_features,
+                logger=self.logger,
             )
-            self.predictor_probabilities.append({})
+
+            self.predictor_probabilities[label] = {}
 
             if self.calibrator_type:
                 # Only if a calibrator type is provided
-                self.calibrator.append(
-                    Calibrator(
-                        self.calibrator_type,
-                        hyperparameters=self.calibrator_config["hyperparameters"],
-                        logger=self.logger,
-                    )
+                self.calibrator[label] = Calibrator(
+                    self.calibrator_type,
+                    hyperparameters=self.calibrator_config["hyperparameters"],
+                    logger=self.logger,
                 )
-                self.calibrator_probabilities.append({})
+                self.calibrator_probabilities[label] = {}
         self.preprocessor = Preprocessor(
             self.preprocessor_config["preprocessing"], logger=self.logger
         )
@@ -275,7 +272,7 @@ class Pipeline:
 
         return X_train, X_test
 
-    def fit_model(self, X, y, model, idx=0, **kwargs):
+    def fit_model(self, X, y, model, label, **kwargs):
         """
         Fits the predictor or calibrator model on the provided dataset.
 
@@ -287,8 +284,8 @@ class Pipeline:
             Prediction labels.
         model : {"predictor", "calibrator"}
             Model to fit.
-        idx : int, default: 0
-            Index of model to fit.
+        label : str
+            Label associated with the model to use.
         **kwargs
             Extra arguments for fitting the models.
 
@@ -305,15 +302,15 @@ class Pipeline:
         """
         match model:
             case "predictor":
-                self.predictor[idx].fit(X, y, **kwargs)
+                self.predictor[label].fit(X, y, **kwargs)
             case "calibrator":
-                self.calibrator[idx].fit(X, y, **kwargs)
+                self.calibrator[label].fit(X, y, **kwargs)
             case _:
                 raise ValueError(
                     f"Model should be predictor or calibrator, but got {model}"
                 )
 
-    def test_model(self, X, y, model, idx=0):
+    def test_model(self, X, y, model, label):
         """
         Tests the predictor or calibrator model on the provided dataset.
 
@@ -325,8 +322,8 @@ class Pipeline:
             Prediction labels.
         model : {"predictor", "calibrator"}
             Model to test.
-        idx : int, default: 0
-            Index of model to test.
+        label : str
+            Label associated with the model to use.
 
         Returns
         -------
@@ -353,11 +350,11 @@ class Pipeline:
 
         metric_dict = test_model(
             y,
-            self.predict(X, idx=idx, model_type=model),
-            array(self.predict_proba(X, idx=idx, model_type=model)),
+            self.predict(X, label=label, model_type=model),
+            array(self.predict_proba(X, label=label, model_type=model)),
         )
         print_message(message, self.logger, SCRIPT_NAME)
-        print_metrics(metric_dict, [self.label_list[idx]], self.logger)
+        print_metrics(metric_dict, [label], self.logger)
 
     def run(self, X):
         """
@@ -426,7 +423,7 @@ class Pipeline:
             X_test = X_fold.iloc[test_idx]
             y_test = y[test_idx]
 
-            for j in range(self.n_labels):
+            for j, label in enumerate(self.label_list):
                 # Sample and weight data if needed
                 X_train_i, y_train_i, _ = self._sample_data(
                     X_train, expand_dims(y_train[:, j], 1), fold_groups
@@ -456,7 +453,7 @@ class Pipeline:
                     y_train_i,
                     X_cal,
                     y_cal[:, j],
-                    j,
+                    label,
                     **{
                         "X_test": X_test,
                         "y_test": y_test[:, j],
@@ -465,20 +462,20 @@ class Pipeline:
                 )
 
                 # Test predictor and calibrator on test set
-                self.test_model(X_test, y_test[:, j].squeeze(), "predictor", j)
-                self.test_model(X_test, y_test[:, j].squeeze(), "calibrator", j)
+                self.test_model(X_test, y_test[:, j].squeeze(), "predictor", label)
+                self.test_model(X_test, y_test[:, j].squeeze(), "calibrator", label)
 
                 # Save positive class predicted probabilities
-                self.predictor_probabilities[j][fold] = get_positive_proba(
-                    self.predict_proba(X_test, idx=j, model_type="predictor")
+                self.predictor_probabilities[label][fold] = get_positive_proba(
+                    self.predict_proba(X_test, label, model_type="predictor")
                 )
-                self.calibrator_probabilities[j][fold] = get_positive_proba(
-                    self.predict_proba(X_test, idx=j, model_type="calibrator")
+                self.calibrator_probabilities[label][fold] = get_positive_proba(
+                    self.predict_proba(X_test, label, model_type="calibrator")
                 )
 
                 # Rest predictor and calibrator without printing
-                self.predictor[j]._set_model(quiet=True)
-                self.calibrator[j]._set_model(quiet=True)
+                self.predictor[label]._set_model(quiet=True)
+                self.calibrator[label]._set_model(quiet=True)
 
         # Train final model on complete training set
         print_message("  Final training on all examples", self.logger, SCRIPT_NAME)
@@ -486,7 +483,7 @@ class Pipeline:
             # Drop group names for final dataset
             X = X.drop(groups.name, axis=1)
 
-        for k in range(self.n_labels):
+        for k, label in enumerate(self.label_list):
             X_train, y_train, _ = self._sample_data(X, expand_dims(y[:, k], 1), groups)
             weights = self._weight_data(y_train)
 
@@ -499,10 +496,10 @@ class Pipeline:
                 SCRIPT_NAME,
             )
             self._train_models(
-                X_train, y_train, X_cal, y_cal[:, k], k, **{"weights": weights}
+                X_train, y_train, X_cal, y_cal[:, k], label, **{"weights": weights}
             )
 
-    def _train_models(self, X_train, y_train, X_cal, y_cal, idx=0, **kwargs):
+    def _train_models(self, X_train, y_train, X_cal, y_cal, label, **kwargs):
         """
         Trains the predictor and calibrator models.
 
@@ -516,8 +513,8 @@ class Pipeline:
             Calibration data for the calibrator.
         y_cal : np.array of shape (n_samples,)
             Calibration labels for the calibrator.
-        idx : int, default: 0
-            Index of model to train.
+        label: str
+            Label associated with the model to train.
         **kwargs
             Extra arguments for fitting the predictor.
 
@@ -528,17 +525,17 @@ class Pipeline:
 
         """
         # Fit predictor on train set
-        self.fit_model(X_train, y_train, "predictor", idx, **kwargs)
+        self.fit_model(X_train, y_train, "predictor", label, **kwargs)
 
         # Fit calibrator on validation set
         self.fit_model(
-            self._get_calibrator_data(X_cal, idx),
+            self._get_calibrator_data(X_cal, label),
             y_cal,
             "calibrator",
-            idx,
+            label,
         )
 
-    def predict_proba(self, X, idx=-1, model_type="calibrator"):
+    def predict_proba(self, X, label="all", model_type="calibrator"):
         """
         Predicts probabilities from predictor or calibrator based on input data.
 
@@ -546,8 +543,9 @@ class Pipeline:
         ----------
         X : pd.DataFrame of shape (n_samples, n_features)
             Data to make predictions on.
-        idx : int, default: -1
-            Index of model to use.
+        label : str, default: "all"
+            Label associated with the model to use.
+            If all, all models are used.
         model_type : {"predictor", "calibrator"}
             Model to use.
 
@@ -572,11 +570,11 @@ class Pipeline:
                     f"Model should be predictor or calibrator, but got {model_type}"
                 )
 
-        if idx == -1:
+        if label == "all":
             probabilities = []
-            for i in range(self.n_labels):
+            for label in self.label_list:
                 # Loop over all labels to get probabilities for each model
-                pred_probas = pred_fn(X, i, "predict_proba")
+                pred_probas = pred_fn(X, label, "predict_proba")
                 if type(pred_probas) is type([]):
                     # Account for potential multilabel
                     probabilities += pred_probas
@@ -584,9 +582,9 @@ class Pipeline:
                     probabilities.append(pred_probas)
             return probabilities
         else:
-            return pred_fn(X, idx, "predict_proba")
+            return pred_fn(X, label, "predict_proba")
 
-    def predict(self, X, idx=-1, model_type="calibrator"):
+    def predict(self, X, label="all", model_type="calibrator"):
         """
         Predicts labels from predictor or calibrator based on input data.
 
@@ -594,8 +592,9 @@ class Pipeline:
         ----------
         X : pd.DataFrame of shape (n_samples, n_features)
             Data to make predictions on.
-        idx : int, default: 0
-            Index of model to use.
+        label : str, default: "all"
+            Label associated with the model to use.
+            If all, all models are used.
         model_type : {"predictor", "calibrator"}
             Model to use.
 
@@ -620,11 +619,11 @@ class Pipeline:
                     f"Model should be predictor or calibrator, but got {model_type}"
                 )
 
-        if idx == -1:
+        if label == "all":
             labels = []
-            for i in range(self.n_labels):
+            for _label in self.label_list:
                 # Loop over all labels to get labels for each model
-                pred_labels = pred_fn(X, i, "predict")
+                pred_labels = pred_fn(X, _label, "predict")
                 if type(pred_labels) is type([]):
                     # Account for potential multilabel
                     labels += pred_labels
@@ -632,9 +631,9 @@ class Pipeline:
                     labels.append(pred_labels)
             return labels
         else:
-            return pred_fn(X, idx, "predict")
+            return pred_fn(X, label, "predict")
 
-    def _predictor_pred_wrapper(self, X, idx, prediction_type):
+    def _predictor_pred_wrapper(self, X, label, prediction_type):
         """
         Wrapper function to create predictions with the predictor.
 
@@ -642,8 +641,8 @@ class Pipeline:
         ----------
         X : pd.DataFrame of shape (n_samples, n_features)
             Data to make predictions on.
-        idx : int
-            Index of model to use.
+        label : str
+            Label associated with the model to use.
         prediction_type : {"predict", "predict_proba"}
             Prediction function to use.
 
@@ -661,16 +660,16 @@ class Pipeline:
         """
         match prediction_type:
             case "predict":
-                return self.predictor[idx].predict(X)
+                return self.predictor[label].predict(X)
             case "predict_proba":
-                return self.predictor[idx].predict_proba(X)
+                return self.predictor[label].predict_proba(X)
             case _:
                 raise ValueError(
                     "Prediction type should be predict or predict_proba, "
                     f"but got {prediction_type}"
                 )
 
-    def _calibrator_pred_wrapper(self, X, idx, prediction_type):
+    def _calibrator_pred_wrapper(self, X, label, prediction_type):
         """
         Wrapper function to create predictions with the calibrator.
 
@@ -678,8 +677,8 @@ class Pipeline:
         ----------
         X : pd.DataFrame of shape (n_samples, n_features)
             Data to make predictions on.
-        idx : int
-            Index of model to use.
+        label : str
+            Label associated with the model to use.
         prediction_type : {"predict", "predict_proba"}
             Prediction function to use.
 
@@ -696,10 +695,12 @@ class Pipeline:
         """
         match prediction_type:
             case "predict":
-                return self.calibrator[idx].predict(self._get_calibrator_data(X, idx))
+                return self.calibrator[label].predict(
+                    self._get_calibrator_data(X, label)
+                )
             case "predict_proba":
-                return self.calibrator[idx].predict_proba(
-                    self._get_calibrator_data(X, idx)
+                return self.calibrator[label].predict_proba(
+                    self._get_calibrator_data(X, label)
                 )
             case _:
                 raise ValueError(
@@ -765,7 +766,7 @@ class Pipeline:
 
         return ones(y.shape[0])
 
-    def _get_calibrator_data(self, X, idx):
+    def _get_calibrator_data(self, X, label):
         """
         Get the calibrator data based on the calibrator type.
 
@@ -773,8 +774,8 @@ class Pipeline:
         ----------
         X : pd.DataFrame of shape (n_samples, n_features)
             Data to transform for calibrator.
-        idx : int, default: 0
-            Index of model to train.
+        label : str
+            Label associated with the model to use.
 
         Returns
         -------
@@ -783,7 +784,7 @@ class Pipeline:
 
         """
         calibrator_data = get_positive_proba(
-            self.predict_proba(X, idx=idx, model_type="predictor")
+            self.predict_proba(X, label, model_type="predictor")
         )
 
         if self.calibrator_type == "isotonic" and calibrator_data.shape[1] == 2:
