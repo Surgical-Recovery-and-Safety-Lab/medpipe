@@ -155,11 +155,6 @@ class Pipeline:
             n_features -= 1
         self.n_labels = len(self.label_list)
 
-        if self.predictor_type == "nn":
-            architecture = self.predictor_config["architecture"]
-        else:
-            architecture = {}
-
         self.predictor = {}
         self.calibrator = {}
 
@@ -167,8 +162,6 @@ class Pipeline:
             self.predictor[label] = Predictor(
                 self.predictor_type,
                 hyperparameters=self.predictor_config["hyperparameters"],
-                architecture=architecture,
-                n_features=n_features,
                 logger=self.logger,
             )
 
@@ -455,8 +448,6 @@ class Pipeline:
                     y_cal[:, j],
                     label,
                     **{
-                        "X_test": X_test,
-                        "y_test": y_test[:, j],
                         "weights": weights,
                     },
                 )
@@ -784,9 +775,6 @@ class Pipeline:
 
         if weighting_fn:
             return getattr(weight, weighting_fn)(y)
-
-        if self.predictor_type == "nn":
-            return array([1])
 
         return ones(y.shape[0])
 
