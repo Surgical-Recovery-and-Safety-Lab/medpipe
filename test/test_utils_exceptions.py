@@ -5,6 +5,7 @@ test_utils_exceptions.py
 
 Test functions for the utils.exceptions module
 """
+
 import pathlib
 
 import numpy as np
@@ -26,7 +27,7 @@ DATA_DIR = str(CWD / "test/test_data/")
     [
         ("test_text.txt", ".txt", True),
         ("test_data.csv", ".csv", True),
-        ("config/HGB_config.toml", ".toml", True),
+        ("config/HGBc_config.toml", ".toml", True),
         ("not_a_file.csv", ".csv", False),
     ],
 )
@@ -45,7 +46,7 @@ def test_file_checks_not_str():
     [
         ("test_text.txt", ".csv"),
         ("test_data.csv", ".toml"),
-        ("config/HGB_config.toml", ".txt"),
+        ("config/HGBc_config.toml", ".txt"),
     ],
 )
 def test_file_checks_not_extension_file(file_name, extension):
@@ -101,7 +102,7 @@ def test_path_checks_not_str(file_name):
 
 @pytest.mark.parametrize(
     "file_name",
-    ["test_text.txt", "test_data.csv", "config/HGB_config.toml"],
+    ["test_text.txt", "test_data.csv", "config/HGBc_config.toml"],
 )
 def test_path_checks_is_a_file(file_name):
     with pytest.raises(NotADirectoryError):
@@ -111,7 +112,7 @@ def test_path_checks_is_a_file(file_name):
 
 @pytest.mark.parametrize(
     "file_name",
-    ["test_text.tx", "test_data.cs", "config/HGB_config.tom"],
+    ["test_text.tx", "test_data.cs", "config/HGBc_config.tom"],
 )
 def test_path_checks_file_not_found(file_name):
     with pytest.raises(FileNotFoundError):
