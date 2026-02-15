@@ -5,6 +5,7 @@ test_utils_config.py
 
 Test functions for the config submodule.
 """
+
 import pathlib
 
 import pytest
@@ -25,16 +26,10 @@ DATA_DIR = str(CWD / "test/test_data/")
     "file_name, path_type, exists, expected_file_path",
     [
         (
-            "config/HGB_config.toml",
+            "config/HGBc_config.toml",
             "io",
             False,
-            "test/test_data/models/ai_risk_HGB-v0.1.1.2-a.1.1.1.pkl",
-        ),
-        (
-            "config/NN_config.toml",
-            "data",
-            False,
-            "test/test_data/config/data/ai_risk_data_v0.1.1.2-b.1.1.1.2.toml",
+            "test/test_data/models/ai_risk_HGBc-v0.1.1.2-a.1.1.1.pkl",
         ),
         (
             "config/AI_risk_data_config.toml",
@@ -57,7 +52,7 @@ def test_get_file_path_success(file_name, path_type, exists, expected_file_path)
     "file_name, path_type, exists",
     [
         (
-            "config/HGB_config.toml",
+            "config/HGBc_config.toml",
             "db",
             False,
         ),
@@ -74,7 +69,7 @@ def test_get_file_path_key_error(file_name, path_type, exists):
     "file_name, path_type, exists",
     [
         (
-            "config/NN_config.toml",
+            "config/HGBc_config.toml",
             "invalid_path",
             False,
         ),
@@ -113,13 +108,8 @@ def test_get_file_path_type_error(config_dict, path_type):
     "file_name, path_type, exists",
     [
         (
-            "config/HGB_config.toml",
+            "config/HGBc_config.toml",
             "io",
-            True,
-        ),
-        (
-            "config/NN_config.toml",
-            "data",
             True,
         ),
     ],
@@ -191,24 +181,14 @@ def test_parse_version_number_error(v_number):
     "file_name, parameters, version",
     [
         (
-            "config/HGB_config.toml",
+            "config/HGBc_config.toml",
             "data_parameters",
             "v0.1.1.3",
         ),
         (
-            "config/HGB_config.toml",
+            "config/HGBc_config.toml",
             "model_parameters",
             "va.1.1.1",
-        ),
-        (
-            "config/NN_config.toml",
-            "model_parameters",
-            "vb.1.1.1.2",
-        ),
-        (
-            "config/NN_config.toml",
-            "data_parameters",
-            "v0.1.1.2",
         ),
     ],
 )

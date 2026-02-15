@@ -15,13 +15,11 @@ Functions:
 import pickle
 
 import numpy as np
-import sklearn as skl
+from sklearn.ensemble import HistGradientBoostingClassifier
 from sklearn.isotonic import IsotonicRegression
 from sklearn.linear_model import LogisticRegression
-from torch.accelerator import current_accelerator, is_available
 
 from pyrisk.metrics.core import compute_pred_metrics, compute_score_metrics
-from pyrisk.models.AIRiskNN import AIRiskNN
 from pyrisk.utils.exceptions import array_check, file_checks
 from pyrisk.utils.logger import print_message
 
@@ -30,7 +28,6 @@ SCRIPT_NAME = "models/core"
 
 def create_model(
     model_type: str,
-    n_features: int = -1,
     logger=None,
     quiet=False,
     **config_params,
@@ -40,16 +37,11 @@ def create_model(
 
     Parameters
     ----------
-    model_type : {"hgb", "svm", "nn", "logistic", "isotonic"}
+    model_type : {"hgb-c", "logistic", "isotonic"}
         Type of model to create.
-            hgb: histogram gradient boosting.
-            svm: support vector machine.
-            nn: AIRiskNN neural network.
+            hgb-c: histogram gradient boosting classifier.
             logistic: logistic regression.
             isotonic: isotonic regression.
-    n_features : int, default: -1
-        Number of features in the data, only needed for NN models.
-        Logger object to log prints. If None print to terminal.
     quiet : bool, default: False
         Flag to create a model without printing.
     **config_params
@@ -57,7 +49,7 @@ def create_model(
 
     Returns
     -------
-    model : HistGradBoostingClassifier, SVC, AIRiskNN
+    model : HistGradBoostingClassifier
             LogisticRegression, IsotonicRegression,
         Created model.
 
@@ -67,40 +59,21 @@ def create_model(
         If model_type is not a str.
         If an unexpected keyword argument is present.
     ValueError
-        If model_type is not "hgb", "svm", "nn", "logistic" or "isotonic".
+        If model_type is not "hgb-c", "logistic" or "isotonic".
 
     """
     if type(model_type) is not str:
         raise TypeError(f"{model_type} shoud be a string")
 
     match model_type:
-        case "hgb":
+        case "hgb-c":
             if not quiet:
                 print_message(
-                    "Creating a Histogram Gradient Boosting model", logger, SCRIPT_NAME
+                    "Creating a Histogram Gradient Boosting Classifier",
+                    logger,
+                    SCRIPT_NAME,
                 )
-            model = skl.ensemble.HistGradientBoostingClassifier(**config_params)
-
-        case "svm":
-            if not quiet:
-                print_message(
-                    "Creating a Support Vector Machine model", logger, SCRIPT_NAME
-                )
-            model = skl.svm.SVC(**config_params)
-
-        case "nn":
-            if not quiet:
-                print_message("Creating a Neural Network model", logger, SCRIPT_NAME)
-
-            if n_features == -1:
-                raise ValueError("For nn models, please specify feature number")
-
-            device = current_accelerator().type if is_available() else "cpu"
-            print_message(f"Using {device} device", logger, SCRIPT_NAME)
-            model = AIRiskNN(n_features, logger, quiet=quiet, **config_params).to(
-                device
-            )
-
+            model = HistGradientBoostingClassifier(**config_params)
         case "logistic":
             if not quiet:
                 print_message(
@@ -204,19 +177,8 @@ def save_pipeline(pipeline, save_file, extension=".pkl") -> None:
 
     """
     file_checks(save_file, extension, exists=False)
-
-    if pipeline.predictor_type == "nn":
-        for predictor in pipeline.predictor:
-            # Move NN model to CPU
-            predictor.model.cpu()
-
     with open(save_file, "wb") as f:
         pickle.dump(pipeline, f)
-
-    if pipeline.predictor_type == "nn":
-        for predictor in pipeline.predictor:
-            # Move NN model to back to GPU after saving
-            predictor.model.to(predictor.device)
 
 
 def load_pipeline(load_file: str):
@@ -249,14 +211,6 @@ def load_pipeline(load_file: str):
 
     with open(load_file, "rb") as f:
         pipeline = pickle.load(f)
-
-    if pipeline.predictor_type == "nn":
-        for predictor in pipeline.predictor:
-            # Make sure device is correct
-            predictor.device = current_accelerator().type if is_available() else "cpu"
-            predictor.model.device = (
-                current_accelerator().type if is_available() else "cpu"
-            )
 
     return pipeline
 

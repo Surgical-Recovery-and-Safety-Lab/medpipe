@@ -1,16 +1,16 @@
-version = "v0.1.1.2-b.1.1.1.2"
-predictor_type = "nn"
+version = "v0.1.1.2-a.1.1.1"
+predictor_type = "hgb-c"
 base_dir = "test/test_data/"
 
 [model_parameters]
-dir = "config/NN/"
-subfolders = [ "labels", "imbalance", "calibrator", "hyperparameters", "architecture" ]
-name = "ai_risk_NN_"
+dir = "config/HGBc/"
+subfolders = [ "labels", "imbalance", "calibrator", "hyperparameters" ]
+name = "ai_risk_HGBc_"
 extension = ".toml"
 
 [io_parameters]
 dir = "models/"
-name = "ai_risk_NN-"
+name = "ai_risk_HGBc-"
 extension = ".pkl"
 
 [data_parameters]

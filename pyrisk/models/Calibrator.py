@@ -27,8 +27,8 @@ class Calibrator:
 
     Methods
     -------
-    __init__(predictor_config, logger)
-        Init method.
+    __init__(model_type, hyperparameters={}, logger=None):
+        Initialise a Calibrator class instance.
     _set_model()
         Set the model to default parameters.
     fit(X, y)
@@ -39,12 +39,7 @@ class Calibrator:
         Predicts labels from input data.
     """
 
-    def __init__(
-        self,
-        model_type,
-        hyperparameters={},
-        logger=None,
-    ):
+    def __init__(self, model_type, hyperparameters={}, logger=None):
         """
         Initialise a Calibrator class instance.
 
