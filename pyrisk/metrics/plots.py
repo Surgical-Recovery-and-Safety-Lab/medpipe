@@ -455,8 +455,7 @@ def plot_metrics_CI(
 
 
 def plot_prediction_distribution(
-    y_pred_proba=[],
-    y_pred_proba_calib=[],
+    dist_list,
     label_list=[],
     n_bins=10,
     save_path="",
@@ -469,12 +468,10 @@ def plot_prediction_distribution(
 
     Parameters
     ----------
-    y_pred_proba : array-like of shape (n_samples, n_classes), default: []
-        Predicted probabilities from the predictor.
-    y_pred_proba_calib : array-like of shape (n_samples, n_classes), default: []
-        Predicted probabilities from the calibrator.
-    label_list : list[str], default: []
-        List of predicted labels.
+    dist_list : list[array]
+        List of the predicted probability distributions.
+    label_list : list[str]
+        List of labels for the legend.
     n_bins : int, default: 10
         Number of bins for the histogram.
     save_path : str, default: []
@@ -491,100 +488,56 @@ def plot_prediction_distribution(
     None
         Nothing is returned.
 
-    Raises
-    ------
-    ValueError
-        If y_pred_proba and y_pred_proba_calib are both empty.
-
     """
-    array_check(y_pred_proba)
-    array_check(y_pred_proba_calib)
-
-    n_classes = 1  # Default number of classes
-    alpha = 1  # Default alpha value
     title = kwargs["set_title"] if "set_title" in kwargs.keys() else ""
-
-    if len(y_pred_proba) > 0 and len(y_pred_proba_calib) > 0:
-        if len(y_pred_proba) > 1:
-            # If multiple labels, check that n_classes agree
-            array_dim_check(y_pred_proba, y_pred_proba_calib, dim=1)
-            n_classes = y_pred_proba.shape[1]
-        else:
-            y_pred_proba = y_pred_proba.reshape(-1, 1)
-            y_pred_proba_calib = y_pred_proba_calib(-1, 1)
-        alpha = 0.7
-
-    elif len(y_pred_proba) > 0:
-        if len(y_pred_proba) > 1:
-            n_classes = y_pred_proba.shape[1]
-        else:
-            y_pred_proba = y_pred_proba.reshape(-1, 1)
-
-    elif len(y_pred_proba_calib) > 0:
-        if len(y_pred_proba_calib) > 1:
-            n_classes = y_pred_proba_calib.shape[1]
-        else:
-            y_pred_proba_calib = y_pred_proba_calib(-1, 1)
-
-    else:
-        raise ValueError("At least one set of predicted probabilities is needed")
-
-    colours = plt.get_cmap("Pastel1")
 
     # Split arguments based on where they should be sent
     ax_kwargs = {key: value for key, value in kwargs.items() if key in dir(Axes)}
     fig_kwargs = {key: value for key, value in kwargs.items() if key in dir(Figure)}
 
-    for i in range(n_classes):
-        # Set figure and axes properties
-        fig, ax = plt.subplots(**fig_kwargs)  # Create a new figure
-        colour_val = 0
+    # Set up variables
+    colour_list = ["#2D90D8", "#33367A", "#96690E", "#CDB4DB", "#F2CC8F"]
+    bins = np.linspace(0, 1, n_bins + 1)
 
-        # Default settings that are overwritten if kwargs are passed
-        ax.set_xlabel("Predicted probabilities")
-        ax.set_ylabel("Count")
-        ax.set_yscale("log")
-        ax.set_title(f"Predicted probabilities distribution for {label_list[i]}")
+    # Set figure and axes properties
+    fig, ax = plt.subplots(**fig_kwargs)  # Create a new figure
 
-        if "set_title" in kwargs.keys() and len(label_list) > 0:
-            kwargs["set_title"] = title + label_list[i]
+    # Set labels and scale
+    ax.set_xlabel("Predicted probabilities", fontweight="bold")
+    ax.set_ylabel("Count", fontweight="bold")
+    ax.set_yscale("log")
 
-        if len(y_pred_proba) > 0:
-            ax.hist(
-                y_pred_proba[:, i],
-                color=colours(colour_val),
-                label="Uncalibrated",
-                bins=n_bins,
-                alpha=alpha,
-            )
+    # Set ax_kwargs to override if needed
+    for key, val in ax_kwargs.items():
+        getattr(ax, key)(val)
 
-            colour_val += 1
+    ax.hist(
+        dist_list,
+        color=colour_list[: len(dist_list)],
+        stacked=True,
+        edgecolor="black",
+        bins=bins,
+        label=label_list,
+    )
+    # Remove spines for aesthetics
+    plt.gca().spines["top"].set_visible(False)
+    plt.gca().spines["right"].set_visible(False)
 
-        if len(y_pred_proba_calib) > 0:
-            ax.hist(
-                y_pred_proba_calib[:, i],
-                color=colours(colour_val),
-                label="Calibrated",
-                bins=n_bins,
-                alpha=alpha,
-            )
+    # Add legend
+    ax.legend(loc="upper right", bbox_to_anchor=(1.45, 0.9), title="Models")
+    ax.title(title)
+    ax.set_xlim([-0.05, 1.05])  # Set x limits
 
-        colour_val += 1
+    # Adjust layout
+    plt.tight_layout()
+    fig.subplots_adjust(right=0.7, bottom=0.14)
 
-        # Set ax_kwargs to override if needed
-        for key, val in ax_kwargs.items():
-            getattr(ax, key)(val)
-
-        ax.legend(loc="upper right", bbox_to_anchor=(1.4, 0.9))
-        plt.tight_layout()
-        fig.subplots_adjust(right=0.7, bottom=0.14)
-
-        if save_path:
-            save_file = save_path + f"_{label_list[i]}" + extension
-            file_checks(save_file, extension=extension, exists=False)
-            plt.savefig(save_file)
-        if show_fig:
-            plt.show()
+    if save_path:
+        save_file = save_path + extension
+        file_checks(save_file, extension=extension, exists=False)
+        plt.savefig(save_file)
+    if show_fig:
+        plt.show()
 
 
 def plot_reliability_diagrams(
