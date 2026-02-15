@@ -353,13 +353,13 @@ def plot_metrics_CI(
 
     Parameters
     ----------
-    ci_dict : dict[str, tuple(float, float, float)]
+    ci_dict : dict[str, list[tuple(float, float, float)]]
         Dictionary containing the metric value and confidence intervals.
-        The keys are the name of the metrics and the values are a tuple with
-        first element the metric value, second the lower bound, and third the
-        upper bound.
+        The keys are the name of the metrics and the values are a list of tuple
+        with first element the metric value, second the lower bound, and third
+        the upper bound. One list elements per model. One list elements per model
     label_list : list[str]
-        List of predicted labels.
+        List of labels for the legend.
     save_path : str, default: []
         Path to the save file.
     extension : str, default: ".png"
@@ -375,76 +375,83 @@ def plot_metrics_CI(
         Nothing is returned.
 
     """
-    n_it = len(label_list)  # Number of iterations
-    if n_it > 1:
-        n_it = 1  # Add one for the global values if multilabel
-
     # Split arguments based on where they should be sent
     ax_kwargs = {key: value for key, value in kwargs.items() if key in dir(Axes)}
     fig_kwargs = {key: value for key, value in kwargs.items() if key in dir(Figure)}
 
-    # Set up the figure and axis
-    fig, ax = plt.subplots(**fig_kwargs)
-    bar_width = 0.15
-    colours = plt.get_cmap("Pastel1")
-    index = np.arange(len(ci_dict.keys()))
+    # Set up some variables
+    colours = [
+        "#2D90D8",
+        "#33367A",
+        "#96690E",
+        "#CDB4DB",
+        "#F2CC8F",
+    ]
+    y_labels = {
+        "auroc": "AUROC",
+        "ap": "AUPRC",
+        "log_loss": "Log loss",
+        "accuracy": "Accuracy",
+        "recall": "Recall",
+        "precision": "Precision",
+        "f1": "F1",
+    }
+    bar_width = 0.3
+    x = np.arange(len(label_list)) * bar_width
 
     # Loop through each metric
-    for i, values in enumerate(ci_dict.values()):
-        for j in range(n_it):
-            if j < len(label_list):
-                label = label_list[j]
-            else:
-                label = "Global"
+    for key, values in ci_dict.items():
+        # Set up the figure and axis
+        fig, ax = plt.subplots(**fig_kwargs)  # One figure per metric
 
+        for j in range(len(values[0])):
             value = values[0][j]
             lower_b = values[1][j]
-            upper_b = values[2][j]
 
-            # Plot the metric for each label with error bars (CI bounds)
             ax.bar(
-                index[i] + (j * bar_width),
+                x[j],
                 value,
-                bar_width,
-                color=colours(j),
-                label=label if i == 0 else "",
-                zorder=3,
+                width=bar_width,
+                color=colours[j],
+                edgecolor=(0, 0, 0, 1),
+                label=label_list[j],
             )
-            # Error bars for confidence interval
+
             ax.errorbar(
-                index[i] + (j * bar_width),
+                x[j],
                 value,
-                yerr=[[value - lower_b], [upper_b - value]],
+                yerr=value - lower_b,
                 fmt="none",
                 color="black",
-                capsize=2,
-                zorder=2,
+                capsize=5,
             )
 
-    # Customize the chart
-    ax.set_xlabel("Metrics")
-    ax.set_ylabel("Values")
-    ax.set_title("Metrics Comparison with Confidence Intervals")
-    ax.set_ylim(ymin=0, ymax=1)
+        # Customize the chart
+        ax.set_ylabel(y_labels[key], fontweight="bold")
+        if key != "log_loss":
+            ax.set_ylim([0, 1.05])
+        ax.spines["top"].set_visible(False)
+        ax.spines["right"].set_visible(False)
 
-    # Set the x-ticks to be at the center of each group of bars
-    ax.set_xticks(index + bar_width * (n_it / 2))
-    ax.set_xticklabels(ci_dict.keys(), rotation=45)
+        # Remove x ticks
+        ax.set_xticks([])
+        ax.set_xticklabels([])
 
-    # Set ax_kwargs to override if needed
-    for key, val in ax_kwargs.items():
-        getattr(ax, key)(val)
+        # Place legend for the figure
+        fig.legend(loc="center right", title="Models")
 
-    ax.legend(title="Labels", loc="upper right", bbox_to_anchor=(1.5, 0.9))
-    plt.tight_layout()
-    fig.subplots_adjust(right=0.68)
+        # Set ax_kwargs to override if needed
+        for key, val in ax_kwargs.items():
+            getattr(ax, key)(val)
 
-    if save_path:
-        save_file = save_path + extension
-        file_checks(save_file, extension=extension, exists=False)
-        plt.savefig(save_file)
-    if show_fig:
-        plt.show()
+        plt.tight_layout()
+        fig.subplots_adjust(right=0.7, bottom=0.14)
+        if save_path:
+            save_file = save_path + key + extension
+            file_checks(save_file, extension=extension, exists=False)
+            plt.savefig(save_file)
+        if show_fig:
+            plt.show()
 
 
 def plot_prediction_distribution(
