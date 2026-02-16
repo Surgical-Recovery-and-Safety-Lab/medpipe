@@ -66,6 +66,7 @@ def plot_from_display(y_true, y_pred, display, **kwargs) -> None:
 
     display_fct(y_true, y_pred, **kwargs)
     plt.show()
+    plt.close()
 
 
 def plot_mean_ROC_curve(
@@ -203,6 +204,7 @@ def plot_mean_ROC_curve(
             plt.savefig(save_file)
         if show_fig:
             plt.show()
+        plt.close()
 
 
 def plot_mean_PR_curve(
@@ -343,6 +345,7 @@ def plot_mean_PR_curve(
             plt.savefig(save_file)
         if show_fig:
             plt.show()
+    plt.close()
 
 
 def plot_metrics_CI(
@@ -453,6 +456,8 @@ def plot_metrics_CI(
         if show_fig:
             plt.show()
 
+        plt.close()
+
 
 def plot_prediction_distribution(
     dist_list,
@@ -538,6 +543,8 @@ def plot_prediction_distribution(
         plt.savefig(save_file)
     if show_fig:
         plt.show()
+
+    plt.close()
 
 
 def plot_reliability_diagrams(
