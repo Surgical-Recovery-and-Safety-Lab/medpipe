@@ -525,7 +525,7 @@ def plot_prediction_distribution(
 
     # Add legend
     ax.legend(loc="upper right", bbox_to_anchor=(1.45, 0.9), title="Models")
-    ax.title(title)
+    ax.set_title(title)
     ax.set_xlim([-0.05, 1.05])  # Set x limits
 
     # Adjust layout
@@ -542,8 +542,7 @@ def plot_prediction_distribution(
 
 def plot_reliability_diagrams(
     y_test,
-    y_pred_proba=[],
-    y_pred_proba_calib=[],
+    proba_list,
     label_list=[],
     save_path="",
     extension=".png",
@@ -552,17 +551,14 @@ def plot_reliability_diagrams(
     **kwargs,
 ):
     """
-    Plots the reliability diagrams using CalibrationDisplay from
-    sklearn.calibration.
+    Plots the reliability diagrams for the given probabilities.
 
     Parameters
     ----------
     y_test : array-like of shape (n_samples, n_classes)
         Ground truth labels.
-    y_pred_proba : array-like of shape (n_samples, n_classes), default: []
-        Predicted probabilities from the predictor.
-    y_pred_proba_calib : array-like of shape (n_samples, n_classes), default: []
-        Predicted probabilities from the calibrator.
+    proba_list : list[array]
+        List of predicted probabilities.
     label_list : list[str], default: []
     save_path : str, default: []
         Path to the save file.
@@ -581,132 +577,55 @@ def plot_reliability_diagrams(
         Nothing is returned.
 
     """
-    n_classes = 1  # Default number of classes
-
-    if len(y_pred_proba) > 0 and len(y_pred_proba_calib) > 0:
-        if len(y_pred_proba) > 1:
-            # If multiple labels, check that n_classes agree
-            array_dim_check(y_pred_proba, y_pred_proba_calib, dim=1)
-            n_classes = y_pred_proba.shape[1]
-        else:
-            y_pred_proba = y_pred_proba.reshape(-1, 1)
-            y_pred_proba_calib = y_pred_proba_calib(-1, 1)
-
-    elif len(y_pred_proba) > 0:
-        if len(y_pred_proba) > 1:
-            n_classes = y_pred_proba.shape[1]
-        else:
-            y_pred_proba = y_pred_proba.reshape(-1, 1)
-
-    elif len(y_pred_proba_calib) > 0:
-        if len(y_pred_proba_calib) > 1:
-            n_classes = y_pred_proba_calib.shape[1]
-        else:
-            y_pred_proba_calib = y_pred_proba_calib(-1, 1)
-
-    else:
-        raise ValueError("At least one set of predicted probabilities is needed")
-
-    colours = plt.get_cmap("Pastel1")
+    colours = ["#2D90D8", "#33367A", "#96690E", "#CDB4DB", "#F2CC8F"]
 
     # Split arguments based on where they should be sent
     ax_kwargs = {key: value for key, value in kwargs.items() if key in dir(Axes)}
     fig_kwargs = {key: value for key, value in kwargs.items() if key in dir(Figure)}
 
-    for i in range(n_classes):
-        # Set figure and axes properties
-        fig, ax = plt.subplots(**fig_kwargs)  # Create a new figure
-        colour_val = 0
-        max_val = 0
+    # Set figure and axes properties
+    fig, ax = plt.subplots(**fig_kwargs)  # Create a new figure
 
-        # Plot perfect calibration
-        ax.plot(
-            np.linspace(0, 1, 100),
-            np.linspace(0, 1, 100),
-            "k--",
-            label="Perfectly calibrated",
+    # Plot perfect calibration
+    ax.plot(
+        np.linspace(0, 1, 100),
+        np.linspace(0, 1, 100),
+        "k--",
+        label="Perfectly calibrated",
+    )
+
+    for i in range(len(proba_list)):
+        prob_true, prob_pred = calibration_curve(
+            y_test,
+            proba_list[i],
+            **display_kwargs,
         )
-        if len(y_pred_proba) > 0:
-            prob_true, prob_pred = calibration_curve(
-                y_test[:, i],
-                y_pred_proba[:, i],
-                **display_kwargs,
-            )
-            max_val = _get_max_calibration_value(
-                max_val, prob_pred.max(), prob_true.max()
-            )
-            ax.plot(
-                prob_pred,
-                prob_true,
-                marker="s",
-                color=colours(colour_val),
-                label="Uncalibrated",
-            )
+        ax.plot(
+            prob_pred,
+            prob_true,
+            marker=".",
+            color=colours[i],
+            label=label_list[i],
+        )
 
-            colour_val += 1
+    title = kwargs["set_title"] if "set_title" in kwargs.keys() else ""
+    ax.set_title(title)
+    ax.set_xlabel("Predicted probabilities", fontweight="bold")
+    ax.set_ylabel("Observed proportion", fontweight="bold")
 
-        if len(y_pred_proba_calib) > 0:
-            prob_true, prob_pred = calibration_curve(
-                y_test[:, i],
-                y_pred_proba_calib[:, i],
-                **display_kwargs,
-            )
-            max_val = _get_max_calibration_value(
-                max_val, prob_pred.max(), prob_true.max()
-            )
-            ax.plot(
-                prob_pred,
-                prob_true,
-                marker="s",
-                color=colours(colour_val),
-                label="Calibrated",
-            )
+    # Set ax_kwargs to override if needed
+    for key, val in ax_kwargs.items():
+        getattr(ax, key)(val)
 
-        colour_val += 1
+    ax.legend(loc="upper right", bbox_to_anchor=(1.6, 0.9))
+    plt.tight_layout()
+    fig.subplots_adjust(right=0.66, bottom=0.14)
 
-        ax.set_title(f"Reliability diagram for {label_list[i]}")
-        ax.set_xlabel("Predicted probabilities")
-        ax.set_ylabel("Observed proportion")
-        ax.set_xlim((-0.01, max_val + 0.05))
-        ax.set_ylim((-0.01, max_val + 0.05))
+    if save_path:
+        save_file = save_path + extension
+        file_checks(save_file, extension=extension, exists=False)
+        plt.savefig(save_file)
+    if show_fig:
+        plt.show()
 
-        # Set ax_kwargs to override if needed
-        for key, val in ax_kwargs.items():
-            getattr(ax, key)(val)
-
-        ax.legend(loc="upper right", bbox_to_anchor=(1.6, 0.9))
-        plt.tight_layout()
-        fig.subplots_adjust(right=0.66, bottom=0.14)
-
-        if save_path:
-            save_file = save_path + f"_{label_list[i]}" + extension
-            file_checks(save_file, extension=extension, exists=False)
-            plt.savefig(save_file)
-        if show_fig:
-            plt.show()
-
-
-def _get_max_calibration_value(cur_max, prob_pred_max, prob_true_max):
-    """
-    Returns the maximum between inputs.
-
-    Parameters
-    ----------
-    cur_max : float
-        Current maximum value.
-    prob_pred_max : float
-        Predicted probabilities maximum.
-    prob_true_max : float
-        True probabilities maximum.
-
-    Returns
-    -------
-    cur_max : float
-        New current maximum.
-
-    """
-    if prob_pred_max > cur_max:
-        cur_max = prob_pred_max
-    if prob_true_max > cur_max:
-        cur_max = prob_true_max
-    return cur_max
+    plt.close()
