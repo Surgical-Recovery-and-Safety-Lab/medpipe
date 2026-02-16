@@ -1,18 +1,14 @@
 [features]
 feature_list = [
   "AGE",
-  "ETHNICITY_ORIGINAL",
-  "SEX_ORIGINAL",
-  "DEP18_ORIGINAL",
-  "M3_SCORE",
+  "SEX",
   "PRIOR_CANCER",
-  "FACILITY",
   "ADMISSION_ACUITY",
+  "ADMISSION_SOURCE",
   "CATEGORY_LEVEL_1",
   "OP_SEVERITY",
-  "OP_CODE",
-  "DOMICILE_CODE",
   "TRAUMA",
+  "OP_YEAR",
   "MORTALITY_30D",
   "ANY_COMP",
 ]
