@@ -1,22 +1,5 @@
 # Configuration setup
-This document provides details about the configuration structures for the **pyrisk** package. See the _config-examples_ folder for examples. 
-
-# Table of content
-1. [Configuration files](#configuration-files)
-2. [Naming conventions](#naming-conventions)
-3. [Data configuration](#data-configuration)
-	1. [Data subfolders](#data-subfolders)
-		1. [Features](#features)
-		2. [General](#general)
-		3. [Preprocessing](#preprocessing)
-		4. [Splitting](#splitting)
-4. [Model configuration](#model-configuration)
-	1. [Model subfolders](#model-subfolders)
-		1. [Calibrator](#calibrator)
-		2. [Hyperparameters](#hyperparameters)
-		3. [Imbalance](#imbalance)
-		4. [Labels](#labels)
-5. [Logger configuration](#logger-configuration)
+This document provides details about the configuration structures for the **pyrisk** package. See the [_config-examples_](https://github.com/Surgical-Recovery-and-Safety-Lab/pyrisk/tree/main/config-examples) folder for examples. 
 
 ## Configuration file structure
 Configuration files are required to provide variables and options. They are written using TOML. The main configuration files are for the data (loading, preprocessing, etc.), the models (name, type, hyperparameters, etc.), and the logger (message, log location, etc.). Examples for the configuration files can be found in the *config-examples* folder.

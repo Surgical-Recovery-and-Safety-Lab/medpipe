@@ -1,0 +1,40 @@
+site_name: Pyrisk Documentation
+theme:
+  name: material
+  palette:
+    scheme: slate # Dark mode; remove this line for light mode
+  features:
+    - navigation.sections
+    - navigation.expand
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
+
+plugins:
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            show_source: true
+            show_root_heading: true
+            docstring_style: numpy
+
+
+nav:
+  - Home: index.md
+  - Getting started:
+    - Installation: install.md
+    - Configuration setup: config.md
+    - Examples: examples.md
+  - API Reference:
+    - Data: data.md
+    - Metrics: metrics.md
+    - Models: models.md
+    - Pipeline: pipeline.md
+    - Utils: utils.md
