@@ -25,7 +25,7 @@ def parquet_to_db(parquet_file: str, db_file: str, table_name: str = "main") -> 
         File path to the .parquet file.
     db_file
         File path to the .db file.
-    table_name, default: 'main'
+    table_name : default: 'main'
         Name of the table to create in the SQL database.
 
     Returns
