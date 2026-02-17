@@ -17,7 +17,7 @@ This document provides details about the configuration structures for the **pyri
 		3. [Imbalance](#imbalance)
 		4. [Labels](#labels)
 5. [Logger configuration](#logger-configuration)
-6. 
+
 ## Configuration file structure
 Configuration files are required to provide variables and options. They are written using TOML. The main configuration files are for the data (loading, preprocessing, etc.), the models (name, type, hyperparameters, etc.), and the logger (message, log location, etc.). Examples for the configuration files can be found in the *config-examples* folder.
 
