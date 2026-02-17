@@ -5,7 +5,7 @@ Welcome to the documentation of the **pyrisk** package. Use the sidebar to navig
 
 [![GitHub](https://img.shields.io/badge/GitHub-Repository-blue?logo=github)](https://github.com/Surgical-Recovery-and-Safety-Lab/pyrisk)
 ![GitHub License](https://img.shields.io/github/license/Surgical-Recovery-and-Safety-Lab/pyrisk)
-[![Python 3.12+](https://img.shields.io/badge/python-3.9+-green.svg)](https://www.python.org/downloads/)
+[![Python 3.12+](https://img.shields.io/badge/python-3.12+-green.svg)](https://www.python.org/downloads/)
 
 ---
 

@@ -1,7 +1,7 @@
 # pyrisk
 
 ![GitHub License](https://img.shields.io/github/license/Surgical-Recovery-and-Safety-Lab/pyrisk)
-[![Python 3.12+](https://img.shields.io/badge/python-3.9+-green.svg)](https://www.python.org/downloads/)
+[![Python 3.12+](https://img.shields.io/badge/python-3.12+-green.svg)](https://www.python.org/downloads/)
 ## Table of content
 1. [Overview](#overview)
 2. [Installation](#installation)
