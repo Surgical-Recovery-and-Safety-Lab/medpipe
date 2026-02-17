@@ -31,6 +31,7 @@ nav:
   - Getting started:
     - Installation: install.md
     - Configuration setup: config.md
+    - Usage: usage.md
     - Examples: examples.md
   - API Reference:
     - Data: data.md
