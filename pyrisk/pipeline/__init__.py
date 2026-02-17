@@ -5,4 +5,4 @@ submodules:
 - Pipeline: Pipeline class.
 """
 
-from pyrisk.pipeline import Pipeline
+from . import Pipeline
