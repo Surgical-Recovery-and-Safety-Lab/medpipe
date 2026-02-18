@@ -2,6 +2,7 @@
 
 ![GitHub License](https://img.shields.io/github/license/Surgical-Recovery-and-Safety-Lab/pyrisk)
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-green.svg)](https://www.python.org/downloads/)
+[![tests](https://github.com/Surgical-Recovery-and-Safety-Lab/pyrisk/actions/workflows/run_test.yml/badge.svg)](https://github.com/Surgical-Recovery-and-Safety-Lab/pyrisk/actions/workflows/run_test.yml)
 ## Table of content
 1. [Overview](#overview)
 2. [Installation](#installation)
