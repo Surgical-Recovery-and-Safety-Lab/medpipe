@@ -1,5 +1,5 @@
 """
-pyrisk.data module
+medpipe.data module
 
 submodules:
 - db: contains functions for database creation, reading, and exporting.

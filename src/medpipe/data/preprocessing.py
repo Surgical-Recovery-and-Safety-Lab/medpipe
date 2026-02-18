@@ -20,7 +20,7 @@ import pandas as pd
 import sklearn as skl
 from sklearn.preprocessing import OrdinalEncoder, PowerTransformer, StandardScaler
 
-from pyrisk.utils.exceptions import array_check, array_dim_check
+from medpipe.utils.exceptions import array_check, array_dim_check
 
 
 def train_test_it(temporal_k_fold=False, **kwargs):

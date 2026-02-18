@@ -4,11 +4,11 @@ This page documents the `utils` sub-package.
 
 ---
 
-::: pyrisk.utils.logger
+::: medpipe.utils.logger
 
-::: pyrisk.utils.io
+::: medpipe.utils.io
 
-::: pyrisk.utils.exceptions
+::: medpipe.utils.exceptions
 
-::: pyrisk.utils.config
+::: medpipe.utils.config
 

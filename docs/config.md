@@ -1,5 +1,5 @@
 # Configuration setup
-This document provides details about the configuration structures for the **pyrisk** package. See the [_config-examples_](https://github.com/Surgical-Recovery-and-Safety-Lab/pyrisk/tree/main/config-examples) folder for examples. 
+This document provides details about the configuration structures for the **medpipe** package. See the [_config-examples_](https://github.com/Surgical-Recovery-and-Safety-Lab/medpipe/tree/main/config-examples) folder for examples. 
 
 ## Configuration file structure
 Configuration files are required to provide variables and options. They are written using TOML. The main configuration files are for the data (loading, preprocessing, etc.), the models (name, type, hyperparameters, etc.), and the logger (message, log location, etc.). Examples for the configuration files can be found in the *config-examples* folder.

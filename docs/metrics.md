@@ -5,8 +5,8 @@ This page documents the `metrics` sub-package.
 ---
 
 ## plots
-::: pyrisk.metrics.plots
+::: medpipe.metrics.plots
 
 ## core
-::: pyrisk.metrics.core
+::: medpipe.metrics.core
 

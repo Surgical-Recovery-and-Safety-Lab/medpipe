@@ -5,6 +5,7 @@ test_data_Preprocessor.py
 
 Test functions for the Preprocessor class.
 """
+
 import pathlib
 from copy import deepcopy
 
@@ -13,8 +14,8 @@ import pandas as pd
 import pytest
 from sklearn.preprocessing import OrdinalEncoder, PowerTransformer, StandardScaler
 
-from pyrisk.data.preprocessing import bin_score, fit_preprocess_operations
-from pyrisk.data.Preprocessor import Preprocessor
+from medpipe.data.preprocessing import bin_score, fit_preprocess_operations
+from medpipe.data.Preprocessor import Preprocessor
 
 CWD = pathlib.Path.cwd()
 DATA_DIR = str(CWD / "test/test_data/")

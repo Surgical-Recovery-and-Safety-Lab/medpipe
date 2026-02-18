@@ -15,7 +15,7 @@ from matplotlib.axes._axes import Axes
 from matplotlib.figure import Figure
 from sklearn.calibration import calibration_curve
 
-from pyrisk.utils.exceptions import file_checks
+from medpipe.utils.exceptions import file_checks
 
 
 def plot_metrics_CI(

@@ -6,10 +6,11 @@ test_data_weighting.py
 Test functions for the weighting function that create weights for
 samples or classes to adjust class imbalance.
 """
+
 import numpy as np
 import pytest
 
-from pyrisk.data.weighting import (
+from medpipe.data.weighting import (
     inverse_frequency_class_weights,
     inverse_frequency_multiclass_sample_weights,
     inverse_frequency_single_sample_weights,

@@ -14,7 +14,7 @@ import logging.config
 import pathlib
 import sys
 
-import pyrisk.utils.exceptions
+import medpipe.utils.exceptions
 
 LOGGING_CONFIG = {
     "version": 1,
@@ -72,7 +72,7 @@ def setup_logger(script_name: str, log_path: str) -> logging.Logger:
         raise TypeError(f"{script_name} should be a string")
 
     try:
-        pyrisk.utils.exceptions.path_checks(log_path)
+        medpipe.utils.exceptions.path_checks(log_path)
 
     except (FileNotFoundError, TypeError, NotADirectoryError):
         raise

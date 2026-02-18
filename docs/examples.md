@@ -2,7 +2,7 @@
 Here is a short example that shows how to load data, train the models, and plot the calibration curves with the quantile strategy:
 
 ``` py linenums="1", title="Simple example"
-from pyrisk import (
+from medpipe import (
 	Pipeline
 	read_toml_configuration,
 	load_data_from_csv,
@@ -33,7 +33,7 @@ plot_reliability_diagrams(y_test, get_positive_proba(y_pred_proba, display_kwarg
 Here is an example that shows how to create a logger and change the level of printing to the terminal:
 
 ``` py title="Setting up a logger", linenums="1"
-from pyrisk import (
+from medpipe import (
     print_message,
     read_toml_configuration,
     setup_logger,
@@ -76,7 +76,7 @@ if __name__ == "__main__":
 This examples loads the data from the information in the configuration files and fits the preprocessing operations specified in the model configuration. The pipeline is then saved, with the preprocessing operations fitted.
 
 ``` py linenums="1", title="Loading and preprocessing data"
-from pyrisk import (
+from medpipe import (
     Pipeline,
     exception_handler,
     load_data_from_csv,
@@ -85,7 +85,7 @@ from pyrisk import (
     setup_logger,
     save_pipeline,
 )
-from pyrisk.utils.config import get_configuration, get_file_path, split_version_number
+from medpipe.utils.config import get_configuration, get_file_path, split_version_number
 
 if __name__ == "__main__":
 	print_message("Loading parameters from configuration file")
@@ -144,7 +144,7 @@ if __name__ == "__main__":
 This final example loads an already fitted Pipeline and plots the score metrics with confidence intervals (CIs). The predicted probabilities from each training fold are loaded and used to calculate the score metrics. From these values, the CIs are calculated and the mean and CIs are plotted. 
 
 ``` py linenums="1", title="Load a fitted Pipeline"
-from pyrisk import (
+from medpipe import (
     Pipeline,
     compute_all_CI,
     compute_score_metrics,
@@ -159,7 +159,7 @@ from pyrisk import (
     read_toml_configuration,
     setup_logger,
 )
-from pyrisk.utils.config import get_configuration, get_file_path, split_version_number
+from medpipe.utils.config import get_configuration, get_file_path, split_version_number
 
 if __name__ == "__main__":
     try:

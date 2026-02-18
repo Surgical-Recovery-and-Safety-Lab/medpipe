@@ -1,5 +1,5 @@
 """
-pyrisk.utils module
+medpipe.utils module
 
 submodules:
 - io: contains I/O functions.

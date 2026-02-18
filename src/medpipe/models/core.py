@@ -19,9 +19,9 @@ from sklearn.ensemble import HistGradientBoostingClassifier
 from sklearn.isotonic import IsotonicRegression
 from sklearn.linear_model import LogisticRegression
 
-from pyrisk.metrics.core import compute_pred_metrics, compute_score_metrics
-from pyrisk.utils.exceptions import array_check, file_checks
-from pyrisk.utils.logger import print_message
+from medpipe.metrics.core import compute_pred_metrics, compute_score_metrics
+from medpipe.utils.exceptions import array_check, file_checks
+from medpipe.utils.logger import print_message
 
 SCRIPT_NAME = "models/core"
 

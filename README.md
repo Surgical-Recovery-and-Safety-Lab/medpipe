@@ -1,8 +1,8 @@
-# pyrisk
+# medpipe
 
-![GitHub License](https://img.shields.io/github/license/Surgical-Recovery-and-Safety-Lab/pyrisk)
+![GitHub License](https://img.shields.io/github/license/Surgical-Recovery-and-Safety-Lab/medpipe)
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-green.svg)](https://www.python.org/downloads/)
-[![tests](https://github.com/Surgical-Recovery-and-Safety-Lab/pyrisk/actions/workflows/run_test.yml/badge.svg)](https://github.com/Surgical-Recovery-and-Safety-Lab/pyrisk/actions/workflows/run_test.yml)
+[![tests](https://github.com/Surgical-Recovery-and-Safety-Lab/medpipe/actions/workflows/run_test.yml/badge.svg)](https://github.com/Surgical-Recovery-and-Safety-Lab/medpipe/actions/workflows/run_test.yml)
 ## Table of content
 1. [Overview](#overview)
 2. [Installation](#installation)
@@ -15,19 +15,19 @@
 5. [Examples](#examples)
 
 ## Overview
-The **pyrisk** package is a layer to help create AI models for clinical applications. It covers data loading and preprocessing, model creation and training, recalibration, and visualisation. 
+The **medpipe** package is a layer to help create AI models for clinical applications from tabular data. It covers data loading and preprocessing, model creation and training, recalibration, and visualisation. 
 ___
 ## Installation
 
-To install **pyrisk** clone the GitHub repository and install the package with pip: 
+To install **medpipe** clone the GitHub repository and install the package with pip: 
 ```
-$ git clone git@github.com:Surgical-Recovery-and-Safety-Lab/pyrisk.git
-$ cd pyrisk
+$ git clone git@github.com:Surgical-Recovery-and-Safety-Lab/medpipe.git
+$ cd medpipe
 $ pip install .
 ```
 **NOTE**: It is recommended to use a virtual environment (venv) to install this package. 
 
-Ensure that the installation was succesfull and that all tests pass by running the following command in the pyrisk directory:
+Ensure that the installation was succesfull and that all tests pass by running the following command in the medpipe directory:
 ```
 $ pytest 
 ```
@@ -98,7 +98,7 @@ ___
 Here is a short example that shows how to load data, train the models, and plot the calibration curves:
 
 ``` py linenums="1"
-from pyrisk import (
+from medpipe import (
 	Pipeline
 	read_toml_configuration,
 	load_data_from_csv,

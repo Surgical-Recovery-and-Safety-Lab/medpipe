@@ -10,8 +10,8 @@ import pathlib
 
 import pytest
 
-from pyrisk.pipeline.Pipeline import Pipeline
-from pyrisk.utils.io import load_data_from_csv, read_toml_configuration
+from medpipe.pipeline.Pipeline import Pipeline
+from medpipe.utils.io import load_data_from_csv, read_toml_configuration
 
 CWD = pathlib.Path.cwd()
 DATA_DIR = CWD / "test/test_data/"

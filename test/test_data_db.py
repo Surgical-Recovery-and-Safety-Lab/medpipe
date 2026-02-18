@@ -5,11 +5,12 @@ test_data_db.py
 
 Test functions for the data.db module
 """
+
 import pathlib
 
 import pytest
 
-from pyrisk.data.db import extract_data_from_db, parquet_to_db
+from medpipe.data.db import extract_data_from_db, parquet_to_db
 
 CWD = pathlib.Path.cwd()
 PARQUET_PATH = str(CWD / "test/test_data/test_data.parquet")

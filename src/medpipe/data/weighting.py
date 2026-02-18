@@ -19,7 +19,7 @@ Functions:
 
 import numpy as np
 
-from pyrisk.utils.exceptions import array_check
+from medpipe.utils.exceptions import array_check
 
 
 def inverse_frequency_multiclass_sample_weights(labels):
