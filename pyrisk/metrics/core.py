@@ -52,15 +52,10 @@ def print_metrics(metric_dict, label_list, logger=None) -> None:
 
     """
     n_it = len(label_list)  # Number of print iterations
-    if n_it > 1:
-        n_it = 1  # Add one for the global values if multilabel
 
     for i in range(n_it):
         # If label_list is a list
-        if i < len(label_list):
-            print_message(f"  {label_list[i]} metrics:", logger, SCRIPT_NAME)
-        else:
-            print_message("  Global metrics:", logger, SCRIPT_NAME)
+        print_message(f"  {label_list[i]} metrics:", logger, SCRIPT_NAME)
 
         print_message(
             f"    Accuracy: {metric_dict["accuracy"][i]:.3f}", logger, SCRIPT_NAME
@@ -100,8 +95,6 @@ def print_metrics_CI(ci_dict, label_list, logger=None):
 
     """
     n_it = len(label_list)  # Number of print iterations
-    if n_it > 1:
-        n_it = 1  # Add one for the global values if multilabel
 
     for i in range(n_it):
         # If label_list is a list
