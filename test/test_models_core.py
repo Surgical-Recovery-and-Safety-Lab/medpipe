@@ -11,9 +11,9 @@ import pathlib
 import pytest
 from sklearn.ensemble import HistGradientBoostingClassifier
 
-from pyrisk.models.core import create_model
-from pyrisk.utils.config import get_configuration, split_version_number
-from pyrisk.utils.io import read_toml_configuration
+from medpipe.models.core import create_model
+from medpipe.utils.config import get_configuration, split_version_number
+from medpipe.utils.io import read_toml_configuration
 
 CWD = pathlib.Path.cwd()
 DATA_DIR = CWD / "test/test_data/"

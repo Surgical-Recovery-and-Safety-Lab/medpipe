@@ -11,7 +11,7 @@ import pathlib
 import numpy as np
 import pytest
 
-from pyrisk.utils.exceptions import (
+from medpipe.utils.exceptions import (
     array_check,
     array_dim_check,
     file_checks,

@@ -17,8 +17,8 @@ import numpy as np
 import sklearn as skl
 from scipy.stats import sem, t
 
-from pyrisk.utils.exceptions import array_check
-from pyrisk.utils.logger import print_message
+from medpipe.utils.exceptions import array_check
+from medpipe.utils.logger import print_message
 
 SCRIPT_NAME = "metrics/core"
 

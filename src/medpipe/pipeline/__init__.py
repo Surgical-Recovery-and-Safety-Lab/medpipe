@@ -1,5 +1,5 @@
 """
-pyrisk.pipeline module
+medpipe.pipeline module
 
 submodules:
 - Pipeline: Pipeline class.

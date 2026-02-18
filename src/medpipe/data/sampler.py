@@ -30,7 +30,7 @@ import numpy as np
 from imblearn.over_sampling import SMOTE
 from pandas import Series, concat
 
-from pyrisk.utils.exceptions import array_check, array_dim_check
+from medpipe.utils.exceptions import array_check, array_dim_check
 
 
 def data_sampler(

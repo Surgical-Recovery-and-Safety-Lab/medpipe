@@ -1,5 +1,5 @@
 """
-pyrisk.metrics module
+medpipe.metrics module
 
 submodules:
 - core: contains functions to compute and print metrics.

@@ -4,9 +4,9 @@ This page documents the `models` sub-package.
 
 ---
 
-::: pyrisk.models.Calibrator
+::: medpipe.models.Calibrator
 
-::: pyrisk.models.Predictor
+::: medpipe.models.Predictor
 
-::: pyrisk.models.core
+::: medpipe.models.core
 

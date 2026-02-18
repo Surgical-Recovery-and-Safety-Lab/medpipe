@@ -4,13 +4,13 @@ This page documents the `data` sub-package.
 
 ---
 
-::: pyrisk.data.Preprocessor
+::: medpipe.data.Preprocessor
 
-::: pyrisk.data.db
+::: medpipe.data.db
 
-::: pyrisk.data.preprocessing
+::: medpipe.data.preprocessing
 
-::: pyrisk.data.weighting
+::: medpipe.data.weighting
 
-::: pyrisk.data.sampler
+::: medpipe.data.sampler
 

@@ -3,9 +3,9 @@ build-backend = "setuptools.build_meta"
 requires = [ "setuptools>=80.9" ]
 
 [project]
-name = "pyrisk"
+name = "medpipe"
 version = "0.0.1"
-description = "A package for AI risk score model development"
+description = "A package for clinical AI pipeline development"
 readme = "README.md"
 license = "Apache-2.0"
 license-files = [ "LICEN[CS]E*" ]
@@ -14,15 +14,16 @@ authors = [
 ]
 requires-python = ">=3.12"
 classifiers = [
-  "Operating System :: Linux",
+  "Operating System :: POSIX :: Linux",
   "Programming Language :: Python :: 3 :: Only",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
   "Programming Language :: Python :: 3.14",
 ]
 dynamic = [ "dependencies" ]
-urls.Repository = "https://github.com/Surgical-Recovery-and-Safety-Lab/pyrisk"
+urls.Repository = "https://github.com/Surgical-Recovery-and-Safety-Lab/medpipe"
 
 [tool.setuptools]
-packages = [ "pyrisk", "pyrisk.data", "pyrisk.models", "pyrisk.metrics", "pyrisk.pipeline", "pyrisk.utils" ]
+package-dir = { "" = "src" }
+packages = [ "medpipe", "medpipe.data", "medpipe.models", "medpipe.metrics", "medpipe.pipeline", "medpipe.utils" ]
 dynamic.dependencies = { file = [ "requirements.txt" ] }

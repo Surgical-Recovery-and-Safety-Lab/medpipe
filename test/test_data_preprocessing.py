@@ -5,20 +5,21 @@ test_data_preprocessing.py
 
 Test functions for the data.preprocessing module
 """
+
 import pathlib
 
 import pandas as pd
 import pytest
 from sklearn.model_selection import GroupKFold, StratifiedKFold
 
-from pyrisk.data.preprocessing import (
+from medpipe.data.preprocessing import (
     bin_score,
     convert_object_to_categorical,
     extract_labels,
     fit_preprocess_operations,
     train_test_it,
 )
-from pyrisk.utils.io import load_data_from_csv
+from medpipe.utils.io import load_data_from_csv
 
 CWD = pathlib.Path.cwd()
 DATA_DIR = str(CWD / "test/test_data/")

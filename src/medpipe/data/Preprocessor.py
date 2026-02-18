@@ -7,7 +7,7 @@ This class creates a Preprocessor to prepare data.
 
 from copy import deepcopy
 
-from pyrisk.utils.logger import print_message
+from medpipe.utils.logger import print_message
 
 from .preprocessing import (
     bin_score,

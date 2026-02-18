@@ -1,5 +1,5 @@
 """
-pyrisk.models module
+medpipe.models module
 
 submodules:
 - core: contains core functions.

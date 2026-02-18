@@ -6,10 +6,11 @@ test_data_sampler.py
 Test functions for the sampler functions, which balances the class distribution
 by selecting a target ratio between the minority and majority classes.
 """
+
 import numpy as np
 import pytest
 
-from pyrisk.data.sampler import (
+from medpipe.data.sampler import (
     group_random_oversampler,
     group_random_undersampler,
     random_oversampler,

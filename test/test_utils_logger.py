@@ -5,11 +5,12 @@ test_utils_logger.py
 
 Test functions for the utils.logger module
 """
+
 import pathlib
 
 import pytest
 
-from pyrisk.utils.logger import setup_logger
+from medpipe.utils.logger import setup_logger
 
 CWD = pathlib.Path.cwd()
 DATA_DIR = str(CWD / "test/test_data/")

@@ -5,12 +5,13 @@ test_metrics_core.py
 
 Test functions for the metrics.core submodule.
 """
+
 import pathlib
 
 import pytest
 
-from pyrisk.metrics.core import print_metrics, print_metrics_CI
-from pyrisk.utils.logger import print_message
+from medpipe.metrics.core import print_metrics, print_metrics_CI
+from medpipe.utils.logger import print_message
 
 CWD = pathlib.Path.cwd()
 DATA_DIR = str(CWD / "test/test_data/")

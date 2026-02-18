@@ -10,13 +10,13 @@ import pathlib
 
 import pytest
 
-from pyrisk.utils.config import (
+from medpipe.utils.config import (
     get_configuration,
     get_file_path,
     parse_version_number,
     split_version_number,
 )
-from pyrisk.utils.io import read_toml_configuration
+from medpipe.utils.io import read_toml_configuration
 
 CWD = pathlib.Path.cwd()
 DATA_DIR = str(CWD / "test/test_data/")

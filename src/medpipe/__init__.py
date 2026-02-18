@@ -1,5 +1,5 @@
 """
-pyrisk module
+medpipe module
 
 submodules:
 - data: contains data related functions

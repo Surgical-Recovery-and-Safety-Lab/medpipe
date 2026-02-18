@@ -12,7 +12,7 @@ import sqlite3
 
 import pandas as pd
 
-import pyrisk.utils.exceptions
+import medpipe.utils.exceptions
 
 
 def parquet_to_db(parquet_file: str, db_file: str, table_name: str = "main") -> None:
@@ -48,12 +48,12 @@ def parquet_to_db(parquet_file: str, db_file: str, table_name: str = "main") -> 
 
     """
     try:
-        pyrisk.utils.exceptions.file_checks(parquet_file, ".parquet")
+        medpipe.utils.exceptions.file_checks(parquet_file, ".parquet")
     except (FileNotFoundError, IsADirectoryError, TypeError, ValueError):
         raise
 
     try:
-        pyrisk.utils.exceptions.file_checks(db_file, ".db", exists=False)
+        medpipe.utils.exceptions.file_checks(db_file, ".db", exists=False)
     except (FileNotFoundError, TypeError, ValueError, IsADirectoryError):
         raise
 
@@ -100,7 +100,7 @@ def extract_data_from_db(db_file: str, query: str):
 
     """
     try:
-        pyrisk.utils.exceptions.file_checks(db_file, ".db")
+        medpipe.utils.exceptions.file_checks(db_file, ".db")
     except (FileNotFoundError, IsADirectoryError, TypeError, ValueError):
         raise
 

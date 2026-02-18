@@ -5,12 +5,13 @@ test_utils_io.py
 
 Test functions for the utils.io module
 """
+
 import pathlib
 import tomllib
 
 import pytest
 
-from pyrisk.utils.io import load_data_from_csv, read_toml_configuration
+from medpipe.utils.io import load_data_from_csv, read_toml_configuration
 
 CWD = pathlib.Path.cwd()
 DATA_DIR = str(CWD / "test/test_data/")
