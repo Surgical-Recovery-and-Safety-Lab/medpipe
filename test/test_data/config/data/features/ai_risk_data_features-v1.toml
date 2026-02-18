@@ -1,0 +1,14 @@
+[features]
+feature_list = [
+  "AGE",
+  "SEX",
+  "PRIOR_CANCER",
+  "ADMISSION_ACUITY",
+  "ADMISSION_SOURCE",
+  "CATEGORY_LEVEL_1",
+  "OP_SEVERITY",
+  "TRAUMA",
+  "OP_YEAR",
+  "MORTALITY_30D",
+  "ANY_COMP",
+]

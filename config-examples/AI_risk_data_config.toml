@@ -1,0 +1,8 @@
+version = "v0.1"
+base_dir = "test/"
+
+[data_parameters]
+dir = "test_data/config/"
+subfolders = [ "general", "features" ]
+name = "test_config_"
+extension = ".toml"

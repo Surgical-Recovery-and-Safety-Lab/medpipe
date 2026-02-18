@@ -1,0 +1,9 @@
+imbalanced_learn==0.14.1
+imblearn==0.0
+matplotlib==3.10.8
+numpy==2.4.2
+pandas==2.3.3
+pytest==9.0.1
+scikit_learn==1.8.0
+scipy==1.17.0
+pyarrow==23.0.1

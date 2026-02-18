@@ -1,0 +1,11 @@
+[preprocessing]
+preprocess = true # Perform preprocessing if true
+
+[preprocessing.ordinal_encoder]
+# List of features to label encode
+feature_list = [
+  "SEX",
+  "ADMISSION_ACUITY",
+  "ADMISSION_SOURCE",
+  "CATEGORY_LEVEL_1",
+]
