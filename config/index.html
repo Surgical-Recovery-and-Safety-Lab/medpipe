@@ -1,0 +1,1710 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+      
+        <link rel="prev" href="../install/">
+      
+      
+        <link rel="next" href="../usage/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.1">
+    
+    
+      
+        <title>Configuration setup - Pyrisk Documentation</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#configuration-setup" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="Pyrisk Documentation" class="md-header__button md-logo" aria-label="Pyrisk Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Pyrisk Documentation
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Configuration setup
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+    
+    
+    
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="Pyrisk Documentation" class="md-nav__button md-logo" aria-label="Pyrisk Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Pyrisk Documentation
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting started
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Getting started
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../install/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration setup
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration setup
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#configuration-file-structure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configuration file structure
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#naming-conventions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Naming conventions
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#data-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Data configuration
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Data configuration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#data-subfolders" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Data subfolders
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Data subfolders">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#features" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Features
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#general" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        General
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#preprocessing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Preprocessing
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#splitting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Splitting
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#model-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Model configuration
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Model configuration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#model-subfolders" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Model subfolders
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Model subfolders">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#calibrator" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Calibrator
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#hyperparameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Hyperparameters
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#imbalance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Imbalance
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#labels" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Labels
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#logger-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Logger configuration
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../usage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Usage
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../examples/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Examples
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    API Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../data/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../metrics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Metrics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../models/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Models
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../pipeline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Pipeline
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../utils/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Utils
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#configuration-file-structure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configuration file structure
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#naming-conventions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Naming conventions
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#data-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Data configuration
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Data configuration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#data-subfolders" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Data subfolders
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Data subfolders">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#features" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Features
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#general" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        General
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#preprocessing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Preprocessing
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#splitting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Splitting
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#model-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Model configuration
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Model configuration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#model-subfolders" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Model subfolders
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Model subfolders">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#calibrator" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Calibrator
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#hyperparameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Hyperparameters
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#imbalance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Imbalance
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#labels" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Labels
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#logger-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Logger configuration
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="configuration-setup">Configuration setup</h1>
+<p>This document provides details about the configuration structures for the <strong>pyrisk</strong> package. See the <a href="https://github.com/Surgical-Recovery-and-Safety-Lab/pyrisk/tree/main/config-examples"><em>config-examples</em></a> folder for examples. </p>
+<h2 id="configuration-file-structure">Configuration file structure</h2>
+<p>Configuration files are required to provide variables and options. They are written using TOML. The main configuration files are for the data (loading, preprocessing, etc.), the models (name, type, hyperparameters, etc.), and the logger (message, log location, etc.). Examples for the configuration files can be found in the <em>config-examples</em> folder.</p>
+<p>The configuration files are nested in folders and subfolders with the following structure:
+<div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>├── data/
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>│   ├── features/
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>│   │   └── name_features-v1.toml
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>│   ├── general/
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>│   │   └── name_general-v0.toml
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>│   ├── preprocessing/
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>│   │   └── name_preprocessing-v0.toml
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>│   └── splitting/
+</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>│       └── name_splitting-v1.toml
+</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>├── model/
+</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>│   ├── calibrator/
+</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>│   │   └── name_calibrator-v1.toml
+</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>│   ├── hyperparameters/
+</span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>│   │   └── name_hyperparameters-v1.toml
+</span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>│   ├── imbalance/
+</span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>│   │   └── name_imbalance-v0.toml
+</span><span id="__span-0-17"><a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>│   └── labels/
+</span><span id="__span-0-18"><a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>│       └── name_labels-va.toml
+</span><span id="__span-0-19"><a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>├── data_config.toml
+</span><span id="__span-0-20"><a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a>├── log_config.toml
+</span><span id="__span-0-21"><a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a>└── model_config.toml
+</span></code></pre></div></p>
+<h2 id="naming-conventions">Naming conventions</h2>
+<p>The top-level configuration files (data_config.toml, log_config.toml, and model_config.toml) do not follow any particular naming rules and can have any name. </p>
+<p>The folders (data/ and model/) do not follow any particular naming rules. However, the subfolders must match with the names in tree, which are provided in the top level configuration files.</p>
+<p>The subfolder .toml files must be structed as <strong>name_subfoler-vX.toml</strong>, where X is an integer or a letter. The <em>name</em> variable is provided in the top-level configuration files, the <em>subfolder</em> variable must match the name of the subfolder, and the <em>X</em> must match the version number provided in the top-level configuration. The <strong>labels</strong> version number is a letter to provide a separation between model parameters and data parameters. </p>
+<h2 id="data-configuration">Data configuration</h2>
+<p>The data_config.toml file contains main parameters and a data table with the following parameters:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;"><strong>Key</strong></th>
+<th style="text-align: left;"><strong>Type</strong></th>
+<th style="text-align: left;"><strong>Description</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>version</code></td>
+<td style="text-align: left;">string</td>
+<td style="text-align: left;">Version number for the data configuration.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>base_dir</code></td>
+<td style="text-align: left;">string</td>
+<td style="text-align: left;">Base directory location.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>NOTE:</strong> The version number is formatted as vX.Y where X and Y are integers. The version number contains as many numbers as there are subfolders. The numbers are parsed to fetch the correct file version in the subfolders. </p>
+<p><strong>Data table</strong></p>
+<p>These parameters are used to extract, load, and save the data.  The table is named [data_parameters].</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;"><strong>Key</strong></th>
+<th style="text-align: left;"><strong>Type</strong></th>
+<th style="text-align: left;"><strong>Default</strong></th>
+<th style="text-align: left;"><strong>Description</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>dir</code></td>
+<td style="text-align: left;">string</td>
+<td style="text-align: left;">N/A</td>
+<td style="text-align: left;">Location of data configuration files from base_dir.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>subfolders</code></td>
+<td style="text-align: left;">list[string]</td>
+<td style="text-align: left;">See note</td>
+<td style="text-align: left;">List of subfolders to search for data configuration files.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>name</code></td>
+<td style="text-align: left;">string</td>
+<td style="text-align: left;">N/A</td>
+<td style="text-align: left;">Prefix name of the data configuration files.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>extension</code></td>
+<td style="text-align: left;">string</td>
+<td style="text-align: left;">'.toml'</td>
+<td style="text-align: left;">Extension of the data configuration files.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>NOTE:</strong> The subfolders must be ['general', 'features'] for the data parameters.</p>
+<h3 id="data-subfolders">Data subfolders</h3>
+<h4 id="features">Features</h4>
+<p>The features configuration files contain the list of features to extract from the database. The feature list is contained in a TOML table named [features].</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;"><strong>Key</strong></th>
+<th style="text-align: left;"><strong>Type</strong></th>
+<th style="text-align: left;"><strong>Description</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>feature_list</code></td>
+<td style="text-align: left;">list[string]</td>
+<td style="text-align: left;">List of the features, including prediction labels, to extract from the data.</td>
+</tr>
+</tbody>
+</table>
+<h4 id="general">General</h4>
+<p>The general configuration files contain main parameters and an I/O table, and a DB table with the following parameters:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;"><strong>Key</strong></th>
+<th style="text-align: left;"><strong>Type</strong></th>
+<th style="text-align: left;"><strong>Description</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>base_dir</code></td>
+<td style="text-align: left;">string</td>
+<td style="text-align: left;">Base directory location.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>I/O table</strong></p>
+<p>These paramaters are used for saving and loading data.  The table is named [io_parameters].</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;"><strong>Key</strong></th>
+<th style="text-align: left;"><strong>Type</strong></th>
+<th style="text-align: left;"><strong>Default</strong></th>
+<th style="text-align: left;"><strong>Description</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>dir</code></td>
+<td style="text-align: left;">string</td>
+<td style="text-align: left;">N/A</td>
+<td style="text-align: left;">Location of the data from base_dir.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>name</code></td>
+<td style="text-align: left;">string</td>
+<td style="text-align: left;">N/A</td>
+<td style="text-align: left;">Prefix name of the data file.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>extension</code></td>
+<td style="text-align: left;">string</td>
+<td style="text-align: left;">'.csv'</td>
+<td style="text-align: left;">Extension of the data file.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>DB table</strong></p>
+<p>These paramaters are used for opening and extracting data from a database.  The table is named [db_parameters].</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;"><strong>Key</strong></th>
+<th style="text-align: left;"><strong>Type</strong></th>
+<th style="text-align: left;"><strong>Default</strong></th>
+<th style="text-align: left;"><strong>Description</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>dir</code></td>
+<td style="text-align: left;">string</td>
+<td style="text-align: left;">N/A</td>
+<td style="text-align: left;">Location of the database from base_dir.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>name</code></td>
+<td style="text-align: left;">string</td>
+<td style="text-align: left;">N/A</td>
+<td style="text-align: left;">Prefix name of the database file.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>table_name</code></td>
+<td style="text-align: left;">string</td>
+<td style="text-align: left;">'main'</td>
+<td style="text-align: left;">Name of the table to query.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>extension</code></td>
+<td style="text-align: left;">string</td>
+<td style="text-align: left;">'.db'</td>
+<td style="text-align: left;">Extension of the database file.</td>
+</tr>
+</tbody>
+</table>
+<h4 id="preprocessing">Preprocessing</h4>
+<p>The preprocessing configuration files contain the preprocessing operations and the feature list on which to apply them. The variables are stored in tables with the following parameters:</p>
+<p><strong>Preprocessing table</strong></p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;"><strong>Key</strong></th>
+<th style="text-align: left;"><strong>Type</strong></th>
+<th style="text-align: left;"><strong>Description</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>preprocess</code></td>
+<td style="text-align: left;">bool</td>
+<td style="text-align: left;">Flag to apply operations.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>NOTE:</strong> The v0 preprocessing file only contains the preprocessing table with the preprocess flag set to false.</p>
+<p>The following tables can be removed if the preprocessing operations does not need to be performed.</p>
+<p><strong>Ordinal encoder table</strong></p>
+<p>These paramaters are used for the ordinal encoder preprocessing operation. The table is named [preprocessing.ordinal_encoder].</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;"><strong>Key</strong></th>
+<th style="text-align: left;"><strong>Type</strong></th>
+<th style="text-align: left;"><strong>Description</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>feature_list</code></td>
+<td style="text-align: left;">list[string]</td>
+<td style="text-align: left;">List of the features encode.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Standarise table</strong></p>
+<p>These paramaters are used for the standardise preprocessing operation. The table is named [preprocessing.standardise].</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;"><strong>Key</strong></th>
+<th style="text-align: left;"><strong>Type</strong></th>
+<th style="text-align: left;"><strong>Description</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>feature_list</code></td>
+<td style="text-align: left;">list[string]</td>
+<td style="text-align: left;">List of the features to standardise.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Bin table</strong></p>
+<p>These paramaters are used for the bin preprocessing operation. The table is named [preprocessing.bin].</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;"><strong>Key</strong></th>
+<th style="text-align: left;"><strong>Type</strong></th>
+<th style="text-align: left;"><strong>Description</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>feature_list</code></td>
+<td style="text-align: left;">list[string]</td>
+<td style="text-align: left;">List of the features to bin.</td>
+</tr>
+</tbody>
+</table>
+<h4 id="splitting">Splitting</h4>
+<p>The splitting configuration files contain the variables used for splitting the data for cross validation. The variables are contained in a TOML table named [split_variables].</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;"><strong>Key</strong></th>
+<th style="text-align: left;"><strong>Type</strong></th>
+<th style="text-align: left;"><strong>Description</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>temporal_k_fold</code></td>
+<td style="text-align: left;">bool</td>
+<td style="text-align: left;">Flag to use group K-fold cross validation.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>n_splits</code></td>
+<td style="text-align: left;">int</td>
+<td style="text-align: left;">Number of splits to create for the cross validation.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>shuffle</code></td>
+<td style="text-align: left;">bool</td>
+<td style="text-align: left;">Flag to shuffle the groups.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>random_state</code></td>
+<td style="text-align: left;">int</td>
+<td style="text-align: left;">Random seed used for repeatability.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>group_name</code></td>
+<td style="text-align: left;">string</td>
+<td style="text-align: left;">Feature to use to create the groups.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="model-configuration">Model configuration</h2>
+<p>The model_config.toml file contains main parameters, a model table, a data table, an I/O table, and a fig table with the following parameters:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;"><strong>Key</strong></th>
+<th style="text-align: left;"><strong>Type</strong></th>
+<th style="text-align: left;"><strong>Default</strong></th>
+<th style="text-align: left;"><strong>Description</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>version</code></td>
+<td style="text-align: left;">string</td>
+<td style="text-align: left;">N/A</td>
+<td style="text-align: left;">Version number for the model configuration.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>predictor_type</code></td>
+<td style="text-align: left;">string</td>
+<td style="text-align: left;">'hgb-c'</td>
+<td style="text-align: left;">Predictor type to use.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>base_dir</code></td>
+<td style="text-align: left;">string</td>
+<td style="text-align: left;">N/A</td>
+<td style="text-align: left;">Base directory location.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>NOTE:</strong> The version number is formatted as vA.B.C.D-W.X.Y.Z where W is a letter and A, B, C, D, X, Y, and Z are integers. The A.B.C.D portion represents the data version number and the W.X.Y.Z the model version number. The version number contains as many symbols as there are subfolders. The symbols are parsed to fetch the correct file version in the subfolders. </p>
+<p><strong>Model table</strong></p>
+<p>These parameters are used to create the models. The table is named [model_parameters].</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;"><strong>Key</strong></th>
+<th style="text-align: left;"><strong>Type</strong></th>
+<th style="text-align: left;"><strong>Default</strong></th>
+<th style="text-align: left;"><strong>Description</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>dir</code></td>
+<td style="text-align: left;">string</td>
+<td style="text-align: left;">N/A</td>
+<td style="text-align: left;">Location of model configuration files from base_dir.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>subfolders</code></td>
+<td style="text-align: left;">list[string]</td>
+<td style="text-align: left;">See note</td>
+<td style="text-align: left;">List of subfolders to search for model configuration files.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>name</code></td>
+<td style="text-align: left;">string</td>
+<td style="text-align: left;">N/A</td>
+<td style="text-align: left;">Prefix name of the model configuration files.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>extension</code></td>
+<td style="text-align: left;">string</td>
+<td style="text-align: left;">'.toml'</td>
+<td style="text-align: left;">Extension of the model configuration files.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>NOTE:</strong> The subfolders must be ['labels', 'imbalance', 'hyperparameters', 'calibrator'] for the model parameters. </p>
+<p><strong>Data table</strong></p>
+<p>These parameters are used to load and preprocess the data. The table is named [data_parameters].</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;"><strong>Key</strong></th>
+<th style="text-align: left;"><strong>Type</strong></th>
+<th style="text-align: left;"><strong>Default</strong></th>
+<th style="text-align: left;"><strong>Description</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>dir</code></td>
+<td style="text-align: left;">string</td>
+<td style="text-align: left;">N/A</td>
+<td style="text-align: left;">Location of data configuration files from base_dir.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>subfolders</code></td>
+<td style="text-align: left;">list[string]</td>
+<td style="text-align: left;">See note</td>
+<td style="text-align: left;">List of subfolders to search for data configuration files.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>name</code></td>
+<td style="text-align: left;">string</td>
+<td style="text-align: left;">N/A</td>
+<td style="text-align: left;">Prefix name of the data configuration files.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>extension</code></td>
+<td style="text-align: left;">string</td>
+<td style="text-align: left;">'.toml'</td>
+<td style="text-align: left;">Extension of the data configuration files.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>NOTE:</strong> The subfolders must be ['general', 'features', 'splitting', 'preprocessing'] for the data parameters.</p>
+<p><strong>I/O table</strong></p>
+<p>These paramaters are used for saving and loading models. The table is named [io_parameters].</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;"><strong>Key</strong></th>
+<th style="text-align: left;"><strong>Type</strong></th>
+<th style="text-align: left;"><strong>Default</strong></th>
+<th style="text-align: left;"><strong>Description</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>dir</code></td>
+<td style="text-align: left;">string</td>
+<td style="text-align: left;">N/A</td>
+<td style="text-align: left;">Location of models to save or load from base_dir.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>name</code></td>
+<td style="text-align: left;">string</td>
+<td style="text-align: left;">N/A</td>
+<td style="text-align: left;">Prefix name of the I/O configuration files.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>extension</code></td>
+<td style="text-align: left;">string</td>
+<td style="text-align: left;">'.pkl'</td>
+<td style="text-align: left;">Extension of the models to load or save.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Fig table</strong></p>
+<p>These paramaters are used for saving figures and results. The table is named [fig_parameters].</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;"><strong>Key</strong></th>
+<th style="text-align: left;"><strong>Type</strong></th>
+<th style="text-align: left;"><strong>Default</strong></th>
+<th style="text-align: left;"><strong>Description</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>dir</code></td>
+<td style="text-align: left;">string</td>
+<td style="text-align: left;">N/A</td>
+<td style="text-align: left;">Location to save figures from base_dir.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>name</code></td>
+<td style="text-align: left;">string</td>
+<td style="text-align: left;">N/A</td>
+<td style="text-align: left;">Prefix name of the fig configuration files.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>extension</code></td>
+<td style="text-align: left;">string</td>
+<td style="text-align: left;">'.png'</td>
+<td style="text-align: left;">Extension of the figure to save.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="model-subfolders">Model subfolders</h3>
+<h4 id="calibrator">Calibrator</h4>
+<p>The calibrator configuration files contain the variables used to create the calibration layer. The calibrator model type is stored in the [calibrator] table.</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;"><strong>Key</strong></th>
+<th style="text-align: left;"><strong>Type</strong></th>
+<th style="text-align: left;"><strong>Description</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>calibrator_type</code></td>
+<td style="text-align: left;">string</td>
+<td style="text-align: left;">Type of calibrator model.</td>
+</tr>
+</tbody>
+</table>
+<p>Hyperparameters for the calibrator can be passed by specifying the keys in the [calibrator.hyperparameters] table. </p>
+<p><strong>NOTE:</strong> The v1 file creates a logistic regression and the v2 a isotonic regression. </p>
+<h4 id="hyperparameters">Hyperparameters</h4>
+<p>The hyperparameters configuration files contain the hyperparameters for the predictor model that is used. The variables are contained in the [hyperparameters] table. The keys must match those for the model created. </p>
+<h4 id="imbalance">Imbalance</h4>
+<p>The imbalance configuration files contain the variables to address class imbalance in the data in a weighting and a sampler table with the following parameters:</p>
+<p><strong>Weighting table</strong></p>
+<p>These paramaters are used to apply weights for the examples or classes. The table is named [weighting].</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;"><strong>Key</strong></th>
+<th style="text-align: left;"><strong>Type</strong></th>
+<th style="text-align: left;"><strong>Description</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>weighting_fn</code></td>
+<td style="text-align: left;">string</td>
+<td style="text-align: left;">Weighting function to use.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Sampler table</strong></p>
+<p>These paramaters are used to sample the examples. The table is named [sampler].</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;"><strong>Key</strong></th>
+<th style="text-align: left;"><strong>Type</strong></th>
+<th style="text-align: left;"><strong>Description</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>sampler_fn</code></td>
+<td style="text-align: left;">string</td>
+<td style="text-align: left;">Sampler function to use.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>target_ratio</code></td>
+<td style="text-align: left;">float</td>
+<td style="text-align: left;">Target ratio between majority and minority examples to achieve.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>hard_percent</code></td>
+<td style="text-align: left;">float</td>
+<td style="text-align: left;">Percent of examples deemed 'hard' to include. Only used with certain functions.</td>
+</tr>
+</tbody>
+</table>
+<h4 id="labels">Labels</h4>
+<p>The labels configuration files contain the list of prediction labels. The label list is contained in a TOML table named [labels].</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;"><strong>Key</strong></th>
+<th style="text-align: left;"><strong>Type</strong></th>
+<th style="text-align: left;"><strong>Description</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>label_list</code></td>
+<td style="text-align: left;">list[string]</td>
+<td style="text-align: left;">List of the labels to predict</td>
+</tr>
+</tbody>
+</table>
+<p><strong>NOTE:</strong> The label list version number is not an integer but a letter. </p>
+<h2 id="logger-configuration">Logger configuration</h2>
+<p>The log_config.toml contains parameters for the logger.</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;"><strong>Key</strong></th>
+<th style="text-align: left;"><strong>Type</strong></th>
+<th style="text-align: left;"><strong>Default</strong></th>
+<th style="text-align: left;"><strong>Description</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>version</code></td>
+<td style="text-align: left;">string</td>
+<td style="text-align: left;">N/A</td>
+<td style="text-align: left;">Version number for the logger configuration.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>base_dir</code></td>
+<td style="text-align: left;">string</td>
+<td style="text-align: left;">N/A</td>
+<td style="text-align: left;">Base directory location.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>log_dir</code></td>
+<td style="text-align: left;">string</td>
+<td style="text-align: left;">N/A</td>
+<td style="text-align: left;">Location to save log files in.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>log_message</code></td>
+<td style="text-align: left;">string</td>
+<td style="text-align: left;">"Exception raised in "</td>
+<td style="text-align: left;">Message used by logger when writing to log file.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>print_message</code></td>
+<td style="text-align: left;">string</td>
+<td style="text-align: left;">"[ERROR] An exception was raised.\n\nCheck logs "</td>
+<td style="text-align: left;">Message used by logger when printing to terminal.</td>
+</tr>
+</tbody>
+</table>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.sections", "navigation.expand"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>
