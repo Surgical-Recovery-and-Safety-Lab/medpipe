@@ -7,4 +7,5 @@ submodules:
 - Calibrator: class for calibration models.
 """
 
-from pyrisk.models import Calibrator, Predictor, core
+from . import Calibrator, Predictor, core
+from .core import get_full_proba, get_positive_proba, load_pipeline, save_pipeline

@@ -98,10 +98,6 @@ class Predictor:
             Training data.
         y_train : array-like of shape (n_samples,)
             Prediction labels.
-        X_test : array-like, default: []
-            Test data.
-        y_test : array-like, default: []
-            Test labels.
         weights : array-like of shape (n_samples,) or None, default: None
             Weights to address class imbalance.
 

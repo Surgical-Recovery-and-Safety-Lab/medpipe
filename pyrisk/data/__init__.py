@@ -9,4 +9,6 @@ submodules:
 - Preprocessor: class to prepare data for fitting.
 """
 
-from pyrisk.data import Preprocessor, db, preprocessing, sampler, weighting
+from . import Preprocessor, db, preprocessing, sampler, weighting
+from .db import extract_data_from_db
+from .preprocessing import extract_labels

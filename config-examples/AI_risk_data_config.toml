@@ -1,8 +1,8 @@
-version = "v0.3"
-base_dir = "/home/mroe734/Documents/srs/AI-risk-score/"
+version = "v0.1"
+base_dir = "test/"
 
 [data_parameters]
-dir = "config/data/"
+dir = "test_data/config/"
 subfolders = [ "general", "features" ]
-name = "ai_risk_data_"
+name = "test_config_"
 extension = ".toml"

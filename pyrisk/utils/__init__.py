@@ -8,4 +8,6 @@ submodules:
 - config: contains configuration functions.
 """
 
-from pyrisk.utils import config, exceptions, io, logger
+from . import config, exceptions, io, logger
+from .io import load_data_from_csv, read_toml_configuration
+from .logger import exception_handler, print_message, setup_logger
