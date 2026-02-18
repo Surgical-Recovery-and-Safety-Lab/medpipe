@@ -166,8 +166,7 @@ class Pipeline:
             )
 
             self.predictor_probabilities[label] = {}
-
-            if self.calibrator_type:
+            if self.calibrator_type != "":
                 # Only if a calibrator type is provided
                 self.calibrator[label] = Calibrator(
                     self.calibrator_type,
@@ -380,16 +379,20 @@ class Pipeline:
         else:
             groups = None
 
-        # Create independent calibration set
-        train_idx, val_idx = get_validation_idx(arange(len(y)), groups)
-        X_cal = X.iloc[val_idx]
-        y_cal = y[val_idx]
-        X = X.iloc[train_idx]
-        y = y[train_idx]
+        # Create independent calibration set if calibrator is specified
+        X_cal = []
+        y_cal = []
 
-        if group_name:
-            groups = groups.iloc[train_idx]
-            X_cal = X_cal.drop(groups.name, axis=1)  # Remove groups in calibration
+        if self.calibrator_type != "":
+            train_idx, val_idx = get_validation_idx(arange(len(y)), groups)
+            X_cal = X.iloc[val_idx]
+            y_cal = y[val_idx]
+            X = X.iloc[train_idx]
+            y = y[train_idx]
+
+            if group_name:
+                groups = groups.iloc[train_idx]
+                X_cal = X_cal.drop(groups.name, axis=1)  # Remove groups in calibration
 
         kfold_it = train_test_it(**self.preprocessor_config["split_variables"])
         n_folds = kfold_it.get_n_splits(X, y[:, 0], groups=groups)
@@ -441,32 +444,39 @@ class Pipeline:
                     f"  Test set size: {len(X_test)} examples", self.logger, SCRIPT_NAME
                 )
 
-                self._train_models(
-                    X_train_i,
-                    y_train_i,
-                    X_cal,
-                    y_cal[:, j],
-                    label,
-                    **{
-                        "weights": weights,
-                    },
-                )
+                if self.calibrator_type != "":
+                    self._train_models(
+                        X_train_i,
+                        y_train_i,
+                        label,
+                        X_cal,
+                        y_cal[:, j],
+                        **{"weights": weights},
+                    )
 
-                # Test predictor and calibrator on test set
+                    # Test, save probabilities, and reset calibrator
+                    self.test_model(X_test, y_test[:, j].squeeze(), "calibrator", label)
+                    self.calibrator_probabilities[label][fold] = get_positive_proba(
+                        self.predict_proba(X_test, label, model_type="calibrator")
+                    )
+                    self.calibrator[label]._set_model(quiet=True)
+
+                else:
+                    # Train only predictor if no calibrator specified
+                    self._train_models(
+                        X_train_i, y_train_i, label, **{"weights": weights}
+                    )
+
+                # Test predictor on test set
                 self.test_model(X_test, y_test[:, j].squeeze(), "predictor", label)
-                self.test_model(X_test, y_test[:, j].squeeze(), "calibrator", label)
 
                 # Save positive class predicted probabilities
                 self.predictor_probabilities[label][fold] = get_positive_proba(
                     self.predict_proba(X_test, label, model_type="predictor")
                 )
-                self.calibrator_probabilities[label][fold] = get_positive_proba(
-                    self.predict_proba(X_test, label, model_type="calibrator")
-                )
 
-                # Rest predictor and calibrator without printing
+                # Rest predictor without printing
                 self.predictor[label]._set_model(quiet=True)
-                self.calibrator[label]._set_model(quiet=True)
 
         # Train final model on complete training set
         print_message("  Final training on all examples", self.logger, SCRIPT_NAME)
@@ -486,13 +496,19 @@ class Pipeline:
                 self.logger,
                 SCRIPT_NAME,
             )
-            self._train_models(
-                X_train, y_train, X_cal, y_cal[:, k], label, **{"weights": weights}
-            )
 
-    def _train_models(self, X_train, y_train, X_cal, y_cal, label, **kwargs):
+            if self.calibrator_type != "":
+                self._train_models(
+                    X_train, y_train, label, X_cal, y_cal[:, k], **{"weights": weights}
+                )
+            else:
+                self._train_models(X_train, y_train, label, **{"weights": weights})
+
+    def _train_models(self, X_train, y_train, label, X_cal=[], y_cal=[], **kwargs):
         """
         Trains the predictor and calibrator models.
+
+        The calibrator is trained only if X_cal and y_cal are specified.
 
         Parameters
         ----------
@@ -500,12 +516,12 @@ class Pipeline:
             Train data for the predictor.
         y_train : np.array of shape (n_samples,)
             Train labels for the predictor.
-        X_cal : pd.DataFrame of shape (n_samples, n_features)
-            Calibration data for the calibrator.
-        y_cal : np.array of shape (n_samples,)
-            Calibration labels for the calibrator.
         label: str
             Label associated with the model to train.
+        X_cal : pd.DataFrame of shape (n_samples, n_features), default: []
+            Calibration data for the calibrator.
+        y_cal : np.array of shape (n_samples,), default: []
+            Calibration labels for the calibrator.
         **kwargs
             Extra arguments for fitting the predictor.
 
@@ -519,14 +535,15 @@ class Pipeline:
         self.fit_model(X_train, y_train, "predictor", label, **kwargs)
 
         # Fit calibrator on validation set
-        self.fit_model(
-            self._get_calibrator_data(X_cal, label),
-            y_cal,
-            "calibrator",
-            label,
-        )
+        if self.calibrator_type != "":
+            self.fit_model(
+                self._get_calibrator_data(X_cal, label),
+                y_cal,
+                "calibrator",
+                label,
+            )
 
-    def predict_proba(self, X, label_list="all", model_type="calibrator"):
+    def predict_proba(self, X, label_list="all", model_type="predictor"):
         """
         Predicts probabilities from predictor or calibrator based on input data.
 
@@ -537,7 +554,7 @@ class Pipeline:
         label_list : str or list[str], default: "all"
             Label or list of labels associated with the model to use.
             If all, all models are used.
-        model_type : {"predictor", "calibrator"}
+        model_type : {"predictor", "calibrator"}, default: "predictor"
             Model to use.
 
         Returns
@@ -587,7 +604,7 @@ class Pipeline:
                 probabilities.append(pred_probas)
         return probabilities
 
-    def predict(self, X, label_list="all", model_type="calibrator"):
+    def predict(self, X, label_list="all", model_type="predictor"):
         """
         Predicts labels from predictor or calibrator based on input data.
 
@@ -598,7 +615,7 @@ class Pipeline:
         label_list : str or list[str], default: "all"
             Label or list of labels associated with the model to use.
             If all, all models are used.
-        model_type : {"predictor", "calibrator"}
+        model_type : {"predictor", "calibrator"}, default: "predictor"
             Model to use.
 
         Returns
