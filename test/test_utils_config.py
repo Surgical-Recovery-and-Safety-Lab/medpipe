@@ -29,7 +29,7 @@ DATA_DIR = str(CWD / "test/test_data/")
             "config/HGBc_config.toml",
             "io",
             False,
-            "test/test_data/models/ai_risk_HGBc-v0.1.1.2-a.1.1.1.pkl",
+            "test/test_data/models/ai_risk_HGBc-v0.1.1.2-a.1.1.1.joblib",
         ),
         (
             "config/AI_risk_data_config.toml",

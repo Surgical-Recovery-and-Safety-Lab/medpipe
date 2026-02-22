@@ -12,8 +12,7 @@ Functions:
 - get_full_proba: Returns probabilities for both labels.
 """
 
-import pickle
-
+import joblib
 import numpy as np
 from sklearn.ensemble import HistGradientBoostingClassifier
 from sklearn.isotonic import IsotonicRegression
@@ -146,7 +145,7 @@ def test_model(y_test, y_pred, y_pred_proba):
     return metric_dict
 
 
-def save_pipeline(pipeline, save_file, extension=".pkl") -> None:
+def save_pipeline(pipeline, save_file, extension=".joblib") -> None:
     """
     Saves a Pipeline to file.
 
@@ -178,7 +177,7 @@ def save_pipeline(pipeline, save_file, extension=".pkl") -> None:
     """
     file_checks(save_file, extension, exists=False)
     with open(save_file, "wb") as f:
-        pickle.dump(pipeline, f)
+        joblib.dump(pipeline, f, compress=3)
 
 
 def load_pipeline(load_file: str):
@@ -207,10 +206,10 @@ def load_pipeline(load_file: str):
         If load_file extension is not .pkl file.
 
     """
-    file_checks(load_file, ".pkl")
+    file_checks(load_file, ".joblib")
 
     with open(load_file, "rb") as f:
-        pipeline = pickle.load(f)
+        pipeline = joblib.load(f)
 
     return pipeline
 
