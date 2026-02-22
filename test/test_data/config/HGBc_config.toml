@@ -11,7 +11,7 @@ extension = ".toml"
 [io_parameters]
 dir = "models/"
 name = "ai_risk_HGBc-"
-extension = ".pkl"
+extension = ".joblib"
 
 [data_parameters]
 dir = "config/data/"
