@@ -13,6 +13,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.axes._axes import Axes
 from matplotlib.figure import Figure
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 from sklearn.calibration import calibration_curve
 
 from medpipe.utils.exceptions import file_checks
@@ -221,6 +222,7 @@ def plot_reliability_diagrams(
     y_test,
     proba_list,
     label_list=[],
+    distribution=True,
     save_path="",
     extension=".png",
     show_fig=True,
@@ -237,6 +239,9 @@ def plot_reliability_diagrams(
     proba_list : list[array]
         List of predicted probabilities.
     label_list : list[str], default: []
+        List of labels for the legend.
+    distribution : bool, default: False
+        Flag to plot the probability distribution as well.
     save_path : str, default: []
         Path to the save file.
     extension : str, default: ".png"
@@ -260,8 +265,8 @@ def plot_reliability_diagrams(
     ax_kwargs = {key: value for key, value in kwargs.items() if key in dir(Axes)}
     fig_kwargs = {key: value for key, value in kwargs.items() if key in dir(Figure)}
 
-    # Set figure and axes properties
-    fig, ax = plt.subplots(**fig_kwargs)  # Create a new figure
+    # Set figure properties
+    fig, ax = plt.subplots(**fig_kwargs)
 
     # Plot perfect calibration
     ax.plot(
@@ -284,6 +289,26 @@ def plot_reliability_diagrams(
             color=colours[i],
             label=label_list[i],
         )
+
+    if distribution:
+        # Create new plot for distribution
+        divider = make_axes_locatable(ax)
+        ax_dist = divider.append_axes("bottom", 0.5, pad=0.1, sharex=ax)
+
+        if "n_bins" in display_kwargs.keys():
+            bins = np.linspace(0, 1, display_kwargs["n_bins"] + 1)
+        else:
+            bins = np.linspace(0, 1, 21)
+
+        ax_dist.hist(
+            proba_list,
+            stacked=True,
+            color=colours[: len(proba_list)],
+            edgecolor="black",
+            bins=bins,
+            label=label_list,
+        )
+        ax_dist.set_yscale("log")
 
     title = kwargs["set_title"] if "set_title" in kwargs.keys() else ""
     ax.set_title(title)
