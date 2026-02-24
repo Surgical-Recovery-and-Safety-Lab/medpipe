@@ -229,7 +229,7 @@ class Pipeline:
         """
         return self.preprocessor.fit_transform(X)
 
-    def get_test_data(self, X):
+    def get_test_data(self, X, test_group_vals=None):
         """
         Returns train and test data based on input data.
 
@@ -237,6 +237,8 @@ class Pipeline:
         ----------
         X : pd.DataFrame of shape (n_samples, n_features)
             Data to split.
+        test_group_vals : list[int] or None, default: None
+            Group values that should be in the test set.
 
         Returns
         -------
@@ -250,7 +252,9 @@ class Pipeline:
 
         if split_vars["group_name"]:
             train_idx, test_idx = get_validation_idx(
-                arange(len(X), dtype=int), X[split_vars["group_name"]]
+                arange(len(X), dtype=int),
+                X[split_vars["group_name"]],
+                test_group_vals,
             )
             X_test = X.iloc[test_idx]
             X_test = X_test.drop(split_vars["group_name"], axis=1)

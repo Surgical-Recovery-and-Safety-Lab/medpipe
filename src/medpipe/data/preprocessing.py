@@ -74,12 +74,14 @@ def train_test_it(temporal_k_fold=False, **kwargs):
     return kfold_it
 
 
-def get_validation_idx(idx_list, groups=None, val_size=0.1):
+def get_validation_idx(idx_list, groups=None, group_vals=None, val_size=0.1):
     """
     Removes some of the indices to create a validation set.
 
-    If groups are provided, all the indices of the group with the largest
-    value are selected as the validation set.
+    If groups are provided and group_vals is None, all the indices of
+    the group with the largest value are selected as the validation set.
+    If group_vals is specified with groups, then the group_vals are
+    selected as the validation/test set.
 
     Parameters
     ----------
@@ -87,6 +89,8 @@ def get_validation_idx(idx_list, groups=None, val_size=0.1):
         Indices of the set to split.
     groups : pd.Series(n_samples,) or None, default: None
         Groups to which the train indices belong. Must be numeric.
+    group_vals : list[int] or None, default: None
+        Group values that should be in the test set.
     val_size : float, default: 0.1
         Size of the validation set if groups are None.
 
@@ -97,6 +101,12 @@ def get_validation_idx(idx_list, groups=None, val_size=0.1):
     val_idx : np.array
         Validation indices.
 
+    Raises
+    ------
+    TypeError
+        If groups is not a list of scalars.
+        If group_vals is not iterable.
+        If group_vals is not a list of scalars.
     """
     array_check(idx_list)
     if groups is not None:
@@ -106,10 +116,28 @@ def get_validation_idx(idx_list, groups=None, val_size=0.1):
         array_dim_check(idx_list, groups, dim=0)
 
         if not np.isscalar(groups[0]):
-            raise ValueError(f"groups should be scalar but instead got {groups.dtype}")
-        group_max = np.max(groups)
-        val_idx = np.where(groups == group_max)[0]
-        train_idx = np.where(groups != group_max)[0]
+            raise TypeError(
+                f"groups should be list of scalars but got {groups[0].dtype}"
+            )
+
+        if group_vals is not None:
+            if not hasattr(group_vals, "__iter__"):
+                raise TypeError("group_vals should be iterable")
+            if not np.isscalar(group_vals[0]):
+                raise TypeError(
+                    f"group_vals should be a list of scalars but got {type(group_vals)}"
+                )
+            val_idx = np.array([])
+            train_idx = []
+            for group in group_vals:
+                val_idx = np.concatenate((val_idx, np.where(groups == group)[0]))
+
+            train_idx = np.setdiff1d(np.arange(len(groups)), val_idx)
+
+        else:
+            group_max = np.max(groups)
+            val_idx = np.where(groups == group_max)[0]
+            train_idx = np.where(groups != group_max)[0]
 
     else:
         train_idx, val_idx = skl.model_selection.train_test_split(
