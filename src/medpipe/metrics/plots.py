@@ -301,24 +301,36 @@ def plot_reliability_diagrams(
             )
             boots.append(prob_true_boot)
 
-            lower = np.percentile(boots, 2.5, axis=0)
-            upper = np.percentile(boots, 97.5, axis=0)
+        lower = np.percentile(boots, 2.5, axis=0)
+        upper = np.percentile(boots, 97.5, axis=0)
 
-        ax.plot(
-            prob_pred,
-            prob_true,
-            marker=".",
-            color=colours[i],
-            label=label_list[i],
+        _plot_calibration(
+            ax, prob_pred, prob_true, lower, upper, colours[i], label_list[i]
         )
-        ax.fill_between(
-            prob_pred,
-            lower,
-            upper,
-            color=colours[i],
-            alpha=0.5,
-            label=f"{label_list[i]} 95% CI",
-        )
+
+        if max(prob_pred) < 0.4:
+            # Add inset if calibration curve does not cover enough of the graph
+            # Remove spines for aesthetics
+            plt.gca().spines["top"].set_visible(False)
+            plt.gca().spines["right"].set_visible(False)
+
+            if i == 0:
+                # Create inset only in first loop iteration
+                ax_ins = ax.inset_axes(
+                    [0.5, 0.1, 0.5, 0.5],
+                    yticklabels=[],
+                )
+                # Connect the inset to the zoomed area in the main plot
+                ax.indicate_inset_zoom(ax_ins, edgecolor="black")
+
+                ax_ins.plot(  # Reference line
+                    np.linspace(0, max(prob_pred), 100),
+                    np.linspace(0, max(prob_pred), 100),
+                    "k--",
+                )
+
+            # Plot inset
+            _plot_calibration(ax_ins, prob_pred, prob_true, lower, upper, colours[i])
 
     # Remove spines for aesthetics
     plt.gca().spines["top"].set_visible(False)
@@ -374,3 +386,47 @@ def plot_reliability_diagrams(
         plt.show()
 
     plt.close()
+
+
+def _plot_calibration(ax, prob_pred, prob_true, lower, upper, colour, label=None):
+    """
+    Helper function to plot the calibration and 95% CI on a Axes object.
+
+    Parameters
+    ----------
+    ax : plt.Axes
+        Axes on which to plot the data.
+    prob_pred : np.array
+        Predicted probabilities.
+    prob_true : np.array
+        True probabilities.
+    lower : np.array
+        Lower bounds of the confidence interval.
+    upper : np.array
+        Upper bounds of the confidence interval.
+    colour : str
+        Colour to plot in.
+    label : str or None, default: None
+        Label for the plotted curves.
+
+    Returns
+    -------
+    None
+        Nothing is returned.
+
+    """
+    ax.plot(
+        prob_pred,
+        prob_true,
+        marker=".",
+        color=colour,
+        label=label,
+    )
+    ax.fill_between(
+        prob_pred,
+        lower,
+        upper,
+        color=colour,
+        alpha=0.5,
+        label=f"{label} 95% CI",
+    )
