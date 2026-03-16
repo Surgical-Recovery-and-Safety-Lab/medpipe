@@ -1,0 +1,20 @@
+version = "v0.1.1.2-a.1.1.1"
+predictor_type = "hgb-r"
+base_dir = "test/test_data/"
+
+[model_parameters]
+dir = "config/HGBr/"
+subfolders = [ "labels", "imbalance", "calibrator", "hyperparameters" ]
+name = "ai_risk_HGBr_"
+extension = ".toml"
+
+[io_parameters]
+dir = "models/"
+name = "ai_risk_HGBr-"
+extension = ".joblib"
+
+[data_parameters]
+dir = "config/data/"
+subfolders = [ "general", "features", "splitting", "preprocessing" ]
+name = "ai_risk_data_"
+extension = ".toml"
