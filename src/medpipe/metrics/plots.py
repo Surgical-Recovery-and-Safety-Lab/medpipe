@@ -341,10 +341,7 @@ def plot_reliability_diagrams(
         divider = make_axes_locatable(ax)
         ax_dist = divider.append_axes("bottom", 0.5, pad=0.1, sharex=ax)
 
-        if "n_bins" in calibration_kwargs.keys():
-            bins = np.linspace(0, 1, calibration_kwargs["n_bins"] + 1)
-        else:
-            bins = np.linspace(0, 1, 21)
+        bins = np.linspace(0, 1, 21)
 
         ax_dist.hist(
             proba_list,
