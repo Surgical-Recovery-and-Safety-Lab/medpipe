@@ -1,6 +1,7 @@
 [split_variables]  # Test / train splitting variables
 group_name = "OP_YEAR"  # Group to use to extract test set
 test_size = 0.1  # Size of the test set if not using group
+drop = true  # Drop flag
 
 [cv_variables]  # Cross-validation variables
 group_k_fold = true
