@@ -106,6 +106,10 @@ def get_validation_idx(idx_list, groups=None, group_vals=None, val_size=0.1):
         If groups is not a list of scalars.
         If group_vals is not iterable.
         If group_vals is not a list of scalars.
+        If val_size is not a float.
+    ValueError
+        If val_size < 0 or val_size > 1.
+
     """
     array_check(idx_list)
     if groups is not None:
@@ -139,6 +143,10 @@ def get_validation_idx(idx_list, groups=None, group_vals=None, val_size=0.1):
             train_idx = np.where(groups != group_max)[0]
 
     else:
+        if not isinstance(val_size, float):
+            raise TypeError(f"val_size should be a float, but got {type(val_size)}")
+        if val_size < 0.0 or val_size > 1.0:
+            raise ValueError(f"val_size should be between 0 and 1, but got {val_size}")
         train_idx, val_idx = skl.model_selection.train_test_split(
             idx_list, test_size=val_size, random_state=42
         )
