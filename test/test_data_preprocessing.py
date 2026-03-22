@@ -86,7 +86,7 @@ def test_convert_object_to_categorical_type_error(data):
 
 
 @pytest.mark.parametrize(
-    "temporal_k_fold, kwargs, expected_type",
+    "group_k_fold, kwargs, expected_type",
     [
         (
             False,
@@ -100,8 +100,8 @@ def test_convert_object_to_categorical_type_error(data):
         ),
     ],
 )
-def test_train_test_it_success(temporal_k_fold, kwargs, expected_type):
-    kfold_it = train_test_it(temporal_k_fold=temporal_k_fold, **kwargs)
+def test_train_test_it_success(group_k_fold, kwargs, expected_type):
+    kfold_it = train_test_it(group_k_fold=group_k_fold, **kwargs)
     assert isinstance(kfold_it, expected_type)
     assert kfold_it.n_splits == kwargs["n_splits"]
     assert kfold_it.shuffle == kwargs["shuffle"]
@@ -118,7 +118,7 @@ def test_train_test_it_success(temporal_k_fold, kwargs, expected_type):
 )
 def test_train_test_it_value_error(kwargs):
     with pytest.raises(ValueError):
-        _ = train_test_it(temporal_k_fold=False, **kwargs)
+        _ = train_test_it(group_k_fold=False, **kwargs)
         return None
 
 
