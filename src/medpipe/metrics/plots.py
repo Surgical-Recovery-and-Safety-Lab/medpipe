@@ -294,12 +294,12 @@ def plot_reliability_diagrams(
         boots = []
         for _ in range(n_bootstraps):
             idx = np.random.choice(len(y_test), len(y_test), replace=True)
-            prob_true_boot, _ = calibration_curve(
+            prob_true_boot, prob_pred_boot = calibration_curve(
                 y_test[idx],
                 proba_list[i][idx],
                 **calibration_kwargs,
             )
-            boots.append(prob_true_boot)
+            boots.append(np.interp(prob_pred, prob_pred_boot, prob_true_boot))
 
         lower = np.percentile(boots, 2.5, axis=0)
         upper = np.percentile(boots, 97.5, axis=0)
