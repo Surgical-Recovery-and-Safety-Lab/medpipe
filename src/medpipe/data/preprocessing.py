@@ -4,8 +4,7 @@ Preprocessing functions module.
 This module provides functions to preprocess data before training.
 
 Functions:
-- train_test_it: Creates a KFold iterator to split data into
-    test and train sets.
+- train_test_it: Creates a KFold iterator to split data into test and train sets.
 - get_validation_idx: Removes some of the indices to create a validation set.
 - convert_object_to_categorical: Converts object columns to categoricals.
 - fit_preprocess_operations: Fits processing operations to data.
@@ -23,13 +22,13 @@ from sklearn.preprocessing import OrdinalEncoder, PowerTransformer, StandardScal
 from medpipe.utils.exceptions import array_check, array_dim_check
 
 
-def train_test_it(temporal_k_fold=False, **kwargs):
+def train_test_it(group_k_fold=False, **kwargs):
     """
     Creates a KFold iterator to split data into test and train sets.
 
     Parameters
     ----------
-    temporal_k_fold : bool, default: False
+    group_k_fold : bool, default: False
         If True, the data will be split using a group and a
         GroupKFold iterator is returned.
     **kwargs
@@ -66,7 +65,7 @@ def train_test_it(temporal_k_fold=False, **kwargs):
 
                 args_dict.update({key: value})
 
-    if not temporal_k_fold:
+    if not group_k_fold:
         kfold_it = skl.model_selection.StratifiedKFold(**args_dict)
     else:
         kfold_it = skl.model_selection.GroupKFold(**args_dict)
