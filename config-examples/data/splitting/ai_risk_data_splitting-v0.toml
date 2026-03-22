@@ -1,6 +1,11 @@
-[split_variables]
-temporal_k_fold = false
+[split_variables]  # Test / train splitting variables
+group_name = ""  # Group to use to extract test set
+test_size = 0.1  # Size of the test set if not using group
+
+[cv_variables]  # Cross-validation variables
+group_k_fold = false
+group_name = ""
+drop = false
 n_splits = 2
 shuffle = true
 random_state = 42
-group_name = ""
