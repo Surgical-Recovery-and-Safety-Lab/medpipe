@@ -255,7 +255,7 @@ class Pipeline:
         else:
             # No groups just get specified percent of the data
             train_idx, test_idx = get_validation_idx(
-                arange(len(X), dtype=int), split_vars["test_size"]
+                arange(len(X), dtype=int), val_size=split_vars["test_size"]
             )
             X_test = X.iloc[test_idx]
 
