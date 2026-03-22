@@ -253,8 +253,10 @@ class Pipeline:
             X_test = X_test.drop(split_vars["group_name"], axis=1)
 
         else:
-            # No groups just get 10 percent of the data
-            train_idx, test_idx = get_validation_idx(arange(len(X), dtype=int))
+            # No groups just get specified percent of the data
+            train_idx, test_idx = get_validation_idx(
+                arange(len(X), dtype=int), split_vars["test_size"]
+            )
             X_test = X.iloc[test_idx]
 
         X_train = X.iloc[train_idx]
