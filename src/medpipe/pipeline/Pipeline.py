@@ -395,8 +395,12 @@ class Pipeline:
 
             if cv_group_name:
                 cv_groups = cv_groups.iloc[train_idx]
-                if split_drop:
-                    X_cal = X_cal.drop(split_groups.name, axis=1)
+                if split_drop and split_group_name:
+                    X_cal = X_cal.drop(split_group_name, axis=1)
+
+        if split_drop and split_group_name:
+            # Drop test/train split group from data
+            X = X.drop(split_group_name, axis=1)
 
         kfold_it = train_test_it(**self.preprocessor_config["cv_variables"])
         n_folds = kfold_it.get_n_splits(X, y[:, 0], groups=cv_groups)
