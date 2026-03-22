@@ -390,7 +390,8 @@ class Pipeline:
 
             if group_name:
                 groups = groups.iloc[train_idx]
-                X_cal = X_cal.drop(groups.name, axis=1)  # Remove groups in calibration
+                if drop:
+                    X_cal = X_cal.drop(groups.name, axis=1)
 
         kfold_it = train_test_it(**self.preprocessor_config["cv_variables"])
         n_folds = kfold_it.get_n_splits(X, y[:, 0], groups=groups)
@@ -399,10 +400,9 @@ class Pipeline:
             kfold_it.split(X, y[:, 0], groups=groups)
         ):
             if group_name:
-                X_fold = X.drop(groups.name, axis=1)
-                fold = int(
-                    groups.iloc[test_idx[0]]
-                )  # Use the test year as the fold number
+                if drop:
+                    X_fold = X.drop(groups.name, axis=1)
+                fold = groups.iloc[test_idx[0]]  # Use group as fold key
                 fold_groups = groups.iloc[train_idx]
                 fold_message = f"  Fold number {fold} ({i+1}/{n_folds})"
             else:
@@ -479,8 +479,9 @@ class Pipeline:
         # Train final model on complete training set
         print_message("  Final training on all examples", self.logger, SCRIPT_NAME)
         if group_name:
-            # Drop group names for final dataset
-            X = X.drop(groups.name, axis=1)
+            if drop:
+                # Drop group names for final dataset if needed
+                X = X.drop(groups.name, axis=1)
 
         for k, label in enumerate(self.label_list):
             X_train, y_train, _ = self._sample_data(X, expand_dims(y[:, k], 1), groups)
