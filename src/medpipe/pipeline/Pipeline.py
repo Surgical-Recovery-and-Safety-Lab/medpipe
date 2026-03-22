@@ -369,14 +369,13 @@ class Pipeline:
             # Fit and transform
             data = self.fit_transform(X)
 
-        group_name = self.preprocessor_config["split_variables"]["group_name"]
+        group_name = self.preprocessor_config["cv_variables"]["group_name"]
+        drop = self.preprocessor_config["cv_variables"].pop("drop")  # Drop flag
         weights = None
         X, y = extract_labels(data, self.label_list)  # Get prediction labels from data
 
-        if group_name:
-            groups = data[group_name]  # Get the groups for splitting
-        else:
-            groups = None
+        # Get the groups for splitting
+        groups = data[group_name] if group_name else None
 
         # Create independent calibration set if calibrator is specified
         X_cal = []
@@ -393,7 +392,7 @@ class Pipeline:
                 groups = groups.iloc[train_idx]
                 X_cal = X_cal.drop(groups.name, axis=1)  # Remove groups in calibration
 
-        kfold_it = train_test_it(**self.preprocessor_config["split_variables"])
+        kfold_it = train_test_it(**self.preprocessor_config["cv_variables"])
         n_folds = kfold_it.get_n_splits(X, y[:, 0], groups=groups)
 
         for i, (train_idx, test_idx) in enumerate(
