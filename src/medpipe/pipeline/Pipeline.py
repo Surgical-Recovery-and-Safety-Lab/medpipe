@@ -146,13 +146,6 @@ class Pipeline:
 
         # Define variables needed to initialise other objects
         self.label_list = self.predictor_config["labels"]["label_list"]
-        n_features = len(self.preprocessor_config["features"]["feature_list"]) - len(
-            self.label_list
-        )
-
-        if self.preprocessor_config["split_variables"]["group_name"]:
-            # Remove group name if using GroupKFold
-            n_features -= 1
         self.n_labels = len(self.label_list)
 
         self.predictor = {}
