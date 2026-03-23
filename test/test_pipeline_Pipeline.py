@@ -34,6 +34,8 @@ def test_create_Pipeline_success(config_file):
         "v0.1.1.2-a.3.2.1",
         "v0.1.0.2-a.4.0.1",
         "v0.1.0.2-a.5.1.1",
+        "v0.1.2.2-a.1.1.1",
+        "v0.1.3.2-a.2.1.1",
     ],
 )
 def test_run_Pipeline_HGBc_single_label(version_number):
@@ -56,6 +58,8 @@ def test_run_Pipeline_HGBc_single_label(version_number):
         "v0.1.1.2-b.3.2.1",
         "v0.1.0.2-b.4.0.1",
         "v0.1.0.2-b.5.1.1",
+        "v0.1.2.2-b.5.1.1",
+        "v0.1.3.2-b.2.1.1",
     ],
 )
 def test_run_Pipeline_HGBc_multi_label(version_number):
