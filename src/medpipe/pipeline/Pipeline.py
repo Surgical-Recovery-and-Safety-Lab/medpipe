@@ -398,7 +398,7 @@ class Pipeline:
                 if split_drop and split_group_name:
                     X_cal = X_cal.drop(split_group_name, axis=1)
 
-        if split_drop and split_group_name:
+        if split_drop and split_group_name and split_group_name != cv_group_name:
             # Drop test/train split group from data
             X = X.drop(split_group_name, axis=1)
 
