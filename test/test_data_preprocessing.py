@@ -8,6 +8,7 @@ Test functions for the data.preprocessing module
 
 import pathlib
 
+import numpy as np
 import pandas as pd
 import pytest
 from sklearn.model_selection import GroupKFold, StratifiedKFold
@@ -17,6 +18,7 @@ from medpipe.data.preprocessing import (
     convert_object_to_categorical,
     extract_labels,
     fit_preprocess_operations,
+    get_validation_idx,
     train_test_it,
 )
 from medpipe.utils.io import load_data_from_csv
@@ -26,10 +28,10 @@ DATA_DIR = str(CWD / "test/test_data/")
 DATA_FILE = str(CWD / DATA_DIR / "test_data.csv")
 SAMPLE_DATA = pd.DataFrame(
     {
-        "age": [25, 30, 35, 19, 80, 47],
-        "sex": ["M", "F", "M", "M", "M", "F"],
-        "dummy": [10, 20, 30, 10, 30, 40],
-        "M3_score": [0.1, 5.4, 2.9, 4.0, 0.0, 3.0],
+        "age": [25, 30, 35, 19, 80, 47, 20, 42, 69],
+        "sex": ["M", "F", "M", "M", "M", "F", "M", "M", "F"],
+        "dummy": [10, 20, 30, 10, 30, 40, 10, 20, 30],
+        "M3_score": [0.1, 5.4, 2.9, 4.0, 0.0, 3.0, 1.9, 2.3, 0.0],
     }
 )
 
@@ -163,4 +165,79 @@ def test_preprocess_data_errors(data, preprocessing_dict):
 
 def test_bin_score_success():
     m3_data = bin_score(SAMPLE_DATA["M3_score"])
-    assert (m3_data == [1.0, 4.0, 3.0, 4.0, 0.0, 3.0]).all()
+    assert (m3_data == [1.0, 4.0, 3.0, 4.0, 0.0, 3.0, 2.0, 3.0, 0.0]).all()
+
+
+@pytest.mark.parametrize("val_size", [0.1, 0.2, 0.9])
+def test_get_validation_idx_val_size_success(val_size):
+    train_idx, val_idx = get_validation_idx(np.arange(100), val_size=val_size)
+    assert len(train_idx) == np.round(100 * (1 - val_size))
+    assert len(val_idx) == np.round(100 * val_size)
+
+
+@pytest.mark.parametrize(
+    "groups, train_idx_true, val_idx_true",
+    [
+        (SAMPLE_DATA["dummy"], np.array([0, 1, 2, 3, 4, 6, 7, 8]), np.array([5])),
+        (SAMPLE_DATA["sex"], np.array([1, 5, 8]), np.array([0, 2, 3, 4, 6, 7])),
+    ],
+)
+def test_get_validation_idx_groups_success(groups, train_idx_true, val_idx_true):
+    train_idx, val_idx = get_validation_idx(np.arange(len(SAMPLE_DATA)), groups=groups)
+    assert (train_idx == train_idx_true).all()
+    assert (val_idx == val_idx_true).all()
+
+
+@pytest.mark.parametrize(
+    "groups, group_vals, train_idx_true, val_idx_true",
+    [
+        (
+            SAMPLE_DATA["dummy"],
+            [10, 20],
+            np.array([2, 4, 5, 8]),
+            np.array([0, 1, 3, 6, 7]),
+        ),
+        (SAMPLE_DATA["sex"], ["F"], np.array([0, 2, 3, 4, 6, 7]), np.array([1, 5, 8])),
+    ],
+)
+def test_get_validation_idx_groups_val_success(
+    groups, group_vals, train_idx_true, val_idx_true
+):
+    train_idx, val_idx = get_validation_idx(
+        np.arange(len(SAMPLE_DATA)), groups=groups, group_vals=group_vals
+    )
+    assert (train_idx == train_idx_true).all()
+    assert (np.sort(val_idx) == val_idx_true).all()
+
+
+@pytest.mark.parametrize("val_size", [-0.5, 1.2])
+def test_get_validation_idx_value_error(val_size):
+    with pytest.raises(ValueError):
+        train_idx, val_idx = get_validation_idx(np.arange(100), val_size=val_size)
+
+
+def test_get_validation_idx_groups_value_error():
+    with pytest.raises(ValueError):
+        train_idx, val_idx = get_validation_idx(np.arange(100), groups=np.array([1, 2]))
+
+
+@pytest.mark.parametrize("val_size", [1, [1, 2], "string", (1, "a"), {"a": 1}])
+def test_get_validation_idx_val_size_type_error(val_size):
+    with pytest.raises(TypeError):
+        train_idx, val_idx = get_validation_idx(np.arange(100), val_size=val_size)
+
+
+@pytest.mark.parametrize("groups", [1, [1, 2], "string", (1, "a"), {"a": 1}])
+def test_get_validation_idx_groups_type_error(groups):
+    with pytest.raises(TypeError):
+        train_idx, val_idx = get_validation_idx(np.arange(100), groups=groups)
+
+
+@pytest.mark.parametrize("group_vals", [1, 0.2, "a", (1, "a"), {"a": 1}])
+def test_get_validation_idx_group_vals_type_error(group_vals):
+    with pytest.raises(TypeError):
+        train_idx, val_idx = get_validation_idx(
+            np.arange(len(SAMPLE_DATA)),
+            groups=SAMPLE_DATA["dummy"],
+            group_vals=group_vals,
+        )
