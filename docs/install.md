@@ -1,4 +1,8 @@
-To install **medpipe** clone the GitHub repository and install the package with pip: 
+To install **medpipe** from the PyPI use pip:
+```
+$ pip install medpipe
+```
+or clone the GitHub repository and install the package with pip: 
 ```
 $ git clone git@github.com:Surgical-Recovery-and-Safety-Lab/medpipe.git
 $ cd medpipe
