@@ -4,8 +4,7 @@ Preprocessing functions module.
 This module provides functions to preprocess data before training.
 
 Functions:
-- train_test_it: Creates a KFold iterator to split data into
-    test and train sets.
+- train_test_it: Creates a KFold iterator to split data into test and train sets.
 - get_validation_idx: Removes some of the indices to create a validation set.
 - convert_object_to_categorical: Converts object columns to categoricals.
 - fit_preprocess_operations: Fits processing operations to data.
@@ -23,13 +22,13 @@ from sklearn.preprocessing import OrdinalEncoder, PowerTransformer, StandardScal
 from medpipe.utils.exceptions import array_check, array_dim_check
 
 
-def train_test_it(temporal_k_fold=False, **kwargs):
+def train_test_it(group_k_fold=False, **kwargs):
     """
     Creates a KFold iterator to split data into test and train sets.
 
     Parameters
     ----------
-    temporal_k_fold : bool, default: False
+    group_k_fold : bool, default: False
         If True, the data will be split using a group and a
         GroupKFold iterator is returned.
     **kwargs
@@ -66,7 +65,7 @@ def train_test_it(temporal_k_fold=False, **kwargs):
 
                 args_dict.update({key: value})
 
-    if not temporal_k_fold:
+    if not group_k_fold:
         kfold_it = skl.model_selection.StratifiedKFold(**args_dict)
     else:
         kfold_it = skl.model_selection.GroupKFold(**args_dict)
@@ -87,9 +86,9 @@ def get_validation_idx(idx_list, groups=None, group_vals=None, val_size=0.1):
     ----------
     idx_list : np.array(n_samples,)
         Indices of the set to split.
-    groups : pd.Series(n_samples,) or None, default: None
-        Groups to which the train indices belong. Must be numeric.
-    group_vals : list[int] or None, default: None
+    groups : pd.Series(n_samples,) or np.ndarray or None, default: None
+        Groups to which the train indices belong.
+    group_vals : list[] or None, default: None
         Group values that should be in the test set.
     val_size : float, default: 0.1
         Size of the validation set if groups are None.
@@ -104,30 +103,36 @@ def get_validation_idx(idx_list, groups=None, group_vals=None, val_size=0.1):
     Raises
     ------
     TypeError
-        If groups is not a list of scalars.
+        If groups is not pd.Series or np.ndarray.
         If group_vals is not iterable.
-        If group_vals is not a list of scalars.
+        If group_vals is not a list or a np.ndarray.
+        If val_size is not a float.
+    ValueError
+        If val_size < 0 or val_size > 1.
+
     """
     array_check(idx_list)
     if groups is not None:
         # If groups are provided
-        groups = groups.to_numpy()  # Convert to array
+        if isinstance(groups, pd.Series):
+            groups = groups.to_numpy()  # Convert to array
+        elif not isinstance(groups, np.ndarray):
+            raise TypeError(
+                f"groups should be a pd.Series or np.array, but got {type(groups)}"
+            )
         array_check(idx_list)
         array_dim_check(idx_list, groups, dim=0)
-
-        if not np.isscalar(groups[0]):
-            raise TypeError(
-                f"groups should be list of scalars but got {groups[0].dtype}"
-            )
 
         if group_vals is not None:
             if not hasattr(group_vals, "__iter__"):
                 raise TypeError("group_vals should be iterable")
-            if not np.isscalar(group_vals[0]):
-                raise TypeError(
-                    f"group_vals should be a list of scalars but got {type(group_vals)}"
-                )
-            val_idx = np.array([])
+            if (
+                isinstance(group_vals, dict)
+                or isinstance(group_vals, str)
+                or isinstance(group_vals, tuple)
+            ):
+                raise TypeError("group_vals should be list or array")
+            val_idx = np.array([], dtype=np.int64)
             train_idx = []
             for group in group_vals:
                 val_idx = np.concatenate((val_idx, np.where(groups == group)[0]))
@@ -140,6 +145,10 @@ def get_validation_idx(idx_list, groups=None, group_vals=None, val_size=0.1):
             train_idx = np.where(groups != group_max)[0]
 
     else:
+        if not isinstance(val_size, float):
+            raise TypeError(f"val_size should be a float, but got {type(val_size)}")
+        if val_size < 0.0 or val_size > 1.0:
+            raise ValueError(f"val_size should be between 0 and 1, but got {val_size}")
         train_idx, val_idx = skl.model_selection.train_test_split(
             idx_list, test_size=val_size, random_state=42
         )

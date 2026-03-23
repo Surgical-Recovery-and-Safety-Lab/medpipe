@@ -146,13 +146,6 @@ class Pipeline:
 
         # Define variables needed to initialise other objects
         self.label_list = self.predictor_config["labels"]["label_list"]
-        n_features = len(self.preprocessor_config["features"]["feature_list"]) - len(
-            self.label_list
-        )
-
-        if self.preprocessor_config["split_variables"]["group_name"]:
-            # Remove group name if using GroupKFold
-            n_features -= 1
         self.n_labels = len(self.label_list)
 
         self.predictor = {}
@@ -260,8 +253,10 @@ class Pipeline:
             X_test = X_test.drop(split_vars["group_name"], axis=1)
 
         else:
-            # No groups just get 10 percent of the data
-            train_idx, test_idx = get_validation_idx(arange(len(X), dtype=int))
+            # No groups just get specified percent of the data
+            train_idx, test_idx = get_validation_idx(
+                arange(len(X), dtype=int), val_size=split_vars["test_size"]
+            )
             X_test = X.iloc[test_idx]
 
         X_train = X.iloc[train_idx]
@@ -374,42 +369,49 @@ class Pipeline:
             # Fit and transform
             data = self.fit_transform(X)
 
-        group_name = self.preprocessor_config["split_variables"]["group_name"]
+        # Get test and cv groups and drop flags
+        cv_group_name = self.preprocessor_config["cv_variables"]["group_name"]
+        cv_drop = self.preprocessor_config["cv_variables"].pop("drop")
+        split_group_name = self.preprocessor_config["split_variables"]["group_name"]
+        split_drop = self.preprocessor_config["split_variables"].pop("drop")
+
         weights = None
         X, y = extract_labels(data, self.label_list)  # Get prediction labels from data
 
-        if group_name:
-            groups = data[group_name]  # Get the groups for splitting
-        else:
-            groups = None
+        # Get the groups for splitting
+        cv_groups = data[cv_group_name] if cv_group_name else None
+        split_groups = data[split_group_name] if split_group_name else None
 
         # Create independent calibration set if calibrator is specified
         X_cal = []
         y_cal = []
 
         if self.calibrator_type != "":
-            train_idx, val_idx = get_validation_idx(arange(len(y)), groups)
+            train_idx, val_idx = get_validation_idx(arange(len(y)), split_groups)
             X_cal = X.iloc[val_idx]
             y_cal = y[val_idx]
             X = X.iloc[train_idx]
             y = y[train_idx]
 
-            if group_name:
-                groups = groups.iloc[train_idx]
-                X_cal = X_cal.drop(groups.name, axis=1)  # Remove groups in calibration
+            if cv_group_name:
+                cv_groups = cv_groups.iloc[train_idx]
+                if split_drop and split_group_name:
+                    X_cal = X_cal.drop(split_group_name, axis=1)
 
-        kfold_it = train_test_it(**self.preprocessor_config["split_variables"])
-        n_folds = kfold_it.get_n_splits(X, y[:, 0], groups=groups)
+        if split_drop and split_group_name and split_group_name != cv_group_name:
+            # Drop test/train split group from data
+            X = X.drop(split_group_name, axis=1)
+
+        kfold_it = train_test_it(**self.preprocessor_config["cv_variables"])
+        n_folds = kfold_it.get_n_splits(X, y[:, 0], groups=cv_groups)
 
         for i, (train_idx, test_idx) in enumerate(
-            kfold_it.split(X, y[:, 0], groups=groups)
+            kfold_it.split(X, y[:, 0], groups=cv_groups)
         ):
-            if group_name:
-                X_fold = X.drop(groups.name, axis=1)
-                fold = int(
-                    groups.iloc[test_idx[0]]
-                )  # Use the test year as the fold number
-                fold_groups = groups.iloc[train_idx]
+            if cv_group_name:
+                X_fold = X.drop(cv_groups.name, axis=1) if cv_drop else X
+                fold = cv_groups.iloc[test_idx[0]]  # Use group as fold key
+                fold_groups = cv_groups.iloc[train_idx]
                 fold_message = f"  Fold number {fold} ({i+1}/{n_folds})"
             else:
                 X_fold = X
@@ -484,12 +486,15 @@ class Pipeline:
 
         # Train final model on complete training set
         print_message("  Final training on all examples", self.logger, SCRIPT_NAME)
-        if group_name:
-            # Drop group names for final dataset
-            X = X.drop(groups.name, axis=1)
+        if cv_group_name:
+            if cv_drop:
+                # Drop group names for final dataset if needed
+                X = X.drop(cv_groups.name, axis=1)
 
         for k, label in enumerate(self.label_list):
-            X_train, y_train, _ = self._sample_data(X, expand_dims(y[:, k], 1), groups)
+            X_train, y_train, _ = self._sample_data(
+                X, expand_dims(y[:, k], 1), cv_groups
+            )
             weights = self._weight_data(y_train)
 
             print_message(
