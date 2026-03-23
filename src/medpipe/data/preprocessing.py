@@ -105,6 +105,7 @@ def get_validation_idx(idx_list, groups=None, group_vals=None, val_size=0.1):
     TypeError
         If groups is not pd.Series or np.ndarray.
         If group_vals is not iterable.
+        If group_vals is not a list or a np.ndarray.
         If val_size is not a float.
     ValueError
         If val_size < 0 or val_size > 1.
@@ -125,6 +126,12 @@ def get_validation_idx(idx_list, groups=None, group_vals=None, val_size=0.1):
         if group_vals is not None:
             if not hasattr(group_vals, "__iter__"):
                 raise TypeError("group_vals should be iterable")
+            if (
+                isinstance(group_vals, dict)
+                or isinstance(group_vals, str)
+                or isinstance(group_vals, tuple)
+            ):
+                raise TypeError("group_vals should be list or array")
             val_idx = np.array([], dtype=np.int64)
             train_idx = []
             for group in group_vals:
