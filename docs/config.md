@@ -133,15 +133,28 @@ These paramaters are used for the bin preprocessing operation. The table is name
 | `feature_list` | list[string]  |  List of the features to bin. |
 
 #### Splitting
-The splitting configuration files contain the variables used for splitting the data for cross validation. The variables are contained in a TOML table named [split_variables].
+The splitting configuration files contain the variables used for splitting the data into test and train splits and for cross validation. The variables are contained in two TOML tables named [split_variables] and [cv_variables].
+
+**Split table**
+These parameters are used for splitting test and train sets.
 
 | **Key** | **Type**  | **Description** |
 | :--- | :---  | :--- |
-| `temporal_k_fold` | bool  | Flag to use group K-fold cross validation. |
-| `n_splits` | int  | Number of splits to create for the cross validation. |
+| `group_name` | string  | Feature to use to split the data. |
+| `test_size` | float  | Size of the test set if group_name is "". |
+| `drop` | bool  | Flag to drop the feature from the training process. |
+
+**CV table**
+These parameters are used for cross-validation scheme.
+
+| **Key** | **Type**  | **Description** |
+| :--- | :---  | :--- |
+| `group_k_fold` | bool  | Flag to use group K-fold cross validation. |
+| `group_name` | string  | Feature to use to create the groups. If "" then n_splits is used. |
+| `drop` | bool  | Flag to drop the feature from the training process. |
+| `n_splits` | int  | Number of splits to create for the cross validation, if group_k_fold is False. |
 | `shuffle` | bool  | Flag to shuffle the groups. |
 | `random_state` | int  | Random seed used for repeatability. |
-| `group_name` | string  | Feature to use to create the groups. |
 
 ## Model configuration
 The model_config.toml file contains main parameters, a model table, a data table, an I/O table, and a fig table with the following parameters:

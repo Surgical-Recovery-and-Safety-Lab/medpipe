@@ -13,6 +13,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.axes._axes import Axes
 from matplotlib.figure import Figure
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 from sklearn.calibration import calibration_curve
 
 from medpipe.utils.exceptions import file_checks
@@ -221,14 +222,21 @@ def plot_reliability_diagrams(
     y_test,
     proba_list,
     label_list=[],
+    distribution=False,
+    n_bootstraps=200,
     save_path="",
     extension=".png",
     show_fig=True,
-    display_kwargs={},
+    calibration_kwargs={},
     **kwargs,
 ):
     """
     Plots the reliability diagrams for the given probabilities.
+
+    The 95% confidence interval is calculated using the bootstrap method for
+    the calibration curve.
+    The probability distribution can also be plotted under the calibration
+    curve.
 
     Parameters
     ----------
@@ -237,14 +245,19 @@ def plot_reliability_diagrams(
     proba_list : list[array]
         List of predicted probabilities.
     label_list : list[str], default: []
+        List of labels for the legend.
+    distribution : bool, default: False
+        Flag to plot the probability distribution as well.
+    n_bootstraps : int, default: 200
+        Number of iteration for the bootstrap.
     save_path : str, default: []
         Path to the save file.
     extension : str, default: ".png"
         Extension to save figure in.
     show_fig : bool, default: True
         Flag to show the figure.
-    display_kwargs : dict[str, value], default: {}
-        Extra arguments for the CalibrationDisplay.
+    calibration_kwargs : dict[str, value], default: {}
+        Extra arguments for the calibration function.
     **kwargs
         Extra arguments for the figure or axes objects.
 
@@ -260,8 +273,8 @@ def plot_reliability_diagrams(
     ax_kwargs = {key: value for key, value in kwargs.items() if key in dir(Axes)}
     fig_kwargs = {key: value for key, value in kwargs.items() if key in dir(Figure)}
 
-    # Set figure and axes properties
-    fig, ax = plt.subplots(**fig_kwargs)  # Create a new figure
+    # Set figure properties
+    fig, ax = plt.subplots(**fig_kwargs)
 
     # Plot perfect calibration
     ax.plot(
@@ -275,18 +288,77 @@ def plot_reliability_diagrams(
         prob_true, prob_pred = calibration_curve(
             y_test,
             proba_list[i],
-            **display_kwargs,
-        )
-        ax.plot(
-            prob_pred,
-            prob_true,
-            marker=".",
-            color=colours[i],
-            label=label_list[i],
+            **calibration_kwargs,
         )
 
+        boots = []
+        for _ in range(n_bootstraps):
+            idx = np.random.choice(len(y_test), len(y_test), replace=True)
+            prob_true_boot, prob_pred_boot = calibration_curve(
+                y_test[idx],
+                proba_list[i][idx],
+                **calibration_kwargs,
+            )
+            boots.append(np.interp(prob_pred, prob_pred_boot, prob_true_boot))
+
+        lower = np.percentile(boots, 2.5, axis=0)
+        upper = np.percentile(boots, 97.5, axis=0)
+
+        _plot_calibration(
+            ax, prob_pred, prob_true, lower, upper, colours[i], label_list[i]
+        )
+
+        if max(prob_pred) < 0.4:
+            # Add inset if calibration curve does not cover enough of the graph
+            # Remove spines for aesthetics
+            plt.gca().spines["top"].set_visible(False)
+            plt.gca().spines["right"].set_visible(False)
+
+            if i == 0:
+                # Create inset only in first loop iteration
+                ax_ins = ax.inset_axes(
+                    [0.5, 0.1, 0.5, 0.5],
+                    yticklabels=[],
+                )
+                # Connect the inset to the zoomed area in the main plot
+                ax.indicate_inset_zoom(ax_ins, edgecolor="black")
+
+                ax_ins.plot(  # Reference line
+                    np.linspace(0, max(prob_pred), 100),
+                    np.linspace(0, max(prob_pred), 100),
+                    "k--",
+                )
+
+            # Plot inset
+            _plot_calibration(ax_ins, prob_pred, prob_true, lower, upper, colours[i])
+
+    # Remove spines for aesthetics
+    plt.gca().spines["top"].set_visible(False)
+    plt.gca().spines["right"].set_visible(False)
+
+    if distribution:
+        # Create new plot for distribution
+        divider = make_axes_locatable(ax)
+        ax_dist = divider.append_axes("bottom", 0.5, pad=0.1, sharex=ax)
+
+        bins = np.linspace(0, 1, 21)
+
+        ax_dist.hist(
+            proba_list,
+            stacked=True,
+            color=colours[: len(proba_list)],
+            edgecolor="black",
+            bins=bins,
+            label=label_list,
+        )
+        ax_dist.set_yscale("log")
+        ax_dist.set_xlabel("Predicted probabilities", fontweight="bold")
+
+    # Set title and labels
     title = kwargs["set_title"] if "set_title" in kwargs.keys() else ""
-    ax.set_title(title)
+    ax.set_title(title, fontweight="bold")
+    if "set_title" in kwargs.keys():
+        ax_kwargs.pop("set_title")
     ax.set_xlabel("Predicted probabilities", fontweight="bold")
     ax.set_ylabel("Observed proportion", fontweight="bold")
 
@@ -294,8 +366,13 @@ def plot_reliability_diagrams(
     for key, val in ax_kwargs.items():
         getattr(ax, key)(val)
 
-    ax.legend(loc="upper right", bbox_to_anchor=(1.6, 0.9))
+    ax.legend(loc="upper right", bbox_to_anchor=(1.6, 0.9), title="Models")
     plt.tight_layout()
+
+    # Remove spines for aesthetics for distribution
+    plt.gca().spines["top"].set_visible(False)
+    plt.gca().spines["right"].set_visible(False)
+
     fig.subplots_adjust(right=0.66, bottom=0.14)
 
     if save_path:
@@ -306,3 +383,47 @@ def plot_reliability_diagrams(
         plt.show()
 
     plt.close()
+
+
+def _plot_calibration(ax, prob_pred, prob_true, lower, upper, colour, label=None):
+    """
+    Helper function to plot the calibration and 95% CI on a Axes object.
+
+    Parameters
+    ----------
+    ax : plt.Axes
+        Axes on which to plot the data.
+    prob_pred : np.array
+        Predicted probabilities.
+    prob_true : np.array
+        True probabilities.
+    lower : np.array
+        Lower bounds of the confidence interval.
+    upper : np.array
+        Upper bounds of the confidence interval.
+    colour : str
+        Colour to plot in.
+    label : str or None, default: None
+        Label for the plotted curves.
+
+    Returns
+    -------
+    None
+        Nothing is returned.
+
+    """
+    ax.plot(
+        prob_pred,
+        prob_true,
+        marker=".",
+        color=colour,
+        label=label,
+    )
+    ax.fill_between(
+        prob_pred,
+        lower,
+        upper,
+        color=colour,
+        alpha=0.5,
+        label=f"{label} 95% CI",
+    )
