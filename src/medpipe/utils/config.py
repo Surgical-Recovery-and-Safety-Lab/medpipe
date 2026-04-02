@@ -10,12 +10,19 @@ Functions:
 - split_version_number: Splits a version number into the data and model version numbers.
 """
 
+from __future__ import annotations
+
+from typing import Any
+
 from .exceptions import file_checks
 from .io import read_toml_configuration
 
 
 def get_file_path(
-    config_dict: dict, v_number: str = "", path_type: str = "io", exists: bool = True
+    config_dict: dict[str, Any],
+    v_number: str = "",
+    path_type: str = "io",
+    exists: bool = True,
 ) -> str:
     """
     Gets the path to a file from a configuration dictionary.
@@ -24,13 +31,13 @@ def get_file_path(
 
     Parameters
     ----------
-    config_dict
+    config_dict : dict[str, Any]
         Dictionary from a loaded .TOML file.
-    v_number : default: ""
+    v_number : str, default: ""
         Version number.
     path_type : {"io", "db", "data", "fig"}, default: "io"
         Path type in the configuration file.
-    exists : default: True
+    exists : bool, default: True
         Flag to indicate if the file should exists.
 
     Returns
@@ -78,7 +85,7 @@ def get_file_path(
     return file_path
 
 
-def split_version_number(v_number: str):
+def split_version_number(v_number: str) -> tuple[str, str]:
     """
     Splits a version number into the data and model version numbers.
 
@@ -87,7 +94,7 @@ def split_version_number(v_number: str):
 
     Parameters
     ----------
-    v_number
+    v_number : str
         Data version number to split.
 
     Returns
@@ -130,7 +137,7 @@ def parse_version_number(v_number: str) -> list[str]:
 
     Parameters
     ----------
-    v_number
+    v_number : str
         Version number to parse.
 
     Returns
@@ -154,20 +161,20 @@ def parse_version_number(v_number: str) -> list[str]:
     return v_number.split(".")
 
 
-def get_configuration(parameters: dict, v_number: str) -> dict:
+def get_configuration(parameters: dict[str, Any], v_number: str) -> dict[str, Any]:
     """
     Gets the configuration by chaining .toml configurations.
 
     Parameters
     ----------
-    parameters
+    parameters : dict[str, Any]
         Parameters for the configuration chaining.
-    v_number
+    v_number : str
         Version number of the data to recuperate.
 
     Returns
     -------
-    config_dict : dict
+    config_dict : dict[str, Any]
         Configuration parameters dictionary.
 
     Raises
