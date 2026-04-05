@@ -19,6 +19,7 @@ from pandas.api.types import is_list_like
 
 if TYPE_CHECKING:
     import numpy.typing as npt
+    import pandas as pd
 
 
 def file_checks(file: str, extension: str, exists: bool = True) -> None:
@@ -121,7 +122,7 @@ def path_checks(path: str) -> None:
         raise NotADirectoryError(f"{path} should be a directory")
 
 
-def array_check(arr: npt.ArrayLike) -> None:
+def array_check(arr: npt.ArrayLike | pd.Series) -> None:
     """
     Checks that the input is an array-like.
 
@@ -146,7 +147,7 @@ def array_check(arr: npt.ArrayLike) -> None:
 
 
 def array_dim_check(
-    arr1: npt.NDArray, arr2: npt.NDArray, dim: int | None = None
+    arr1: npt.NDArray | pd.Series, arr2: npt.NDArray | pd.Series, dim: int | None = None
 ) -> None:
     """
     Checks that the dimensions of the arrays match.

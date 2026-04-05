@@ -17,12 +17,20 @@ Functions:
     negative and positive classes.
 """
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 import numpy as np
 
+from medpipe._types import Labels
 from medpipe.utils.exceptions import array_check
 
+if TYPE_CHECKING:
+    import numpy.typing as npt
 
-def inverse_frequency_multiclass_sample_weights(labels):
+
+def inverse_frequency_multiclass_sample_weights(labels: Labels) -> npt.NDArray:
     """
     Create sample weights using the total number of samples over the number of
     positive and negative samples.
@@ -32,18 +40,18 @@ def inverse_frequency_multiclass_sample_weights(labels):
 
     Parameters
     ----------
-    labels : array-like
+    labels : Labels
         Binary prediction labels of shape (n_samples, n_classes)
 
     Returns
     -------
-    sample_weights : np.array(n_samples, n_classes)
-        Weight for each sample.
+    sample_weights : npt.NDArray
+        Weight for each sample of shape (n_samples, n_classes).
 
     Raises
     ------
     TypeError
-        If labels is not array-like.
+        If labels is not npt.NDArray.
     ValueError
         If labels is empty.
     ZeroDivisionError
@@ -58,7 +66,7 @@ def inverse_frequency_multiclass_sample_weights(labels):
     but for the negative examples.
 
     """
-    array_check(labels)  # Check that labels is array-like
+    array_check(labels)  # Check that labels is npt.NDArray
 
     if len(labels) == 0:
         raise ValueError("The input labels are empty")
@@ -74,7 +82,7 @@ def inverse_frequency_multiclass_sample_weights(labels):
     return len(labels) / (pos_weight + neg_weight)
 
 
-def inverse_frequency_single_sample_weights(labels):
+def inverse_frequency_single_sample_weights(labels: Labels) -> npt.NDArray:
     """
     Create sample weights using the inverse frequency of positive
     and negative samples.
@@ -85,25 +93,25 @@ def inverse_frequency_single_sample_weights(labels):
 
     Parameters
     ----------
-    labels : array-like
+    labels : Labels
         Binary prediction labels of shape (n_samples, n_classes)
 
     Returns
     -------
-    sample_weights : np.array(n_samples,)
-        Weight for each sample.
+    sample_weights : npt.NDArray
+        Weight for each sample of shape (n_samples,).
 
     Raises
     ------
     TypeError
-        If labels is not array-like.
+        If labels is not npt.NDArray.
     ValueError
         If labels is empty.
     ZeroDivisionError
         If there are no positive labels.
 
     """
-    array_check(labels)  # Check that labels is array-like
+    array_check(labels)  # Check that labels is npt.NDArray
 
     if len(labels) == 0:
         raise ValueError("The input labels are empty")
@@ -122,25 +130,25 @@ def inverse_frequency_single_sample_weights(labels):
     return weights
 
 
-def inverse_frequency_class_weights(labels):
+def inverse_frequency_class_weights(labels: Labels) -> npt.NDArray:
     """
     Create class weights of the positive class using inverse frequency of
     the positive class.
 
     Parameters
     ----------
-    labels : array-like
+    labels : Labels
         Binary prediction labels of shape (n_samples, n_classes)
 
     Returns
     -------
-    class_weights : np.array(n_classes,)
-        Weight for each class.
+    class_weights : npt.NDArray
+        Weight for each class of shape (n_classes,).
 
     Raises
     ------
     TypeError
-        If labels is not array-like.
+        If labels is not npt.NDArray.
     ValueError
         If labels is empty.
     ZeroDivisionError
@@ -160,32 +168,32 @@ def inverse_frequency_class_weights(labels):
     return len(labels) / pos_counts
 
 
-def negative_positive_ratio_sample_weights(labels):
+def negative_positive_ratio_sample_weights(labels: Labels) -> npt.NDArray:
     """
     Create sample weights using the ratio between negative and
     positive samples.
 
     Parameters
     ----------
-    labels : array-like
+    labels : Labels
         Binary prediction labels of shape (n_samples, n_classes)
 
     Returns
     -------
-    sample_weights : np.array(n_samples, n_classes)
-        Weight for each sample.
+    sample_weights : npt.NDArray
+        Weight for each sample of shape (n_samples, n_classes).
 
     Raises
     ------
     TypeError
-        If labels is not array-like.
+        If labels is not npt.NDArray.
     ValueError
         If labels is empty.
     ZeroDivisionError
         If there are no positive labels.
 
     """
-    array_check(labels)  # Check that labels is array-like
+    array_check(labels)  # Check that labels is npt.NDArray
 
     if len(labels) == 0:
         raise ValueError("The input labels are empty")
@@ -202,25 +210,25 @@ def negative_positive_ratio_sample_weights(labels):
     return pos_weight + neg_weight
 
 
-def negative_positive_ratio_class_weights(labels):
+def negative_positive_ratio_class_weights(labels: Labels) -> npt.NDArray:
     """
     Create class weights of the positive class using the ratio
     between the number of samples in the negative and positive classes.
 
     Parameters
     ----------
-    labels : array-like
+    labels : Labels
         Binary prediction labels of shape (n_samples, n_classes)
 
     Returns
     -------
-    class_weights : np.array(n_classes,)
-        Weight for each class.
+    class_weights : npt.NDArray
+        Weight for each class of shape (n_classes,).
 
     Raises
     ------
     TypeError
-        If labels is not array-like.
+        If labels is not npt.NDArray.
     ValueError
         If labels is empty.
     ZeroDivisionError

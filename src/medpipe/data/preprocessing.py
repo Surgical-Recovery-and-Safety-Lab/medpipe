@@ -12,17 +12,27 @@ Functions:
 - extract_labels: Extracts prediction labels from data.
 """
 
+from __future__ import annotations
+
 from copy import deepcopy
+from typing import TYPE_CHECKING, Any, Mapping
 
 import numpy as np
 import pandas as pd
 import sklearn as skl
+from sklearn.model_selection import GroupKFold, StratifiedKFold
 from sklearn.preprocessing import OrdinalEncoder, PowerTransformer, StandardScaler
 
+from medpipe._types import Labels, PreprocessOp, PreprocessOpConfig
 from medpipe.utils.exceptions import array_check, array_dim_check
 
+if TYPE_CHECKING:
+    import numpy.typing as npt
 
-def train_test_it(group_k_fold=False, **kwargs):
+
+def train_test_it(
+    group_k_fold: bool = False, **kwargs: Any
+) -> StratifiedKFold | GroupKFold:
     """
     Creates a KFold iterator to split data into test and train sets.
 
@@ -31,12 +41,12 @@ def train_test_it(group_k_fold=False, **kwargs):
     group_k_fold : bool, default: False
         If True, the data will be split using a group and a
         GroupKFold iterator is returned.
-    **kwargs
+    **kwargs: Any
         Extra arguments for the StratifiedKFold or GroupKFold class.
 
     Returns
     -------
-    kfold_it : StratifiedKFold or GroupKFold
+    kfold_it : StratifiedKFold | GroupKFold
         KFold iterator.
 
     Raises
@@ -66,14 +76,19 @@ def train_test_it(group_k_fold=False, **kwargs):
                 args_dict.update({key: value})
 
     if not group_k_fold:
-        kfold_it = skl.model_selection.StratifiedKFold(**args_dict)
+        kfold_it = StratifiedKFold(**args_dict)
     else:
-        kfold_it = skl.model_selection.GroupKFold(**args_dict)
+        kfold_it = GroupKFold(**args_dict)
 
     return kfold_it
 
 
-def get_validation_idx(idx_list, groups=None, group_vals=None, val_size=0.1):
+def get_validation_idx(
+    idx_list: npt.NDArray,
+    groups: pd.Series | npt.NDArray | None = None,
+    group_vals: list[Any] | None = None,
+    val_size: float = 0.1,
+) -> tuple[npt.NDArray, npt.NDArray]:
     """
     Removes some of the indices to create a validation set.
 
@@ -84,20 +99,20 @@ def get_validation_idx(idx_list, groups=None, group_vals=None, val_size=0.1):
 
     Parameters
     ----------
-    idx_list : np.array(n_samples,)
-        Indices of the set to split.
-    groups : pd.Series(n_samples,) or np.ndarray or None, default: None
-        Groups to which the train indices belong.
-    group_vals : list[] or None, default: None
+    idx_list : npt.NDArray
+        Indices of the set to split of shape (n_samples,).
+    groups : pd.Series | npt.NDArray | None, default: None
+        Groups of shape (n_samples,) to which the train indices belong.
+    group_vals : list[Any] | None, default: None
         Group values that should be in the test set.
     val_size : float, default: 0.1
         Size of the validation set if groups are None.
 
     Returns
     -------
-    train_idx : np.array
+    train_idx : npt.NDArray
         Train indices.
-    val_idx : np.array
+    val_idx : npt.NDArray
         Validation indices.
 
     Raises
@@ -162,7 +177,7 @@ def convert_object_to_categorical(data: pd.DataFrame) -> pd.DataFrame:
 
     Parameters
     ----------
-    data
+    data : pd.DataFrame
         DataFrame to manipulate.
 
     Returns
@@ -188,7 +203,9 @@ def convert_object_to_categorical(data: pd.DataFrame) -> pd.DataFrame:
     return processed_data
 
 
-def fit_preprocess_operations(data, preprocessing_dict):
+def fit_preprocess_operations(
+    data: pd.DataFrame, preprocessing_dict: PreprocessOpConfig
+) -> Mapping[str, PreprocessOp | str]:
     """
     Fits processing operations to data.
 
@@ -196,19 +213,19 @@ def fit_preprocess_operations(data, preprocessing_dict):
     ----------
     data : pd.DataFrame
         DataFrame to manipulate.
-    preprocessing_dict : dict[str, list[str]]
+    preprocessing_dict : PreprocessOpConfig
         Dictionary of the operations and the features on which to operate.
 
     Returns
     -------
-    operation_dict : dict[]
+    operation_dict : Mapping[str, PreprocessOp | str]
         Dictionary of the different preprocessing objects.
 
     Raises
     ------
     TypeError
         If data is not a pd.DataFrame.
-        If features is not a list(str).
+        If features is not a list[str].
     KeyError
         If a features is not a valid key.
     ValueError
@@ -257,18 +274,18 @@ def fit_preprocess_operations(data, preprocessing_dict):
     return operation_dict
 
 
-def bin_score(data):
+def bin_score(data: npt.NDArray) -> npt.NDArray:
     """
     Bins the M3 score into 5 categories.
 
     Parameters
     ----------
-    data : pd.DataFrame
+    data : npt.NDArray
         M3 score data.
 
     Returns
     -------
-    binned_data : pd.DataFrame
+    binned_data : npt.NDArray
         Binned data.
 
     """
@@ -277,7 +294,9 @@ def bin_score(data):
     return binned_data
 
 
-def extract_labels(data, labels):
+def extract_labels(
+    data: pd.DataFrame, labels: list[str]
+) -> tuple[pd.DataFrame, Labels]:
     """
     Extracts the prediction labels from the training data.
 
@@ -285,14 +304,14 @@ def extract_labels(data, labels):
     ----------
     data : pd.DataFrame
         DataFrame to manipulate.
-    labels : list(str)
+    labels : list[str]
         List of labels to extract from the data.
 
     Returns
     -------
     X : pd.DataFrame
         DataFrame containing the data.
-    y : array-like
+    y : Labels
         Array containing the prediction labels.
 
     Raises

@@ -12,25 +12,35 @@ Functions:
 - get_full_proba: Returns probabilities for both labels.
 """
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
+
 import joblib
 import numpy as np
 from sklearn.ensemble import HistGradientBoostingClassifier
 from sklearn.isotonic import IsotonicRegression
 from sklearn.linear_model import LogisticRegression
 
+from medpipe._types import FProbas, Labels, MetricDict, Model, PProbas
 from medpipe.metrics.core import compute_pred_metrics, compute_score_metrics
 from medpipe.utils.exceptions import array_check, file_checks
 from medpipe.utils.logger import print_message
 
 SCRIPT_NAME = "models/core"
 
+if TYPE_CHECKING:
+    import logging
+
+    from medpipe.pipeline.Pipeline import Pipeline
+
 
 def create_model(
     model_type: str,
-    logger=None,
-    quiet=False,
-    **config_params,
-):
+    logger: logging.Logger | None = None,
+    quiet: bool = False,
+    **config_params: Any,
+) -> Model:
     """
     Creates a AI model.
 
@@ -43,13 +53,12 @@ def create_model(
             isotonic: isotonic regression.
     quiet : bool, default: False
         Flag to create a model without printing.
-    **config_params
+    **config_params : dict[str, Any]
         Configuration parameters for the model.
 
     Returns
     -------
-    model : HistGradBoostingClassifier
-            LogisticRegression, IsotonicRegression,
+    model : Model
         Created model.
 
     Raises
@@ -93,22 +102,22 @@ def create_model(
     return model
 
 
-def test_model(y_test, y_pred, y_pred_proba):
+def test_model(y_test: Labels, y_pred: Labels, y_pred_proba: FProbas) -> MetricDict:
     """
     Computes different metrics to test the model.
 
     Parameters
     ----------
-    y_test : array-like of shape (n_samples, n_classes)
-        Ground truth test labels.
-    y_pred : array-like of shape (n_samples, n_classes)
-        Predicted labels.
-    y_pred_proba : np.array (n_classes,) of arrays (n_samples, 2)
-        Predicted probabilities.
+    y_test : Labels
+        Ground truth test labels of shape (n_samples, n_classes).
+    y_pred : Labels
+        Predicted labels of shape (n_samples, n_classes).
+    y_pred_proba : FProbas
+        Predicted probabilities of shape (n_samples, 2).
 
     Returns
     -------
-    metric_dict : dict[str, dict[str, list[float or tuple(array-like)]]
+    metric_dict : MetricDict
         Dictionary of the model performance for one fold.
         Keys are the metric name and values are the metric value.
         The test metrics used are:
@@ -145,7 +154,9 @@ def test_model(y_test, y_pred, y_pred_proba):
     return metric_dict
 
 
-def save_pipeline(pipeline, save_file, extension=".joblib") -> None:
+def save_pipeline(
+    pipeline: Pipeline, save_file: str, extension: str = ".joblib"
+) -> None:
     """
     Saves a Pipeline to file.
 
@@ -155,7 +166,7 @@ def save_pipeline(pipeline, save_file, extension=".joblib") -> None:
         Pipeline to save.
     save_file : str
         Path to the file to save the model.
-    extension : str, default: ".pkl"
+    extension : str, default: ".joblib"
         Extension of the save file.
 
     Returns
@@ -180,9 +191,9 @@ def save_pipeline(pipeline, save_file, extension=".joblib") -> None:
         joblib.dump(pipeline, f, compress=3)
 
 
-def load_pipeline(load_file: str):
+def load_pipeline(load_file: str) -> Pipeline:
     """
-    Loads a saved Pipeline from a .pkl file.
+    Loads a saved Pipeline from a .joblib file.
 
     Parameters
     ----------
@@ -203,7 +214,7 @@ def load_pipeline(load_file: str):
     IsADirectoryError
         If load_file is a directory.
     ValueError
-        If load_file extension is not .pkl file.
+        If load_file extension is not .joblib file.
 
     """
     file_checks(load_file, ".joblib")
@@ -214,18 +225,18 @@ def load_pipeline(load_file: str):
     return pipeline
 
 
-def get_positive_proba(probabilities):
+def get_positive_proba(probabilities: FProbas) -> PProbas:
     """
     Returns just the positive label probabilities of the each class.
 
     Parameters
     ----------
-    probabilities : array-like of shape (n_classes, (n_samples, 2))
-        Probabilities for each class.
+    probabilities : FProbas
+        Full probabilities for each class.
 
     Returns
     -------
-    pos_proba : array-like of shape (n_samples, n_classes)
+    pos_proba : PProbas
         Probabilities of the positive labels for each class.
 
     """
@@ -239,19 +250,19 @@ def get_positive_proba(probabilities):
     return pos_proba
 
 
-def get_full_proba(pos_proba):
+def get_full_proba(pos_proba: PProbas) -> FProbas:
     """
     Returns probabilities for both labels.
 
     Parameters
     ----------
-    pos_proba : array-like of shape (n_samples, n_classes)
+    pos_proba : PProbas
         Probabilities of the positive labels for each class.
 
     Returns
     -------
-    probabilities : array-like of shape (n_classes, (n_samples, 2))
-        Probabilities for each class.
+    probabilities : FProbas
+        Full probabilities for each class.
 
     """
     probabilities = []  # Empty list for the probabilities

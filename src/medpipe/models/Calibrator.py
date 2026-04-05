@@ -5,11 +5,20 @@ This class creates a Calibrator to calibrate predictions.
 
 """
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
+
 from numpy import array, expand_dims, round
+from sklearn.isotonic import IsotonicRegression
+
+from medpipe._types import FProbas, Labels, Model, PProbas
 
 from .core import create_model, get_full_proba
 
 SCRIPT_NAME = "models/Calibrator"
+if TYPE_CHECKING:
+    import logging
 
 
 class Calibrator:
@@ -18,11 +27,11 @@ class Calibrator:
 
     Attributes
     ----------
-    model : LogisticRegression or IsotonicRegression
+    model : Regressor
         Calibrator model.
     model_type : {"logistic", "isotonic"}
         Model type.
-    logger : logging.Logger or None, default: None
+    logger : logging.Logger | None, default: None
         Logger object to log prints. If None print to terminal.
 
     Methods
@@ -39,7 +48,12 @@ class Calibrator:
         Predicts labels from input data.
     """
 
-    def __init__(self, model_type, hyperparameters={}, logger=None):
+    def __init__(
+        self,
+        model_type: str,
+        hyperparameters: dict[str, Any] = {},
+        logger: logging.Logger | None = None,
+    ) -> None:
         """
         Initialise a Calibrator class instance.
 
@@ -47,9 +61,9 @@ class Calibrator:
         ----------
         model_type : {"logistic", "isotonic"}
             Model type.
-        hyperparameters : dict[str, value]
+        hyperparameters : dict[str, Any]
             Model hyperparameter dictionary.
-        logger : logging.Logger or None, default: None
+        logger : logging.Logger | None, default: None
             Logger object to log prints. If None print to terminal.
 
         Returns
@@ -61,12 +75,11 @@ class Calibrator:
         self.model_type = model_type
         self.hyperparameters = hyperparameters
         self.logger = logger
-        self.model = []  # Empty list of models (one per class)
 
         # Create model based on attributes
         self._set_model()
 
-    def _set_model(self, quiet: bool = False):
+    def _set_model(self, quiet: bool = False) -> None:
         """
         Set the model to default parameters.
 
@@ -81,23 +94,23 @@ class Calibrator:
             Nothing is returned.
 
         """
-        self.model = create_model(
+        self.model: Model = create_model(
             self.model_type,
             logger=self.logger,
             quiet=quiet,
             **self.hyperparameters,
         )
 
-    def fit(self, X, y):
+    def fit(self, X: PProbas, y: Labels) -> None:
         """
         Fits the predictor to the training data.
 
         Parameters
         ----------
-        X : array-like of shape (n_samples,)
-            Training data.
-        y : array-like of shape (n_samples,)
-            Prediction data.
+        X : PProbas
+            Predicted probabilities from model.
+        y : Labels
+            Labels to predict.
 
         Returns
         -------
@@ -107,41 +120,41 @@ class Calibrator:
         """
         self.model.fit(X, y)
 
-    def predict_proba(self, X):
+    def predict_proba(self, X: PProbas) -> FProbas:
         """
         Predicts probabilities from input data.
 
         Parameters
         ----------
-        X : array-like of shape (n_samples,)
-            Training data.
+        X : PProbas
+            Positive predicted probabilities from a Predictor.
 
         Returns
         -------
-        probabilities : np.array of shape (n_samples, 2)
+        probabilities : FProbas
             Predicted probabilities.
 
         """
-        if self.model_type == "isotonic":
+        if isinstance(self.model, IsotonicRegression):
             predictions = self.model.predict(X)
             return get_full_proba(expand_dims(predictions, 1))
         else:
             return self.model.predict_proba(X)
 
-    def predict(self, X):
+    def predict(self, X: PProbas) -> Labels:
         """
         Predicts labels from input data.
 
         Parameters
         ----------
-        X : array-like of shape (n_samples,)
-            Training data.
+        X : PProbas
+            Positive predicted probabilities from a Predictor.
 
         Returns
         -------
-        predictions : array-like of shape (n_samples,)
+        predictions : PProbas
             Predicted labels.
 
         """
         labels = round(self.model.predict(X))
-        return array(labels).T
+        return array(labels, dtype=int).T

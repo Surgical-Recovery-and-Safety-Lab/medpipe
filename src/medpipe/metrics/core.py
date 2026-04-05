@@ -13,23 +13,37 @@ Functions:
 - compute_score_metrics : computes the metrics that require the score.
 """
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 import numpy as np
 import sklearn as skl
 from scipy.stats import sem, t
 
+from medpipe._types import CI, CIDict, FProbas, Labels, MetricDict
 from medpipe.utils.exceptions import array_check
 from medpipe.utils.logger import print_message
+
+if TYPE_CHECKING:
+    import logging
+
+    import numpy.typing as npt
 
 SCRIPT_NAME = "metrics/core"
 
 
-def print_metrics(metric_dict, label_list, logger=None) -> None:
+def print_metrics(
+    metric_dict: MetricDict,
+    label_list: list[str],
+    logger: logging.Logger | None = None,
+) -> None:
     """
     Prints the metrics on the terminal.
 
     Parameters
     ----------
-    metric_dict : dict[str, float or tuple(array-like)]
+    metric_dict : MetricDict
         Dictionary of the model performance for one fold.
         Keys are the metric name and values are the metric value.
         The test metrics used are:
@@ -42,7 +56,7 @@ def print_metrics(metric_dict, label_list, logger=None) -> None:
          - ap (Average Precision)
     label_list : list[str]
         List of predicted labels.
-    logger : logging.Logger, default: None
+    logger : logging.Logger | None, default: None
         Logger object to log prints. If None print to terminal.
 
     Returns
@@ -74,17 +88,21 @@ def print_metrics(metric_dict, label_list, logger=None) -> None:
         print_message(f"    AP: {metric_dict["ap"][i]:.3f}", logger, SCRIPT_NAME)
 
 
-def print_metrics_CI(ci_dict, label_list, logger=None):
+def print_metrics_CI(
+    ci_dict: CIDict, label_list: list[str], logger: logging.Logger | None = None
+) -> None:
     """
     Prints the metrics with their confidence intervals.
 
     Parameters
     ----------
-    ci_dict : dict[str, tuple(float, float, float)]
+    ci_dict : CIDict
         Dictionary containing the metric value and confidence intervals.
         The keys are the name of the metrics and the values are a tuple with
         first element the metric value, second the lower bound, and third the
         upper bound.
+    label_list : list[str]
+        List of predicted labels.
     logger : logging.Logger, default: None
         Logger object to log prints. If None print to terminal.
 
@@ -112,13 +130,13 @@ def print_metrics_CI(ci_dict, label_list, logger=None):
             )
 
 
-def compute_all_CI(model_metrics, metric_list=[], **kwargs):
+def compute_all_CI(model_metrics: MetricDict, metric_list: list[str] = []) -> CIDict:
     """
     Computes the confidence intervals for all metrics.
 
     Parameters
     ----------
-    model_metrics : dict[int, dict[str, float or tuple(array-like)]]
+    model_metrics : MetricDict
         Model metrics for different folds.
     metric_list : list[str], default: []
         List of metrics to calculate confidence interval.
@@ -127,7 +145,7 @@ def compute_all_CI(model_metrics, metric_list=[], **kwargs):
 
     Returns
     -------
-    ci_dict : dict[str, tuple(float, float, float)]
+    ci_dict : CIDict
         Dictionary containing the metric value and confidence intervals.
         The keys are the name of the metrics and the values are a tuple with
         first element the metric value, second the lower bound, and third the
@@ -146,12 +164,12 @@ def compute_all_CI(model_metrics, metric_list=[], **kwargs):
             # Skip ROC, PRC, and metrics not in the given list
             continue
         metric_values = extract_metric(model_metrics, metric)
-        ci_dict.update({metric: compute_CI(metric_values, **kwargs)})
+        ci_dict.update({metric: compute_CI(metric_values)})
 
     return ci_dict
 
 
-def compute_CI(data):
+def compute_CI(data: npt.ArrayLike | npt.NDArray) -> CI:
     """
     Computes the confidence interval of the data.
 
@@ -159,17 +177,17 @@ def compute_CI(data):
 
     Parameters
     ----------
-    data : array-like of shape (n_samples, n_sets)
-        Data on which to compute the confidence interval.
+    data : npt.ArrayLike
+        Data on which to compute the confidence interval of shape (n_samples, n_sets).
 
     Returns
     -------
-    mean_arr : np.array(float) of shape (n_sets,)
-        Mean values.
-    lower_b_arr : np.array(float) of shape (n_sets,)
-        Lower bound of the confidence intervals.
-    upper_b_arr : np.array(float) of shape (n_sets,)
-        Upper bound of the confidence intervals.
+    mean_arr : npt.NDArray
+        Mean values of shape (n_sets,).
+    lower_b_arr : npt.NDArray
+        Lower bound of the confidence intervals of shape (n_sets,).
+    upper_b_arr : npt.NDArray
+        Upper bound of the confidence intervals of shape (n_sets,).
 
     Raises
     ------
@@ -178,11 +196,7 @@ def compute_CI(data):
 
     """
     array_check(data)
-    if type(data) is type([]):
-        # Convert to array if needed
-        arr_data = np.array(data)
-    else:
-        arr_data = data
+    arr_data = np.asarray(data)
 
     if len(arr_data.shape) == 1:
         # Make sure there are 2 dimensions
@@ -203,13 +217,13 @@ def compute_CI(data):
     return mean_arr, lower_b_arr, upper_b_arr
 
 
-def extract_metric(model_metrics, metric_name):
+def extract_metric(model_metrics: MetricDict, metric_name: str) -> list[float]:
     """
     Extracts the desired metric from each fold in the metric dictionary.
 
     Parameters
     ----------
-    model_metrics : dict[int, dict[str, float or tuple(array-like)]]
+    model_metrics : MetricDict
         Model metrics for different folds.
     metric_name : str
         Name of the metric to extract.
@@ -229,7 +243,9 @@ def extract_metric(model_metrics, metric_name):
     return metric_list
 
 
-def compute_pred_metrics(metric_list, y_true, y_pred):
+def compute_pred_metrics(
+    metric_list: list[str], y_true: Labels, y_pred: Labels
+) -> MetricDict:
     """
     Computes the metrics that require the prediction labels.
 
@@ -241,14 +257,14 @@ def compute_pred_metrics(metric_list, y_true, y_pred):
          - f1
          - precision
          - recall
-    y_true : array-like of shape (n_samples, n_classes)
-        Ground truth labels.
-    y_pred : array-like of shape (n_samples, n_classes)
-        Predicted labels.
+    y_true : Labels
+        Ground truth labels of shape (n_samples, n_classes).
+    y_pred : Labels
+        Predicted labels of shape (n_samples, n_classes).
 
     Returns
     -------
-    metric_dict : dict[str, list[float]]
+    metric_dict : MetricDict
         Dictionary of the metrics. The keys are the name of the metric
         and the values are the computed metric value.
         If multilabel then the list contains the value for each class and
@@ -324,7 +340,9 @@ def compute_pred_metrics(metric_list, y_true, y_pred):
     return metric_dict
 
 
-def compute_score_metrics(metric_list, y_true, y_pred_proba):
+def compute_score_metrics(
+    metric_list: list[str], y_true: Labels, y_pred_proba: FProbas
+) -> MetricDict:
     """
     Computes the metrics that require the score.
 
@@ -337,14 +355,14 @@ def compute_score_metrics(metric_list, y_true, y_pred_proba):
          - prc (precision-recall curve)
          - ap (average precision)
          - log_loss
-    y_true : array-like of shape (n_samples, n_classes)
-        Ground truth labels.
-    y_pred_proba : np.array or list[np.array]
-        Predicted scores.
+    y_true : Labels
+        Ground truth labels of shape (n_samples, n_classes).
+    y_pred_proba : FProbas
+        Full predicted probabilities.
 
     Returns
     -------
-    metric_dict : dict[str, list[float or tuple]]
+    metric_dict : MetricDict
         Dictionary of the metrics. The keys are the name of the metric
         and the values are the computed metric values.
         If multilabel then the list contains the value for each class.
