@@ -189,8 +189,8 @@ class Pipeline:
 
         Parameters
         ----------
-        X : pd.Dataframe of shape (n_samples, n_features)
-            Data to clean.
+        X : pd.Dataframe
+            Data of shape (n_samples, n_features) to clean.
 
         Returns
         -------
@@ -242,8 +242,8 @@ class Pipeline:
 
         Parameters
         ----------
-        X : pd.DataFrame of shape (n_samples, n_features)
-            Data to split.
+        X : pd.DataFrame
+            Data of shape (n_samples, n_features) to split.
         test_group_vals : list[int] | None, default: None
             Group values that should be in the test set.
 

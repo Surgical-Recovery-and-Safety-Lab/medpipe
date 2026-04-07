@@ -121,13 +121,13 @@ class Preprocessor:
 
         Parameters
         ----------
-        X : pd.Dataframe of shape (n_samples, n_features)
-            Data to clean.
+        X : pd.Dataframe
+            Data of shape (n_samples, n_features) to clean.
 
         Returns
         -------
-        data : pd.Dataframe of shape (n_samples, n_features)
-             Transformed data.
+        data : pd.Dataframe
+             Transformed data of shape (n_samples, n_features).
 
         """
         data = self._clean_data(deepcopy(X))  # Clean data before transformation
@@ -185,7 +185,7 @@ class Preprocessor:
             for operation in self.operations:
                 features = self.transform_seq[operation]["feature_list"]
 
-                if operation == "bin":
+                if isinstance(self.operations[operation], str):
                     transformed_data = bin_score(data[features].to_numpy())
                 else:
                     transformed_data = self.operations[operation].transform(

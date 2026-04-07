@@ -85,7 +85,7 @@ def train_test_it(
 
 def get_validation_idx(
     idx_list: npt.NDArray,
-    groups: pd.Series | npt.NDArray | None = None,
+    groups: pd.Series | npt.NDArray = np.array([]),
     group_vals: list[Any] | None = None,
     val_size: float = 0.1,
 ) -> tuple[npt.NDArray, npt.NDArray]:
@@ -101,8 +101,8 @@ def get_validation_idx(
     ----------
     idx_list : npt.NDArray
         Indices of the set to split of shape (n_samples,).
-    groups : pd.Series | npt.NDArray | None, default: None
-        Groups of shape (n_samples,) to which the train indices belong.
+    groups : pd.Series | npt.NDArray, default: np.array([])
+        Groups of shape (n_samples,) to which the train indices belong or empty.
     group_vals : list[Any] | None, default: None
         Group values that should be in the test set.
     val_size : float, default: 0.1
@@ -127,14 +127,15 @@ def get_validation_idx(
 
     """
     array_check(idx_list)
-    if groups is not None:
+    if isinstance(groups, pd.Series):
+        groups = groups.to_numpy()  # Convert to array
+    elif not isinstance(groups, np.ndarray):
+        raise TypeError(
+            f"groups should be a pd.Series or np.array, but got {type(groups)}"
+        )
+
+    if groups.size != 0:
         # If groups are provided
-        if isinstance(groups, pd.Series):
-            groups = groups.to_numpy()  # Convert to array
-        elif not isinstance(groups, np.ndarray):
-            raise TypeError(
-                f"groups should be a pd.Series or np.array, but got {type(groups)}"
-            )
         array_check(idx_list)
         array_dim_check(idx_list, groups, dim=0)
 
