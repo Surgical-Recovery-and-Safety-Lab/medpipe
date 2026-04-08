@@ -11,6 +11,8 @@ from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any, Generic, cast
 
 from numpy import array, expand_dims, round
+from sklearn.isotonic import IsotonicRegression
+from sklearn.linear_model import LogisticRegression
 
 from medpipe._types import FProbas, Labels, PProbas, R
 
@@ -20,8 +22,45 @@ SCRIPT_NAME = "models/calibrators"
 if TYPE_CHECKING:
     import logging
 
-    from sklearn.isotonic import IsotonicRegression
-    from sklearn.linear_model import LogisticRegression
+
+def create_calibrator(
+    model_type: str,
+    hyperparameters: dict[str, Any] = {},
+    logger: logging.Logger | None = None,
+) -> IsotonicCalibrator | LogisticCalibrator:
+    """
+    Creates a calibrator instance.
+
+    Parameters
+    ----------
+    model_type : {"logistic", "isotonic"}
+        Model type.
+    hyperparameters : dict[str, Any]
+        Model hyperparameter dictionary.
+    logger : logging.Logger | None, default: None
+        Logger object to log prints. If None print to terminal.
+
+    Returns
+    -------
+    calibrator : IsotonicCalibrator | LogisticCalibrator
+        Calibrator instance.
+
+    Raises
+    ------
+    ValueError
+        If model_type is not valid.
+
+    """
+
+    match model_type:
+        case "isotonic":
+            return IsotonicCalibrator(hyperparameters, logger)
+        case "logistic":
+            return LogisticCalibrator(hyperparameters, logger)
+        case _:
+            raise ValueError(
+                f"model type should be isotonic or logistic, but got {model_type}"
+            )
 
 
 class BaseCalibrator(ABC, Generic[R]):
