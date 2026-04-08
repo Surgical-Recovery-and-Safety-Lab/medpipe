@@ -32,7 +32,7 @@ SCRIPT_NAME = "models/core"
 if TYPE_CHECKING:
     import logging
 
-    from medpipe.pipeline.Pipeline import Pipeline
+    from medpipe.pipeline.pipeline import Pipeline
 
 
 def create_model(
