@@ -244,7 +244,7 @@ class Pipeline:
         ----------
         X : pd.DataFrame
             Data of shape (n_samples, n_features) to split.
-        test_group_vals : list[int] | None, default: None
+        test_group_vals : list[Any] | None, default: None
             Group values that should be in the test set.
 
         Returns
@@ -257,7 +257,7 @@ class Pipeline:
         """
         split_vars = self.preprocessor_config["split_variables"]
 
-        if split_vars["group_name"]:
+        if split_vars["group_name"] and not test_group_vals is None:
             train_idx, test_idx = get_validation_idx(
                 arange(len(X), dtype=int),
                 X[split_vars["group_name"]].to_numpy(),
@@ -401,7 +401,9 @@ class Pipeline:
 
         # Get the groups for splitting
         cv_groups = pd.Series(data[cv_group_name]) if cv_group_name else None
-        split_groups = pd.Series(data[split_group_name]) if split_group_name else None
+        split_groups = (
+            pd.Series(data[split_group_name]) if split_group_name else pd.Series([])
+        )
 
         # Create independent calibration set if calibrator is specified
         X_cal = pd.DataFrame([])

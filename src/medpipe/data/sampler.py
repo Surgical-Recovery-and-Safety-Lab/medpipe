@@ -69,7 +69,7 @@ def data_sampler(
         Target ratio between the minority and majority classes.
     sampler_fn : str, default: "random_undersampler"
         Sampler function to use to sample the data.
-    groups : Series default: Series([])
+    groups : Series, default: Series([])
         List containing groups for the group_sampler function.
     **kwargs : Any
         Extra arguments for the sampler functions.
@@ -86,7 +86,7 @@ def data_sampler(
     Raises
     ------
     TypeError
-        If labels is not array-like.
+        If labels is not npt.NDArray.
     ValueError
         If target_ratio is less than 0.0.
 
@@ -159,7 +159,7 @@ def random_undersampler(labels: Labels, target_ratio: float) -> npt.NDArray:
     Raises
     ------
     TypeError
-        If labels is not array-like.
+        If labels is not npt.NDArray.
     ValueError
         If target_ratio is less than 0.0.
 
@@ -205,7 +205,7 @@ def group_random_undersampler(
     Raises
     ------
     TypeError
-        If labels is not array-like.
+        If labels is not npt.NDArray.
     ValueError
         If labels and group do not have the same dimension.
         If target_ratio is less than 0.0.
@@ -250,7 +250,7 @@ def random_oversampler(labels: Labels, target_ratio: float) -> npt.NDArray:
     Raises
     ------
     TypeError
-        If labels is not array-like.
+        If labels is not npt.NDArray.
     ValueError
         If target_ratio is less than 0.0.
 
@@ -288,7 +288,7 @@ def group_random_oversampler(
         Binary prediction labels of shape (n_samples, n_classes).
     target_ratio : float
         Ratio of minority over majority classes to achieve.
-    groups : array-like
+    groups : Series
         List of groups in which labels belong of shape (n_samples,).
 
     Returns
@@ -299,7 +299,7 @@ def group_random_oversampler(
     Raises
     ------
     TypeError
-        If labels is not array-like.
+        If labels is not npt.NDArray.
     ValueError
         If labels and group do not have the same dimension.
         If target_ratio is less than 0.0.
@@ -356,7 +356,7 @@ def mean_dist_sampler(
     Raises
     ------
     TypeError
-        If labels is not array-like.
+        If labels is not npt.NDArray.
     ValueError
         If hard_percent is not between 0 and 1.
         If target_ratio is less than 0.0.
@@ -410,7 +410,7 @@ def group_mean_dist_sampler(
         Binary prediction labels of shape (n_samples, n_classes).
     target_ratio : float
         Ratio of minority over majority classes to achieve.
-    groups : array-like
+    groups : Series
         List of groups in which labels belong of shape (n_samples,).
     hard_percent : float, default: 0.5
         Percentage of examples that are considered hard, between 0 and 1.
@@ -425,7 +425,7 @@ def group_mean_dist_sampler(
     Raises
     ------
     TypeError
-        If labels is not array-like.
+        If labels is not npt.NDArray.
     ValueError
         If labels and group do not have the same dimension.
 
@@ -487,7 +487,7 @@ def smote(
     Raises
     ------
     TypeError
-        If labels is not array-like.
+        If labels is not npt.NDArray.
     ValueError
         If target_ratio is less than 0.0.
 
@@ -510,11 +510,11 @@ def smote(
     sm = SMOTE(k_neighbors=k_neighbors)
     X_gen, y_gen, *_ = sm.fit_resample(X, class_labels)
 
-    if "SEX_ORIGINAL" in X_gen.columns:
-        X_gen["SEX_ORIGINAL"] = X_gen["SEX_ORIGINAL"].round()
+    if "SEX" in X_gen.columns:
+        X_gen["SEX"] = X_gen["SEX"].round()
 
     min_idx = np.random.choice(  # Select examples so that target ratio is achieved
-        np.arange(len(labels), len(y_gen)), size=int(n_min_class), replace=False
+        np.arange(len(labels), len(y_gen)), size=int(n_min_class), replace=True
     )
     return X_gen.iloc[min_idx], unique_multilabels[y_gen[min_idx]]
 
@@ -538,7 +538,7 @@ def group_smote(
         Binary prediction labels of shape (n_samples, n_classes).
     target_ratio : float
         Ratio of minority over majority classes to achieve.
-    groups : array-like
+    groups : Series
         List of groups in which labels belong of shape (n_samples,).
     k_neighbors : int
         Number of neighbors to use for SMOTE knn.
@@ -555,7 +555,7 @@ def group_smote(
     Raises
     ------
     TypeError
-        If labels is not array-like
+        If labels is not npt.NDArray
     ValueError
         If labels and group do not have the same dimension.
 
