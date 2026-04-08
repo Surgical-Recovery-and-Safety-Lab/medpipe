@@ -7,13 +7,14 @@ This class creates a Predictor to train and make predictions.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING, Any, Generic, cast
 
-from medpipe._types import Classifier, FProbas, Labels
+from medpipe._types import C, FProbas, Labels, Predictor
 
 from .core import create_model
 
-SCRIPT_NAME = "models/Predictor"
+SCRIPT_NAME = "models/predictors"
 if TYPE_CHECKING:
     import logging
 
@@ -21,15 +22,50 @@ if TYPE_CHECKING:
     import pandas as pd
 
 
-class Predictor:
+def create_predictor(
+    model_type: str,
+    hyperparameters: dict[str, Any] = {},
+    logger: logging.Logger | None = None,
+) -> Predictor:
     """
-    Class that creates a Predictor.
+    Creates a predictor instance.
+
+    Parameters
+    ----------
+    model_type : {"hgb-c"}
+        Model type.
+    hyperparameters : dict[str, Any]
+        Model hyperparameter dictionary.
+    logger : logging.Logger | None, default: None
+        Logger object to log prints. If None print to terminal.
+
+    Returns
+    -------
+    predictor : Predictor
+        Predictor instance.
+
+    Raises
+    ------
+    ValueError
+        If model_type is not valid.
+
+    """
+
+    match model_type:
+        case "hgb-c":
+            return HGBClassifier(hyperparameters, logger)
+        case _:
+            raise ValueError(f"model type should be hgb-c, but got {model_type}")
+
+
+class BasePredictor(ABC, Generic[C]):
+    """
+    Class that creates an abstract BasePredictor.
 
     Attributes
     ----------
     model : Classifier
-        Predictor model. The key is the predicted label, the model
-        is a HistGradientBoostingClassifier.
+        Predictor model.
     model_type : {"hgb-c"}
         Model type.
     hyperparameters : dict[str, Any]
@@ -41,7 +77,7 @@ class Predictor:
     -------
     __init__(model_type, hyperparameters, logger=None)
         Initialise a Predictor class instance.
-    _set_model()
+    _set_model(quiet=False)
         Set the model to default parameters.
     fit(X_train, y_train, weights=None):
         Fits the predictor based on input data.
@@ -51,20 +87,22 @@ class Predictor:
         Predicts labels from input data.
     """
 
+    model: C
+
     def __init__(
         self,
         model_type: str,
-        hyperparameters: dict[str, Any],
+        hyperparameters: dict[str, Any] = {},
         logger: logging.Logger | None = None,
     ) -> None:
         """
-        Initialise a Predictor class instance.
+        Initialise a BasePredictor class instance.
 
         Parameters
         ----------
         model_type : {"hgb-c"}
             Model type.
-        hyperparameters : dict[str, Any]
+        hyperparameters : dict[str, Any], default={}
             Model hyperparameter dictionary.
         logger : logging.Logger | None, default: None
             Logger object to log prints. If None print to terminal.
@@ -97,11 +135,14 @@ class Predictor:
             Nothing is returned.
 
         """
-        self.model: Classifier = create_model(
-            self.model_type,
-            self.logger,
-            quiet=quiet,
-            **self.hyperparameters,
+        self.model = cast(  # Cast model to a Classifier
+            C,
+            create_model(
+                self.model_type,
+                self.logger,
+                quiet=quiet,
+                **self.hyperparameters,
+            ),
         )
 
     def fit(
@@ -143,6 +184,77 @@ class Predictor:
 
         """
         return self.model.predict_proba(X)
+
+    @abstractmethod
+    def predict(self, X: pd.DataFrame) -> Labels:
+        """
+        Predicts labels from input data.
+
+        Parameters
+        ----------
+        X : pd.DataFrame
+            Training data.
+
+        Returns
+        -------
+        labels : Labels
+            Predicted labels.
+
+        """
+        pass
+
+
+class HGBClassifier(BasePredictor):
+    """
+    Class that creates a HGBClassifier.
+
+    Attributes
+    ----------
+    model : HistGradientBoostingClassifier
+        Predictor model.
+    model_type : {"hgb-c"}
+        Model type.
+    hyperparameters : dict[str, Any]
+        Model hyperparameter dictionary.
+    logger : logging.Logger | None, default: None
+        Logger object to log prints. If None print to terminal.
+
+    Methods
+    -------
+    __init__(model_type, hyperparameters, logger=None)
+        Initialise a Predictor class instance.
+    _set_model(quiet=False)
+        Set the model to default parameters.
+    fit(X_train, y_train, weights=None):
+        Fits the predictor based on input data.
+    predict_proba(X)
+        Predicts probabilities from input data.
+    predict(X)
+        Predicts labels from input data.
+    """
+
+    def __init__(
+        self,
+        hyperparameters: dict[str, Any],
+        logger: logging.Logger | None = None,
+    ) -> None:
+        """
+        Initialise a HGBClassifier class instance.
+
+        Parameters
+        ----------
+        hyperparameters : dict[str, Any]
+            Model hyperparameter dictionary.
+        logger : logging.Logger | None, default: None
+            Logger object to log prints. If None print to terminal.
+
+        Returns
+        -------
+        None
+            Nothing is returned.
+
+        """
+        super().__init__("hgb-c", hyperparameters, logger)
 
     def predict(self, X: pd.DataFrame) -> Labels:
         """
