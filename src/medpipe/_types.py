@@ -7,7 +7,7 @@ This module provides special types defined for the medpipe package.
 
 from __future__ import annotations
 
-from typing import Annotated, Literal, Sequence, TypeAlias
+from typing import Annotated, Literal, Sequence, TypeAlias, TypeVar
 
 import numpy as np
 import numpy.typing as npt
@@ -36,3 +36,4 @@ MetricDict: TypeAlias = dict[int | str, dict[str, Sequence[float]]]
 Classifier: TypeAlias = HistGradientBoostingClassifier
 Regressor: TypeAlias = LogisticRegression | IsotonicRegression
 Model: TypeAlias = Classifier | Regressor
+R = TypeVar("R", bound=Regressor)  # Generic Type Variable for Regressors
