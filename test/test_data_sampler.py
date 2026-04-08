@@ -8,13 +8,18 @@ by selecting a target ratio between the minority and majority classes.
 """
 
 import numpy as np
+import pandas as pd
 import pytest
 
 from medpipe.data.sampler import (
+    group_mean_dist_sampler,
     group_random_oversampler,
     group_random_undersampler,
+    group_smote,
+    mean_dist_sampler,
     random_oversampler,
     random_undersampler,
+    smote,
 )
 
 # Single label test data
@@ -475,3 +480,76 @@ def test_group_random_oversampler_no_minority():
         group_random_oversampler(
             labels_no_minority, target_ratio=0.5, groups=labels_groups_no_maj
         )
+
+
+def test_mean_dist_sampler_basic():
+    # Setup: 4 features, 10 samples.
+    # Majority class (label sum 0) at index 0-7, Minority at 8-9.
+    data = pd.DataFrame(np.random.rand(10, 4))
+    labels = np.zeros((10, 2))
+    labels[8:] = 1
+
+    # If target_ratio is 0.5, and we have 2 minority samples,
+    # we need 2/0.5 = 4 majority samples.
+    res_idx = mean_dist_sampler(data, labels, target_ratio=0.5, hard_percent=0.5)
+
+    assert len(res_idx) == 4
+    assert isinstance(res_idx, np.ndarray)
+
+
+def test_mean_dist_sampler_exceptions():
+    data = pd.DataFrame(np.random.rand(5, 2))
+    labels = np.zeros((5, 1))
+
+    with pytest.raises(ValueError, match="hard_percent should be between 0 and 1"):
+        mean_dist_sampler(data, labels, target_ratio=0.5, hard_percent=1.5)
+
+    with pytest.raises(ValueError, match="Target ratio should be positive"):
+        mean_dist_sampler(data, labels, target_ratio=-0.1)
+
+
+def test_group_mean_dist_sampler():
+    data = pd.DataFrame(np.random.rand(20, 2))
+    labels = np.zeros((20, 1))
+    labels[18:] = 1  # 2 minority samples
+    groups = pd.Series([0] * 10 + [1] * 10, name="group_col")
+
+    # target_ratio 1.0 means it will try to match minority count per group
+    # This function iterates through unique groups and calls mean_dist_sampler
+    res_idx = group_mean_dist_sampler(data, labels, 1.0, groups)
+
+    assert len(res_idx) > 0
+    # Ensure it handled the group name removal from data if present
+    data_with_group = data.copy()
+    data_with_group["group_col"] = groups
+    res_idx_with_name = group_mean_dist_sampler(data_with_group, labels, 1.0, groups)
+    assert len(res_idx_with_name) == len(res_idx)
+
+
+def test_smote_output_shapes():
+    # Create a simple dataset where SMOTE can find neighbors
+    data = pd.DataFrame(
+        {
+            "f1": [1, 1.1, 1.2, 5, 5.1, 5.2],
+            "f2": [1, 1.1, 1.2, 5, 5.1, 5.2],
+            "SEX": [0, 1, 0, 1, 0, 1],
+        }
+    )
+    # Multilabel: 2 classes
+    labels = np.array([[0, 0], [0, 0], [0, 0], [1, 1], [1, 1], [1, 1]])
+
+    # Requesting a higher ratio to force generation
+    X_gen, y_gen = smote(data, labels, target_ratio=1.0, k_neighbors=2)
+
+    assert isinstance(X_gen, pd.DataFrame)
+    assert y_gen.shape[1] == 2  # Check label dimensionality
+    # Check if 'SEX' was rounded as per function logic
+    if "SEX" in X_gen.columns:
+        assert all(X_gen["SEX"].isin([0, 1]))
+
+
+def test_smote_invalid_ratio():
+    data = pd.DataFrame(np.random.rand(10, 2))
+    labels = np.zeros((10, 2))
+    with pytest.raises(ValueError):
+        smote(data, labels, target_ratio=0, k_neighbors=1)
