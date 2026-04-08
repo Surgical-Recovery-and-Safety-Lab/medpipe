@@ -5,9 +5,20 @@ This class creates a Predictor to train and make predictions.
 
 """
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
+
+from medpipe._types import Classifier, FProbas, Labels
+
 from .core import create_model
 
 SCRIPT_NAME = "models/Predictor"
+if TYPE_CHECKING:
+    import logging
+
+    import numpy.typing as npt
+    import pandas as pd
 
 
 class Predictor:
@@ -16,14 +27,14 @@ class Predictor:
 
     Attributes
     ----------
-    model : dict[str, model]
+    model : Classifier
         Predictor model. The key is the predicted label, the model
         is a HistGradientBoostingClassifier.
     model_type : {"hgb-c"}
         Model type.
-    hyperparameters : dict[str, value]
+    hyperparameters : dict[str, Any]
         Model hyperparameter dictionary.
-    logger : logging.Logger or None, default: None
+    logger : logging.Logger | None, default: None
         Logger object to log prints. If None print to terminal.
 
     Methods
@@ -40,7 +51,12 @@ class Predictor:
         Predicts labels from input data.
     """
 
-    def __init__(self, model_type, hyperparameters, logger=None):
+    def __init__(
+        self,
+        model_type: str,
+        hyperparameters: dict[str, Any],
+        logger: logging.Logger | None = None,
+    ) -> None:
         """
         Initialise a Predictor class instance.
 
@@ -48,9 +64,9 @@ class Predictor:
         ----------
         model_type : {"hgb-c"}
             Model type.
-        hyperparameters : dict[str, value]
+        hyperparameters : dict[str, Any]
             Model hyperparameter dictionary.
-        logger : logging.Logger or None, default: None
+        logger : logging.Logger | None, default: None
             Logger object to log prints. If None print to terminal.
 
         Returns
@@ -66,7 +82,7 @@ class Predictor:
         # Create model based on attributes
         self._set_model()
 
-    def _set_model(self, quiet: bool = False):
+    def _set_model(self, quiet: bool = False) -> None:
         """
         Set the model to default parameters.
 
@@ -81,24 +97,26 @@ class Predictor:
             Nothing is returned.
 
         """
-        self.model = create_model(
+        self.model: Classifier = create_model(
             self.model_type,
             self.logger,
             quiet=quiet,
             **self.hyperparameters,
         )
 
-    def fit(self, X_train, y_train, weights=None):
+    def fit(
+        self, X_train: pd.DataFrame, y_train: Labels, weights: npt.NDArray | None = None
+    ) -> None:
         """
         Fits the predictor to the training data.
 
         Parameters
         ----------
-        X_train : array-like of shape (n_samples, n_features)
+        X_train : pd.DataFrame
             Training data.
-        y_train : array-like of shape (n_samples,)
+        y_train : Labels
             Prediction labels.
-        weights : array-like of shape (n_samples,) or None, default: None
+        weights : npt.NDArray | None, default: None
             Weights to address class imbalance.
 
         Returns
@@ -109,35 +127,35 @@ class Predictor:
         """
         self.model.fit(X_train, y_train.squeeze(), sample_weight=weights)
 
-    def predict_proba(self, X):
+    def predict_proba(self, X: pd.DataFrame) -> FProbas:
         """
         Predicts probabilities from input data.
 
         Parameters
         ----------
-        X : array-like of shape (n_samples, n_features)
+        X : pd.DataFrame
             Training data.
 
         Returns
         -------
-        probabilities : np.array of shape (n_samples, 2)
+        probabilities : FProbas
             Predicted probabilities.
 
         """
         return self.model.predict_proba(X)
 
-    def predict(self, X):
+    def predict(self, X: pd.DataFrame) -> Labels:
         """
         Predicts labels from input data.
 
         Parameters
         ----------
-        X : array-like of shape (n_samples, n_features)
+        X : pd.DataFrame
             Training data.
 
         Returns
         -------
-        labels : array-like of shape (n_samples,)
+        labels : Labels
             Predicted labels.
 
         """

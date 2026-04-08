@@ -5,8 +5,12 @@ This class creates a Preprocessor to prepare data.
 
 """
 
-from copy import deepcopy
+from __future__ import annotations
 
+from copy import deepcopy
+from typing import TYPE_CHECKING, Mapping
+
+from medpipe._types import PreprocessOp, PreprocessOpConfig
 from medpipe.utils.logger import print_message
 
 from .preprocessing import (
@@ -14,6 +18,11 @@ from .preprocessing import (
     convert_object_to_categorical,
     fit_preprocess_operations,
 )
+
+if TYPE_CHECKING:
+    import logging
+
+    import pandas as pd
 
 SCRIPT_NAME = "data/Preprocessor"
 
@@ -26,9 +35,11 @@ class Preprocessor:
     ----------
     preprocess : bool
         Flag to preprocess data or not.
-    transform_seq : dict[str, dict[str,list[str]]]
+    transform_seq : PreprocessOpConfig
         Transformation sequence for the data.
-    logger : logging.Logger or None, default: None
+    operations : Mapping[str, PreprocessorOp | str]
+        Preprocessing operations that are fitted.
+    logger : logging.Logger | None, default: None
         Logger object to log prints. If None print to terminal.
 
     Methods
@@ -45,15 +56,19 @@ class Preprocessor:
         Transforms input data based on fitted operations.
     """
 
-    def __init__(self, preprocessor_config, logger=None):
+    def __init__(
+        self,
+        preprocessor_config: PreprocessOpConfig,
+        logger: logging.Logger | None = None,
+    ) -> None:
         """
         Initialise a Preprocessor class instance.
 
         Parameters
         ----------
-        preprocessor_config : dict[str, dict[str, list[str]]]
+        preprocessor_config : PreprocessorOpConfig
             Configuration parameters for the preprocessor object.
-        logger : logging.Logger or None, default: None
+        logger : logging.Logger | None, default: None
             Logger object to log prints. If None print to terminal.
 
         Returns
@@ -64,10 +79,12 @@ class Preprocessor:
         """
         self.preprocess = preprocessor_config.pop("preprocess")
         self.transform_seq = preprocessor_config
-        self.operations = dict()  # Empty dict to contain operations
+        self.operations: Mapping[str, PreprocessOp | str] = (
+            dict()
+        )  # Empty dict to contain operations
         self.logger = logger
 
-    def _clean_data(self, X):
+    def _clean_data(self, X: pd.DataFrame) -> pd.DataFrame:
         """
         Cleans data before transformation.
 
@@ -98,19 +115,19 @@ class Preprocessor:
 
         return data
 
-    def fit_transform(self, X):
+    def fit_transform(self, X: pd.DataFrame) -> pd.DataFrame:
         """
         Fits the operations and transforms the input data.
 
         Parameters
         ----------
-        X : pd.Dataframe of shape (n_samples, n_features)
-            Data to clean.
+        X : pd.Dataframe
+            Data of shape (n_samples, n_features) to clean.
 
         Returns
         -------
-        data : pd.Dataframe of shape (n_samples, n_features)
-             Transformed data.
+        data : pd.Dataframe
+             Transformed data of shape (n_samples, n_features).
 
         """
         data = self._clean_data(deepcopy(X))  # Clean data before transformation
@@ -123,7 +140,7 @@ class Preprocessor:
 
         return data
 
-    def fit(self, X):
+    def fit(self, X: pd.DataFrame) -> None:
         """
         Fits the operations based on input data.
 
@@ -145,7 +162,7 @@ class Preprocessor:
             print_message("Fitting preprocessing operations", self.logger, SCRIPT_NAME)
             self.operations = fit_preprocess_operations(data, self.transform_seq)
 
-    def transform(self, X):
+    def transform(self, X: pd.DataFrame) -> pd.DataFrame:
         """
         Transforms input data based on fitted operations.
 
@@ -168,8 +185,8 @@ class Preprocessor:
             for operation in self.operations:
                 features = self.transform_seq[operation]["feature_list"]
 
-                if operation == "bin":
-                    transformed_data = bin_score(data[features])
+                if isinstance(self.operations[operation], str):
+                    transformed_data = bin_score(data[features].to_numpy())
                 else:
                     transformed_data = self.operations[operation].transform(
                         data[features]

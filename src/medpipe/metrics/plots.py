@@ -9,6 +9,10 @@ Functions:
 - plot_reliability_diagrams: Plots the reliability diagrams.
 """
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
+
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.axes._axes import Axes
@@ -16,18 +20,27 @@ from matplotlib.figure import Figure
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from sklearn.calibration import calibration_curve
 
+from medpipe._types import CIDict, Labels
 from medpipe.utils.exceptions import file_checks
+
+if TYPE_CHECKING:
+    import numpy.typing as npt
 
 
 def plot_metrics_CI(
-    ci_dict, label_list, save_path="", extension=".png", show_fig=True, **kwargs
-):
+    ci_dict: CIDict,
+    label_list: list[str],
+    save_path: str = "",
+    extension: str = ".png",
+    show_fig: bool = True,
+    **kwargs: Any,
+) -> None:
     """
     Plots the metrics with confidence intrevals for each fold.
 
     Parameters
     ----------
-    ci_dict : dict[str, list[tuple(float, float, float)]]
+    ci_dict : CIDict
         Dictionary containing the metric value and confidence intervals.
         The keys are the name of the metrics and the values are a list of tuple
         with first element the metric value, second the lower bound, and third
@@ -40,7 +53,7 @@ def plot_metrics_CI(
         Extension to save figure in.
     show_fig : bool, default: True
         Flag to show the figure.
-    **kwargs
+    **kwargs : Any
         Extra arguments for the figure or axes objects.
 
     Returns
@@ -131,20 +144,20 @@ def plot_metrics_CI(
 
 
 def plot_prediction_distribution(
-    dist_list,
-    label_list=[],
-    n_bins=10,
-    save_path="",
-    extension=".png",
-    show_fig=True,
-    **kwargs,
+    dist_list: list[npt.NDArray],
+    label_list: list[str] = [],
+    n_bins: int = 10,
+    save_path: str = "",
+    extension: str = ".png",
+    show_fig: bool = True,
+    **kwargs: Any,
 ):
     """
     Plots the prediction probabilities.
 
     Parameters
     ----------
-    dist_list : list[array]
+    dist_list : list[npt.NDArray]
         List of the predicted probability distributions.
     label_list : list[str]
         List of labels for the legend.
@@ -156,7 +169,7 @@ def plot_prediction_distribution(
         Extension to save figure in.
     show_fig : bool, default: True
         Flag to show the figure.
-    **kwargs
+    **kwargs : Any
         Extra arguments for the figure or axes objects.
 
     Returns
@@ -219,16 +232,16 @@ def plot_prediction_distribution(
 
 
 def plot_reliability_diagrams(
-    y_test,
-    proba_list,
-    label_list=[],
-    distribution=False,
-    n_bootstraps=200,
-    save_path="",
-    extension=".png",
-    show_fig=True,
-    calibration_kwargs={},
-    **kwargs,
+    y_test: Labels,
+    proba_list: list[npt.NDArray],
+    label_list: list[str] = [],
+    distribution: bool = False,
+    n_bootstraps: int = 200,
+    save_path: str = "",
+    extension: str = ".png",
+    show_fig: bool = True,
+    calibration_kwargs: dict[str, Any] = {},
+    **kwargs: Any,
 ):
     """
     Plots the reliability diagrams for the given probabilities.
@@ -240,9 +253,9 @@ def plot_reliability_diagrams(
 
     Parameters
     ----------
-    y_test : array-like of shape (n_samples, n_classes)
-        Ground truth labels.
-    proba_list : list[array]
+    y_test : Labels
+        Ground truth labels of shape (n_samples, n_classes).
+    proba_list : list[npt.NDArray]
         List of predicted probabilities.
     label_list : list[str], default: []
         List of labels for the legend.
@@ -256,9 +269,9 @@ def plot_reliability_diagrams(
         Extension to save figure in.
     show_fig : bool, default: True
         Flag to show the figure.
-    calibration_kwargs : dict[str, value], default: {}
+    calibration_kwargs : dict[str, Any], default: {}
         Extra arguments for the calibration function.
-    **kwargs
+    **kwargs : Any
         Extra arguments for the figure or axes objects.
 
     Returns
@@ -385,7 +398,15 @@ def plot_reliability_diagrams(
     plt.close()
 
 
-def _plot_calibration(ax, prob_pred, prob_true, lower, upper, colour, label=None):
+def _plot_calibration(
+    ax: Axes,
+    prob_pred: npt.NDArray,
+    prob_true: npt.NDArray,
+    lower: npt.NDArray,
+    upper: npt.NDArray,
+    colour: str,
+    label: str | None = None,
+):
     """
     Helper function to plot the calibration and 95% CI on a Axes object.
 
@@ -393,13 +414,13 @@ def _plot_calibration(ax, prob_pred, prob_true, lower, upper, colour, label=None
     ----------
     ax : plt.Axes
         Axes on which to plot the data.
-    prob_pred : np.array
+    prob_pred : npt.NDArray
         Predicted probabilities.
-    prob_true : np.array
+    prob_true : npt.NDArray
         True probabilities.
-    lower : np.array
+    lower : npt.NDArray
         Lower bounds of the confidence interval.
-    upper : np.array
+    upper : npt.NDArray
         Upper bounds of the confidence interval.
     colour : str
         Colour to plot in.
