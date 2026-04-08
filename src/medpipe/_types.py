@@ -18,6 +18,8 @@ from sklearn.preprocessing import OrdinalEncoder, PowerTransformer, StandardScal
 
 if TYPE_CHECKING:
     from medpipe.models.calibrators import IsotonicCalibrator, LogisticCalibrator
+    from medpipe.models.predictors import HGBClassifier
+
 # Define label types
 SingleClassLabels: TypeAlias = Annotated[npt.NDArray[np.integer], Literal["N"]]
 MultiClassLabels: TypeAlias = Annotated[npt.NDArray[np.integer], Literal["N", "C"]]
@@ -36,7 +38,9 @@ MetricDict: TypeAlias = dict[int | str, dict[str, Sequence[float]]]
 
 # Define model types
 Classifier: TypeAlias = HistGradientBoostingClassifier
+Predictor: TypeAlias = "HGBClassifier"
 Regressor: TypeAlias = LogisticRegression | IsotonicRegression
 Calibrator: TypeAlias = "IsotonicCalibrator | LogisticCalibrator"
 Model: TypeAlias = Classifier | Regressor
 R = TypeVar("R", bound=Regressor)  # Generic Type Variable for Regressors
+C = TypeVar("C", bound=Classifier)  # Generic Type Variable for Classifiers
