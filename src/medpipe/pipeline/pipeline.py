@@ -25,7 +25,7 @@ from medpipe.models.Predictor import Predictor
 from medpipe.utils.config import get_configuration, split_version_number
 from medpipe.utils.logger import print_message
 
-SCRIPT_NAME = "pipeline/Pipeline"
+SCRIPT_NAME = "pipeline/pipeline"
 if TYPE_CHECKING:
     import logging
 
