@@ -14,7 +14,7 @@ from numpy import array, expand_dims, round
 from sklearn.isotonic import IsotonicRegression
 from sklearn.linear_model import LogisticRegression
 
-from medpipe._types import FProbas, Labels, PProbas, R
+from medpipe._types import Calibrator, FProbas, Labels, PProbas, R
 
 from .core import create_model, get_full_proba
 
@@ -27,7 +27,7 @@ def create_calibrator(
     model_type: str,
     hyperparameters: dict[str, Any] = {},
     logger: logging.Logger | None = None,
-) -> IsotonicCalibrator | LogisticCalibrator:
+) -> Calibrator:
     """
     Creates a calibrator instance.
 
@@ -42,7 +42,7 @@ def create_calibrator(
 
     Returns
     -------
-    calibrator : IsotonicCalibrator | LogisticCalibrator
+    calibrator : Calibrator
         Calibrator instance.
 
     Raises
