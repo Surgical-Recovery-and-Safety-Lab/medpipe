@@ -66,7 +66,7 @@ def print_metrics(
 
     """
     n_it = len(label_list)  # Number of print iterations
-    breakpoint()
+
     for i in range(n_it):
         # If label_list is a list
         print_message(f"  {label_list[i]} metrics:", logger, SCRIPT_NAME)
