@@ -13,9 +13,10 @@ Functions:
 from __future__ import annotations
 
 import pathlib
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
-from pandas.api.types import is_list_like
+from numpy import ndarray
+from pandas import Series
 
 if TYPE_CHECKING:
     import numpy.typing as npt
@@ -122,13 +123,13 @@ def path_checks(path: str) -> None:
         raise NotADirectoryError(f"{path} should be a directory")
 
 
-def array_check(arr: npt.ArrayLike | pd.Series) -> None:
+def array_check(arr: npt.NDArray | pd.Series | list[Any]) -> None:
     """
     Checks that the input is an array-like.
 
     Parameters
     ----------
-    arr : npt.ArrayLike
+    arr : npt.NDArray | pd.Series | list
         Array to check.
 
     Returns
@@ -142,7 +143,8 @@ def array_check(arr: npt.ArrayLike | pd.Series) -> None:
         If arr is not an array-like.
 
     """
-    if not is_list_like(arr):
+    target_types = (list, ndarray, Series)
+    if not isinstance(arr, target_types):
         raise TypeError(f"arr should be an array-like but instead got {type(arr)}")
 
 
@@ -154,9 +156,9 @@ def array_dim_check(
 
     Parameters
     ----------
-    arr1 : npt.NDArray
+    arr1 : npt.NDArray | pd.Series
         First array.
-    arr2 : npt.NDArray
+    arr2 : npt.NDArray | pd.Series
         Second array.
     dim : int | None, default: None
         Dimension to compare. If None shape is used.
