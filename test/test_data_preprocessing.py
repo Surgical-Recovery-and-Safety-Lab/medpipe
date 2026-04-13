@@ -15,6 +15,7 @@ from sklearn.model_selection import GroupKFold, StratifiedKFold
 
 from medpipe.data.preprocessing import (
     bin_score,
+    convert_data,
     convert_object_to_categorical,
     downcast_dtypes,
     extract_labels,
@@ -250,3 +251,30 @@ def test_downcast_dtypes_success():
     assert pd.api.types.is_object_dtype(downcast_data["sex"])
     assert pd.api.types.is_integer_dtype(downcast_data["dummy"])
     assert pd.api.types.is_float_dtype(downcast_data["M3_score"])
+
+
+@pytest.mark.parametrize(
+    "data",
+    [
+        pd.DataFrame({"ints": [1, 2, 3]}),
+        pd.DataFrame({"floats": [0.1, 0.2, 0.4]}),
+        pd.DataFrame({"ints": [1, 2], "floats": [0.1, 0.2]}),
+        np.array([1, 2, 3]),
+    ],
+)
+def test_convert_data_successfull_conversion(data):
+    converted_data = convert_data(data)
+    assert isinstance(converted_data, np.ndarray)
+
+
+@pytest.mark.parametrize(
+    "data",
+    [
+        pd.DataFrame({"objects": ["a", "b"]}),
+        pd.DataFrame({"ints": [1, 2], "objects": ["a", "b"]}),
+        SAMPLE_DATA,
+    ],
+)
+def test_convert_data_successfull_ignore(data):
+    converted_data = convert_data(data)
+    assert isinstance(converted_data, pd.DataFrame)
