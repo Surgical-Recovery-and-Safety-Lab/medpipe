@@ -14,7 +14,7 @@ from numpy import array, expand_dims, round
 from sklearn.isotonic import IsotonicRegression
 from sklearn.linear_model import LogisticRegression
 
-from medpipe._types import Calibrator, FProbas, Labels, PProbas, R
+from medpipe._types import Calibrator, FullProba, Labels, PosProba, R
 
 from .core import create_model, get_full_proba
 
@@ -148,13 +148,13 @@ class BaseCalibrator(ABC, Generic[R]):
             ),
         )
 
-    def fit(self, X: PProbas, y: Labels) -> None:
+    def fit(self, X: PosProba, y: Labels) -> None:
         """
         Fits the predictor to the training data.
 
         Parameters
         ----------
-        X : PProbas
+        X : PosProba
             Predicted probabilities from model of shape (n_samples,).
         y : Labels
             Labels to predict of shape (n_samples,).
@@ -169,35 +169,35 @@ class BaseCalibrator(ABC, Generic[R]):
         self.model.fit(X, y)
 
     @abstractmethod
-    def predict_proba(self, X: PProbas) -> FProbas:
+    def predict_proba(self, X: PosProba) -> FullProba:
         """
         Predicts probabilities from input data.
 
         Parameters
         ----------
-        X : PProbas
+        X : PosProba
             Positive predicted probabilities from a Predictor of shape (n_samples,).
 
         Returns
         -------
-        probabilities : FProbas
+        probabilities : FullProba
             Predicted probabilities of shape (n_samples, 2).
 
         """
         pass
 
-    def predict(self, X: PProbas) -> Labels:
+    def predict(self, X: PosProba) -> Labels:
         """
         Predicts labels from input data.
 
         Parameters
         ----------
-        X : PProbas
+        X : PosProba
             Positive predicted probabilities from a Predictor of shape (n_samples,).
 
         Returns
         -------
-        predictions : PProbas
+        predictions : PosProba
             Predicted labels of shape (n_samples,).
 
         """
@@ -256,18 +256,18 @@ class LogisticCalibrator(BaseCalibrator[LogisticRegression]):
         """
         super().__init__("logistic", hyperparameters, logger)
 
-    def predict_proba(self, X: PProbas) -> FProbas:
+    def predict_proba(self, X: PosProba) -> FullProba:
         """
         Predicts probabilities from input data.
 
         Parameters
         ----------
-        X : PProbas
+        X : PosProba
             Positive predicted probabilities from a Predictor of shape (n_samples,).
 
         Returns
         -------
-        probabilities : FProbas
+        probabilities : FullProba
             Predicted probabilities of shape (n_samples, 2).
 
         """
@@ -325,18 +325,18 @@ class IsotonicCalibrator(BaseCalibrator[IsotonicRegression]):
         """
         super().__init__("isotonic", hyperparameters, logger)
 
-    def predict_proba(self, X: PProbas) -> FProbas:
+    def predict_proba(self, X: PosProba) -> FullProba:
         """
         Predicts probabilities from input data.
 
         Parameters
         ----------
-        X : PProbas
+        X : PosProba
             Positive predicted probabilities from a Predictor of shape (n_samples,).
 
         Returns
         -------
-        probabilities : FProbas
+        probabilities : FullProba
             Predicted probabilities of shape (n_samples, 2).
 
         """

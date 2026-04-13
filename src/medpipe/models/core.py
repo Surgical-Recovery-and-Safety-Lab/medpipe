@@ -22,7 +22,7 @@ from sklearn.ensemble import HistGradientBoostingClassifier
 from sklearn.isotonic import IsotonicRegression
 from sklearn.linear_model import LogisticRegression
 
-from medpipe._types import FProbas, Labels, MetricDict, Model, PProbas
+from medpipe._types import FullProba, Labels, MetricDict, Model, PosProba
 from medpipe.metrics.core import compute_pred_metrics, compute_score_metrics
 from medpipe.utils.exceptions import array_check, file_checks
 from medpipe.utils.logger import print_message
@@ -102,7 +102,7 @@ def create_model(
     return model
 
 
-def test_model(y_test: Labels, y_pred: Labels, y_pred_proba: FProbas) -> MetricDict:
+def test_model(y_test: Labels, y_pred: Labels, y_pred_proba: FullProba) -> MetricDict:
     """
     Computes different metrics to test the model.
 
@@ -112,7 +112,7 @@ def test_model(y_test: Labels, y_pred: Labels, y_pred_proba: FProbas) -> MetricD
         Ground truth test labels of shape (n_samples, n_classes).
     y_pred : Labels
         Predicted labels of shape (n_samples, n_classes).
-    y_pred_proba : FProbas
+    y_pred_proba : FullProba
         Predicted probabilities of shape (n_samples, 2).
 
     Returns
@@ -225,18 +225,18 @@ def load_pipeline(load_file: str) -> Pipeline:
     return pipeline
 
 
-def get_positive_proba(probabilities: FProbas) -> PProbas:
+def get_positive_proba(probabilities: FullProba) -> PosProba:
     """
     Returns just the positive label probabilities of the each class.
 
     Parameters
     ----------
-    probabilities : FProbas
+    probabilities : FullProba
         Full probabilities for each class.
 
     Returns
     -------
-    pos_proba : PProbas
+    pos_proba : PosProba
         Probabilities of the positive labels for each class.
 
     """
@@ -250,18 +250,18 @@ def get_positive_proba(probabilities: FProbas) -> PProbas:
     return pos_proba
 
 
-def get_full_proba(pos_proba: PProbas) -> FProbas:
+def get_full_proba(pos_proba: PosProba) -> FullProba:
     """
     Returns probabilities for both labels.
 
     Parameters
     ----------
-    pos_proba : PProbas
+    pos_proba : PosProba
         Probabilities of the positive labels for each class.
 
     Returns
     -------
-    probabilities : FProbas
+    probabilities : FullProba
         Full probabilities for each class.
 
     """

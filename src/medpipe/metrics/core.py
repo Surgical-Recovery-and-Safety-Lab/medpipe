@@ -21,7 +21,7 @@ import numpy as np
 import sklearn as skl
 from scipy.stats import sem, t
 
-from medpipe._types import CI, CIDict, FProbas, Labels, MetricDict
+from medpipe._types import CI, CIDict, FullProba, Labels, MetricDict
 from medpipe.utils.exceptions import array_check
 from medpipe.utils.logger import print_message
 
@@ -341,7 +341,7 @@ def compute_pred_metrics(
 
 
 def compute_score_metrics(
-    metric_list: list[str], y_true: Labels, y_pred_proba: FProbas
+    metric_list: list[str], y_true: Labels, y_pred_proba: FullProba
 ) -> MetricDict:
     """
     Computes the metrics that require the score.
@@ -357,7 +357,7 @@ def compute_score_metrics(
          - log_loss
     y_true : Labels
         Ground truth labels of shape (n_samples, n_classes).
-    y_pred_proba : FProbas
+    y_pred_proba : FullProba
         Full predicted probabilities.
 
     Returns

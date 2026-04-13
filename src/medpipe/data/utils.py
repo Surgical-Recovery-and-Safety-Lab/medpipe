@@ -18,7 +18,7 @@ import numpy as np
 import pandas as pd
 import sklearn as skl
 
-from medpipe._types import Labels, PData
+from medpipe._types import Labels, PredData
 from medpipe.utils.exceptions import array_check, array_dim_check
 
 if TYPE_CHECKING:
@@ -184,7 +184,7 @@ def downcast_dtypes(data: pd.DataFrame) -> pd.DataFrame:
     return data
 
 
-def convert_data(data: PData) -> PData:
+def convert_data(data: PredData) -> PredData:
     """
     Convert data to a ndarray if possible.
 
@@ -194,7 +194,7 @@ def convert_data(data: PData) -> PData:
 
     Parameters
     ----------
-    data : PData
+    data : PredData
         Data to check.
 
     Returns
@@ -219,8 +219,8 @@ def convert_data(data: PData) -> PData:
 
 
 def get_data_from_idx(
-    data: PData, idx: npt.NDArray | list[int] = np.array([])
-) -> PData:
+    data: PredData, idx: npt.NDArray | list[int] = np.array([])
+) -> PredData:
     """
     Returns the data at the given indices based on the data type.
 
@@ -228,14 +228,14 @@ def get_data_from_idx(
 
     Parameters
     ----------
-    data : PData
+    data : PredData
         Data of shape (n_samples, n_features) to query.
     idx : npt.NDArray | list[int], default: np.array([])
         Array of shape (n_indices,) indices to extract data at.
 
     Returns
     -------
-    indexed_data : PData
+    indexed_data : PredData
         Data of shape (n_indices, n_features).
 
     Raises
@@ -243,7 +243,7 @@ def get_data_from_idx(
     TypeError
         If idx is not array-like.
         If idx does not contain integers.
-        If data is not PData type.
+        If data is not PredData type.
 
     """
     array_check(idx)
@@ -260,4 +260,4 @@ def get_data_from_idx(
     elif isinstance(data, pd.DataFrame):
         return data.iloc[idx]
     else:
-        raise TypeError(f"data should be PData type, but got {type(data)}")
+        raise TypeError(f"data should be PredData type, but got {type(data)}")

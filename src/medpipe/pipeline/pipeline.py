@@ -14,7 +14,7 @@ import pandas as pd
 from numpy import arange, array, expand_dims, ones
 
 import medpipe.data.weighting as weight
-from medpipe._types import Data, FProbas, Labels, PData, PProbas
+from medpipe._types import Data, FullProba, Labels, PosProba, PredData
 from medpipe.data.preprocessing import train_test_it
 from medpipe.data.preprocessor import Preprocessor
 from medpipe.data.sampler import data_sampler
@@ -549,10 +549,10 @@ class Pipeline:
 
     def _train_models(
         self,
-        X_train: PData,
+        X_train: PredData,
         y_train: Labels,
         label: str,
-        X_cal: PProbas = array([]),
+        X_cal: PosProba = array([]),
         y_cal: Labels = array([]),
         **kwargs: Any,
     ) -> None:
@@ -569,7 +569,7 @@ class Pipeline:
             Train labels of shape (n_samples,) for the predictor.
         label: str
             Label associated with the model to train.
-        X_cal : PProbas, default: np.array([])
+        X_cal : PosProba, default: np.array([])
             Calibration data of shape (n_samples,) for the calibrator.
         y_cal : Labels, default: np.array([])
             Calibration labels of shape (n_samples,) for the calibrator.
@@ -599,7 +599,7 @@ class Pipeline:
         X: Data,
         label_list: str | list[str] = "all",
         model_type: str = "predictor",
-    ) -> FProbas:
+    ) -> FullProba:
         """
         Predicts probabilities from predictor or calibrator based on input data.
 
@@ -615,7 +615,7 @@ class Pipeline:
 
         Returns
         -------
-        probabilities : FProbas
+        probabilities : FullProba
             Full predicted probabilities of shape (n_samples, 2).
 
         Raises
@@ -727,14 +727,14 @@ class Pipeline:
         return array(labels)
 
     def _predictor_pred_wrapper(
-        self, X: PData, label: str, prediction_type: str
-    ) -> Labels | FProbas:
+        self, X: PredData, label: str, prediction_type: str
+    ) -> Labels | FullProba:
         """
         Wrapper function to create predictions with the predictor.
 
         Parameters
         ----------
-        X : PData
+        X : PredData
             Data for predictor classes on of shape (n_samples, n_features).
         label : str
             Label associated with the model to use.
@@ -743,7 +743,7 @@ class Pipeline:
 
         Returns
         -------
-        estimates : Labels | FProbas
+        estimates : Labels | FullProba
             Labels or probabilities estimated from model based on prediction_type.
 
         Raises
@@ -765,14 +765,14 @@ class Pipeline:
                 )
 
     def _calibrator_pred_wrapper(
-        self, X: PProbas, label: str, prediction_type: str
-    ) -> Labels | FProbas:
+        self, X: PosProba, label: str, prediction_type: str
+    ) -> Labels | FullProba:
         """
         Wrapper function to create predictions with the calibrator.
 
         Parameters
         ----------
-        X : PProbas
+        X : PosProba
             Data for calibrator class of shape (n_samples,).
         label : str
             Label associated with the model to use.
@@ -781,7 +781,7 @@ class Pipeline:
 
         Returns
         -------
-        estimates : Labels | FProbas
+        estimates : Labels | FullProba
             Labels or probabilities estimated from model based on prediction_type.
 
         Raises
@@ -806,14 +806,14 @@ class Pipeline:
                 )
 
     def _sample_data(
-        self, X: PData, y: Labels, groups: npt.NDArray
-    ) -> tuple[PData, Labels, npt.NDArray]:
+        self, X: PredData, y: Labels, groups: npt.NDArray
+    ) -> tuple[PredData, Labels, npt.NDArray]:
         """
         Samples the data based on configuration.
 
         Parameters
         ----------
-        X : PData
+        X : PredData
             Data to sample of shape (n_samples, n_features).
         y : Labels
             Labels to sample of shape (n_samples,).
@@ -862,13 +862,13 @@ class Pipeline:
 
         return ones(y.shape[0])
 
-    def _get_calibrator_data(self, X: PData, label: str) -> PProbas:
+    def _get_calibrator_data(self, X: PredData, label: str) -> PosProba:
         """
         Get the calibrator data based on the calibrator type.
 
         Parameters
         ----------
-        X : PData
+        X : PredData
             Data of shape (n_samples, n_features) to transform for calibrator.
         label : str
             Label associated with the model to use.
