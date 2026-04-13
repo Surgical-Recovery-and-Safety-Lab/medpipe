@@ -177,15 +177,13 @@ class Preprocessor:
         if self.preprocess:
             # If the preprocess flag is true
             print_message("Preprocessing data", self.logger, SCRIPT_NAME)
-            for operation in self.operations:
+            for operation, transformer in self.operations.items():
                 features = self.transform_seq[operation]["feature_list"]
 
-                if isinstance(self.operations[operation], str):
+                if isinstance(transformer, str):
                     transformed_data = bin_score(data[features].to_numpy())
                 else:
-                    transformed_data = self.operations[operation].transform(
-                        data[features]
-                    )
+                    transformed_data = transformer.transform(data[features])
                 data[features] = transformed_data
 
         data = downcast_dtypes(data)  # Downcast for speed
