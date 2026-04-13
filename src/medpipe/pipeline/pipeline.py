@@ -14,7 +14,7 @@ import pandas as pd
 from numpy import arange, array, expand_dims, ones
 
 import medpipe.data.weighting as weight
-from medpipe._types import FProbas, Labels, PProbas
+from medpipe._types import Data, FProbas, Labels, PData, PProbas
 from medpipe.data.preprocessing import extract_labels, get_validation_idx, train_test_it
 from medpipe.data.preprocessor import Preprocessor
 from medpipe.data.sampler import data_sampler
@@ -279,7 +279,7 @@ class Pipeline:
 
     def fit_model(
         self,
-        X: pd.DataFrame | PProbas,
+        X: Data,
         y: Labels,
         model: str,
         label: str,
@@ -290,7 +290,7 @@ class Pipeline:
 
         Parameters
         ----------
-        X : pd.DataFrame | PProbas
+        X : Data
             Training data of shape (n_samples, n_features) or (n_samples,).
         y : Labels
             Prediction labels of shape (n_samples, self.n_labels).
@@ -322,13 +322,13 @@ class Pipeline:
                     f"Model should be predictor or calibrator, but got {model}"
                 )
 
-    def test_model(self, X: pd.DataFrame, y: Labels, model: str, label: str) -> None:
+    def test_model(self, X: Data, y: Labels, model: str, label: str) -> None:
         """
         Tests the predictor or calibrator model on the provided dataset.
 
         Parameters
         ----------
-        X : pd.DataFrame
+        X : Data
             Training data of shape (n_samples, n_features).
         y : Labels
             Prediction labels of shape (n_samples,).
@@ -406,9 +406,6 @@ class Pipeline:
         )
 
         # Create independent calibration set if calibrator is specified
-        X_cal = pd.DataFrame([])
-        y_cal = array([])
-
         if self.calibrator_type != "":
             train_idx, val_idx = get_validation_idx(arange(len(y)), groups=split_groups)
             X_cal = X.iloc[val_idx]
@@ -541,10 +538,10 @@ class Pipeline:
 
     def _train_models(
         self,
-        X_train: pd.DataFrame,
+        X_train: PData,
         y_train: Labels,
         label: str,
-        X_cal: pd.DataFrame = pd.DataFrame([]),
+        X_cal: PProbas = array([]),
         y_cal: Labels = array([]),
         **kwargs: Any,
     ) -> None:
@@ -555,14 +552,14 @@ class Pipeline:
 
         Parameters
         ----------
-        X_train : pd.DataFrame
+        X_train : Data
             Train data of shape (n_samples, n_features) for the predictor.
         y_train : Labels
             Train labels of shape (n_samples,) for the predictor.
         label: str
             Label associated with the model to train.
-        X_cal : pd.DataFrame, default: pd.DataFrame([])
-            Calibration data of shape (n_samples, n_features) for the calibrator.
+        X_cal : PProbas, default: np.array([])
+            Calibration data of shape (n_samples,) for the calibrator.
         y_cal : Labels, default: np.array([])
             Calibration labels of shape (n_samples,) for the calibrator.
         **kwargs : Any
@@ -588,7 +585,7 @@ class Pipeline:
 
     def predict_proba(
         self,
-        X: pd.DataFrame,
+        X: Data,
         label_list: str | list[str] = "all",
         model_type: str = "predictor",
     ) -> FProbas:
@@ -597,8 +594,8 @@ class Pipeline:
 
         Parameters
         ----------
-        X : pd.DataFrame
-            Data to make predictions on of shape (n_samples, n_features).
+        X : Data
+            Data to use of shape (n_samples, n_features) or (n_samples,).
         label_list : str | list[str], default: "all"
             Label or list of labels associated with the model to use.
             If all, all models are used.
@@ -654,7 +651,7 @@ class Pipeline:
 
     def predict(
         self,
-        X: pd.DataFrame,
+        X: Data,
         label_list: str | list[str] = "all",
         model_type: str = "predictor",
     ) -> Labels:
@@ -663,8 +660,8 @@ class Pipeline:
 
         Parameters
         ----------
-        X : pd.DataFrame
-            Data to make predictions on of shape (n_samples, n_features).
+        X : Data
+            Data to use of shape (n_samples, n_features) or (n_samples,).
         label_list : str | list[str], default: "all"
             Label or list of labels associated with the model to use.
             If all, all models are used.
@@ -719,15 +716,15 @@ class Pipeline:
         return array(labels)
 
     def _predictor_pred_wrapper(
-        self, X: pd.DataFrame, label: str, prediction_type: str
+        self, X: PData, label: str, prediction_type: str
     ) -> Labels | FProbas:
         """
         Wrapper function to create predictions with the predictor.
 
         Parameters
         ----------
-        X : pd.DataFrame
-            Data to make predictions on of shape (n_samples, n_features).
+        X : PData
+            Data for predictor classes on of shape (n_samples, n_features).
         label : str
             Label associated with the model to use.
         prediction_type : {"predict", "predict_proba"}
@@ -757,15 +754,15 @@ class Pipeline:
                 )
 
     def _calibrator_pred_wrapper(
-        self, X: pd.DataFrame, label: str, prediction_type: str
+        self, X: PProbas, label: str, prediction_type: str
     ) -> Labels | FProbas:
         """
         Wrapper function to create predictions with the calibrator.
 
         Parameters
         ----------
-        X : pd.DataFrame
-            Data to make predictions on of shape (n_samples, n_features).
+        X : PProbas
+            Data for calibrator class of shape (n_samples,).
         label : str
             Label associated with the model to use.
         prediction_type : {"predict", "predict_proba"}
@@ -798,14 +795,14 @@ class Pipeline:
                 )
 
     def _sample_data(
-        self, X: pd.DataFrame, y: Labels, groups: pd.Series
-    ) -> tuple[pd.DataFrame, Labels, pd.Series]:
+        self, X: PData, y: Labels, groups: pd.Series
+    ) -> tuple[PData, Labels, pd.Series]:
         """
         Samples the data based on configuration.
 
         Parameters
         ----------
-        X : pd.DataFrame
+        X : PData
             Data to sample of shape (n_samples, n_features).
         y : Labels
             Labels to sample of shape (n_samples,).
@@ -854,13 +851,13 @@ class Pipeline:
 
         return ones(y.shape[0])
 
-    def _get_calibrator_data(self, X: pd.DataFrame, label: str) -> npt.NDArray:
+    def _get_calibrator_data(self, X: PData, label: str) -> PProbas:
         """
         Get the calibrator data based on the calibrator type.
 
         Parameters
         ----------
-        X : pd.DataFrame
+        X : PData
             Data of shape (n_samples, n_features) to transform for calibrator.
         label : str
             Label associated with the model to use.
