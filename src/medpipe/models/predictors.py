@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING, Any, Generic, cast
 
 from numpy import ndarray
 
-from medpipe._types import C, Data, FProbas, Labels, Predictor
+from medpipe._types import C, FProbas, Labels, PData, Predictor
 
 from .core import create_model
 
@@ -147,7 +147,7 @@ class BasePredictor(ABC, Generic[C]):
             ),
         )
 
-    def _convert_data(self, data: Data) -> Data | None:
+    def _convert_data(self, data: PData) -> PData | None:
         """
         Convert data to a ndarray if possible.
 
@@ -157,13 +157,13 @@ class BasePredictor(ABC, Generic[C]):
 
         Parameters
         ----------
-        data : Data
+        data : PData
             Data to check.
 
         Returns
         -------
         converted_data : npt.NDArray
-            Converted data of shape (n_samples, n_labels)
+            Converted data of shape (n_samples, n_features)
 
         Raises
         ------
@@ -187,15 +187,15 @@ class BasePredictor(ABC, Generic[C]):
             raise TypeError(f"data should be a Data type, but got {type(data)}")
 
     def fit(
-        self, X_train: Data, y_train: Labels, weights: npt.NDArray | None = None
+        self, X_train: PData, y_train: Labels, weights: npt.NDArray | None = None
     ) -> None:
         """
         Fits the predictor to the training data.
 
         Parameters
         ----------
-        X_train : Data
-            Training data of shape (n_samples, n_labels).
+        X_train : PData
+            Training data of shape (n_samples, n_features).
         y_train : Labels
             Prediction labels of shape (n_samples,).
         weights : npt.NDArray | None, default: None
@@ -210,14 +210,14 @@ class BasePredictor(ABC, Generic[C]):
         train_data = self._convert_data(X_train)
         self.model.fit(train_data, y_train.squeeze(), sample_weight=weights)
 
-    def predict_proba(self, X: Data) -> FProbas:
+    def predict_proba(self, X: PData) -> FProbas:
         """
         Predicts probabilities from input data.
 
         Parameters
         ----------
-        X : Data
-            Training data of shape (n_samples, n_labels).
+        X : PData
+            Training data of shape (n_samples, n_features).
 
         Returns
         -------
@@ -228,14 +228,14 @@ class BasePredictor(ABC, Generic[C]):
         return self.model.predict_proba(self._convert_data(X))
 
     @abstractmethod
-    def predict(self, X: Data) -> Labels:
+    def predict(self, X: PData) -> Labels:
         """
         Predicts labels from input data.
 
         Parameters
         ----------
-        X : Data
-            Training data of shape (n_samples, n_labels).
+        X : PData
+            Training data of shape (n_samples, n_features).
 
         Returns
         -------
@@ -298,14 +298,14 @@ class HGBClassifier(BasePredictor):
         """
         super().__init__("hgb-c", hyperparameters, logger)
 
-    def predict(self, X: Data) -> Labels:
+    def predict(self, X: PData) -> Labels:
         """
         Predicts labels from input data.
 
         Parameters
         ----------
-        X : Data
-            Training data of shape (n_samples, n_labels).
+        X : PData
+            Training data of shape (n_samples, n_features).
 
         Returns
         -------
