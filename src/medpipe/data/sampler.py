@@ -31,7 +31,7 @@ from typing import TYPE_CHECKING, Any, cast
 
 import numpy as np
 from imblearn.over_sampling import SMOTE
-from pandas import DataFrame, Index, Series, concat
+from pandas import DataFrame, concat
 
 from medpipe._types import Labels, PData
 from medpipe.utils.exceptions import array_check, array_dim_check
@@ -47,9 +47,9 @@ def data_sampler(
     labels: Labels,
     target_ratio: float = 0.25,
     sampler_fn: str = "random_undersampler",
-    groups: Series = Series([]),
+    groups: npt.NDArray = np.array([]),
     **kwargs: Any,
-) -> tuple[PData, Labels, Series]:
+) -> tuple[PData, Labels, npt.NDArray]:
     """
     Samples the data and labels to adjust the class imbalance.
 
@@ -70,7 +70,7 @@ def data_sampler(
         Target ratio between the minority and majority classes.
     sampler_fn : str, default: "random_undersampler"
         Sampler function to use to sample the data.
-    groups : Series, default: Series([])
+    groups : npt.NDArray, default: np.array([])
         List containing groups for the group_sampler function.
     **kwargs : Any
         Extra arguments for the sampler functions.
@@ -81,8 +81,8 @@ def data_sampler(
         Sampled data.
     y : Labels
         Sampled labels.
-    groups : Series
-        Groups of the examples. Empty series if not needed.
+    groups : npt.NDArray
+        Groups of the examples. Empty array if not needed.
 
     Raises
     ------
@@ -130,7 +130,7 @@ def data_sampler(
                 X = concat((data, cast(DataFrame, X_gen)))
             else:
                 X = np.concatenate((data, X_gen))
-            return X, np.concatenate((labels, y_gen)), Series([])
+            return X, np.concatenate((labels, y_gen)), np.array([])
         case "group_smote":
             return group_smote(data, labels, new_ratio, groups, kwargs["k_neighbors"])
         case _:
@@ -139,9 +139,9 @@ def data_sampler(
     X = get_data_from_idx(data, sample_idx)
     y = labels[sample_idx]
 
-    if groups.empty:
+    if len(groups) == 0:
         return X, y, groups
-    return X, y, groups.iloc[sample_idx]
+    return X, y, cast(np.ndarray, get_data_from_idx(groups, sample_idx))
 
 
 def random_undersampler(labels: Labels, target_ratio: float) -> npt.NDArray:
@@ -187,7 +187,7 @@ def random_undersampler(labels: Labels, target_ratio: float) -> npt.NDArray:
 
 
 def group_random_undersampler(
-    labels: Labels, target_ratio: float, groups: Series
+    labels: Labels, target_ratio: float, groups: npt.NDArray
 ) -> npt.NDArray:
     """
     Randomly select labels to achieve the target ratio between minority and
@@ -199,7 +199,7 @@ def group_random_undersampler(
         Binary prediction labels of shape (n_samples, n_classes).
     target_ratio : float
         Ratio of minority over majority classes to achieve.
-    groups : Series
+    groups : npt.NDArray
         List of groups in which labels belong of shape (n_samples,).
 
     Returns
@@ -281,7 +281,7 @@ def random_oversampler(labels: Labels, target_ratio: float) -> npt.NDArray:
 
 
 def group_random_oversampler(
-    labels: Labels, target_ratio: float, groups: Series
+    labels: Labels, target_ratio: float, groups: npt.NDArray
 ) -> npt.NDArray:
     """
     Randomly select labels to achieve the target ratio between minority and
@@ -293,7 +293,7 @@ def group_random_oversampler(
         Binary prediction labels of shape (n_samples, n_classes).
     target_ratio : float
         Ratio of minority over majority classes to achieve.
-    groups : Series
+    groups : npt.NDArray
         List of groups in which labels belong of shape (n_samples,).
 
     Returns
@@ -399,7 +399,7 @@ def group_mean_dist_sampler(
     data: PData,
     labels: Labels,
     target_ratio: float,
-    groups: Series,
+    groups: npt.NDArray,
     hard_percent: float = 0.5,
 ) -> npt.NDArray:
     """
@@ -418,7 +418,7 @@ def group_mean_dist_sampler(
         Binary prediction labels of shape (n_samples, n_classes).
     target_ratio : float
         Ratio of minority over majority classes to achieve.
-    groups : Series
+    groups : npt.NDArray
         List of groups in which labels belong of shape (n_samples,).
     hard_percent : float, default: 0.5
         Percentage of examples that are considered hard, between 0 and 1.
@@ -525,9 +525,9 @@ def group_smote(
     data: PData,
     labels: Labels,
     target_ratio: float,
-    groups: Series,
+    groups: npt.NDArray,
     k_neighbors: int,
-) -> tuple[PData, Labels, Series]:
+) -> tuple[PData, Labels, npt.NDArray]:
     """
     Oversample minority class using Synthetic Minority Over-Sampling Technique
     (SMOTE) in each group.
@@ -540,7 +540,7 @@ def group_smote(
         Binary prediction labels of shape (n_samples, n_classes).
     target_ratio : float
         Ratio of minority over majority classes to achieve.
-    groups : Series
+    groups : npt.NDArray
         List of groups in which labels belong of shape (n_samples,).
     k_neighbors : int
         Number of neighbors to use for SMOTE knn.
@@ -551,7 +551,7 @@ def group_smote(
         Generated data.
     multilabels_gen : Labels
         Generated labels.
-    groups_gen : Series
+    groups_gen : npt.NDArray
         Generated groups.
 
     Raises
@@ -583,6 +583,6 @@ def group_smote(
         else:
             X = np.concatenate((X, X_gen))
         y = np.concatenate((y, y_gen))
-        grps = concat((grps, Series(group_gen.squeeze(), name=grps.name)))
+        grps = np.concatenate((grps, group_gen.squeeze()))
 
     return X, y, grps
