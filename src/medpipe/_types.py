@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING, Annotated, Literal, Sequence, TypeAlias, TypeV
 
 import numpy as np
 import numpy.typing as npt
+import pandas as pd
 from sklearn.ensemble import HistGradientBoostingClassifier
 from sklearn.isotonic import IsotonicRegression
 from sklearn.linear_model import LogisticRegression
@@ -20,7 +21,8 @@ if TYPE_CHECKING:
     from medpipe.models.calibrators import IsotonicCalibrator, LogisticCalibrator
     from medpipe.models.predictors import HGBClassifier
 
-# Define label types
+# Define data and label types
+Data: TypeAlias = pd.DataFrame | npt.NDArray
 SingleClassLabels: TypeAlias = Annotated[npt.NDArray[np.integer], Literal["N"]]
 MultiClassLabels: TypeAlias = Annotated[npt.NDArray[np.integer], Literal["N", "C"]]
 FProbas: TypeAlias = Annotated[npt.NDArray[np.number], Literal["C", "N", 2]]
