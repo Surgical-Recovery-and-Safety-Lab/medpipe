@@ -34,7 +34,7 @@ SCRIPT_NAME = "metrics/core"
 
 
 def print_metrics(
-    metric_dict: MetricDict,
+    metric_dict: dict[str, list[float]],
     label_list: list[str],
     logger: logging.Logger | None = None,
 ) -> None:
@@ -43,7 +43,7 @@ def print_metrics(
 
     Parameters
     ----------
-    metric_dict : MetricDict
+    metric_dict : dict[str, list[float]]
         Dictionary of the model performance for one fold.
         Keys are the metric name and values are the metric value.
         The test metrics used are:
@@ -66,7 +66,7 @@ def print_metrics(
 
     """
     n_it = len(label_list)  # Number of print iterations
-
+    breakpoint()
     for i in range(n_it):
         # If label_list is a list
         print_message(f"  {label_list[i]} metrics:", logger, SCRIPT_NAME)
