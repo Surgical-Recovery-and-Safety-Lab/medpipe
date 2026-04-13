@@ -10,6 +10,8 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any, Generic, cast
 
+from numpy import ndarray
+
 from medpipe._types import C, Data, FProbas, Labels, Predictor
 
 from .core import create_model
@@ -145,41 +147,57 @@ class BasePredictor(ABC, Generic[C]):
             ),
         )
 
-    def _check_data_conversion(self, data: pd.DataFrame) -> bool:
+    def _convert_data(self, data: Data) -> Data | None:
         """
-        Checks if the data can be converted to a npt.NDArray.
+        Convert data to a ndarray if possible.
 
         The function checks if all columns are numeric to assess convertability.
+        If the data can be converted, the pd.DataFrame is converted to ndarray.
+        If the data is already ndarray the data is returned.
 
         Parameters
         ----------
-        data : pd.DataFrame
+        data : Data
             Data to check.
 
         Returns
         -------
-        convertable : bool
-            Flag wheter the data can be converted or not.
+        converted_data : npt.NDArray
+            Converted data of shape (n_samples, n_labels)
+
+        Raises
+        ------
+        TypeError
+            If data is not a Data type.
 
         """
-        for col in data.columns:
-            if not pd.api.types.is_numeric_dtype(col):
-                # If one of the columns is not numeric return False
-                return False
-        return True
+        convertable = True
+        if isinstance(data, ndarray):
+            # Data does not need to be converted
+            return data
+        elif isinstance(data, pd.DataFrame):
+            for col in data.columns:
+                if not pd.api.types.is_numeric_dtype(col):
+                    # If one of the columns is not numeric return False
+                    convertable = False
+            if convertable:
+                # Convert data to a ndarray
+                return data.to_numpy()
+        else:
+            raise TypeError(f"data should be a Data type, but got {type(data)}")
 
     def fit(
-        self, X_train: pd.DataFrame, y_train: Labels, weights: npt.NDArray | None = None
+        self, X_train: Data, y_train: Labels, weights: npt.NDArray | None = None
     ) -> None:
         """
         Fits the predictor to the training data.
 
         Parameters
         ----------
-        X_train : pd.DataFrame
-            Training data.
+        X_train : Data
+            Training data of shape (n_samples, n_labels).
         y_train : Labels
-            Prediction labels.
+            Prediction labels of shape (n_samples,).
         weights : npt.NDArray | None, default: None
             Weights to address class imbalance.
 
@@ -190,13 +208,6 @@ class BasePredictor(ABC, Generic[C]):
 
         """
         train_data = X_train
-
-        if isinstance(X_train, pd.DataFrame):
-            # Check if convertable
-            if self._check_data_conversion(X_train):
-                # Convert to numpy array for efficiency
-                train_data = X_train.to_numpy()
-
         self.model.fit(train_data, y_train.squeeze(), sample_weight=weights)
 
     def predict_proba(self, X: pd.DataFrame) -> FProbas:
