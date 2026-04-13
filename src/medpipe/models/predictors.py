@@ -189,7 +189,15 @@ class BasePredictor(ABC, Generic[C]):
             Nothing is returned.
 
         """
-        self.model.fit(X_train, y_train.squeeze(), sample_weight=weights)
+        train_data = X_train
+
+        if isinstance(X_train, pd.DataFrame):
+            # Check if convertable
+            if self._check_data_conversion(X_train):
+                # Convert to numpy array for efficiency
+                train_data = X_train.to_numpy()
+
+        self.model.fit(train_data, y_train.squeeze(), sample_weight=weights)
 
     def predict_proba(self, X: pd.DataFrame) -> FProbas:
         """
