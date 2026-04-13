@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-test_data_Preprocessor.py
+test_data_preprocessor.py
 
 Test functions for the Preprocessor class.
 """
@@ -15,7 +15,7 @@ import pytest
 from sklearn.preprocessing import OrdinalEncoder, PowerTransformer, StandardScaler
 
 from medpipe.data.preprocessing import bin_score, fit_preprocess_operations
-from medpipe.data.Preprocessor import Preprocessor
+from medpipe.data.preprocessor import Preprocessor
 
 CWD = pathlib.Path.cwd()
 DATA_DIR = str(CWD / "test/test_data/")

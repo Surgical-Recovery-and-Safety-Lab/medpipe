@@ -16,16 +16,16 @@ from numpy import arange, array, expand_dims, ones
 import medpipe.data.weighting as weight
 from medpipe._types import FProbas, Labels, PProbas
 from medpipe.data.preprocessing import extract_labels, get_validation_idx, train_test_it
-from medpipe.data.Preprocessor import Preprocessor
+from medpipe.data.preprocessor import Preprocessor
 from medpipe.data.sampler import data_sampler
 from medpipe.metrics.core import print_metrics
-from medpipe.models.Calibrator import Calibrator
+from medpipe.models.calibrators import create_calibrator
 from medpipe.models.core import get_positive_proba, test_model
-from medpipe.models.Predictor import Predictor
+from medpipe.models.predictors import create_predictor
 from medpipe.utils.config import get_configuration, split_version_number
 from medpipe.utils.logger import print_message
 
-SCRIPT_NAME = "pipeline/Pipeline"
+SCRIPT_NAME = "pipeline/pipeline"
 if TYPE_CHECKING:
     import logging
 
@@ -58,7 +58,7 @@ class Pipeline:
     preprocessor : Preprocessor
         Data preprocessor object.
     predictor : dict[label, Predictor]
-        Dictionary of Predictors instances for each label.
+        Dictionary of Predictor instances for each label.
     calibrator : dict[label, Calibrator]
         Dictionary of Calibrator instances for each label.
     predictor_probabilities : dict[label, dict[int, array]]
@@ -164,7 +164,7 @@ class Pipeline:
         self.calibrator = {}
 
         for label in self.label_list:
-            self.predictor[label] = Predictor(
+            self.predictor[label] = create_predictor(
                 self.predictor_type,
                 hyperparameters=self.predictor_config["hyperparameters"],
                 logger=self.logger,
@@ -173,7 +173,7 @@ class Pipeline:
             self.predictor_probabilities[label] = {}
             if self.calibrator_type != "":
                 # Only if a calibrator type is provided
-                self.calibrator[label] = Calibrator(
+                self.calibrator[label] = create_calibrator(
                     self.calibrator_type,
                     hyperparameters=self.calibrator_config["hyperparameters"],
                     logger=self.logger,

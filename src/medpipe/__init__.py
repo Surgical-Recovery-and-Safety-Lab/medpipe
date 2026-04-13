@@ -21,7 +21,7 @@ from .metrics import (
     print_metrics_CI,
 )
 from .models import get_full_proba, get_positive_proba, load_pipeline, save_pipeline
-from .pipeline.Pipeline import Pipeline
+from .pipeline.pipeline import Pipeline
 from .utils import (
     exception_handler,
     load_data_from_csv,

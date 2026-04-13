@@ -2,7 +2,7 @@
 medpipe.pipeline module
 
 submodules:
-- Pipeline: Pipeline class.
+- pipeline: Pipeline class.
 """
 
-from . import Pipeline
+from . import pipeline

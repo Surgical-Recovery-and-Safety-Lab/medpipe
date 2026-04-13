@@ -7,5 +7,5 @@ submodules:
 - Calibrator: class for calibration models.
 """
 
-from . import Calibrator, Predictor, core
+from . import calibrators, core, predictors
 from .core import get_full_proba, get_positive_proba, load_pipeline, save_pipeline
