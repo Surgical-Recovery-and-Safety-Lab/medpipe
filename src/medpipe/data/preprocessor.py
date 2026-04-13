@@ -24,7 +24,7 @@ if TYPE_CHECKING:
 
     import pandas as pd
 
-SCRIPT_NAME = "data/Preprocessor"
+SCRIPT_NAME = "data/preprocessor"
 
 
 class Preprocessor:
@@ -93,13 +93,13 @@ class Preprocessor:
 
         Parameters
         ----------
-        X : pd.Dataframe of shape (n_samples, n_features)
-            Data to clean.
+        X : pd.Dataframe
+            Data to clean of shape (n_samples, n_features).
 
         Returns
         -------
-        data : pd.Dataframe of shape (n_samples, n_features)
-             Cleaned data.
+        data : pd.Dataframe
+             Cleaned data of shape (n_samples, n_features).
 
         """
         # Convert objects to categorical (not saved so needs to be here)
@@ -146,8 +146,8 @@ class Preprocessor:
 
         Parameters
         ----------
-        X : pd.Dataframe of shape (n_samples, n_features)
-            Data to clean.
+        X : pd.Dataframe
+            Data to clean of shape (n_samples, n_features).
 
         Returns
         -------
@@ -168,13 +168,13 @@ class Preprocessor:
 
         Parameters
         ----------
-        X : pd.Dataframe of shape (n_samples, n_features)
-            Data to clean.
+        X : pd.Dataframe
+            Data to clean of shape (n_samples, n_features).
 
         Returns
         -------
-        data : pd.Dataframe of shape (n_samples, n_features)
-             Transformed data.
+        data : pd.Dataframe
+             Transformed data of shape (n_samples, n_features).
 
         """
         data = self._clean_data(deepcopy(X))  # Clean data before transformation
