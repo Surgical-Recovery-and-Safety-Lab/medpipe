@@ -16,6 +16,7 @@ from sklearn.model_selection import GroupKFold, StratifiedKFold
 from medpipe.data.preprocessing import (
     bin_score,
     convert_object_to_categorical,
+    downcast_dtypes,
     extract_labels,
     fit_preprocess_operations,
     get_validation_idx,
@@ -213,31 +214,39 @@ def test_get_validation_idx_groups_val_success(
 @pytest.mark.parametrize("val_size", [-0.5, 1.2])
 def test_get_validation_idx_value_error(val_size):
     with pytest.raises(ValueError):
-        train_idx, val_idx = get_validation_idx(np.arange(100), val_size=val_size)
+        _, _ = get_validation_idx(np.arange(100), val_size=val_size)
 
 
 def test_get_validation_idx_groups_value_error():
     with pytest.raises(ValueError):
-        train_idx, val_idx = get_validation_idx(np.arange(100), groups=np.array([1, 2]))
+        _, _ = get_validation_idx(np.arange(100), groups=np.array([1, 2]))
 
 
 @pytest.mark.parametrize("val_size", [1, [1, 2], "string", (1, "a"), {"a": 1}])
 def test_get_validation_idx_val_size_type_error(val_size):
     with pytest.raises(TypeError):
-        train_idx, val_idx = get_validation_idx(np.arange(100), val_size=val_size)
+        _, _ = get_validation_idx(np.arange(100), val_size=val_size)
 
 
 @pytest.mark.parametrize("groups", [1, [1, 2], "string", (1, "a"), {"a": 1}])
 def test_get_validation_idx_groups_type_error(groups):
     with pytest.raises(TypeError):
-        train_idx, val_idx = get_validation_idx(np.arange(100), groups=groups)
+        _, _ = get_validation_idx(np.arange(100), groups=groups)
 
 
 @pytest.mark.parametrize("group_vals", [1, 0.2, "a", (1, "a"), {"a": 1}])
 def test_get_validation_idx_group_vals_type_error(group_vals):
     with pytest.raises(TypeError):
-        train_idx, val_idx = get_validation_idx(
+        _, _ = get_validation_idx(
             np.arange(len(SAMPLE_DATA)),
             groups=SAMPLE_DATA["dummy"],
             group_vals=group_vals,
         )
+
+
+def test_downcast_dtypes_success():
+    downcast_data = downcast_dtypes(SAMPLE_DATA)
+    assert pd.api.types.is_integer_dtype(downcast_data["age"])
+    assert pd.api.types.is_object_dtype(downcast_data["sex"])
+    assert pd.api.types.is_integer_dtype(downcast_data["dummy"])
+    assert pd.api.types.is_float_dtype(downcast_data["M3_score"])
