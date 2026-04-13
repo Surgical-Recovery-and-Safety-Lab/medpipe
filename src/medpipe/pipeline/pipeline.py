@@ -289,7 +289,7 @@ class Pipeline:
         y: Labels,
         model: str,
         label: str,
-        **kwargs: Any,
+        weights: npt.NDArray = array([]),
     ) -> None:
         """
         Fits the predictor or calibrator model on the provided dataset.
@@ -304,8 +304,8 @@ class Pipeline:
             Model to fit.
         label : str
             Label associated with the model to use.
-        **kwargs : Any
-            Extra arguments for fitting the models.
+        weights : npt.NDArray, default: array([])
+            Weights for addressing class imbalance.
 
         Returns
         -------
@@ -320,9 +320,9 @@ class Pipeline:
         """
         match model:
             case "predictor":
-                self.predictor[label].fit(X, y, **kwargs)
+                self.predictor[label].fit(X, y, weights)
             case "calibrator":
-                self.calibrator[label].fit(X, y, **kwargs)
+                self.calibrator[label].fit(X, y)
             case _:
                 raise ValueError(
                     f"Model should be predictor or calibrator, but got {model}"
@@ -500,9 +500,7 @@ class Pipeline:
 
                 else:
                     # Train only predictor if no calibrator specified
-                    self._train_models(
-                        X_train_i, y_train_i, label, **{"weights": weights}
-                    )
+                    self._train_models(X_train_i, y_train_i, label, weights=weights)
 
                 # Test predictor on test set
                 self.test_model(X_test, y_test[:, j].squeeze(), "predictor", label)
@@ -542,10 +540,10 @@ class Pipeline:
 
             if self.calibrator_type != "":
                 self._train_models(
-                    X_train, y_train, label, X_cal, y_cal[:, k], **{"weights": weights}
+                    X_train, y_train, label, X_cal, y_cal[:, k], weights=weights
                 )
             else:
-                self._train_models(X_train, y_train, label, **{"weights": weights})
+                self._train_models(X_train, y_train, label, weights=weights)
 
     def _train_models(
         self,
@@ -554,7 +552,7 @@ class Pipeline:
         label: str,
         X_cal: PosProba = array([]),
         y_cal: Labels = array([]),
-        **kwargs: Any,
+        weights: npt.NDArray = array([]),
     ) -> None:
         """
         Trains the predictor and calibrator models.
@@ -573,8 +571,8 @@ class Pipeline:
             Calibration data of shape (n_samples,) for the calibrator.
         y_cal : Labels, default: np.array([])
             Calibration labels of shape (n_samples,) for the calibrator.
-        **kwargs : Any
-            Extra arguments for fitting the predictor.
+        weights : npt.NDArray, default: np.array([])
+            Weights to address class imbalance.
 
         Returns
         -------
@@ -583,7 +581,7 @@ class Pipeline:
 
         """
         # Fit predictor on train set
-        self.fit_model(X_train, y_train, "predictor", label, **kwargs)
+        self.fit_model(X_train, y_train, "predictor", label, weights)
 
         # Fit calibrator on validation set
         if self.calibrator_type != "":
@@ -837,9 +835,12 @@ class Pipeline:
 
         return X, y, groups
 
-    def _weight_data(self, y: Labels) -> npt.NDArray | None:
+    def _weight_data(self, y: Labels) -> npt.NDArray:
         """
         Gets the weights for the data based on configuration.
+
+        If no weighting function is provided in the configuration, the function
+        returns the sample weights equal to 1 by default.
 
         Parameters
         ----------
@@ -848,11 +849,10 @@ class Pipeline:
 
         Returns
         -------
-        weights : npt.NDArray or None
+        weights : npt.NDArray
             Sample or class weights based on labels.
             Sample weights are of shape (n_samples,).
             Class weights are of shape (1).
-            None if no weighting function is provided.
 
         """
         weighting_fn = self.predictor_config["weighting"]["weighting_fn"]

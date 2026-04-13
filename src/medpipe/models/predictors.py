@@ -10,6 +10,8 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any, Generic, cast
 
+from numpy import ndarray
+
 from medpipe._types import C, FullProba, Labels, PredData, Predictor
 from medpipe.data.utils import convert_data
 
@@ -167,6 +169,9 @@ class BasePredictor(ABC, Generic[C]):
 
         """
         train_data = convert_data(X_train)
+        if isinstance(weights, ndarray):
+            if len(weights) == 0:
+                weights = None  # Convert to None if an empty array is provided
         self.model.fit(train_data, y_train.squeeze(), sample_weight=weights)
 
     def predict_proba(self, X: PredData) -> FullProba:
