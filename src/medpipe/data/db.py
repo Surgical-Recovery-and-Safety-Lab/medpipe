@@ -14,7 +14,7 @@ import sqlite3
 
 import pandas as pd
 
-import medpipe.utils.exceptions
+from medpipe.utils.exceptions import file_checks
 
 
 def parquet_to_db(parquet_file: str, db_file: str, table_name: str = "main") -> None:
@@ -50,12 +50,12 @@ def parquet_to_db(parquet_file: str, db_file: str, table_name: str = "main") -> 
 
     """
     try:
-        medpipe.utils.exceptions.file_checks(parquet_file, ".parquet")
+        file_checks(parquet_file, ".parquet")
     except (FileNotFoundError, IsADirectoryError, TypeError, ValueError):
         raise
 
     try:
-        medpipe.utils.exceptions.file_checks(db_file, ".db", exists=False)
+        file_checks(db_file, ".db", exists=False)
     except (FileNotFoundError, TypeError, ValueError, IsADirectoryError):
         raise
 
@@ -102,7 +102,7 @@ def extract_data_from_db(db_file: str, query: str) -> pd.DataFrame:
 
     """
     try:
-        medpipe.utils.exceptions.file_checks(db_file, ".db")
+        file_checks(db_file, ".db")
     except (FileNotFoundError, IsADirectoryError, TypeError, ValueError):
         raise
 
