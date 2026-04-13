@@ -215,3 +215,49 @@ def convert_data(data: PData) -> PData:
         if convertable:
             # Convert data to a ndarray
             return data.to_numpy()
+    return data
+
+
+def get_data_from_idx(
+    data: PData, idx: npt.NDArray | list[int] = np.array([])
+) -> PData:
+    """
+    Returns the data at the given indices based on the data type.
+
+    If no indices are provided, the full data is returned.
+
+    Parameters
+    ----------
+    data : PData
+        Data of shape (n_samples, n_features) to query.
+    idx : npt.NDArray | list[int], default: np.array([])
+        Array of shape (n_indices,) indices to extract data at.
+
+    Returns
+    -------
+    indexed_data : PData
+        Data of shape (n_indices, n_features).
+
+    Raises
+    ------
+    TypeError
+        If idx is not array-like.
+        If idx does not contain integers.
+        If data is not PData type.
+
+    """
+    array_check(idx)
+    if len(idx) == 0:
+        # If no indices were passed return all the data
+        return data
+
+    if type(idx[0]) is not int:
+        # Check for integers
+        raise TypeError(f"idx should contain int, but got {type(idx[0])}")
+
+    if isinstance(data, np.ndarray):
+        return data[idx]
+    elif isinstance(data, pd.DataFrame):
+        return data.values[idx]
+    else:
+        raise TypeError(f"data should be PData type, but got {type(data)}")
