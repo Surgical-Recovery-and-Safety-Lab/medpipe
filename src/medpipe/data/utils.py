@@ -251,13 +251,13 @@ def get_data_from_idx(
         # If no indices were passed return all the data
         return data
 
-    if type(idx[0]) is not int:
+    if not np.issubdtype(np.array(idx).dtype, np.integer):
         # Check for integers
         raise TypeError(f"idx should contain int, but got {type(idx[0])}")
 
     if isinstance(data, np.ndarray):
         return data[idx]
     elif isinstance(data, pd.DataFrame):
-        return data.values[idx]
+        return data.iloc[idx]
     else:
         raise TypeError(f"data should be PData type, but got {type(data)}")
