@@ -14,12 +14,9 @@ import pandas as pd
 import pytest
 from sklearn.preprocessing import OrdinalEncoder, PowerTransformer, StandardScaler
 
-from medpipe.data.preprocessing import (
-    bin_score,
-    downcast_dtypes,
-    fit_preprocess_operations,
-)
+from medpipe.data.preprocessing import bin_score, fit_preprocess_operations
 from medpipe.data.preprocessor import Preprocessor
+from medpipe.data.utils import downcast_dtypes
 
 CWD = pathlib.Path.cwd()
 DATA_DIR = str(CWD / "test/test_data/")
