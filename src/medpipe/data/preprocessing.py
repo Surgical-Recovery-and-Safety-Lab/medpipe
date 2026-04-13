@@ -10,6 +10,7 @@ Functions:
 - fit_preprocess_operations: Fits processing operations to data.
 - bin_score: Bins the M3 score into 5 categories.
 - extract_labels: Extracts prediction labels from data.
+- downcast_dtypes: Downcasts the float and int dtypes in data.
 """
 
 from __future__ import annotations
@@ -338,3 +339,28 @@ def extract_labels(
     y = data[labels]
 
     return X, y.to_numpy()
+
+
+def downcast_dtypes(data: pd.DataFrame) -> pd.DataFrame:
+    """
+    Downcasts the float64 and int64 dtypes in data.
+
+    Parameters
+    ----------
+    data : pd.DataFrame
+        Data to downcast of shape (n_samples, n_labels).
+
+    Returns
+    -------
+    downcast_data : pd.DataFrame
+        Downcast data of shape (n_samples, n_labels).
+
+    """
+    for col in data.columns:
+        col_type = data[col].dtype
+
+        if pd.api.types.is_integer_dtype(col_type):
+            data[col] = pd.to_numeric(data[col], downcast="integer")
+        elif pd.api.types.is_float_dtype(col_type):
+            data[col] = pd.to_numeric(data[col], downcast="float")
+    return data
