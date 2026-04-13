@@ -10,7 +10,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any, Generic, cast
 
-from medpipe._types import C, FProbas, Labels, Predictor
+from medpipe._types import C, Data, FProbas, Labels, Predictor
 
 from .core import create_model
 
@@ -144,6 +144,29 @@ class BasePredictor(ABC, Generic[C]):
                 **self.hyperparameters,
             ),
         )
+
+    def _check_data_conversion(self, data: pd.DataFrame) -> bool:
+        """
+        Checks if the data can be converted to a npt.NDArray.
+
+        The function checks if all columns are numeric to assess convertability.
+
+        Parameters
+        ----------
+        data : pd.DataFrame
+            Data to check.
+
+        Returns
+        -------
+        convertable : bool
+            Flag wheter the data can be converted or not.
+
+        """
+        for col in data.columns:
+            if not pd.api.types.is_numeric_dtype(col):
+                # If one of the columns is not numeric return False
+                return False
+        return True
 
     def fit(
         self, X_train: pd.DataFrame, y_train: Labels, weights: npt.NDArray | None = None
