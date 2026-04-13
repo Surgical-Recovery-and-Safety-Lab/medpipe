@@ -12,7 +12,6 @@ Functions:
 
 from __future__ import annotations
 
-from copy import deepcopy
 from typing import TYPE_CHECKING, Any, Mapping
 
 import numpy as np
@@ -99,14 +98,15 @@ def convert_object_to_categorical(data: pd.DataFrame) -> pd.DataFrame:
         If data is not a pd.DataFrame.
 
     """
-    if type(data) is not type(pd.DataFrame()):
-        raise TypeError(f"data should be a pd.DataFrame, but got {type(data)}")
+    if not isinstance(data, pd.DataFrame):
+        raise TypeError(f"data should be a pd.DataFrame, but got {type(data).__name__}")
 
-    # Create a copy of data to work on
-    processed_data = data
+    processed_data = data.copy()
+    obj_cols = processed_data.select_dtypes(include=["object"]).columns
 
-    for column in data.select_dtypes(include=["object"]).columns:
-        processed_data[column] = data[column].astype("category")
+    # Vectorized conversion for all object columns at once
+    if not obj_cols.empty:
+        processed_data[obj_cols] = processed_data[obj_cols].astype("category")
 
     return processed_data
 
@@ -140,44 +140,46 @@ def fit_preprocess_operations(
         If preprocess is not a valid preprocessing function.
 
     """
-    if type(data) is not type(pd.DataFrame()):
-        raise TypeError(f"data should be a pd.DataFrame, but got {type(data)}")
+    if not isinstance(data, pd.DataFrame):
+        raise TypeError(f"data should be a pd.DataFrame, but got {type(data).__name__}")
 
-    # Operation dictionary to store fitted operations
-    data_copy = deepcopy(data)
-    operation_dict = dict()
+    # Use shallow copy instead of deepcopy for performance
+    data_working = data.copy()
+    operation_dict: dict[str, PreprocessOp | str] = {}
 
-    for preprocess in preprocessing_dict.keys():
-        features = preprocessing_dict[preprocess]["feature_list"]
+    # Map names to classes for cleaner logic
+    transformers = {
+        "ordinal_encoder": OrdinalEncoder,
+        "standardise": StandardScaler,
+        "power_transform": PowerTransformer,
+    }
 
-        if type(features) is not type([]):
-            raise TypeError(f"features should be a list, but got {type(features)}")
+    for op_name, config in preprocessing_dict.items():
+        features = config.get("feature_list")
 
-        if type(features[0]) is not type(""):
+        if not isinstance(features, list):
             raise TypeError(
-                f"features should be a list(str), but got list({type(features[0])}"
+                f"features should be a list, but got {type(features).__name__}"
             )
 
-        match preprocess:
-            case "ordinal_encoder":
-                operation_dict[preprocess] = OrdinalEncoder().fit(data_copy[features])
-                data_copy[features] = operation_dict[preprocess].transform(
-                    data_copy[features]
-                )
-            case "standardise":
-                operation_dict[preprocess] = StandardScaler().fit(data_copy[features])
-                data_copy[features] = operation_dict[preprocess].transform(
-                    data_copy[features]
-                )
-            case "power_transform":
-                operation_dict[preprocess] = PowerTransformer().fit(data_copy[features])
-                data_copy[features] = operation_dict[preprocess].transform(
-                    data_copy[features]
-                )
-            case "bin":
-                operation_dict[preprocess] = "bin"
-            case _:
-                raise ValueError(f"{preprocess} invalid preprocessing function")
+        if features and not isinstance(features[0], str):
+            raise TypeError(
+                f"features must contain strings, got {type(features[0]).__name__}"
+            )
+
+        if op_name == "bin":
+            operation_dict[op_name] = "bin"
+            continue
+
+        if op_name in transformers:
+            # Instantiate, fit, and transform sequentially
+            model = transformers[op_name]()
+            operation_dict[op_name] = model.fit(data_working[features])
+
+            # Update working data so subsequent fits see transformed values
+            data_working[features] = model.transform(data_working[features])
+        else:
+            raise ValueError(f"{op_name} is an invalid preprocessing function")
 
     return operation_dict
 
@@ -197,6 +199,4 @@ def bin_score(data: npt.NDArray) -> npt.NDArray:
         Binned data.
 
     """
-    binned_data = np.ceil(data)
-    binned_data[binned_data > 4] = 4
-    return binned_data
+    return np.clip(np.ceil(data), 0, 4).astype(int)
