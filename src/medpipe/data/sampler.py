@@ -518,7 +518,10 @@ def smote(
         np.arange(len(labels), len(y_gen)), size=int(n_min_class), replace=True
     )
 
-    return get_data_from_idx(X_gen, min_idx), unique_multilabels[y_gen[min_idx]]
+    return (
+        get_data_from_idx(cast(PredData, X_gen), min_idx),
+        unique_multilabels[y_gen[min_idx]],
+    )
 
 
 def group_smote(
