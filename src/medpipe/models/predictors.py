@@ -207,40 +207,40 @@ class BasePredictor(ABC, Generic[C]):
             Nothing is returned.
 
         """
-        train_data = X_train
+        train_data = self._convert_data(X_train)
         self.model.fit(train_data, y_train.squeeze(), sample_weight=weights)
 
-    def predict_proba(self, X: pd.DataFrame) -> FProbas:
+    def predict_proba(self, X: Data) -> FProbas:
         """
         Predicts probabilities from input data.
 
         Parameters
         ----------
-        X : pd.DataFrame
-            Training data.
+        X : Data
+            Training data of shape (n_samples, n_labels).
 
         Returns
         -------
         probabilities : FProbas
-            Predicted probabilities.
+            Predicted probabilities of shape (n_samples, 2).
 
         """
-        return self.model.predict_proba(X)
+        return self.model.predict_proba(self._convert_data(X))
 
     @abstractmethod
-    def predict(self, X: pd.DataFrame) -> Labels:
+    def predict(self, X: Data) -> Labels:
         """
         Predicts labels from input data.
 
         Parameters
         ----------
-        X : pd.DataFrame
-            Training data.
+        X : Data
+            Training data of shape (n_samples, n_labels).
 
         Returns
         -------
         labels : Labels
-            Predicted labels.
+            Predicted labels of shape (n_samples,).
 
         """
         pass
@@ -298,19 +298,19 @@ class HGBClassifier(BasePredictor):
         """
         super().__init__("hgb-c", hyperparameters, logger)
 
-    def predict(self, X: pd.DataFrame) -> Labels:
+    def predict(self, X: Data) -> Labels:
         """
         Predicts labels from input data.
 
         Parameters
         ----------
-        X : pd.DataFrame
-            Training data.
+        X : Data
+            Training data of shape (n_samples, n_labels).
 
         Returns
         -------
         labels : Labels
-            Predicted labels.
+            Predicted labels of shape (n_samples,).
 
         """
-        return self.model.predict(X)
+        return self.model.predict(self._convert_data(X))
