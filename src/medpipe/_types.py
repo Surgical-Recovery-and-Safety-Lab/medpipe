@@ -22,12 +22,13 @@ if TYPE_CHECKING:
     from medpipe.models.predictors import HGBClassifier
 
 # Define data and label types
-Data: TypeAlias = pd.DataFrame | npt.NDArray
 SingleClassLabels: TypeAlias = Annotated[npt.NDArray[np.integer], Literal["N"]]
 MultiClassLabels: TypeAlias = Annotated[npt.NDArray[np.integer], Literal["N", "C"]]
 FProbas: TypeAlias = Annotated[npt.NDArray[np.number], Literal["C", "N", 2]]
 PProbas: TypeAlias = Annotated[npt.NDArray[np.number], Literal["N", "C"]]
 Labels: TypeAlias = SingleClassLabels | MultiClassLabels
+PData: TypeAlias = pd.DataFrame | npt.NDArray  # Predictor class data
+Data: TypeAlias = PData | PProbas  # Pipeline class data
 
 # Define preprocessing types
 PreprocessOpConfig: TypeAlias = dict[str, dict[str, list[str]]]
