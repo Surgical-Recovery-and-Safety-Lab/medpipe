@@ -16,9 +16,9 @@ from medpipe.utils.logger import print_message
 from .preprocessing import (
     bin_score,
     convert_object_to_categorical,
-    downcast_dtypes,
     fit_preprocess_operations,
 )
+from .utils import downcast_dtypes
 
 if TYPE_CHECKING:
     import logging

@@ -15,9 +15,10 @@ from numpy import arange, array, expand_dims, ones
 
 import medpipe.data.weighting as weight
 from medpipe._types import Data, FProbas, Labels, PData, PProbas
-from medpipe.data.preprocessing import extract_labels, get_validation_idx, train_test_it
+from medpipe.data.preprocessing import train_test_it
 from medpipe.data.preprocessor import Preprocessor
 from medpipe.data.sampler import data_sampler
+from medpipe.data.utils import convert_data, extract_labels, get_validation_idx
 from medpipe.metrics.core import print_metrics
 from medpipe.models.calibrators import create_calibrator
 from medpipe.models.core import get_positive_proba, test_model

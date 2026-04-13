@@ -11,7 +11,7 @@ from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any, Generic, cast
 
 from medpipe._types import C, FProbas, Labels, PData, Predictor
-from medpipe.data.preprocessing import convert_data
+from medpipe.data.utils import convert_data
 
 from .core import create_model
 
