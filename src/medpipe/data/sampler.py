@@ -125,13 +125,17 @@ def data_sampler(
             )
         case "smote":
             X_gen, y_gen = smote(data, labels, new_ratio, kwargs["k_neighbors"])
-            return concat((data, X_gen)), np.concatenate((labels, y_gen)), Series([])
+            if isinstance(data, DataFrame):
+                X = concat((data, cast(DataFrame, X_gen)))
+            else:
+                X = np.concatenate((data, X_gen))
+            return X, np.concatenate((labels, y_gen)), Series([])
         case "group_smote":
             return group_smote(data, labels, new_ratio, groups, kwargs["k_neighbors"])
         case _:
             raise ValueError(f"{sampler_fn} invalid sampler function")
 
-    X = data.iloc[sample_idx]
+    X = get_data_from_idx(data, sample_idx)
     y = labels[sample_idx]
 
     if groups.empty:
@@ -374,7 +378,10 @@ def mean_dist_sampler(
     n_min_class = np.sum(label_sums != 0)  # Minority class examples
     n_maj_class = np.round(n_min_class / target_ratio)  # Majority class examples
 
-    maj_class_data = data.iloc[label_sums == 0]
+    if isinstance(data, DataFrame):
+        maj_class_data = data.iloc[label_sums == 0]
+    else:
+        maj_class_data = data[np.where(label_sums == 0)[0]]
     mean_maj_class = np.mean(maj_class_data, axis=0)
 
     # Get the distance to the mean
@@ -433,10 +440,6 @@ def group_mean_dist_sampler(
     array_check(labels)
     array_dim_check(labels, groups, dim=0)
     X = deepcopy(data)  # Create copy of data to not mess with actual data
-
-    if groups.name in X.columns:
-        # Remove group name to avoid calculation in the mean
-        X = X.drop(groups.name, axis=1)
 
     sample_idx = np.array([], dtype=int)  # Empty array for the majority class index
     n_groups = np.unique(groups)
@@ -510,13 +513,11 @@ def smote(
     sm = SMOTE(k_neighbors=k_neighbors)
     X_gen, y_gen, *_ = sm.fit_resample(X, class_labels)
 
-    if "SEX" in X_gen.columns:
-        X_gen["SEX"] = X_gen["SEX"].round()
-
     min_idx = np.random.choice(  # Select examples so that target ratio is achieved
         np.arange(len(labels), len(y_gen)), size=int(n_min_class), replace=True
     )
-    return X_gen.iloc[min_idx], unique_multilabels[y_gen[min_idx]]
+
+    return get_data_from_idx(X_gen, min_idx), unique_multilabels[y_gen[min_idx]]
 
 
 def group_smote(
@@ -570,13 +571,16 @@ def group_smote(
 
     for group in n_groups:
         group_idx = np.where(groups == group)[0]
-        group_data = data.iloc[group_idx]
+        group_data = get_data_from_idx(data, group_idx)
         group_labels = labels[group_idx]
 
         # Generate new data for groups
         X_gen, y_gen = smote(group_data, group_labels, target_ratio, k_neighbors)
         group_gen = group * np.ones(y_gen.shape[0])
-        X = concat((X, X_gen))
+        if isinstance(X, DataFrame):
+            X = concat((X, cast(DataFrame, X_gen)))
+        else:
+            X = np.concatenate((X, X_gen))
         y = np.concatenate((y, y_gen))
         grps = concat((grps, Series(group_gen.squeeze(), name=grps.name)))
 
