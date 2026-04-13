@@ -10,9 +10,8 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any, Generic, cast
 
-from numpy import ndarray
-
 from medpipe._types import C, FProbas, Labels, PData, Predictor
+from medpipe.data.preprocessing import convert_data
 
 from .core import create_model
 
@@ -21,7 +20,6 @@ if TYPE_CHECKING:
     import logging
 
     import numpy.typing as npt
-    import pandas as pd
 
 
 def create_predictor(
@@ -147,45 +145,6 @@ class BasePredictor(ABC, Generic[C]):
             ),
         )
 
-    def _convert_data(self, data: PData) -> PData | None:
-        """
-        Convert data to a ndarray if possible.
-
-        The function checks if all columns are numeric to assess convertability.
-        If the data can be converted, the pd.DataFrame is converted to ndarray.
-        If the data is already ndarray the data is returned.
-
-        Parameters
-        ----------
-        data : PData
-            Data to check.
-
-        Returns
-        -------
-        converted_data : npt.NDArray
-            Converted data of shape (n_samples, n_features)
-
-        Raises
-        ------
-        TypeError
-            If data is not a Data type.
-
-        """
-        convertable = True
-        if isinstance(data, ndarray):
-            # Data does not need to be converted
-            return data
-        elif isinstance(data, pd.DataFrame):
-            for col in data.columns:
-                if not pd.api.types.is_numeric_dtype(col):
-                    # If one of the columns is not numeric return False
-                    convertable = False
-            if convertable:
-                # Convert data to a ndarray
-                return data.to_numpy()
-        else:
-            raise TypeError(f"data should be a Data type, but got {type(data)}")
-
     def fit(
         self, X_train: PData, y_train: Labels, weights: npt.NDArray | None = None
     ) -> None:
@@ -207,7 +166,7 @@ class BasePredictor(ABC, Generic[C]):
             Nothing is returned.
 
         """
-        train_data = self._convert_data(X_train)
+        train_data = convert_data(X_train)
         self.model.fit(train_data, y_train.squeeze(), sample_weight=weights)
 
     def predict_proba(self, X: PData) -> FProbas:
@@ -225,7 +184,7 @@ class BasePredictor(ABC, Generic[C]):
             Predicted probabilities of shape (n_samples, 2).
 
         """
-        return self.model.predict_proba(self._convert_data(X))
+        return self.model.predict_proba(convert_data(X))
 
     @abstractmethod
     def predict(self, X: PData) -> Labels:
@@ -313,4 +272,4 @@ class HGBClassifier(BasePredictor):
             Predicted labels of shape (n_samples,).
 
         """
-        return self.model.predict(self._convert_data(X))
+        return self.model.predict(convert_data(X))

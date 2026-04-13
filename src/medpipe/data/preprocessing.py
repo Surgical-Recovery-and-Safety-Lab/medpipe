@@ -11,6 +11,7 @@ Functions:
 - bin_score: Bins the M3 score into 5 categories.
 - extract_labels: Extracts prediction labels from data.
 - downcast_dtypes: Downcasts the float and int dtypes in data.
+- convert_data: Convert data to a ndarray if possible.
 """
 
 from __future__ import annotations
@@ -24,7 +25,7 @@ import sklearn as skl
 from sklearn.model_selection import GroupKFold, StratifiedKFold
 from sklearn.preprocessing import OrdinalEncoder, PowerTransformer, StandardScaler
 
-from medpipe._types import Labels, PreprocessOp, PreprocessOpConfig
+from medpipe._types import Labels, PData, PreprocessOp, PreprocessOpConfig
 from medpipe.utils.exceptions import array_check, array_dim_check
 
 if TYPE_CHECKING:
@@ -363,4 +364,38 @@ def downcast_dtypes(data: pd.DataFrame) -> pd.DataFrame:
             data[col] = pd.to_numeric(data[col], downcast="integer")
         elif pd.api.types.is_float_dtype(col_type):
             data[col] = pd.to_numeric(data[col], downcast="float")
+    return data
+
+
+def convert_data(data: PData) -> PData:
+    """
+    Convert data to a ndarray if possible.
+
+    The function checks if all columns are numeric to assess convertability.
+    If the data can be converted, the pd.DataFrame is converted to ndarray.
+    If the data is already ndarray the data is returned.
+
+    Parameters
+    ----------
+    data : PData
+        Data to check.
+
+    Returns
+    -------
+    converted_data : npt.NDArray
+        Converted data of shape (n_samples, n_features)
+
+    """
+    convertable = True
+    if isinstance(data, np.ndarray):
+        # Data does not need to be converted
+        return data
+    elif isinstance(data, pd.DataFrame):
+        for col in data.columns:
+            if not pd.api.types.is_numeric_dtype(data[col].dtype):
+                # If one of the columns is not numeric return False
+                convertable = False
+        if convertable:
+            # Convert data to a ndarray
+            return data.to_numpy()
     return data
