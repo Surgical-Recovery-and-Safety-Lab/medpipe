@@ -27,28 +27,29 @@ Functions:
 from __future__ import annotations
 
 from copy import deepcopy
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import numpy as np
 from imblearn.over_sampling import SMOTE
-from pandas import Series, concat
+from pandas import DataFrame, Index, Series, concat
 
-from medpipe._types import Labels
+from medpipe._types import Labels, PData
 from medpipe.utils.exceptions import array_check, array_dim_check
+
+from .utils import get_data_from_idx
 
 if TYPE_CHECKING:
     import numpy.typing as npt
-    import pandas as pd
 
 
 def data_sampler(
-    data: pd.DataFrame,
+    data: PData,
     labels: Labels,
     target_ratio: float = 0.25,
     sampler_fn: str = "random_undersampler",
     groups: Series = Series([]),
     **kwargs: Any,
-) -> tuple[pd.DataFrame, Labels, Series]:
+) -> tuple[PData, Labels, Series]:
     """
     Samples the data and labels to adjust the class imbalance.
 
@@ -61,7 +62,7 @@ def data_sampler(
 
     Parameters
     ----------
-    data : pd.DataFrame
+    data : PData
         Data to sample of shape (n_samples, n_features).
     labels : Labels
         Binary prediction labels of shape (n_samples, n_classes).
@@ -76,7 +77,7 @@ def data_sampler(
 
     Returns
     -------
-    X : pd.DataFrame
+    X : PData
         Sampled data.
     y : Labels
         Sampled labels.
@@ -329,7 +330,7 @@ def group_random_oversampler(
 
 
 def mean_dist_sampler(
-    data: pd.DataFrame, labels: Labels, target_ratio: float, hard_percent=0.5
+    data: PData, labels: Labels, target_ratio: float, hard_percent=0.5
 ) -> npt.NDArray:
     """
     Computes the mean data sample of the majority class and uses the
@@ -341,7 +342,7 @@ def mean_dist_sampler(
 
     Parameters
     ----------
-    data : pd.DataFrame
+    data : PData
         Data to sample of shape (n_samples, n_features).
     labels : Labels
         Binary prediction labels of shape (n_samples, n_classes).
@@ -395,7 +396,7 @@ def mean_dist_sampler(
 
 
 def group_mean_dist_sampler(
-    data: pd.DataFrame,
+    data: PData,
     labels: Labels,
     target_ratio: float,
     groups: Series,
@@ -411,7 +412,7 @@ def group_mean_dist_sampler(
 
     Parameters
     ----------
-    data : pd.DataFrame
+    data : PData
         Data to sample of shape (n_samples, n_features).
     labels : Labels
         Binary prediction labels of shape (n_samples, n_classes).
@@ -446,7 +447,7 @@ def group_mean_dist_sampler(
 
     for group in n_groups:
         group_idx = np.where(groups == group)[0]
-        group_data = X.iloc[group_idx]
+        group_data = get_data_from_idx(X, group_idx)
         group_labels = labels[group_idx]
         sample_idx = np.concatenate(
             (
@@ -463,15 +464,15 @@ def group_mean_dist_sampler(
 
 
 def smote(
-    data: pd.DataFrame, labels: Labels, target_ratio: float, k_neighbors: int
-) -> tuple[pd.DataFrame, Labels]:
+    data: PData, labels: Labels, target_ratio: float, k_neighbors: int
+) -> tuple[PData, Labels]:
     """
     Oversample minority class using Synthetic Minority Over-Sampling Technique
     (SMOTE).
 
     Parameters
     ----------
-    data : pd.DataFrame
+    data : PData
         Data to sample of shape (n_samples, n_features).
     labels : Labels
         Binary prediction labels of shape (n_samples, n_classes).
@@ -482,7 +483,7 @@ def smote(
 
     Returns
     -------
-    X_gen : pd.DataFrame
+    X_gen : PData
         Generated data.
     multilabels_gen : Labels
         Generated labels.
@@ -521,19 +522,19 @@ def smote(
 
 
 def group_smote(
-    data: pd.DataFrame,
+    data: PData,
     labels: Labels,
     target_ratio: float,
     groups: Series,
     k_neighbors: int,
-) -> tuple[pd.DataFrame, Labels, Series]:
+) -> tuple[PData, Labels, Series]:
     """
     Oversample minority class using Synthetic Minority Over-Sampling Technique
     (SMOTE) in each group.
 
     Parameters
     ----------
-    data : pd.DataFrame
+    data : PData
         Data to sample of shape (n_samples, n_features).
     labels : Labels
         Binary prediction labels of shape (n_samples, n_classes).
@@ -546,7 +547,7 @@ def group_smote(
 
     Returns
     -------
-    X_gen : pd.DataFrame
+    X_gen : PData
         Generated data.
     multilabels_gen : Labels
         Generated labels.
