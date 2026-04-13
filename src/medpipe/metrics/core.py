@@ -169,7 +169,7 @@ def compute_all_CI(model_metrics: MetricDict, metric_list: list[str] = []) -> CI
     return ci_dict
 
 
-def compute_CI(data: npt.ArrayLike | npt.NDArray) -> CI:
+def compute_CI(data: list[float] | npt.NDArray) -> CI:
     """
     Computes the confidence interval of the data.
 
@@ -177,7 +177,7 @@ def compute_CI(data: npt.ArrayLike | npt.NDArray) -> CI:
 
     Parameters
     ----------
-    data : npt.ArrayLike
+    data : list[float] | npt.NDArray
         Data on which to compute the confidence interval of shape (n_samples, n_sets).
 
     Returns
