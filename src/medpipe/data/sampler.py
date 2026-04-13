@@ -33,7 +33,7 @@ import numpy as np
 from imblearn.over_sampling import SMOTE
 from pandas import DataFrame, concat
 
-from medpipe._types import Labels, PData
+from medpipe._types import Labels, PredData
 from medpipe.utils.exceptions import array_check, array_dim_check
 
 from .utils import get_data_from_idx
@@ -43,13 +43,13 @@ if TYPE_CHECKING:
 
 
 def data_sampler(
-    data: PData,
+    data: PredData,
     labels: Labels,
     target_ratio: float = 0.25,
     sampler_fn: str = "random_undersampler",
     groups: npt.NDArray = np.array([]),
     **kwargs: Any,
-) -> tuple[PData, Labels, npt.NDArray]:
+) -> tuple[PredData, Labels, npt.NDArray]:
     """
     Samples the data and labels to adjust the class imbalance.
 
@@ -62,7 +62,7 @@ def data_sampler(
 
     Parameters
     ----------
-    data : PData
+    data : PredData
         Data to sample of shape (n_samples, n_features).
     labels : Labels
         Binary prediction labels of shape (n_samples, n_classes).
@@ -77,7 +77,7 @@ def data_sampler(
 
     Returns
     -------
-    X : PData
+    X : PredData
         Sampled data.
     y : Labels
         Sampled labels.
@@ -330,7 +330,7 @@ def group_random_oversampler(
 
 
 def mean_dist_sampler(
-    data: PData, labels: Labels, target_ratio: float, hard_percent=0.5
+    data: PredData, labels: Labels, target_ratio: float, hard_percent=0.5
 ) -> npt.NDArray:
     """
     Computes the mean data sample of the majority class and uses the
@@ -342,7 +342,7 @@ def mean_dist_sampler(
 
     Parameters
     ----------
-    data : PData
+    data : PredData
         Data to sample of shape (n_samples, n_features).
     labels : Labels
         Binary prediction labels of shape (n_samples, n_classes).
@@ -396,7 +396,7 @@ def mean_dist_sampler(
 
 
 def group_mean_dist_sampler(
-    data: PData,
+    data: PredData,
     labels: Labels,
     target_ratio: float,
     groups: npt.NDArray,
@@ -412,7 +412,7 @@ def group_mean_dist_sampler(
 
     Parameters
     ----------
-    data : PData
+    data : PredData
         Data to sample of shape (n_samples, n_features).
     labels : Labels
         Binary prediction labels of shape (n_samples, n_classes).
@@ -464,15 +464,15 @@ def group_mean_dist_sampler(
 
 
 def smote(
-    data: PData, labels: Labels, target_ratio: float, k_neighbors: int
-) -> tuple[PData, Labels]:
+    data: PredData, labels: Labels, target_ratio: float, k_neighbors: int
+) -> tuple[PredData, Labels]:
     """
     Oversample minority class using Synthetic Minority Over-Sampling Technique
     (SMOTE).
 
     Parameters
     ----------
-    data : PData
+    data : PredData
         Data to sample of shape (n_samples, n_features).
     labels : Labels
         Binary prediction labels of shape (n_samples, n_classes).
@@ -483,7 +483,7 @@ def smote(
 
     Returns
     -------
-    X_gen : PData
+    X_gen : PredData
         Generated data.
     multilabels_gen : Labels
         Generated labels.
@@ -518,23 +518,26 @@ def smote(
         np.arange(len(labels), len(y_gen)), size=int(n_min_class), replace=True
     )
 
-    return get_data_from_idx(X_gen, min_idx), unique_multilabels[y_gen[min_idx]]
+    return (
+        get_data_from_idx(cast(PredData, X_gen), min_idx),
+        unique_multilabels[y_gen[min_idx]],
+    )
 
 
 def group_smote(
-    data: PData,
+    data: PredData,
     labels: Labels,
     target_ratio: float,
     groups: npt.NDArray,
     k_neighbors: int,
-) -> tuple[PData, Labels, npt.NDArray]:
+) -> tuple[PredData, Labels, npt.NDArray]:
     """
     Oversample minority class using Synthetic Minority Over-Sampling Technique
     (SMOTE) in each group.
 
     Parameters
     ----------
-    data : PData
+    data : PredData
         Data to sample of shape (n_samples, n_features).
     labels : Labels
         Binary prediction labels of shape (n_samples, n_classes).
@@ -547,7 +550,7 @@ def group_smote(
 
     Returns
     -------
-    X_gen : PData
+    X_gen : PredData
         Generated data.
     multilabels_gen : Labels
         Generated labels.

@@ -21,7 +21,7 @@ import numpy as np
 import sklearn as skl
 from scipy.stats import sem, t
 
-from medpipe._types import CI, CIDict, FProbas, Labels, MetricDict
+from medpipe._types import CI, CIDict, FullProba, Labels, MetricDict
 from medpipe.utils.exceptions import array_check
 from medpipe.utils.logger import print_message
 
@@ -34,7 +34,7 @@ SCRIPT_NAME = "metrics/core"
 
 
 def print_metrics(
-    metric_dict: MetricDict,
+    metric_dict: dict[str, list[float]],
     label_list: list[str],
     logger: logging.Logger | None = None,
 ) -> None:
@@ -43,7 +43,7 @@ def print_metrics(
 
     Parameters
     ----------
-    metric_dict : MetricDict
+    metric_dict : dict[str, list[float]]
         Dictionary of the model performance for one fold.
         Keys are the metric name and values are the metric value.
         The test metrics used are:
@@ -169,7 +169,7 @@ def compute_all_CI(model_metrics: MetricDict, metric_list: list[str] = []) -> CI
     return ci_dict
 
 
-def compute_CI(data: npt.ArrayLike | npt.NDArray) -> CI:
+def compute_CI(data: list[float] | npt.NDArray) -> CI:
     """
     Computes the confidence interval of the data.
 
@@ -177,7 +177,7 @@ def compute_CI(data: npt.ArrayLike | npt.NDArray) -> CI:
 
     Parameters
     ----------
-    data : npt.ArrayLike
+    data : list[float] | npt.NDArray
         Data on which to compute the confidence interval of shape (n_samples, n_sets).
 
     Returns
@@ -341,7 +341,7 @@ def compute_pred_metrics(
 
 
 def compute_score_metrics(
-    metric_list: list[str], y_true: Labels, y_pred_proba: FProbas
+    metric_list: list[str], y_true: Labels, y_pred_proba: FullProba
 ) -> MetricDict:
     """
     Computes the metrics that require the score.
@@ -357,7 +357,7 @@ def compute_score_metrics(
          - log_loss
     y_true : Labels
         Ground truth labels of shape (n_samples, n_classes).
-    y_pred_proba : FProbas
+    y_pred_proba : FullProba
         Full predicted probabilities.
 
     Returns

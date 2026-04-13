@@ -10,11 +10,11 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+import numpy as np
 import pandas as pd
-from numpy import arange, array, expand_dims, ones
 
 import medpipe.data.weighting as weight
-from medpipe._types import Data, FProbas, Labels, PData, PProbas
+from medpipe._types import Data, FullProba, Labels, PosProba, PredData
 from medpipe.data.preprocessing import train_test_it
 from medpipe.data.preprocessor import Preprocessor
 from medpipe.data.sampler import data_sampler
@@ -67,11 +67,11 @@ class Pipeline:
         Dictionary of Predictor instances for each label.
     calibrator : dict[label, Calibrator]
         Dictionary of Calibrator instances for each label.
-    predictor_probabilities : dict[label, dict[int, array]]
+    predictor_probabilities : dict[label, dict[int, np.array]]
         Dictionary of predicted probabilities for each predictor
         The dictionary keys are the labels and the values are
         the predicted probabilities of the predictor for that fold.
-    calibrator_probabilities : dict[label, dict[int, array]]
+    calibrator_probabilities : dict[label, dict[int, np.array]]
         Dictionary of predicted probabilities for each calibrator
         The dictionary keys are the labels and the values are
         the predicted probabilities of the calibrator for that fold.
@@ -265,7 +265,7 @@ class Pipeline:
 
         if split_vars["group_name"] and not test_group_vals is None:
             train_idx, test_idx = get_validation_idx(
-                arange(len(X), dtype=int),
+                np.arange(len(X), dtype=int),
                 X[split_vars["group_name"]].to_numpy(),
                 test_group_vals,
             )
@@ -275,7 +275,7 @@ class Pipeline:
         else:
             # No groups just get specified percent of the data
             train_idx, test_idx = get_validation_idx(
-                arange(len(X), dtype=int), val_size=split_vars["test_size"]
+                np.arange(len(X), dtype=int), val_size=split_vars["test_size"]
             )
             X_test = X.iloc[test_idx]
 
@@ -289,7 +289,7 @@ class Pipeline:
         y: Labels,
         model: str,
         label: str,
-        **kwargs: Any,
+        weights: npt.NDArray = np.array([]),
     ) -> None:
         """
         Fits the predictor or calibrator model on the provided dataset.
@@ -304,8 +304,8 @@ class Pipeline:
             Model to fit.
         label : str
             Label associated with the model to use.
-        **kwargs : Any
-            Extra arguments for fitting the models.
+        weights : npt.NDArray, default: np.array([])
+            Weights for addressing class imbalance.
 
         Returns
         -------
@@ -320,9 +320,9 @@ class Pipeline:
         """
         match model:
             case "predictor":
-                self.predictor[label].fit(X, y, **kwargs)
+                self.predictor[label].fit(X, y, weights)
             case "calibrator":
-                self.calibrator[label].fit(X, y, **kwargs)
+                self.calibrator[label].fit(X, y)
             case _:
                 raise ValueError(
                     f"Model should be predictor or calibrator, but got {model}"
@@ -369,7 +369,7 @@ class Pipeline:
         metric_dict = test_model(
             y,
             self.predict(X, label_list=label, model_type=model),
-            array(self.predict_proba(X, label_list=label, model_type=model)),
+            np.array(self.predict_proba(X, label_list=label, model_type=model)),
         )
         print_message(message, self.logger, SCRIPT_NAME)
         print_metrics(metric_dict, [label], self.logger)
@@ -412,11 +412,13 @@ class Pipeline:
         )
 
         # Create independent calibration set if calibrator is specified
-        X_cal = array([])
-        y_cal = array([])
+        X_cal = np.array([])
+        y_cal = np.array([])
 
         if self.calibrator_type != "":
-            train_idx, val_idx = get_validation_idx(arange(len(y)), groups=split_groups)
+            train_idx, val_idx = get_validation_idx(
+                np.arange(len(y)), groups=split_groups
+            )
             X_cal = X.iloc[val_idx]
             y_cal = y[val_idx]
             X = X.iloc[train_idx]
@@ -445,7 +447,7 @@ class Pipeline:
             else:
                 X_fold = X
                 fold = i
-                fold_groups = pd.Series([])
+                fold_groups = np.array([])
                 fold_message = f"  Fold number {fold+1}/{n_folds}"
 
             X_fold = convert_data(X_fold)  # Convert data if possible
@@ -459,7 +461,7 @@ class Pipeline:
             for j, label in enumerate(self.label_list):
                 # Sample and weight data if needed
                 X_train_i, y_train_i, _ = self._sample_data(
-                    X_train, expand_dims(y_train[:, j], 1), fold_groups
+                    X_train, np.expand_dims(y_train[:, j], 1), fold_groups
                 )
                 weights = self._weight_data(y_train_i)
 
@@ -500,9 +502,7 @@ class Pipeline:
 
                 else:
                     # Train only predictor if no calibrator specified
-                    self._train_models(
-                        X_train_i, y_train_i, label, **{"weights": weights}
-                    )
+                    self._train_models(X_train_i, y_train_i, label, weights=weights)
 
                 # Test predictor on test set
                 self.test_model(X_test, y_test[:, j].squeeze(), "predictor", label)
@@ -522,12 +522,12 @@ class Pipeline:
                 # Drop group names for final dataset if needed
                 X = X.drop(cv_group_name, axis=1)
         else:
-            # Convert to an array for final sampling
-            cv_groups = array([])
+            # Convert to an np.array for final sampling
+            cv_groups = np.array([])
 
         for k, label in enumerate(self.label_list):
             X_train, y_train, _ = self._sample_data(
-                X, expand_dims(y[:, k], 1), cv_groups
+                X, np.expand_dims(y[:, k], 1), cv_groups
             )
             weights = self._weight_data(y_train)
 
@@ -542,19 +542,19 @@ class Pipeline:
 
             if self.calibrator_type != "":
                 self._train_models(
-                    X_train, y_train, label, X_cal, y_cal[:, k], **{"weights": weights}
+                    X_train, y_train, label, X_cal, y_cal[:, k], weights=weights
                 )
             else:
-                self._train_models(X_train, y_train, label, **{"weights": weights})
+                self._train_models(X_train, y_train, label, weights=weights)
 
     def _train_models(
         self,
-        X_train: PData,
+        X_train: PredData,
         y_train: Labels,
         label: str,
-        X_cal: PProbas = array([]),
-        y_cal: Labels = array([]),
-        **kwargs: Any,
+        X_cal: PosProba = np.array([]),
+        y_cal: Labels = np.array([]),
+        weights: npt.NDArray = np.array([]),
     ) -> None:
         """
         Trains the predictor and calibrator models.
@@ -569,12 +569,12 @@ class Pipeline:
             Train labels of shape (n_samples,) for the predictor.
         label: str
             Label associated with the model to train.
-        X_cal : PProbas, default: np.array([])
+        X_cal : PosProba, default: np.np.array([])
             Calibration data of shape (n_samples,) for the calibrator.
-        y_cal : Labels, default: np.array([])
+        y_cal : Labels, default: np.np.array([])
             Calibration labels of shape (n_samples,) for the calibrator.
-        **kwargs : Any
-            Extra arguments for fitting the predictor.
+        weights : npt.NDArray, default: np.np.array([])
+            Weights to address class imbalance.
 
         Returns
         -------
@@ -583,7 +583,7 @@ class Pipeline:
 
         """
         # Fit predictor on train set
-        self.fit_model(X_train, y_train, "predictor", label, **kwargs)
+        self.fit_model(X_train, y_train, "predictor", label, weights)
 
         # Fit calibrator on validation set
         if self.calibrator_type != "":
@@ -599,7 +599,7 @@ class Pipeline:
         X: Data,
         label_list: str | list[str] = "all",
         model_type: str = "predictor",
-    ) -> FProbas:
+    ) -> FullProba:
         """
         Predicts probabilities from predictor or calibrator based on input data.
 
@@ -615,7 +615,7 @@ class Pipeline:
 
         Returns
         -------
-        probabilities : FProbas
+        probabilities : FullProba
             Full predicted probabilities of shape (n_samples, 2).
 
         Raises
@@ -626,39 +626,34 @@ class Pipeline:
             If label_list is not str or list.
 
         """
-        match model_type:
-            case "predictor":
-                pred_fn = self._predictor_pred_wrapper
-            case "calibrator":
-                pred_fn = self._calibrator_pred_wrapper
-            case _:
-                raise ValueError(
-                    f"Model should be predictor or calibrator, but got {model_type}"
-                )
+        # Dispatching based on model_type
+        dispatch = {
+            "predictor": self._predictor_pred_wrapper,
+            "calibrator": self._calibrator_pred_wrapper,
+        }
 
-        if type(label_list) is str:
-            if label_list == "all":
-                # Convert to list of all labels
-                label_list = self.label_list
-            else:
-                # Single label
-                return pred_fn(X, label_list, "predict_proba")
-
-        if type(label_list) is not type([]):
-            raise TypeError(
-                f"Label list should be str or list, but got {type(label_list)}"
+        if model_type not in dispatch.keys():
+            raise ValueError(
+                f"Model should be predictor or calibrator, but got {model_type}"
             )
 
-        probabilities = []
-        for label in label_list:
-            # Loop over all labels to get probabilities for each model
-            pred_probas = pred_fn(X, label, "predict_proba")
-            if type(pred_probas) is type([]):
-                # Account for potential multilabel
-                probabilities += pred_probas
-            else:
-                probabilities.append(pred_probas)
-        return array(probabilities)
+        pred_fn = dispatch[model_type]  # Get correct prediction wrapper
+
+        # Handle single label (early exit)
+        if isinstance(label_list, str):
+            if label_list != "all":
+                return pred_fn(X, label_list, "predict_proba")
+            label_list = self.label_list
+
+        if not isinstance(label_list, list):  # Check label list is correct type
+            raise TypeError(
+                f"Label list should be str or list, but got {type(label_list).__name__}"
+            )
+
+        # Use list comprehension to create results
+        results = [pred_fn(X, label, "predict_proba") for label in label_list]
+
+        return np.array(results)
 
     def predict(
         self,
@@ -692,49 +687,44 @@ class Pipeline:
             If label_list is not str or list.
 
         """
-        match model_type:
-            case "predictor":
-                pred_fn = self._predictor_pred_wrapper
-            case "calibrator":
-                pred_fn = self._calibrator_pred_wrapper
-            case _:
-                raise ValueError(
-                    f"Model should be predictor or calibrator, but got {model_type}"
-                )
+        # Dispatching based on model_type
+        dispatch = {
+            "predictor": self._predictor_pred_wrapper,
+            "calibrator": self._calibrator_pred_wrapper,
+        }
 
-        if type(label_list) is str:
-            if label_list == "all":
-                # Convert to list of all labels
-                label_list = self.label_list
-            else:
-                # Single label
-                return pred_fn(X, label_list, "predict").astype(int)
-
-        if type(label_list) is not type([]):
-            raise TypeError(
-                f"Label list should be str or list, but got {type(label_list)}"
+        if model_type not in dispatch.keys():
+            raise ValueError(
+                f"Model should be predictor or calibrator, but got {model_type}"
             )
 
-        labels = []
-        for _label in label_list:
-            # Loop over all labels to get labels for each model
-            pred_labels = pred_fn(X, _label, "predict")
-            if type(pred_labels) is type([]):
-                # Account for potential multilabel
-                labels += pred_labels
-            else:
-                labels.append(pred_labels)
-        return array(labels)
+        pred_fn = dispatch[model_type]
+
+        # Handle single label (early exit)
+        if isinstance(label_list, str):
+            if label_list != "all":
+                return pred_fn(X, label_list, "predict").astype(int)
+            label_list = self.label_list
+
+        if not isinstance(label_list, list):  # Check label list is correct type
+            raise TypeError(
+                f"Label list should be str or list, but got {type(label_list).__name__}"
+            )
+
+        # Multi-label collection if needed
+        raw_results = [pred_fn(X, label, "predict") for label in label_list]
+
+        return np.array(raw_results).astype(int)
 
     def _predictor_pred_wrapper(
-        self, X: PData, label: str, prediction_type: str
-    ) -> Labels | FProbas:
+        self, X: PredData, label: str, prediction_type: str
+    ) -> Labels | FullProba:
         """
         Wrapper function to create predictions with the predictor.
 
         Parameters
         ----------
-        X : PData
+        X : PredData
             Data for predictor classes on of shape (n_samples, n_features).
         label : str
             Label associated with the model to use.
@@ -743,7 +733,7 @@ class Pipeline:
 
         Returns
         -------
-        estimates : Labels | FProbas
+        estimates : Labels | FullProba
             Labels or probabilities estimated from model based on prediction_type.
 
         Raises
@@ -765,14 +755,14 @@ class Pipeline:
                 )
 
     def _calibrator_pred_wrapper(
-        self, X: PProbas, label: str, prediction_type: str
-    ) -> Labels | FProbas:
+        self, X: PosProba, label: str, prediction_type: str
+    ) -> Labels | FullProba:
         """
         Wrapper function to create predictions with the calibrator.
 
         Parameters
         ----------
-        X : PProbas
+        X : PosProba
             Data for calibrator class of shape (n_samples,).
         label : str
             Label associated with the model to use.
@@ -781,7 +771,7 @@ class Pipeline:
 
         Returns
         -------
-        estimates : Labels | FProbas
+        estimates : Labels | FullProba
             Labels or probabilities estimated from model based on prediction_type.
 
         Raises
@@ -806,14 +796,14 @@ class Pipeline:
                 )
 
     def _sample_data(
-        self, X: PData, y: Labels, groups: npt.NDArray
-    ) -> tuple[PData, Labels, npt.NDArray]:
+        self, X: PredData, y: Labels, groups: npt.NDArray
+    ) -> tuple[PredData, Labels, npt.NDArray]:
         """
         Samples the data based on configuration.
 
         Parameters
         ----------
-        X : PData
+        X : PredData
             Data to sample of shape (n_samples, n_features).
         y : Labels
             Labels to sample of shape (n_samples,).
@@ -837,9 +827,12 @@ class Pipeline:
 
         return X, y, groups
 
-    def _weight_data(self, y: Labels) -> npt.NDArray | None:
+    def _weight_data(self, y: Labels) -> npt.NDArray:
         """
         Gets the weights for the data based on configuration.
+
+        If no weighting function is provided in the configuration, the function
+        returns the sample weights equal to 1 by default.
 
         Parameters
         ----------
@@ -848,11 +841,10 @@ class Pipeline:
 
         Returns
         -------
-        weights : npt.NDArray or None
+        weights : npt.NDArray
             Sample or class weights based on labels.
             Sample weights are of shape (n_samples,).
             Class weights are of shape (1).
-            None if no weighting function is provided.
 
         """
         weighting_fn = self.predictor_config["weighting"]["weighting_fn"]
@@ -860,15 +852,15 @@ class Pipeline:
         if weighting_fn:
             return getattr(weight, weighting_fn)(y)
 
-        return ones(y.shape[0])
+        return np.ones(y.shape[0])
 
-    def _get_calibrator_data(self, X: PData, label: str) -> PProbas:
+    def _get_calibrator_data(self, X: PredData, label: str) -> PosProba:
         """
         Get the calibrator data based on the calibrator type.
 
         Parameters
         ----------
-        X : PData
+        X : PredData
             Data of shape (n_samples, n_features) to transform for calibrator.
         label : str
             Label associated with the model to use.

@@ -10,7 +10,9 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any, Generic, cast
 
-from medpipe._types import C, FProbas, Labels, PData, Predictor
+from numpy import ndarray
+
+from medpipe._types import C, FullProba, Labels, PredData, Predictor
 from medpipe.data.utils import convert_data
 
 from .core import create_model
@@ -146,14 +148,14 @@ class BasePredictor(ABC, Generic[C]):
         )
 
     def fit(
-        self, X_train: PData, y_train: Labels, weights: npt.NDArray | None = None
+        self, X_train: PredData, y_train: Labels, weights: npt.NDArray | None = None
     ) -> None:
         """
         Fits the predictor to the training data.
 
         Parameters
         ----------
-        X_train : PData
+        X_train : PredData
             Training data of shape (n_samples, n_features).
         y_train : Labels
             Prediction labels of shape (n_samples,).
@@ -167,33 +169,36 @@ class BasePredictor(ABC, Generic[C]):
 
         """
         train_data = convert_data(X_train)
+        if isinstance(weights, ndarray):
+            if len(weights) == 0:
+                weights = None  # Convert to None if an empty array is provided
         self.model.fit(train_data, y_train.squeeze(), sample_weight=weights)
 
-    def predict_proba(self, X: PData) -> FProbas:
+    def predict_proba(self, X: PredData) -> FullProba:
         """
         Predicts probabilities from input data.
 
         Parameters
         ----------
-        X : PData
+        X : PredData
             Training data of shape (n_samples, n_features).
 
         Returns
         -------
-        probabilities : FProbas
+        probabilities : FullProba
             Predicted probabilities of shape (n_samples, 2).
 
         """
         return self.model.predict_proba(convert_data(X))
 
     @abstractmethod
-    def predict(self, X: PData) -> Labels:
+    def predict(self, X: PredData) -> Labels:
         """
         Predicts labels from input data.
 
         Parameters
         ----------
-        X : PData
+        X : PredData
             Training data of shape (n_samples, n_features).
 
         Returns
@@ -257,13 +262,13 @@ class HGBClassifier(BasePredictor):
         """
         super().__init__("hgb-c", hyperparameters, logger)
 
-    def predict(self, X: PData) -> Labels:
+    def predict(self, X: PredData) -> Labels:
         """
         Predicts labels from input data.
 
         Parameters
         ----------
-        X : PData
+        X : PredData
             Training data of shape (n_samples, n_features).
 
         Returns

@@ -10,6 +10,8 @@ from __future__ import annotations
 from copy import deepcopy
 from typing import TYPE_CHECKING, Mapping
 
+from numpy import sum
+
 from medpipe._types import PreprocessOp, PreprocessOpConfig
 from medpipe.utils.logger import print_message
 
@@ -107,7 +109,7 @@ class Preprocessor:
         data = convert_object_to_categorical(X)
 
         # Remove NaN values
-        nb_nan_rows = data.isna().any(axis=1).sum()
+        nb_nan_rows = sum(data.isna().any(axis=1))
         data = data.dropna()
 
         print_message(
@@ -177,15 +179,13 @@ class Preprocessor:
         if self.preprocess:
             # If the preprocess flag is true
             print_message("Preprocessing data", self.logger, SCRIPT_NAME)
-            for operation in self.operations:
+            for operation, transformer in self.operations.items():
                 features = self.transform_seq[operation]["feature_list"]
 
-                if isinstance(self.operations[operation], str):
+                if isinstance(transformer, str):
                     transformed_data = bin_score(data[features].to_numpy())
                 else:
-                    transformed_data = self.operations[operation].transform(
-                        data[features]
-                    )
+                    transformed_data = transformer.transform(data[features])
                 data[features] = transformed_data
 
         data = downcast_dtypes(data)  # Downcast for speed
