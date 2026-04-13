@@ -273,4 +273,4 @@ def get_full_proba(pos_proba: PosProba) -> FullProba:
     if len(probabilities) == 1:
         return probabilities[0]
     else:
-        return probabilities
+        return np.array(probabilities)
