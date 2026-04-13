@@ -10,6 +10,7 @@ import pathlib
 
 import numpy as np
 import pytest
+from pandas import Series
 
 from medpipe.utils.exceptions import (
     array_check,
@@ -125,11 +126,10 @@ def test_path_checks_file_not_found(file_name):
     [
         np.array([]),
         np.array([1]),
-        np.array([1, 2]),
         np.array([[1, 2], [1, 2]]),
         np.array([[1], [2]]),
         [1, 2, 3],  # List
-        (1, 2, 3),  # Tuple
+        Series([1, 2]),  # Series
     ],
 )
 def test_array_check_success(arr):
@@ -142,6 +142,8 @@ def test_array_check_success(arr):
         5,  # Int
         3.14,  # Float
         "not_an_arr",  # Str
+        {"A", 1},  # Dict
+        (42, 3.14, "pi"),  # tuple
     ],
 )
 def test_array_check_not_array(not_arr):

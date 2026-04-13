@@ -10,7 +10,8 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any, Generic, cast
 
-from medpipe._types import C, FProbas, Labels, Predictor
+from medpipe._types import C, FProbas, Labels, PData, Predictor
+from medpipe.data.utils import convert_data
 
 from .core import create_model
 
@@ -19,7 +20,6 @@ if TYPE_CHECKING:
     import logging
 
     import numpy.typing as npt
-    import pandas as pd
 
 
 def create_predictor(
@@ -146,17 +146,17 @@ class BasePredictor(ABC, Generic[C]):
         )
 
     def fit(
-        self, X_train: pd.DataFrame, y_train: Labels, weights: npt.NDArray | None = None
+        self, X_train: PData, y_train: Labels, weights: npt.NDArray | None = None
     ) -> None:
         """
         Fits the predictor to the training data.
 
         Parameters
         ----------
-        X_train : pd.DataFrame
-            Training data.
+        X_train : PData
+            Training data of shape (n_samples, n_features).
         y_train : Labels
-            Prediction labels.
+            Prediction labels of shape (n_samples,).
         weights : npt.NDArray | None, default: None
             Weights to address class imbalance.
 
@@ -166,39 +166,40 @@ class BasePredictor(ABC, Generic[C]):
             Nothing is returned.
 
         """
-        self.model.fit(X_train, y_train.squeeze(), sample_weight=weights)
+        train_data = convert_data(X_train)
+        self.model.fit(train_data, y_train.squeeze(), sample_weight=weights)
 
-    def predict_proba(self, X: pd.DataFrame) -> FProbas:
+    def predict_proba(self, X: PData) -> FProbas:
         """
         Predicts probabilities from input data.
 
         Parameters
         ----------
-        X : pd.DataFrame
-            Training data.
+        X : PData
+            Training data of shape (n_samples, n_features).
 
         Returns
         -------
         probabilities : FProbas
-            Predicted probabilities.
+            Predicted probabilities of shape (n_samples, 2).
 
         """
-        return self.model.predict_proba(X)
+        return self.model.predict_proba(convert_data(X))
 
     @abstractmethod
-    def predict(self, X: pd.DataFrame) -> Labels:
+    def predict(self, X: PData) -> Labels:
         """
         Predicts labels from input data.
 
         Parameters
         ----------
-        X : pd.DataFrame
-            Training data.
+        X : PData
+            Training data of shape (n_samples, n_features).
 
         Returns
         -------
         labels : Labels
-            Predicted labels.
+            Predicted labels of shape (n_samples,).
 
         """
         pass
@@ -256,19 +257,19 @@ class HGBClassifier(BasePredictor):
         """
         super().__init__("hgb-c", hyperparameters, logger)
 
-    def predict(self, X: pd.DataFrame) -> Labels:
+    def predict(self, X: PData) -> Labels:
         """
         Predicts labels from input data.
 
         Parameters
         ----------
-        X : pd.DataFrame
-            Training data.
+        X : PData
+            Training data of shape (n_samples, n_features).
 
         Returns
         -------
         labels : Labels
-            Predicted labels.
+            Predicted labels of shape (n_samples,).
 
         """
-        return self.model.predict(X)
+        return self.model.predict(convert_data(X))

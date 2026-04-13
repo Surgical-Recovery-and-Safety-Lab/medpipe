@@ -155,9 +155,9 @@ class BaseCalibrator(ABC, Generic[R]):
         Parameters
         ----------
         X : PProbas
-            Predicted probabilities from model.
+            Predicted probabilities from model of shape (n_samples,).
         y : Labels
-            Labels to predict.
+            Labels to predict of shape (n_samples,).
 
         Returns
         -------
@@ -176,12 +176,12 @@ class BaseCalibrator(ABC, Generic[R]):
         Parameters
         ----------
         X : PProbas
-            Positive predicted probabilities from a Predictor.
+            Positive predicted probabilities from a Predictor of shape (n_samples,).
 
         Returns
         -------
         probabilities : FProbas
-            Predicted probabilities.
+            Predicted probabilities of shape (n_samples, 2).
 
         """
         pass
@@ -193,12 +193,12 @@ class BaseCalibrator(ABC, Generic[R]):
         Parameters
         ----------
         X : PProbas
-            Positive predicted probabilities from a Predictor.
+            Positive predicted probabilities from a Predictor of shape (n_samples,).
 
         Returns
         -------
         predictions : PProbas
-            Predicted labels.
+            Predicted labels of shape (n_samples,).
 
         """
         X = X.reshape(-1, 1) if X.ndim == 1 else X  # Reshape if 1 dimension only
@@ -263,12 +263,12 @@ class LogisticCalibrator(BaseCalibrator[LogisticRegression]):
         Parameters
         ----------
         X : PProbas
-            Positive predicted probabilities from a Predictor.
+            Positive predicted probabilities from a Predictor of shape (n_samples,).
 
         Returns
         -------
         probabilities : FProbas
-            Predicted probabilities.
+            Predicted probabilities of shape (n_samples, 2).
 
         """
         X = X.reshape(-1, 1) if X.ndim == 1 else X  # Reshape if 1 dimension only
@@ -332,12 +332,12 @@ class IsotonicCalibrator(BaseCalibrator[IsotonicRegression]):
         Parameters
         ----------
         X : PProbas
-            Positive predicted probabilities from a Predictor.
+            Positive predicted probabilities from a Predictor of shape (n_samples,).
 
         Returns
         -------
         probabilities : FProbas
-            Predicted probabilities.
+            Predicted probabilities of shape (n_samples, 2).
 
         """
         X = X.reshape(-1, 1) if X.ndim == 1 else X  # Reshape if 1 dimension only

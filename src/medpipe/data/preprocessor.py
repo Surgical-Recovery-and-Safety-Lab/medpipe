@@ -18,6 +18,7 @@ from .preprocessing import (
     convert_object_to_categorical,
     fit_preprocess_operations,
 )
+from .utils import downcast_dtypes
 
 if TYPE_CHECKING:
     import logging
@@ -131,14 +132,8 @@ class Preprocessor:
 
         """
         data = self._clean_data(deepcopy(X))  # Clean data before transformation
-
-        if self.preprocess:
-            # If the preprocess flag is true
-            print_message("Fitting processing operations", self.logger, SCRIPT_NAME)
-            self.operations = fit_preprocess_operations(data, self.transform_seq)
-            data = self.transform(data)
-
-        return data
+        self.fit(data)  # Fit operations
+        return self.transform(data)  # Transform data
 
     def fit(self, X: pd.DataFrame) -> None:
         """
@@ -193,4 +188,5 @@ class Preprocessor:
                     )
                 data[features] = transformed_data
 
+        data = downcast_dtypes(data)  # Downcast for speed
         return data
