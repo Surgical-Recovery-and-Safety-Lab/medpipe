@@ -445,7 +445,7 @@ class Pipeline:
             else:
                 X_fold = X
                 fold = i
-                fold_groups = pd.Series([])
+                fold_groups = array([])
                 fold_message = f"  Fold number {fold+1}/{n_folds}"
 
             X_fold = convert_data(X_fold)  # Convert data if possible
