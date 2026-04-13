@@ -14,7 +14,11 @@ import pandas as pd
 import pytest
 from sklearn.preprocessing import OrdinalEncoder, PowerTransformer, StandardScaler
 
-from medpipe.data.preprocessing import bin_score, fit_preprocess_operations
+from medpipe.data.preprocessing import (
+    bin_score,
+    downcast_dtypes,
+    fit_preprocess_operations,
+)
 from medpipe.data.preprocessor import Preprocessor
 
 CWD = pathlib.Path.cwd()
@@ -52,7 +56,9 @@ def test_fit_transform():
     test_data[["age", "dummy"]] = PowerTransformer().fit_transform(
         test_data[["age", "dummy"]]
     )
-    test_data["M3_score"] = bin_score(test_data["M3_score"])
+    test_data["M3_score"] = bin_score(test_data["M3_score"].to_numpy())
+
+    test_data = downcast_dtypes(test_data)  # Downcast to match processed data type
 
     assert (processed_data.to_numpy() == test_data.to_numpy()).all()
     assert (processed_data["age"].to_numpy() == test_data["age"].to_numpy()).all()
@@ -88,7 +94,9 @@ def test_transform():
     test_data[["age", "dummy"]] = PowerTransformer().fit_transform(
         test_data[["age", "dummy"]]
     )
-    test_data["M3_score"] = bin_score(test_data["M3_score"])
+    test_data["M3_score"] = bin_score(test_data["M3_score"].to_numpy())
+
+    test_data = downcast_dtypes(test_data)  # Downcast to match processed data type
 
     assert (processed_data.to_numpy() == test_data.to_numpy()).all()
     assert (processed_data["age"].to_numpy() == test_data["age"].to_numpy()).all()
