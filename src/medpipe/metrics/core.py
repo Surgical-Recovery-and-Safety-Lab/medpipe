@@ -21,7 +21,7 @@ import numpy as np
 import sklearn as skl
 from scipy.stats import sem, t
 
-from medpipe._types import CI, CIDict, FullProba, Labels, MetricDict
+from medpipe._types import CI, CIDict, FullProba, Labels, MetricDict, ModelMetrics
 from medpipe.utils.exceptions import array_check
 from medpipe.utils.logger import print_message
 
@@ -119,13 +119,13 @@ def print_metrics_CI(
             )
 
 
-def compute_all_CI(model_metrics: MetricDict, metric_list: list[str] = []) -> CIDict:
+def compute_all_CI(model_metrics: ModelMetrics, metric_list: list[str] = []) -> CIDict:
     """
     Computes the confidence intervals for all metrics.
 
     Parameters
     ----------
-    model_metrics : MetricDict
+    model_metrics : ModelMetrics
         Model metrics for different folds.
     metric_list : list[str], default: []
         List of metrics to calculate confidence interval.
@@ -202,13 +202,13 @@ def compute_CI(data: list[float] | npt.NDArray) -> CI:
     return means, lower, upper
 
 
-def extract_metric(model_metrics: MetricDict, metric_name: str) -> list[float]:
+def extract_metric(model_metrics: ModelMetrics, metric_name: str) -> list[float]:
     """
     Extracts the desired metric from each fold in the metric dictionary.
 
     Parameters
     ----------
-    model_metrics : MetricDict
+    model_metrics : ModelMetrics
         Model metrics for different folds.
     metric_name : str
         Name of the metric to extract.

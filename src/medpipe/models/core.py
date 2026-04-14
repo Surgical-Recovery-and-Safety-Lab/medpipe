@@ -22,7 +22,7 @@ from sklearn.ensemble import HistGradientBoostingClassifier
 from sklearn.isotonic import IsotonicRegression
 from sklearn.linear_model import LogisticRegression
 
-from medpipe._types import FullProba, Labels, MetricDict, Model, PosProba
+from medpipe._types import FullProba, Labels, Model, PosProba
 from medpipe.metrics.core import compute_pred_metrics, compute_score_metrics
 from medpipe.utils.exceptions import array_check, file_checks
 from medpipe.utils.logger import print_message
@@ -104,7 +104,9 @@ def create_model(
     return model
 
 
-def test_model(y_test: Labels, y_pred: Labels, y_pred_proba: FullProba) -> MetricDict:
+def test_model(
+    y_test: Labels, y_pred: Labels, y_pred_proba: FullProba
+) -> dict[str, list[float]]:
     """
     Computes different metrics to test the model.
 
@@ -119,7 +121,7 @@ def test_model(y_test: Labels, y_pred: Labels, y_pred_proba: FullProba) -> Metri
 
     Returns
     -------
-    metric_dict : MetricDict
+    metric_dict : dict[str, list[float]]
         Dictionary of the model performance for one fold.
         Keys are the metric name and values are the metric value.
         The test metrics used are:
