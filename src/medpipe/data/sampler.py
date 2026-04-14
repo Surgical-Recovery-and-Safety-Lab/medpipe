@@ -26,7 +26,6 @@ Functions:
 
 from __future__ import annotations
 
-from copy import deepcopy
 from typing import TYPE_CHECKING, Any, cast
 
 import numpy as np
@@ -183,21 +182,35 @@ def random_undersampler(labels: Labels, target_ratio: float) -> npt.NDArray:
         If target_ratio is less than 0.0.
 
     """
-    array_check(labels)  # Check that labels is array-like
+    array_check(labels)
 
     if target_ratio <= 0:
         raise ValueError(f"Target ratio should be positive, but got {target_ratio}")
 
-    label_sums = np.sum(labels, axis=1)  # Sum to find example with at least one 1
-    n_min_class = np.sum(label_sums != 0)  # Minority class examples
-    n_maj_class = np.round(n_min_class / target_ratio)  # Majority class examples
+    # Any row with a 1 is minority; rows with all 0s are majority
+    is_min = np.any(labels != 0, axis=1)
+    is_maj = ~is_min
 
-    min_idx = np.where(label_sums > 0)[0]
-    maj_idx = np.random.choice(  # Select examples so that target ratio is achieved
-        np.where(label_sums == 0)[0], size=int(n_maj_class), replace=False
-    )
+    min_idx = np.where(is_min)[0]
+    maj_potential_idx = np.where(is_maj)[0]
 
-    return np.concatenate((min_idx, maj_idx))
+    n_min_class = len(min_idx)
+    n_maj_available = len(maj_potential_idx)
+
+    if n_min_class == 0:
+        # Returning an empty array or original indices is safer than crashing
+        return maj_potential_idx.astype(int)
+
+    # Calculate target majority count
+    # Ensure n_maj_target is an integer and doesn't exceed available samples
+    n_maj_target = int(np.round(n_min_class / target_ratio))
+    n_to_sample = min(n_maj_target, n_maj_available)
+
+    # Random selection
+    maj_idx = np.random.choice(maj_potential_idx, size=n_to_sample, replace=False)
+
+    # Return as integer array for consistent downstream indexing
+    return np.concatenate((min_idx, maj_idx)).astype(int)
 
 
 def group_random_undersampler(
@@ -236,17 +249,24 @@ def group_random_undersampler(
     if target_ratio <= 0:
         raise ValueError(f"Target ratio should be positive, but got {target_ratio}")
 
-    sample_idx = np.array([], dtype=int)  # Empty array for the majority class index
+    all_sampled_indices = []  # List for sampled indices
+
+    # Get unique groups
     n_groups = np.unique(groups)
 
     for group in n_groups:
-        group_idx = np.where(groups == group)[0]
-        group_data = labels[group_idx]
-        sample_idx = np.concatenate(
-            (sample_idx, group_idx[random_undersampler(group_data, target_ratio)])
-        )
+        # Get absolute indices for this specific group
+        group_indices = np.where(groups == group)[0]
+        relative_idx = random_undersampler(labels[group_indices], target_ratio)
 
-    return sample_idx
+        # Update list
+        all_sampled_indices.append(group_indices[relative_idx])
+
+    # Concatenate all indices
+    if not all_sampled_indices:
+        return np.array([], dtype=int)
+
+    return np.concatenate(all_sampled_indices).astype(int)
 
 
 def random_oversampler(labels: Labels, target_ratio: float) -> npt.NDArray:
@@ -272,26 +292,37 @@ def random_oversampler(labels: Labels, target_ratio: float) -> npt.NDArray:
         If labels is not npt.NDArray.
     ValueError
         If target_ratio is less than 0.0.
+        If there is no minority class.
 
     """
-    array_check(labels)  # Check that labels is array-like
+    array_check(labels)
+
     if target_ratio <= 0:
         raise ValueError(f"Target ratio should be positive, but got {target_ratio}")
 
-    label_sums = np.sum(labels, axis=1)  # Sum to find example with at least one 1
-    n_min_class = np.sum(label_sums != 0)  # Minority class examples
-    n_maj_class = len(labels) - n_min_class  # Majority class examples
+    # Generate class masks and indices once
+    is_min = np.any(labels != 0, axis=1)
+    is_maj = ~is_min
+
+    min_indices = np.where(is_min)[0]
+    maj_indices = np.where(is_maj)[0]
+
+    n_min_class = len(min_indices)
+    n_maj_class = len(maj_indices)
 
     if n_min_class == 0:
-        raise ValueError("No minority examples found")
+        raise ValueError("No minority examples found; cannot oversample.")
 
-    # Indices of minority and majority examples
-    maj_idx = np.where(label_sums == 0)[0]
-    min_idx = np.random.choice(  # Select examples so that target ratio is achieved
-        np.where(label_sums > 0)[0], size=int(n_maj_class * target_ratio), replace=True
-    )
+    # Calculate target size
+    # We want (n_min_total / n_maj) = target_ratio
+    target_n_min = int(np.round(n_maj_class * target_ratio))
 
-    return np.concatenate((min_idx, maj_idx))
+    # Perform oversampling
+    # This selects 'target_n_min' indices from the minority set with replacement.
+    oversampled_min_idx = np.random.choice(min_indices, size=target_n_min, replace=True)
+
+    # Concatenate and ensure integer type
+    return np.concatenate((oversampled_min_idx, maj_indices)).astype(int)
 
 
 def group_random_oversampler(
@@ -330,17 +361,30 @@ def group_random_oversampler(
     if target_ratio <= 0:
         raise ValueError(f"Target ratio should be positive, but got {target_ratio}")
 
-    sample_idx = np.array([], dtype=int)  # Empty array for the majority class index
-    n_groups = np.unique(groups)
+    all_sampled_indices = []  # List to contain sampled indices
+    unique_groups = np.unique(groups)
 
-    for group in n_groups:
-        group_idx = np.where(groups == group)[0]
-        group_data = labels[group_idx]
-        sample_idx = np.concatenate(
-            (sample_idx, group_idx[random_oversampler(group_data, target_ratio)])
-        )
+    for group in unique_groups:
+        # Get absolute indices for this group
+        group_indices = np.where(groups == group)[0]
+        group_labels = labels[group_indices]
 
-    return sample_idx
+        # If not minority class keep the majority samples.
+        has_minority = np.any(group_labels != 0)
+
+        if has_minority:
+            # Get relative indices from our optimized random_oversampler
+            relative_idx = random_oversampler(group_labels, target_ratio)
+            # Map to absolute indices and store
+            all_sampled_indices.append(group_indices[relative_idx])
+        else:
+            all_sampled_indices.append(group_indices)
+
+    # Concatenate sampled indices
+    if not all_sampled_indices:
+        return np.array([], dtype=int)
+
+    return np.concatenate(all_sampled_indices).astype(int)
 
 
 def mean_dist_sampler(
@@ -382,31 +426,53 @@ def mean_dist_sampler(
 
     """
     array_check(labels)
-    if hard_percent > 1 or hard_percent < 0:
-        raise ValueError(
-            f"hard_percent should be between 0 and 1, but got {hard_percent}"
-        )
+
+    if not (0 <= hard_percent <= 1):
+        raise ValueError(f"hard_percent must be between 0 and 1, got {hard_percent}")
     if target_ratio <= 0:
         raise ValueError(f"Target ratio should be positive, but got {target_ratio}")
 
-    label_sums = np.sum(labels, axis=1)  # Sum to find example with at least one 1
-    n_min_class = np.sum(label_sums != 0)  # Minority class examples
-    n_maj_class = np.round(n_min_class / target_ratio)  # Majority class examples
+    # Identify minority and majority masks
+    is_min = np.any(labels != 0, axis=1)
+    is_maj = ~is_min
 
-    if isinstance(data, DataFrame):
-        maj_class_data = data.iloc[label_sums == 0]
-    else:
-        maj_class_data = data[np.where(label_sums == 0)[0]]
-    mean_maj_class = np.mean(maj_class_data, axis=0)
+    min_indices = np.where(is_min)[0]
+    maj_indices = np.where(is_maj)[0]
 
-    # Get the distance to the mean
-    dist = np.linalg.norm(mean_maj_class - maj_class_data, axis=1)
-    sorted_dist_idx = np.argsort(dist)
+    n_min = len(min_indices)
+    n_maj_available = len(maj_indices)
 
-    hard_samples_idx = sorted_dist_idx[-round(n_maj_class * hard_percent) :]
-    easy_samples_idx = sorted_dist_idx[: round(n_maj_class * (1 - hard_percent))]
+    if n_min == 0:
+        return np.arange(
+            len(labels)
+        )  # Return everything if no minority to balance against
 
-    return np.concatenate((easy_samples_idx, hard_samples_idx))
+    # Extract majority data
+    maj_data = get_data_from_idx(data, is_maj)
+
+    # Distance calculation
+    mean_maj = np.mean(maj_data, axis=0)
+    # Vectorized subtraction and norm
+    dist = np.linalg.norm(maj_data - mean_maj, axis=1)
+    sorted_rel_idx = np.argsort(dist)
+
+    # Determine target counts
+    n_maj_target = int(np.round(n_min / target_ratio))
+    n_to_sample = min(n_maj_target, n_maj_available)
+
+    n_hard = int(np.round(n_to_sample * hard_percent))
+    n_easy = n_to_sample - n_hard
+
+    # Map relative indices back to absolute indices
+    selected_maj_indices = np.concatenate(
+        (
+            maj_indices[sorted_rel_idx[:n_easy]],
+            maj_indices[sorted_rel_idx[-n_hard:]] if n_hard > 0 else [],
+        )
+    )
+
+    # Return minority + selected majority
+    return np.concatenate((min_indices, selected_maj_indices)).astype(int)
 
 
 def group_mean_dist_sampler(
@@ -454,27 +520,38 @@ def group_mean_dist_sampler(
     """
     array_check(labels)
     array_dim_check(labels, groups, dim=0)
-    X = deepcopy(data)  # Create copy of data to not mess with actual data
 
-    sample_idx = np.array([], dtype=int)  # Empty array for the majority class index
+    all_sampled_indices = []  # List for sampled indices
     n_groups = np.unique(groups)
 
     for group in n_groups:
-        group_idx = np.where(groups == group)[0]
-        group_data = get_data_from_idx(X, group_idx)
-        group_labels = labels[group_idx]
-        sample_idx = np.concatenate(
-            (
-                sample_idx,
-                group_idx[
-                    mean_dist_sampler(
-                        group_data, group_labels, target_ratio, hard_percent
-                    )
-                ],
-            )
-        )
+        # Get absolute indices for the group
+        group_indices = np.where(groups == group)[0]
+        group_labels = labels[group_indices]
 
-    return sample_idx
+        # If no majority samples exist, we can't calculate a mean_dist.
+        # If no minority samples exist, we don't need to balance.
+        has_maj = np.any(np.all(group_labels == 0, axis=1))
+        has_min = np.any(np.any(group_labels != 0, axis=1))
+
+        if has_maj and has_min:
+            group_data = get_data_from_idx(data, group_indices)
+
+            # The inner sampler returns relative indices [0, 1, 2...]
+            relative_idx = mean_dist_sampler(
+                group_data, group_labels, target_ratio, hard_percent
+            )
+            # Map back to absolute and store
+            all_sampled_indices.append(group_indices[relative_idx])
+        else:
+            # If we can't balance (missing a class), keep the group as-is
+            all_sampled_indices.append(group_indices)
+
+    # Final concatenation
+    if not all_sampled_indices:
+        return np.array([], dtype=int)
+
+    return np.concatenate(all_sampled_indices).astype(int)
 
 
 def smote(
@@ -511,31 +588,50 @@ def smote(
 
     """
     array_check(labels)
-    X = deepcopy(data)
 
     if target_ratio <= 0:
         raise ValueError(f"Target ratio should be positive, but got {target_ratio}")
 
-    label_sums = np.sum(labels, axis=1)  # Sum to find example with at least one 1
-    n_maj_class = np.sum(label_sums == 0)  # Majority class examples
-    n_min_class = np.round(n_maj_class * target_ratio) - np.sum(
-        label_sums > 0
-    )  # Minority class examples
+    # Identify counts
+    is_min = np.any(labels != 0, axis=1)
+    n_maj = np.sum(~is_min)
+    n_min_existing = np.sum(is_min)
 
-    # Convert labels into unique classes
-    unique_multilabels, class_labels = np.unique(labels, axis=0, return_inverse=True)
+    # Calculate how many NEW samples we need to generate
+    n_target_total_min = int(np.round(n_maj * target_ratio))
+    n_to_generate = n_target_total_min - n_min_existing
 
+    if n_to_generate <= 0:
+        # Return empty structures of the correct type if no generation needed
+        return (data.iloc[:0] if isinstance(data, DataFrame) else data[:0]), labels[:0]
+
+    # Map multi-label rows to unique IDs.
+    unique_combinations, inverse_indices = np.unique(
+        labels, axis=0, return_inverse=True
+    )
+
+    # We find the most frequent minority combination to use for generation.
     sm = SMOTE(k_neighbors=k_neighbors)
-    X_gen, y_gen, *_ = sm.fit_resample(X, class_labels)
+    try:
+        X_resampled, y_resampled, *_ = sm.fit_resample(data, inverse_indices)
+    except ValueError:
+        # Fallback: if k_neighbors is too high for the group size, we skip generation
+        return (data.iloc[:0] if isinstance(data, DataFrame) else data[:0]), labels[:0]
 
-    min_idx = np.random.choice(  # Select examples so that target ratio is achieved
-        np.arange(len(labels), len(y_gen)), size=int(n_min_class), replace=True
+    # Generated samples are appended to the end.
+    n_original = len(data)
+    X_generated = get_data_from_idx(
+        cast(PredData, X_resampled), np.arange(n_original, len(X_resampled))
     )
+    y_gen_indices = y_resampled[n_original:]
 
-    return (
-        get_data_from_idx(cast(PredData, X_gen), min_idx),
-        unique_multilabels[y_gen[min_idx]],
-    )
+    # Sub-sample the generated data to match the exact target_ratio
+    if len(X_generated) > n_to_generate:
+        sel = np.random.choice(len(X_generated), size=n_to_generate, replace=False)
+        X_generated = get_data_from_idx(X_generated, sel)
+        y_gen_indices = y_gen_indices[sel]
+
+    return X_generated, unique_combinations[y_gen_indices]
 
 
 def group_smote(
@@ -581,25 +677,34 @@ def group_smote(
     """
     array_check(labels)
     array_dim_check(labels, groups, dim=0)
-    X = deepcopy(data)  # Create copy of data to not mess with actual data
-    y = deepcopy(labels)
-    grps = deepcopy(groups)
 
-    n_groups = np.unique(groups)
+    unique_groups = np.unique(groups)
 
-    for group in n_groups:
-        group_idx = np.where(groups == group)[0]
-        group_data = get_data_from_idx(data, group_idx)
-        group_labels = labels[group_idx]
+    # Start with original data to avoid repeated copying
+    all_X = [data]
+    all_y = [labels]
+    all_g = [groups]
 
-        # Generate new data for groups
-        X_gen, y_gen = smote(group_data, group_labels, target_ratio, k_neighbors)
-        group_gen = group * np.ones(y_gen.shape[0])
-        if isinstance(X, DataFrame):
-            X = concat((X, cast(DataFrame, X_gen)))
-        else:
-            X = np.concatenate((X, X_gen))
-        y = np.concatenate((y, y_gen))
-        grps = np.concatenate((grps, group_gen.squeeze()))
+    for group in unique_groups:
+        grp_idx = np.where(groups == group)[0]
+        # Skip SMOTE if the group is too small to find neighbors
+        if len(grp_idx) <= k_neighbors:
+            continue
 
-    return X, y, grps
+        grp_data = get_data_from_idx(data, grp_idx)
+        grp_labels = labels[grp_idx]
+
+        X_gen, y_gen = smote(grp_data, grp_labels, target_ratio, k_neighbors)
+
+        if len(y_gen) > 0:
+            all_X.append(X_gen)
+            all_y.append(y_gen)
+            all_g.append(np.full(len(y_gen), group))
+
+    # Final concatenation
+    if isinstance(data, DataFrame):
+        final_X = concat(cast(list[DataFrame], all_X), axis=0)
+    else:
+        final_X = np.concatenate(all_X, axis=0)
+
+    return final_X, np.concatenate(all_y, axis=0), np.concatenate(all_g, axis=0)
