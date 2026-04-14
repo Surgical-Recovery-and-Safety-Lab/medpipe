@@ -92,56 +92,70 @@ def data_sampler(
         If target_ratio is less than 0.0.
 
     """
-    sample_idx = np.array([])  # Empty sample index
-
-    if target_ratio > 0:
-        imbalance_ratio = (len(labels) - np.sum(labels)) / np.sum(labels)
-        new_ratio = 1 / (imbalance_ratio * target_ratio)
-
-        if (imbalance_ratio * new_ratio) < 1:
-            # Set to 1 to get balanced dataset
-            new_ratio = 1
-
-    elif target_ratio == 0:
-        new_ratio = 1  # Set to 1 to get balanced dataset
-    else:
+    if target_ratio < 0:
         raise ValueError(f"Target ratio should be positive, but got {target_ratio}")
 
-    match sampler_fn:
-        case "random_undersampler":
-            sample_idx = random_undersampler(labels, new_ratio)
-        case "group_random_undersampler":
-            sample_idx = group_random_undersampler(labels, new_ratio, groups)
-        case "random_oversampler":
-            sample_idx = random_oversampler(labels, new_ratio)
-        case "group_random_oversampler":
-            sample_idx = group_random_oversampler(labels, new_ratio, groups)
-        case "mean_dist_sampler":
-            sample_idx = mean_dist_sampler(
-                data, labels, new_ratio, kwargs["hard_percent"]
+    # Calculate new_ratio once
+    n_samples = len(labels)
+    n_pos = np.sum(labels)
+
+    if target_ratio == 0 or n_pos == 0:
+        new_ratio = 1.0
+    else:
+        imbalance_ratio = (n_samples - n_pos) / n_pos
+        new_ratio = max(1.0, 1 / (imbalance_ratio * target_ratio))
+
+    # Dispatch logic
+    if sampler_fn == "smote":
+        X_gen, y_gen = smote(data, labels, new_ratio, kwargs.get("k_neighbors", 5))
+        if isinstance(data, DataFrame):
+            return (
+                concat((data, cast(DataFrame, X_gen))),
+                np.concatenate((labels, y_gen)),
+                np.array([]),
             )
-        case "group_mean_dist_sampler":
-            sample_idx = group_mean_dist_sampler(
-                data, labels, new_ratio, groups, kwargs["hard_percent"]
-            )
-        case "smote":
-            X_gen, y_gen = smote(data, labels, new_ratio, kwargs["k_neighbors"])
-            if isinstance(data, DataFrame):
-                X = concat((data, cast(DataFrame, X_gen)))
-            else:
-                X = np.concatenate((data, X_gen))
-            return X, np.concatenate((labels, y_gen)), np.array([])
-        case "group_smote":
-            return group_smote(data, labels, new_ratio, groups, kwargs["k_neighbors"])
-        case _:
-            raise ValueError(f"{sampler_fn} invalid sampler function")
+        return (
+            np.concatenate((data, X_gen)),
+            np.concatenate((labels, y_gen)),
+            np.array([]),
+        )
+
+    if sampler_fn == "group_smote":
+        return group_smote(
+            data, labels, new_ratio, groups, kwargs.get("k_neighbors", 5)
+        )
+
+    # Index-based samplers
+    sampler_map = {
+        "random_undersampler": lambda: random_undersampler(labels, new_ratio),
+        "group_random_undersampler": lambda: group_random_undersampler(
+            labels, new_ratio, groups
+        ),
+        "random_oversampler": lambda: random_oversampler(labels, new_ratio),
+        "group_random_oversampler": lambda: group_random_oversampler(
+            labels, new_ratio, groups
+        ),
+        "mean_dist_sampler": lambda: mean_dist_sampler(
+            data, labels, new_ratio, kwargs.get("hard_percent", 0.5)
+        ),
+        "group_mean_dist_sampler": lambda: group_mean_dist_sampler(
+            data, labels, new_ratio, groups, kwargs.get("hard_percent", 0.5)
+        ),
+    }
+
+    if sampler_fn not in sampler_map:
+        raise ValueError(f"{sampler_fn} invalid sampler function")
+
+    sample_idx = sampler_map[sampler_fn]()
 
     X = get_data_from_idx(data, sample_idx)
     y = labels[sample_idx]
 
-    if len(groups) == 0:
-        return X, y, groups
-    return X, y, cast(np.ndarray, get_data_from_idx(groups, sample_idx))
+    res_groups = np.array([])
+    if groups.size > 0:
+        res_groups = cast(np.ndarray, get_data_from_idx(groups, sample_idx))
+
+    return X, y, res_groups
 
 
 def random_undersampler(labels: Labels, target_ratio: float) -> npt.NDArray:
