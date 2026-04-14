@@ -69,44 +69,38 @@ def get_validation_idx(
 
     """
     array_check(idx_list)
+
+    # Standardize groups to numpy
     if isinstance(groups, pd.Series):
-        groups = groups.to_numpy()  # Convert to array
+        groups = groups.to_numpy()
     elif not isinstance(groups, np.ndarray):
-        raise TypeError(
-            f"groups should be a pd.Series or np.array, but got {type(groups)}"
-        )
+        raise TypeError(f"groups should be pd.Series or np.array, got {type(groups)}")
 
     if groups.size != 0:
-        # If groups are provided
-        array_check(idx_list)
         array_dim_check(idx_list, groups, dim=0)
 
         if group_vals is not None:
-            if not hasattr(group_vals, "__iter__"):
-                raise TypeError("group_vals should be iterable")
-            if (
-                isinstance(group_vals, dict)
-                or isinstance(group_vals, str)
-                or isinstance(group_vals, tuple)
-            ):
+            # Type checking validation
+            if not isinstance(group_vals, (list, np.ndarray)):
                 raise TypeError("group_vals should be list or array")
-            val_idx = np.array([], dtype=np.int64)
-            train_idx = []
-            for group in group_vals:
-                val_idx = np.concatenate((val_idx, np.where(groups == group)[0]))
 
-            train_idx = np.setdiff1d(np.arange(len(groups)), val_idx)
-
+            # Vectorized selection: Find where 'groups' matches any value in 'group_vals'
+            val_mask = np.isin(groups, group_vals)
+            val_idx = np.where(val_mask)[0]
+            train_idx = np.where(~val_mask)[0]
         else:
+            # Default: Take the largest group ID as validation
             group_max = np.max(groups)
-            val_idx = np.where(groups == group_max)[0]
-            train_idx = np.where(groups != group_max)[0]
+            val_mask = groups == group_max
+            val_idx = np.where(val_mask)[0]
+            train_idx = np.where(~val_mask)[0]
 
     else:
         if not isinstance(val_size, float):
             raise TypeError(f"val_size should be a float, but got {type(val_size)}")
-        if val_size < 0.0 or val_size > 1.0:
+        if not (0.0 <= val_size <= 1.0):
             raise ValueError(f"val_size should be between 0 and 1, but got {val_size}")
+
         train_idx, val_idx = skl.model_selection.train_test_split(
             idx_list, test_size=val_size, random_state=42
         )
@@ -144,19 +138,18 @@ def extract_labels(
         If a prediction label is not a valid key.
 
     """
-    if type(data) is not type(pd.DataFrame()):
+    if not isinstance(data, pd.DataFrame):
         raise TypeError(f"data should be a pd.DataFrame, but got {type(data)}")
-
-    if type(labels) is not type([]):
+    if not isinstance(labels, list):
         raise TypeError(f"labels should be a list, but got {type(labels)}")
+    if labels and not isinstance(labels[0], str):
+        raise TypeError(f"labels should contain strings, but got {type(labels[0])}")
 
-    if type(labels[0]) is not type(""):
-        raise TypeError(f"labels should be a list(str), but got {type(labels[0])}")
+    # .drop() and column selection are already highly optimized in Pandas
+    X = data.drop(columns=labels)
+    y = data[labels].to_numpy()
 
-    X = data.drop(labels, axis=1)
-    y = data[labels]
-
-    return X, y.to_numpy()
+    return X, y
 
 
 def downcast_dtypes(data: pd.DataFrame) -> pd.DataFrame:
@@ -174,14 +167,19 @@ def downcast_dtypes(data: pd.DataFrame) -> pd.DataFrame:
         Downcast data of shape (n_samples, n_labels).
 
     """
-    for col in data.columns:
-        col_type = data[col].dtype
+    df = data.copy()
 
-        if pd.api.types.is_integer_dtype(col_type):
-            data[col] = pd.to_numeric(data[col], downcast="integer")
-        elif pd.api.types.is_float_dtype(col_type):
-            data[col] = pd.to_numeric(data[col], downcast="float")
-    return data
+    # Process integers
+    ints = df.select_dtypes(include=["integer"]).columns
+    for col in ints:
+        df[col] = pd.to_numeric(df[col], downcast="integer")
+
+    # Process floats
+    floats = df.select_dtypes(include=["floating"]).columns
+    for col in floats:
+        df[col] = pd.to_numeric(df[col], downcast="float")
+
+    return df
 
 
 def convert_data(data: PredData) -> PredData:
@@ -203,18 +201,17 @@ def convert_data(data: PredData) -> PredData:
         Converted data of shape (n_samples, n_features)
 
     """
-    convertable = True
     if isinstance(data, np.ndarray):
-        # Data does not need to be converted
         return data
-    elif isinstance(data, pd.DataFrame):
-        for col in data.columns:
-            if not pd.api.types.is_numeric_dtype(data[col].dtype):
-                # If one of the columns is not numeric return False
-                convertable = False
-        if convertable:
-            # Convert data to a ndarray
+
+    if isinstance(data, pd.DataFrame):
+        # select_dtypes is faster than iterating through columns manually
+        numeric_cols = data.select_dtypes(include=[np.number])
+
+        # If the number of numeric columns equals total columns, convert all
+        if numeric_cols.shape[1] == data.shape[1]:
             return data.to_numpy()
+
     return data
 
 
@@ -246,18 +243,27 @@ def get_data_from_idx(
         If data is not PredData type.
 
     """
-    array_check(idx)
-    if len(idx) == 0:
-        # If no indices were passed return all the data
+    # Early exit for empty/None
+    if idx is None or (isinstance(idx, (np.ndarray, list)) and len(idx) == 0):
         return data
 
-    if not np.issubdtype(np.array(idx).dtype, np.integer):
-        # Check for integers
-        raise TypeError(f"idx should contain int, but got {type(idx[0])}")
+    # Convert once without copying if already an array
+    idx_arr = np.asanyarray(idx)
 
+    # Boolean masks are allowed (must match data length)
+    # Integer indices are allowed (positional)
+    is_int = np.issubdtype(idx_arr.dtype, np.integer)
+    is_bool = np.issubdtype(idx_arr.dtype, np.bool_)
+
+    if not (is_int or is_bool):
+        raise TypeError(f"idx must be integers or booleans, but got {idx_arr.dtype}")
+
+    # Handle DataFrames
+    if isinstance(data, pd.DataFrame):
+        return data.iloc[idx_arr]
+
+    # Handle NumPy
     if isinstance(data, np.ndarray):
-        return data[idx]
-    elif isinstance(data, pd.DataFrame):
-        return data.iloc[idx]
-    else:
-        raise TypeError(f"data should be PredData type, but got {type(data)}")
+        return data[idx_arr]
+
+    raise TypeError(f"Expected PredData (NDArray/DataFrame), but got {type(data)}")
