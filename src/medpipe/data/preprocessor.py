@@ -7,10 +7,9 @@ This class creates a Preprocessor to prepare data.
 
 from __future__ import annotations
 
-from copy import deepcopy
 from typing import TYPE_CHECKING, Mapping
 
-from numpy import sum
+import pandas as pd
 
 from medpipe._types import PreprocessOp, PreprocessOpConfig
 from medpipe.utils.logger import print_message
@@ -108,9 +107,10 @@ class Preprocessor:
         # Convert objects to categorical (not saved so needs to be here)
         data = convert_object_to_categorical(X)
 
-        # Remove NaN values
-        nb_nan_rows = sum(data.isna().any(axis=1))
-        data = data.dropna()
+        nb_nan_rows = data.isna().any(axis=1).sum()
+
+        if nb_nan_rows > 0:
+            data = data.dropna()
 
         print_message(
             f"Dropped {nb_nan_rows} rows with NaN values", self.logger, SCRIPT_NAME
@@ -133,9 +133,8 @@ class Preprocessor:
              Transformed data of shape (n_samples, n_features).
 
         """
-        data = self._clean_data(deepcopy(X))  # Clean data before transformation
-        self.fit(data)  # Fit operations
-        return self.transform(data)  # Transform data
+        self.fit(X)  # Fit operations
+        return self.transform(X)  # Transform data
 
     def fit(self, X: pd.DataFrame) -> None:
         """
@@ -152,12 +151,12 @@ class Preprocessor:
             Nothings is returned.
 
         """
-        data = self._clean_data(X)  # Clean data before transformation
+        if not self.preprocess:  # Return None if preprocess flag is False
+            return
 
-        if self.preprocess:
-            # If the preprocess flag is true
-            print_message("Fitting preprocessing operations", self.logger, SCRIPT_NAME)
-            self.operations = fit_preprocess_operations(data, self.transform_seq)
+        data = self._clean_data(X)  # Clean data before transformation
+        print_message("Fitting preprocessing operations", self.logger, SCRIPT_NAME)
+        self.operations = fit_preprocess_operations(data, self.transform_seq)
 
     def transform(self, X: pd.DataFrame) -> pd.DataFrame:
         """
@@ -174,19 +173,19 @@ class Preprocessor:
              Transformed data of shape (n_samples, n_features).
 
         """
-        data = self._clean_data(deepcopy(X))  # Clean data before transformation
+        data = self._clean_data(X.copy())  # Clean data before transformation
 
-        if self.preprocess:
-            # If the preprocess flag is true
+        if self.preprocess and self.operations:
             print_message("Preprocessing data", self.logger, SCRIPT_NAME)
-            for operation, transformer in self.operations.items():
-                features = self.transform_seq[operation]["feature_list"]
+
+            for op_name, transformer in self.operations.items():
+                features = self.transform_seq[op_name]["feature_list"]
 
                 if isinstance(transformer, str):
                     transformed_data = bin_score(data[features].to_numpy())
                 else:
                     transformed_data = transformer.transform(data[features])
+
                 data[features] = transformed_data
 
-        data = downcast_dtypes(data)  # Downcast for speed
-        return data
+        return downcast_dtypes(data)

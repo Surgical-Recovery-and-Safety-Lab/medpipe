@@ -66,20 +66,25 @@ def inverse_frequency_multiclass_sample_weights(labels: Labels) -> npt.NDArray:
     but for the negative examples.
 
     """
-    array_check(labels)  # Check that labels is npt.NDArray
-
-    if len(labels) == 0:
+    array_check(labels)
+    n_samples = len(labels)
+    if n_samples == 0:
         raise ValueError("The input labels are empty")
 
     pos_counts = np.sum(labels, axis=0)
-    neg_counts = len(labels) - pos_counts
 
-    if pos_counts.any() == 0:
-        raise ZeroDivisionError("No positive labels found")
+    # Check for zero positive labels in ANY class column
+    if np.any(pos_counts == 0):
+        missing_classes = np.where(pos_counts == 0)[0]
+        raise ZeroDivisionError(f"Classes {missing_classes} have no positive labels.")
 
-    pos_weight = pos_counts * labels
-    neg_weight = neg_counts * ~np.array(labels, dtype=bool)  # Invert for negatives
-    return len(labels) / (pos_weight + neg_weight)
+    neg_counts = n_samples - pos_counts
+
+    # Broadcasting the counts across the label mask
+    pos_part = labels * pos_counts
+    neg_part = (labels == 0) * neg_counts
+
+    return n_samples / (pos_part + neg_part)
 
 
 def inverse_frequency_single_sample_weights(labels: Labels) -> npt.NDArray:
@@ -111,21 +116,22 @@ def inverse_frequency_single_sample_weights(labels: Labels) -> npt.NDArray:
         If there are no positive labels.
 
     """
-    array_check(labels)  # Check that labels is npt.NDArray
-
-    if len(labels) == 0:
+    array_check(labels)
+    n_samples = len(labels)
+    if n_samples == 0:
         raise ValueError("The input labels are empty")
 
-    pos_examples = np.sum(labels, axis=1) > 0
-    pos_count = np.sum(pos_examples)
+    # Use any() to find samples with at least one positive label
+    is_pos_sample = np.any(labels > 0, axis=1)
+    pos_count = np.sum(is_pos_sample)
 
     if pos_count == 0:
-        raise ZeroDivisionError("No positive labels found")
+        raise ZeroDivisionError("No samples with positive labels found")
 
-    # Create weights
-    weights = np.ones(len(labels))  # Negative weight is 1
-    pos_weight = (len(labels) - pos_count) / pos_count
-    weights[pos_examples] *= pos_weight
+    weights = np.ones(n_samples, dtype=float)
+    # Ratio: (Total - Pos) / Pos
+    pos_weight_val = (n_samples - pos_count) / pos_count
+    weights[is_pos_sample] = pos_weight_val
 
     return weights
 
@@ -156,16 +162,15 @@ def inverse_frequency_class_weights(labels: Labels) -> npt.NDArray:
 
     """
     array_check(labels)
-
-    if len(labels) == 0:
+    n_samples = len(labels)
+    if n_samples == 0:
         raise ValueError("The input labels are empty")
 
     pos_counts = np.sum(labels, axis=0)
+    if np.any(pos_counts == 0):
+        raise ZeroDivisionError("One or more classes have no positive labels")
 
-    if pos_counts.any() == 0:
-        raise ZeroDivisionError("No positive labels found")
-
-    return len(labels) / pos_counts
+    return n_samples / pos_counts
 
 
 def negative_positive_ratio_sample_weights(labels: Labels) -> npt.NDArray:
@@ -193,21 +198,20 @@ def negative_positive_ratio_sample_weights(labels: Labels) -> npt.NDArray:
         If there are no positive labels.
 
     """
-    array_check(labels)  # Check that labels is npt.NDArray
-
-    if len(labels) == 0:
+    array_check(labels)
+    n_samples = len(labels)
+    if n_samples == 0:
         raise ValueError("The input labels are empty")
 
     pos_counts = np.sum(labels, axis=0)
-    neg_counts = len(labels) - pos_counts
+    if np.any(pos_counts == 0):
+        raise ZeroDivisionError("One or more classes have no positive labels")
 
-    if pos_counts.any() == 0:
-        raise ZeroDivisionError("No positive labels found")
+    neg_counts = n_samples - pos_counts
+    ratios = neg_counts / pos_counts
 
-    pos_weight = (neg_counts / pos_counts) * labels
-    neg_weight = 1 * ~np.array(labels, dtype=bool)  # Invert for negatives
-
-    return pos_weight + neg_weight
+    # Result is 1 for negatives, and ratio for positives
+    return np.where(labels > 0, ratios, 1.0)
 
 
 def negative_positive_ratio_class_weights(labels: Labels) -> npt.NDArray:
@@ -236,14 +240,12 @@ def negative_positive_ratio_class_weights(labels: Labels) -> npt.NDArray:
 
     """
     array_check(labels)
-
-    if len(labels) == 0:
+    n_samples = len(labels)
+    if n_samples == 0:
         raise ValueError("The input labels are empty")
 
     pos_counts = np.sum(labels, axis=0)
-    neg_counts = len(labels) - pos_counts
+    if np.any(pos_counts == 0):
+        raise ZeroDivisionError("One or more classes have no positive labels")
 
-    if pos_counts.any() == 0:
-        raise ZeroDivisionError("No positive labels found")
-
-    return neg_counts / pos_counts
+    return (n_samples - pos_counts) / pos_counts

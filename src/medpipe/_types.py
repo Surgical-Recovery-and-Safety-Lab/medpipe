@@ -37,7 +37,8 @@ PreprocessOp: TypeAlias = OrdinalEncoder | StandardScaler | PowerTransformer
 # Define metric types
 CI: TypeAlias = tuple[npt.NDArray, npt.NDArray, npt.NDArray]
 CIDict: TypeAlias = dict[str, CI]
-MetricDict: TypeAlias = dict[int | str, dict[str, Sequence[float]]]
+MetricDict: TypeAlias = dict[str, list[float]]
+ModelMetrics: TypeAlias = dict[str, dict[str, Sequence[float]]]
 
 # Define model types
 Classifier: TypeAlias = HistGradientBoostingClassifier
