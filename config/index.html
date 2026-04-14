@@ -23,7 +23,7 @@
     
     
       
-        <title>Configuration setup - Pyrisk Documentation</title>
+        <title>Configuration setup - Medpipe Documentation</title>
       
     
     
@@ -90,7 +90,7 @@
 
 <header class="md-header md-header--shadow" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href=".." title="Pyrisk Documentation" class="md-header__button md-logo" aria-label="Pyrisk Documentation" data-md-component="logo">
+    <a href=".." title="Medpipe Documentation" class="md-header__button md-logo" aria-label="Medpipe Documentation" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -104,7 +104,7 @@
       <div class="md-header__ellipsis">
         <div class="md-header__topic">
           <span class="md-ellipsis">
-            Pyrisk Documentation
+            Medpipe Documentation
           </span>
         </div>
         <div class="md-header__topic" data-md-component="header-topic">
@@ -148,13 +148,13 @@
 
 <nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href=".." title="Pyrisk Documentation" class="md-nav__button md-logo" aria-label="Pyrisk Documentation" data-md-component="logo">
+    <a href=".." title="Medpipe Documentation" class="md-nav__button md-logo" aria-label="Medpipe Documentation" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
 
     </a>
-    Pyrisk Documentation
+    Medpipe Documentation
   </label>
   
   <ul class="md-nav__list" data-md-scrollfix>
@@ -1305,7 +1305,9 @@
 </tbody>
 </table>
 <h4 id="splitting">Splitting</h4>
-<p>The splitting configuration files contain the variables used for splitting the data for cross validation. The variables are contained in a TOML table named [split_variables].</p>
+<p>The splitting configuration files contain the variables used for splitting the data into test and train splits and for cross validation. The variables are contained in two TOML tables named [split_variables] and [cv_variables].</p>
+<p><strong>Split table</strong>
+These parameters are used for splitting test and train sets.</p>
 <table>
 <thead>
 <tr>
@@ -1316,14 +1318,52 @@
 </thead>
 <tbody>
 <tr>
-<td style="text-align: left;"><code>temporal_k_fold</code></td>
+<td style="text-align: left;"><code>group_name</code></td>
+<td style="text-align: left;">string</td>
+<td style="text-align: left;">Feature to use to split the data.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>test_size</code></td>
+<td style="text-align: left;">float</td>
+<td style="text-align: left;">Size of the test set if group_name is "".</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>drop</code></td>
+<td style="text-align: left;">bool</td>
+<td style="text-align: left;">Flag to drop the feature from the training process.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>CV table</strong>
+These parameters are used for cross-validation scheme.</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;"><strong>Key</strong></th>
+<th style="text-align: left;"><strong>Type</strong></th>
+<th style="text-align: left;"><strong>Description</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>group_k_fold</code></td>
 <td style="text-align: left;">bool</td>
 <td style="text-align: left;">Flag to use group K-fold cross validation.</td>
 </tr>
 <tr>
+<td style="text-align: left;"><code>group_name</code></td>
+<td style="text-align: left;">string</td>
+<td style="text-align: left;">Feature to use to create the groups. If "" then n_splits is used.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>drop</code></td>
+<td style="text-align: left;">bool</td>
+<td style="text-align: left;">Flag to drop the feature from the training process.</td>
+</tr>
+<tr>
 <td style="text-align: left;"><code>n_splits</code></td>
 <td style="text-align: left;">int</td>
-<td style="text-align: left;">Number of splits to create for the cross validation.</td>
+<td style="text-align: left;">Number of splits to create for the cross validation, if group_k_fold is False.</td>
 </tr>
 <tr>
 <td style="text-align: left;"><code>shuffle</code></td>
@@ -1334,11 +1374,6 @@
 <td style="text-align: left;"><code>random_state</code></td>
 <td style="text-align: left;">int</td>
 <td style="text-align: left;">Random seed used for repeatability.</td>
-</tr>
-<tr>
-<td style="text-align: left;"><code>group_name</code></td>
-<td style="text-align: left;">string</td>
-<td style="text-align: left;">Feature to use to create the groups.</td>
 </tr>
 </tbody>
 </table>
