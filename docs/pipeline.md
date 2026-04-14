@@ -4,5 +4,5 @@ This page documents the `pipeline` sub-package.
 
 ---
 
-::: medpipe.pipeline.Pipeline
+::: medpipe.pipeline.pipeline
 

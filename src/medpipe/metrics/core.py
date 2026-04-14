@@ -129,8 +129,6 @@ def compute_all_CI(model_metrics: ModelMetrics, metric_list: list[str] = []) -> 
         Model metrics for different folds.
     metric_list : list[str], default: []
         List of metrics to calculate confidence interval.
-    **kwargs
-        Extra arguments for the compute_CI function.
 
     Returns
     -------

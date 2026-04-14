@@ -4,9 +4,9 @@ This page documents the `models` sub-package.
 
 ---
 
-::: medpipe.models.Calibrator
+::: medpipe.models.calibrators
 
-::: medpipe.models.Predictor
+::: medpipe.models.predictors
 
 ::: medpipe.models.core
 

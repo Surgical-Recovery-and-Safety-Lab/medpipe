@@ -4,7 +4,7 @@ This page documents the `data` sub-package.
 
 ---
 
-::: medpipe.data.Preprocessor
+::: medpipe.data.preprocessor
 
 ::: medpipe.data.db
 
