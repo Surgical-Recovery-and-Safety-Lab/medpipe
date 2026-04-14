@@ -1,4 +1,4 @@
-site_name: Pyrisk Documentation
+site_name: Medpipe Documentation
 theme:
   name: material
   palette:
