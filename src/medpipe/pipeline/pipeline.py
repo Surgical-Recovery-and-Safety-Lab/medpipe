@@ -480,7 +480,9 @@ class Pipeline:
                 weights = self._weight_data(y_tr_label)
 
                 print_message(
-                    f"Label: {label} | Fold {i+1}/{n_folds}", self.logger, SCRIPT_NAME
+                    f"Label: {label} | {fold_key} | Fold {i+1}/{n_folds}",
+                    self.logger,
+                    SCRIPT_NAME,
                 )
 
                 # Execute training and evaluation
