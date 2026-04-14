@@ -10,7 +10,7 @@ import pathlib
 
 import pytest
 
-from medpipe.pipeline.Pipeline import Pipeline
+from medpipe.pipeline.pipeline import Pipeline
 from medpipe.utils.io import load_data_from_csv, read_toml_configuration
 
 CWD = pathlib.Path.cwd()

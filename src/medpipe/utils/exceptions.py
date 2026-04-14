@@ -10,9 +10,17 @@ Functions:
 - array_dim_check: Checks that the dimension of two arrays agree.
 """
 
-import pathlib
+from __future__ import annotations
 
-from pandas.api.types import is_list_like
+import pathlib
+from typing import TYPE_CHECKING, Any
+
+from numpy import ndarray
+from pandas import Series
+
+if TYPE_CHECKING:
+    import numpy.typing as npt
+    import pandas as pd
 
 
 def file_checks(file: str, extension: str, exists: bool = True) -> None:
@@ -21,11 +29,11 @@ def file_checks(file: str, extension: str, exists: bool = True) -> None:
 
     Parameters
     ----------
-    file
+    file : str
         File to check.
-    extension
+    extension : str
         Extension of the file to check.
-    exists : default: True
+    exists : bool, default: True
         Flag to indicate if the file should exists.
 
     Returns
@@ -69,7 +77,7 @@ def path_checks(path: str) -> None:
 
     Parameters
     ----------
-    path
+    path : str
         Path to check.
 
     Returns
@@ -115,13 +123,13 @@ def path_checks(path: str) -> None:
         raise NotADirectoryError(f"{path} should be a directory")
 
 
-def array_check(arr) -> None:
+def array_check(arr: npt.NDArray | pd.Series | list[Any]) -> None:
     """
     Checks that the input is an array-like.
 
     Parameters
     ----------
-    arr : array-like
+    arr : npt.NDArray | pd.Series | list
         Array to check.
 
     Returns
@@ -135,21 +143,24 @@ def array_check(arr) -> None:
         If arr is not an array-like.
 
     """
-    if not is_list_like(arr):
+    target_types = (list, ndarray, Series)
+    if not isinstance(arr, target_types):
         raise TypeError(f"arr should be an array-like but instead got {type(arr)}")
 
 
-def array_dim_check(arr1, arr2, dim=None) -> None:
+def array_dim_check(
+    arr1: npt.NDArray | pd.Series, arr2: npt.NDArray | pd.Series, dim: int | None = None
+) -> None:
     """
     Checks that the dimensions of the arrays match.
 
     Parameters
     ----------
-    arr1 : array-like
+    arr1 : npt.NDArray | pd.Series
         First array.
-    arr2 : array-like
+    arr2 : npt.NDArray | pd.Series
         Second array.
-    dim : int or None, default: None
+    dim : int | None, default: None
         Dimension to compare. If None shape is used.
 
     Returns

@@ -9,20 +9,26 @@ Functions:
 - read_toml_configuration: Parses the contents of a .TOML file.
 """
 
+from __future__ import annotations
+
 import tomllib
+from typing import TYPE_CHECKING, Any
 
 import pandas as pd
 
 from . import exceptions
 
+if TYPE_CHECKING:
+    import pandas as pd
 
-def load_data_from_csv(data_file: str):
+
+def load_data_from_csv(data_file: str) -> pd.DataFrame:
     """
     Reads a .csv file and returns its contents.
 
     Parameters
     __________
-    data_file
+    data_file : str
         Path to the .csv file to load.
 
     Returns
@@ -51,7 +57,7 @@ def load_data_from_csv(data_file: str):
     return data
 
 
-def read_toml_configuration(config_file: str) -> dict:
+def read_toml_configuration(config_file: str) -> dict[str, Any]:
     """
     Reads a .TOML configuration file and returns contents.
 
@@ -59,12 +65,12 @@ def read_toml_configuration(config_file: str) -> dict:
 
     Parameters
     ----------
-    config_file
+    config_file : str
         Path to the configuration file.
 
     Returns
     -------
-    config : dict
+    config : dict[str, Any]
         Configuration contents as a dictionary.
 
     Raises

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-test_data_Preprocessor.py
+test_data_preprocessor.py
 
 Test functions for the Preprocessor class.
 """
@@ -15,7 +15,8 @@ import pytest
 from sklearn.preprocessing import OrdinalEncoder, PowerTransformer, StandardScaler
 
 from medpipe.data.preprocessing import bin_score, fit_preprocess_operations
-from medpipe.data.Preprocessor import Preprocessor
+from medpipe.data.preprocessor import Preprocessor
+from medpipe.data.utils import downcast_dtypes
 
 CWD = pathlib.Path.cwd()
 DATA_DIR = str(CWD / "test/test_data/")
@@ -52,7 +53,9 @@ def test_fit_transform():
     test_data[["age", "dummy"]] = PowerTransformer().fit_transform(
         test_data[["age", "dummy"]]
     )
-    test_data["M3_score"] = bin_score(test_data["M3_score"])
+    test_data["M3_score"] = bin_score(test_data["M3_score"].to_numpy())
+
+    test_data = downcast_dtypes(test_data)  # Downcast to match processed data type
 
     assert (processed_data.to_numpy() == test_data.to_numpy()).all()
     assert (processed_data["age"].to_numpy() == test_data["age"].to_numpy()).all()
@@ -88,7 +91,9 @@ def test_transform():
     test_data[["age", "dummy"]] = PowerTransformer().fit_transform(
         test_data[["age", "dummy"]]
     )
-    test_data["M3_score"] = bin_score(test_data["M3_score"])
+    test_data["M3_score"] = bin_score(test_data["M3_score"].to_numpy())
+
+    test_data = downcast_dtypes(test_data)  # Downcast to match processed data type
 
     assert (processed_data.to_numpy() == test_data.to_numpy()).all()
     assert (processed_data["age"].to_numpy() == test_data["age"].to_numpy()).all()

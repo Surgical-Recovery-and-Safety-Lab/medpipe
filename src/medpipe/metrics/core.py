@@ -13,23 +13,37 @@ Functions:
 - compute_score_metrics : computes the metrics that require the score.
 """
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 import numpy as np
 import sklearn as skl
 from scipy.stats import sem, t
 
+from medpipe._types import CI, CIDict, FullProba, Labels, MetricDict, ModelMetrics
 from medpipe.utils.exceptions import array_check
 from medpipe.utils.logger import print_message
+
+if TYPE_CHECKING:
+    import logging
+
+    import numpy.typing as npt
 
 SCRIPT_NAME = "metrics/core"
 
 
-def print_metrics(metric_dict, label_list, logger=None) -> None:
+def print_metrics(
+    metric_dict: dict[str, list[float]],
+    label_list: list[str],
+    logger: logging.Logger | None = None,
+) -> None:
     """
     Prints the metrics on the terminal.
 
     Parameters
     ----------
-    metric_dict : dict[str, float or tuple(array-like)]
+    metric_dict : dict[str, list[float]]
         Dictionary of the model performance for one fold.
         Keys are the metric name and values are the metric value.
         The test metrics used are:
@@ -42,7 +56,7 @@ def print_metrics(metric_dict, label_list, logger=None) -> None:
          - ap (Average Precision)
     label_list : list[str]
         List of predicted labels.
-    logger : logging.Logger, default: None
+    logger : logging.Logger | None, default: None
         Logger object to log prints. If None print to terminal.
 
     Returns
@@ -51,40 +65,33 @@ def print_metrics(metric_dict, label_list, logger=None) -> None:
         Nothing is returned.
 
     """
-    n_it = len(label_list)  # Number of print iterations
+    # Get all keys except ones we don't want to print (like curves)
+    printable_metrics = [k for k in metric_dict.keys() if k not in ["roc", "prc"]]
 
-    for i in range(n_it):
-        # If label_list is a list
-        print_message(f"  {label_list[i]} metrics:", logger, SCRIPT_NAME)
-
-        print_message(
-            f"    Accuracy: {metric_dict["accuracy"][i]:.3f}", logger, SCRIPT_NAME
-        )
-        print_message(f"    F1: {metric_dict["f1"][i]:.3f}", logger, SCRIPT_NAME)
-        print_message(
-            f"    Precision: {metric_dict["precision"][i]:.3f}", logger, SCRIPT_NAME
-        )
-        print_message(
-            f"    Recall: {metric_dict["recall"][i]:.3f}", logger, SCRIPT_NAME
-        )
-        print_message(
-            f"    Log loss: {metric_dict["log_loss"][i]:.3f}", logger, SCRIPT_NAME
-        )
-        print_message(f"    AUROC: {metric_dict["auroc"][i]:.3f}", logger, SCRIPT_NAME)
-        print_message(f"    AP: {metric_dict["ap"][i]:.3f}", logger, SCRIPT_NAME)
+    for i, label in enumerate(label_list):
+        print_message(f"  {label} metrics:", logger, SCRIPT_NAME)
+        for metric in printable_metrics:
+            val = metric_dict[metric][i]
+            # Dynamic spacing and capitalization
+            name = metric.replace("_", " ").capitalize()
+            print_message(f"    {name}: {val:.3f}", logger, SCRIPT_NAME)
 
 
-def print_metrics_CI(ci_dict, label_list, logger=None):
+def print_metrics_CI(
+    ci_dict: CIDict, label_list: list[str], logger: logging.Logger | None = None
+) -> None:
     """
     Prints the metrics with their confidence intervals.
 
     Parameters
     ----------
-    ci_dict : dict[str, tuple(float, float, float)]
+    ci_dict : CIDict
         Dictionary containing the metric value and confidence intervals.
         The keys are the name of the metrics and the values are a tuple with
         first element the metric value, second the lower bound, and third the
         upper bound.
+    label_list : list[str]
+        List of predicted labels.
     logger : logging.Logger, default: None
         Logger object to log prints. If None print to terminal.
 
@@ -112,13 +119,13 @@ def print_metrics_CI(ci_dict, label_list, logger=None):
             )
 
 
-def compute_all_CI(model_metrics, metric_list=[], **kwargs):
+def compute_all_CI(model_metrics: ModelMetrics, metric_list: list[str] = []) -> CIDict:
     """
     Computes the confidence intervals for all metrics.
 
     Parameters
     ----------
-    model_metrics : dict[int, dict[str, float or tuple(array-like)]]
+    model_metrics : ModelMetrics
         Model metrics for different folds.
     metric_list : list[str], default: []
         List of metrics to calculate confidence interval.
@@ -127,31 +134,35 @@ def compute_all_CI(model_metrics, metric_list=[], **kwargs):
 
     Returns
     -------
-    ci_dict : dict[str, tuple(float, float, float)]
+    ci_dict : CIDict
         Dictionary containing the metric value and confidence intervals.
         The keys are the name of the metrics and the values are a tuple with
         first element the metric value, second the lower bound, and third the
         upper bound.
 
     """
-    ci_dict = {}  # Empty dict to contain the confidence intervals for metrics
-    metrics = next(iter(model_metrics.values())).keys()
+    ci_dict = {}
+    # Get all available metric keys from the first fold
+    all_metrics = list(next(iter(model_metrics.values())).keys())
 
-    if metric_list == []:
-        # Default to all metrics if not specified
-        metric_list = list(metrics)
+    if not metric_list:
+        metric_list = all_metrics
 
-    for metric in metrics:
-        if metric == "roc" or metric == "prc" or metric not in metric_list:
-            # Skip ROC, PRC, and metrics not in the given list
+    for metric in metric_list:
+        # Skip curve-based metrics which aren't scalar values
+        if metric in ["roc", "prc"]:
             continue
-        metric_values = extract_metric(model_metrics, metric)
-        ci_dict.update({metric: compute_CI(metric_values, **kwargs)})
+
+        # Convert to a 2D array: (n_folds, n_labels)
+        metric_values = np.array(extract_metric(model_metrics, metric))
+
+        # compute_CI now handles the (n_folds, n_labels) shape entirely in one go
+        ci_dict[metric] = compute_CI(metric_values)
 
     return ci_dict
 
 
-def compute_CI(data):
+def compute_CI(data: list[float] | npt.NDArray) -> CI:
     """
     Computes the confidence interval of the data.
 
@@ -159,17 +170,17 @@ def compute_CI(data):
 
     Parameters
     ----------
-    data : array-like of shape (n_samples, n_sets)
-        Data on which to compute the confidence interval.
+    data : list[float] | npt.NDArray
+        Data on which to compute the confidence interval of shape (n_samples, n_sets).
 
     Returns
     -------
-    mean_arr : np.array(float) of shape (n_sets,)
-        Mean values.
-    lower_b_arr : np.array(float) of shape (n_sets,)
-        Lower bound of the confidence intervals.
-    upper_b_arr : np.array(float) of shape (n_sets,)
-        Upper bound of the confidence intervals.
+    mean_arr : npt.NDArray
+        Mean values of shape (n_sets,).
+    lower_b_arr : npt.NDArray
+        Lower bound of the confidence intervals of shape (n_sets,).
+    upper_b_arr : npt.NDArray
+        Upper bound of the confidence intervals of shape (n_sets,).
 
     Raises
     ------
@@ -178,38 +189,26 @@ def compute_CI(data):
 
     """
     array_check(data)
-    if type(data) is type([]):
-        # Convert to array if needed
-        arr_data = np.array(data)
-    else:
-        arr_data = data
+    arr_data = np.atleast_2d(data)  # Handles (n,) or (n, m) automatically
 
-    if len(arr_data.shape) == 1:
-        # Make sure there are 2 dimensions
-        arr_data = np.expand_dims(arr_data, 1)
+    # Vectorized mean and standard error
+    means = np.mean(arr_data, axis=0)
+    std_errs = sem(arr_data, axis=0)
+    n = arr_data.shape[0]
 
-    mean_arr = np.zeros(arr_data.shape[1])
-    lower_b_arr = np.zeros(arr_data.shape[1])
-    upper_b_arr = np.zeros(arr_data.shape[1])
+    # t.interval supports array-like inputs for loc and scale
+    lower, upper = t.interval(0.95, n - 1, loc=means, scale=std_errs)
 
-    for i in range(arr_data.shape[1]):
-        mean_arr[i] = np.mean(arr_data[:, i])
-        std_err = sem(arr_data[:, i])
-
-        lower_b_arr[i], upper_b_arr[i] = t.interval(
-            0.95, len(arr_data[:, i]) - 1, loc=mean_arr[i], scale=std_err
-        )
-
-    return mean_arr, lower_b_arr, upper_b_arr
+    return means, lower, upper
 
 
-def extract_metric(model_metrics, metric_name):
+def extract_metric(model_metrics: ModelMetrics, metric_name: str) -> list[float]:
     """
     Extracts the desired metric from each fold in the metric dictionary.
 
     Parameters
     ----------
-    model_metrics : dict[int, dict[str, float or tuple(array-like)]]
+    model_metrics : ModelMetrics
         Model metrics for different folds.
     metric_name : str
         Name of the metric to extract.
@@ -229,7 +228,9 @@ def extract_metric(model_metrics, metric_name):
     return metric_list
 
 
-def compute_pred_metrics(metric_list, y_true, y_pred):
+def compute_pred_metrics(
+    metric_list: list[str], y_true: Labels, y_pred: Labels
+) -> MetricDict:
     """
     Computes the metrics that require the prediction labels.
 
@@ -241,14 +242,14 @@ def compute_pred_metrics(metric_list, y_true, y_pred):
          - f1
          - precision
          - recall
-    y_true : array-like of shape (n_samples, n_classes)
-        Ground truth labels.
-    y_pred : array-like of shape (n_samples, n_classes)
-        Predicted labels.
+    y_true : Labels
+        Ground truth labels of shape (n_samples, n_classes).
+    y_pred : Labels
+        Predicted labels of shape (n_samples, n_classes).
 
     Returns
     -------
-    metric_dict : dict[str, list[float]]
+    metric_dict : MetricDict
         Dictionary of the metrics. The keys are the name of the metric
         and the values are the computed metric value.
         If multilabel then the list contains the value for each class and
@@ -261,70 +262,37 @@ def compute_pred_metrics(metric_list, y_true, y_pred):
 
     """
     metric_dict = {}
-    multilabel = False
-    average = "binary"
-
-    if len(y_true.shape) > 1:
-        # Multilabel situation
-        multilabel = True
-        average = None
-
-    if "accuracy" in metric_list:
-        # Deal with accuracy separately to get accuracy for each label
-        values = []  # Store values
-
-        if multilabel:
-            # Iterate over each label and add individual label accuracy
-            for i in range(y_true.shape[1]):
-                values.append(skl.metrics.accuracy_score(y_true[:, i], y_pred[:, i]))
-
-        values.append(skl.metrics.accuracy_score(y_true, y_pred))
-        metric_dict.update({"accuracy": values})
-        metric_list.remove("accuracy")
+    is_multilabel = y_true.ndim > 1
 
     for metric in metric_list:
-        values = []  # Create empty list to hold the metrics for each label
-        match metric:
-            case "f1":
-                values.append(skl.metrics.f1_score(y_true, y_pred, average=average))
-                if multilabel:
-                    values = np.append(
-                        values,
-                        skl.metrics.f1_score(y_true, y_pred, average="weighted"),
-                    )
-                metric_dict.update({metric: values})
+        if metric == "accuracy":
+            if is_multilabel:
+                # Vectorized accuracy per label
+                acc_per_label = (y_true == y_pred).mean(axis=0)
+                overall_acc = skl.metrics.accuracy_score(y_true, y_pred)
+                metric_dict["accuracy"] = np.append(acc_per_label, overall_acc)
+            else:
+                metric_dict["accuracy"] = [skl.metrics.accuracy_score(y_true, y_pred)]
+            continue
 
-            case "precision":
-                values.append(
-                    skl.metrics.precision_score(
-                        y_true, y_pred, average=average, zero_division=0.0
-                    )
-                )
-                if multilabel:
-                    values = np.append(
-                        values,
-                        skl.metrics.precision_score(
-                            y_true, y_pred, average="weighted", zero_division=0.0
-                        ),
-                    )
-                metric_dict.update({metric: values})
+        # Map string names to skl functions
+        func = getattr(skl.metrics, f"{metric}_score")
 
-            case "recall":
-                values.append(skl.metrics.recall_score(y_true, y_pred, average=average))
-                if multilabel:
-                    values = np.append(
-                        values,
-                        skl.metrics.recall_score(y_true, y_pred, average="weighted"),
-                    )
-                metric_dict.update({metric: values})
-
-            case _:
-                raise ValueError(f"{metric} is an unrecognised metric")
+        if is_multilabel:
+            # Returns array of scores for each label
+            scores = func(y_true, y_pred, average=None, zero_division=0.0)
+            # Append the weighted average as the last element
+            weighted = func(y_true, y_pred, average="weighted")
+            metric_dict[metric] = np.append(scores, weighted)
+        else:
+            metric_dict[metric] = [func(y_true, y_pred, average="binary")]
 
     return metric_dict
 
 
-def compute_score_metrics(metric_list, y_true, y_pred_proba):
+def compute_score_metrics(
+    metric_list: list[str], y_true: Labels, y_pred_proba: FullProba
+) -> MetricDict:
     """
     Computes the metrics that require the score.
 
@@ -337,14 +305,14 @@ def compute_score_metrics(metric_list, y_true, y_pred_proba):
          - prc (precision-recall curve)
          - ap (average precision)
          - log_loss
-    y_true : array-like of shape (n_samples, n_classes)
-        Ground truth labels.
-    y_pred_proba : np.array or list[np.array]
-        Predicted scores.
+    y_true : Labels
+        Ground truth labels of shape (n_samples, n_classes).
+    y_pred_proba : FullProba
+        Full predicted probabilities.
 
     Returns
     -------
-    metric_dict : dict[str, list[float or tuple]]
+    metric_dict : MetricDict
         Dictionary of the metrics. The keys are the name of the metric
         and the values are the computed metric values.
         If multilabel then the list contains the value for each class.

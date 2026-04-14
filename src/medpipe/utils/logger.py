@@ -9,10 +9,13 @@ Functions:
 - print_message: Function that prints and logs an info message.
 """
 
+from __future__ import annotations
+
 import logging
 import logging.config
 import pathlib
 import sys
+from typing import Any
 
 import medpipe.utils.exceptions
 
@@ -48,9 +51,9 @@ def setup_logger(script_name: str, log_path: str) -> logging.Logger:
 
     Parameters
     ----------
-    script_name
+    script_name : str
         Name of the script to log exceptions from.
-    log_path
+    log_path : str
         Path to the folder to store the log file.
 
     Returns
@@ -88,7 +91,9 @@ def setup_logger(script_name: str, log_path: str) -> logging.Logger:
     return logging.getLogger(script_name)
 
 
-def exception_handler(logger, log_path, log_config, script_name):
+def exception_handler(
+    logger: logging.Logger, log_path: str, log_config: dict[str, Any], script_name: str
+) -> None:
     """
     Handles exceptions and logs them.
 
@@ -98,7 +103,7 @@ def exception_handler(logger, log_path, log_config, script_name):
         Logger object that logs the exception.
     log_path : str
         Path to the log file being used.
-    log_config : dict
+    log_config : dict[str, Any]
         Configuration parameters for the log messages.
     script_name : str
         Name of the script in which the error occurred.
@@ -113,7 +118,9 @@ def exception_handler(logger, log_path, log_config, script_name):
     sys.stderr.write(log_config["print_message"] + f"{log_path}/{script_name}.log\n")
 
 
-def print_message(message, logger=None, script_name="") -> None:
+def print_message(
+    message: str, logger: logging.Logger | None = None, script_name: str = ""
+) -> None:
     """
     Wrapper function to print message or log them.
 
@@ -125,7 +132,7 @@ def print_message(message, logger=None, script_name="") -> None:
     ----------
     message : str
         Message to print or log.
-    logger : logging.Logger or None, default:None
+    logger : logging.Logger | None, default:None
         Logger to log message. If None message is printed to terminal.
     script_name : str, default: ""
         Script name to know where the message is coming from.

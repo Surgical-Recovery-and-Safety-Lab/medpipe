@@ -8,11 +8,13 @@ Functions:
 - extract_data_from_db: Queries a SQL .db to extract data.
 """
 
+from __future__ import annotations
+
 import sqlite3
 
 import pandas as pd
 
-import medpipe.utils.exceptions
+from medpipe.utils.exceptions import file_checks
 
 
 def parquet_to_db(parquet_file: str, db_file: str, table_name: str = "main") -> None:
@@ -21,11 +23,11 @@ def parquet_to_db(parquet_file: str, db_file: str, table_name: str = "main") -> 
 
     Parameters
     ----------
-    parquet_file
+    parquet_file : str
         File path to the .parquet file.
-    db_file
+    db_file : str
         File path to the .db file.
-    table_name : default: 'main'
+    table_name : str, default: 'main'
         Name of the table to create in the SQL database.
 
     Returns
@@ -48,12 +50,12 @@ def parquet_to_db(parquet_file: str, db_file: str, table_name: str = "main") -> 
 
     """
     try:
-        medpipe.utils.exceptions.file_checks(parquet_file, ".parquet")
+        file_checks(parquet_file, ".parquet")
     except (FileNotFoundError, IsADirectoryError, TypeError, ValueError):
         raise
 
     try:
-        medpipe.utils.exceptions.file_checks(db_file, ".db", exists=False)
+        file_checks(db_file, ".db", exists=False)
     except (FileNotFoundError, TypeError, ValueError, IsADirectoryError):
         raise
 
@@ -69,7 +71,7 @@ def parquet_to_db(parquet_file: str, db_file: str, table_name: str = "main") -> 
     conn.close()
 
 
-def extract_data_from_db(db_file: str, query: str):
+def extract_data_from_db(db_file: str, query: str) -> pd.DataFrame:
     """
     Extracts data from a .db and saves it to a .csv file.
 
@@ -77,9 +79,9 @@ def extract_data_from_db(db_file: str, query: str):
 
     Parameters
     ----------
-    db_file
+    db_file : str
         Path to the .db file.
-    query
+    query : str
         Query to send to extract data.
 
     Returns
@@ -100,7 +102,7 @@ def extract_data_from_db(db_file: str, query: str):
 
     """
     try:
-        medpipe.utils.exceptions.file_checks(db_file, ".db")
+        file_checks(db_file, ".db")
     except (FileNotFoundError, IsADirectoryError, TypeError, ValueError):
         raise
 
