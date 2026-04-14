@@ -19,7 +19,12 @@ The **medpipe** package is a layer to help create AI models for clinical applica
 ___
 ## Installation
 
-To install **medpipe** clone the GitHub repository and install the package with pip: 
+To install **medpipe** use pip:
+```
+$ pip install medpipe
+```
+
+or clone the GitHub repository and install the package with pip: 
 ```
 $ git clone git@github.com:Surgical-Recovery-and-Safety-Lab/medpipe.git
 $ cd medpipe
