@@ -157,7 +157,7 @@ class Pipeline:
         self.n_labels = len(self.label_list)
 
         print_message(
-            f"Setting up Pipeline v{self.version} ({self.n_labels} labels)",
+            f"Setting up Pipeline {self.version} ({self.n_labels} labels)",
             self.logger,
             SCRIPT_NAME,
         )
