@@ -552,11 +552,11 @@ class Pipeline:
             Label associated with the model to train.
         fold_key : Any
             Key representing the current fold.
-        X_cal : PosProba, default: np.np.array([])
+        X_cal : PosProba, default: np.array([])
             Calibration data of shape (n_samples,) for the calibrator.
-        y_cal : Labels, default: np.np.array([])
+        y_cal : Labels, default: np.array([])
             Calibration labels of shape (n_samples,) for the calibrator.
-        weights : npt.NDArray, default: np.np.array([])
+        weights : npt.NDArray, default: np.array([])
             Weights to address class imbalance.
 
         """
