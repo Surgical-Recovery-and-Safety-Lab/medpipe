@@ -513,6 +513,12 @@ class Pipeline:
                 X_final, y_work[:, k : k + 1], cv_groups
             )
             weights = self._weight_data(y_tr_final)
+            print_message(
+                f"Train set size: {len(X_tr_final):,}", self.logger, SCRIPT_NAME
+            )
+            print_message(
+                f"Calibration set size: {len(X_cal_set):,}", self.logger, SCRIPT_NAME
+            )
             self.fit_model(X_tr_final, y_tr_final, "predictor", label, weights)
 
             if self.calibrator_type:
@@ -560,6 +566,9 @@ class Pipeline:
             Weights to address class imbalance.
 
         """
+        print_message(f"Train set size: {len(X_train):,}", self.logger, SCRIPT_NAME)
+        print_message(f"Calibration set size: {len(X_cal):,}", self.logger, SCRIPT_NAME)
+        print_message(f"Test set size: {len(X_test):,}", self.logger, SCRIPT_NAME)
         # Fit predictor on train set
         self.fit_model(X_train, y_train, "predictor", label, weights)
 
