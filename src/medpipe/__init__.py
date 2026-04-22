@@ -52,4 +52,4 @@ __all__ = [
     "extract_data_from_db",
     "extract_labels",
 ]
-__version__ = "v0.2.0"
+__version__ = "v1.0.0"
