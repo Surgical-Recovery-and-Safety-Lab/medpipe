@@ -114,6 +114,8 @@ def data_sampler(
         imbalance_ratio = (n_samples - n_pos) / n_pos
         target_ratio = imbalance_ratio - imbalance_ratio * reduction_factor
 
+    target_ratio = 1 if target_ratio < 1 else target_ratio
+
     # Dispatch logic
     if sampler_fn == "smote":
         X_gen, y_gen = smote(data, labels, target_ratio, kwargs.get("k_neighbors", 5))
