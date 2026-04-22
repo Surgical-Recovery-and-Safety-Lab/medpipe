@@ -12,6 +12,7 @@ import pandas as pd
 import pytest
 
 from medpipe.data.sampler import (
+    data_sampler,
     group_mean_dist_sampler,
     group_random_oversampler,
     group_random_undersampler,
@@ -109,6 +110,94 @@ labels_no_minority = np.zeros((20, 1))
 labels_groups_no_maj = np.array(
     [0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0]
 )
+
+
+@pytest.mark.parametrize(
+    "labels, data_len",
+    [
+        (single_labels, 12),
+        (bi_labels, 13),
+        (tri_labels, 13),
+    ],
+)
+def test_data_sampler_success(labels, data_len):
+    data = pd.DataFrame(np.random.rand(20, 2))
+    X, y, grps = data_sampler(data, labels, 0.5)
+
+    assert len(X) == data_len
+    assert len(y) == data_len
+    assert len(grps) == 0
+
+
+@pytest.mark.parametrize(
+    "labels, reduction_factor, data_len",
+    [
+        (single_labels, 1.0, 8),
+        (single_labels, 0.25, 16),
+        (bi_labels, 1.0, 12),
+        (bi_labels, 0.25, 16),
+        (tri_labels, 1.0, 10),
+        (tri_labels, 0.25, 16),
+    ],
+)
+def test_data_sampler_reduction_factor(labels, reduction_factor, data_len):
+    data = pd.DataFrame(np.random.rand(20, 2))
+    X, y, grps = data_sampler(data, labels, reduction_factor)
+
+    assert len(X) == data_len
+    assert len(y) == data_len
+    assert len(grps) == 0
+
+
+@pytest.mark.parametrize(
+    "sampler_fn, data_len",
+    [
+        ("random_undersampler", [8, 12, 10]),
+        ("random_oversampler", [32, 28, 30]),
+        ("mean_dist_sampler", [8, 12, 10]),
+        ("smote", [32, 28, 20]),
+    ],
+)
+def test_data_sampler_sampler_fn(sampler_fn, data_len):
+    data = pd.DataFrame(np.random.rand(20, 2))
+    labels = (single_labels, bi_labels, tri_labels)
+    for i in range(3):
+        if sampler_fn == "smote":
+            X, y, grps = data_sampler(
+                data,
+                labels[i],
+                reduction_factor=1.0,
+                sampler_fn=sampler_fn,
+                k_neighbors=1,
+            )
+        else:
+            X, y, grps = data_sampler(
+                data, labels[i], reduction_factor=1.0, sampler_fn=sampler_fn
+            )
+
+        assert len(X) == data_len[i]
+        assert len(y) == data_len[i]
+        assert len(grps) == 0
+
+
+@pytest.mark.parametrize(
+    "reduction_factor",
+    [1.5, -1.0],
+)
+def test_data_sampler_value_error(reduction_factor):
+    data = pd.DataFrame(np.random.rand(20, 2))
+    with pytest.raises(ValueError):
+        data_sampler(data, single_labels, reduction_factor)
+
+
+@pytest.mark.parametrize(
+    "labels",
+    ["str", (1, 2, 3), {"a": 1}],
+)
+def test_data_sampler_type_error(labels):
+    data = pd.DataFrame(np.random.rand(20, 2))
+    with pytest.raises(TypeError):
+        data_sampler(data, labels)
 
 
 # Basic functionality tests
