@@ -100,6 +100,7 @@ def data_sampler(
         raise ValueError(
             f"Reduction factor should be less than 1, but got {reduction_factor}"
         )
+    array_check(labels)
 
     # Calculate target_ratio
     n_samples = len(labels)
