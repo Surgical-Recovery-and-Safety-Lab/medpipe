@@ -104,7 +104,7 @@ def data_sampler(
 
     # Calculate target_ratio
     n_samples = len(labels)
-    n_pos = np.sum(labels)
+    n_pos = np.sum(np.any(labels != 0, axis=1))  # Account for multilabel
 
     if reduction_factor == 0 or n_pos == 0:
         return data, labels, groups  # Exit early
