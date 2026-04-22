@@ -115,9 +115,9 @@ labels_groups_no_maj = np.array(
 @pytest.mark.parametrize(
     "target_ratio, labels, n_min_class",
     [
-        (0.5, single_labels, 4),
-        (0.5, bi_labels, 6),
-        (0.5, tri_labels, 5),
+        (2, single_labels, 4),
+        (1, bi_labels, 6),
+        (3, tri_labels, 5),
     ],
 )
 def test_random_undersampler_success(target_ratio, labels, n_min_class):
@@ -131,22 +131,22 @@ def test_random_undersampler_success(target_ratio, labels, n_min_class):
 
     assert minority_count == n_min_class
     assert (
-        len(sampled_labels) == n_min_class + (1 / target_ratio) * n_min_class
+        len(sampled_labels) == n_min_class + target_ratio * n_min_class
     )  # Total samples length based on target_ratio and class imbalance
 
 
 @pytest.mark.parametrize(
     "target_ratio, labels, n_maj_class",
     [
-        (0.5, single_labels, 8),
+        (2.0, single_labels, 8),
         (1.0, single_labels, 4),
-        (2.0, single_labels, 2),
-        (0.5, bi_labels, 12),
+        (4.0, single_labels, 16),
+        (2.0, bi_labels, 12),
         (1.0, bi_labels, 6),
-        (3.0, bi_labels, 2),
-        (0.5, tri_labels, 10),
+        (1.5, bi_labels, 9),
+        (2.0, tri_labels, 10),
         (1.0, tri_labels, 5),
-        (5.0, tri_labels, 1),
+        (3.0, tri_labels, 15),
     ],
 )
 def test_random_undersampler_target_ratio(target_ratio, labels, n_maj_class):
@@ -163,9 +163,7 @@ def test_random_undersampler_target_ratio(target_ratio, labels, n_maj_class):
     # Check if the ratio is close to target ratio
     if minority_count > 0:
         ratio = majority_count / minority_count
-        assert np.isclose(
-            ratio, 1 / target_ratio, atol=0.1
-        )  # Allow for slight imprecision
+        assert np.isclose(ratio, target_ratio, atol=0.1)  # Allow for slight imprecision
 
     # Assert that the target ratio is close to what we selected
     assert majority_count == n_maj_class  # Should match expected number of majority
@@ -173,7 +171,7 @@ def test_random_undersampler_target_ratio(target_ratio, labels, n_maj_class):
 
 # Edge case: No minority class samples
 def test_random_undersampler_no_minority():
-    sample_idx = random_undersampler(labels_no_minority, target_ratio=0.5)
+    sample_idx = random_undersampler(labels_no_minority, target_ratio=1)
     sampled_labels = labels_no_minority[sample_idx]
 
     # If no minority class, only majority class samples should be selected
@@ -186,7 +184,7 @@ def test_random_undersampler_no_minority():
     [
         (0.5, labels_empty),
         (0.0, single_labels),
-        (0.0, bi_labels),
+        (0.9, bi_labels),
         (-0.1, tri_labels),
     ],
 )
@@ -198,11 +196,11 @@ def test_random_undersampler_value_error(target_ratio, labels):
 # Raises a TypeError
 @pytest.mark.parametrize(
     "labels",
-    [0.5, "string"],
+    [1.0, "string"],
 )
 def test_random_undersampler_type_error(labels):
     with pytest.raises(TypeError):
-        random_undersampler(labels, target_ratio=0.5)
+        random_undersampler(labels, target_ratio=1)
 
 
 # Basic functionality test
@@ -244,9 +242,9 @@ def test_group_random_undersampler_success(
         (1.0, single_labels, single_groups, [1, 3]),
         (1.0, bi_labels, bi_groups, [1, 3, 2]),
         (1.0, tri_labels, tri_groups, [3, 2]),
-        (0.5, single_labels, single_groups, [2, 6]),
-        (0.5, bi_labels, bi_groups, [2, 6, 4]),
-        (0.5, tri_labels, tri_groups, [6, 4]),
+        (2, single_labels, single_groups, [2, 6]),
+        (2, bi_labels, bi_groups, [2, 6, 4]),
+        (2, tri_labels, tri_groups, [6, 4]),
     ],
 )
 def test_group_random_undersampler_target_ratio(
@@ -270,7 +268,7 @@ def test_group_random_undersampler_target_ratio(
         if minority_count > 0:
             ratio = majority_count / minority_count
             assert np.isclose(
-                ratio, 1 / target_ratio, atol=0.1
+                ratio, target_ratio, atol=0.1
             )  # Allow for slight imprecision
 
         assert majority_count == n_maj_class  # Should match expected number of minority
@@ -283,20 +281,20 @@ def test_group_random_undersampler_target_ratio(
 )
 def test_group_random_undersampler_type_error(labels):
     with pytest.raises(TypeError):
-        group_random_undersampler(labels, target_ratio=0.5, groups=single_groups)
+        group_random_undersampler(labels, target_ratio=1.0, groups=single_groups)
 
 
 # Labels and groups should have the same number of samples
 def test_group_random_undersampler_mismatched_dimensions():
     with pytest.raises(ValueError):
         groups = np.array([0, 1])
-        group_random_undersampler(single_labels, target_ratio=0.5, groups=groups)
+        group_random_undersampler(single_labels, target_ratio=1.0, groups=groups)
 
 
 # Edge case: No minority class samples in any group
 def test_group_random_undersampler_no_minority():
     sample_idx = group_random_undersampler(
-        labels_no_minority, target_ratio=0.5, groups=labels_groups_no_maj
+        labels_no_minority, target_ratio=1.0, groups=labels_groups_no_maj
     )
     sampled_labels = labels_no_minority[sample_idx]
 
@@ -307,9 +305,9 @@ def test_group_random_undersampler_no_minority():
 @pytest.mark.parametrize(
     "target_ratio, labels, n_maj_class",
     [
-        (0.5, single_labels, 16),
-        (0.5, bi_labels, 14),
-        (0.5, tri_labels, 15),
+        (1.0, single_labels, 16),
+        (1.0, bi_labels, 14),
+        (1.0, tri_labels, 15),
     ],
 )
 def test_random_oversampler_success(target_ratio, labels, n_maj_class):
@@ -320,7 +318,6 @@ def test_random_oversampler_success(target_ratio, labels, n_maj_class):
     is_maj = np.all(sampled_labels == 0, axis=1)
     majority_count = np.sum(is_maj)
 
-    # In the optimized version, we keep all original majority samples
     assert majority_count == n_maj_class
     # Total length should be n_maj + (n_maj * target_ratio)
     expected_len = n_maj_class + int(np.round(n_maj_class * target_ratio))
@@ -330,8 +327,8 @@ def test_random_oversampler_success(target_ratio, labels, n_maj_class):
 @pytest.mark.parametrize(
     "target_ratio, labels, expected_min_count",
     [
-        (0.5, tri_labels, 8),  # 15 maj * 0.5 = 7.5 -> 8
-        (1.0, tri_labels, 15),  # 15 maj * 1.0 = 15
+        (2.0, tri_labels, 8),  # 15 maj / 2.0  = 7.5 -> 8
+        (1.0, tri_labels, 15),  # 15 maj / 1.0 = 15
     ],
 )
 def test_random_oversampler_target_ratio(target_ratio, labels, expected_min_count):
@@ -344,9 +341,9 @@ def test_random_oversampler_target_ratio(target_ratio, labels, expected_min_coun
     minority_count = np.sum(is_min)
     majority_count = np.sum(is_maj)
 
-    # Check ratio: min / maj should be target_ratio
-    calculated_ratio = minority_count / majority_count
-    assert np.isclose(calculated_ratio, target_ratio, atol=0.05)
+    # Check ratio: maj / min should be target_ratio
+    calculated_ratio = majority_count / minority_count
+    assert np.isclose(calculated_ratio, target_ratio, atol=0.4)
     assert minority_count == expected_min_count
 
 
@@ -357,7 +354,7 @@ def test_random_oversampler_target_ratio(target_ratio, labels, expected_min_coun
 )
 def test_random_oversampler_type_error(labels):
     with pytest.raises(TypeError):
-        random_oversampler(labels, target_ratio=0.5)
+        random_oversampler(labels, target_ratio=1.0)
 
 
 @pytest.mark.parametrize(
@@ -391,7 +388,7 @@ def test_group_random_oversampler_success(
 
 def test_group_random_oversampler_no_minority():
     # if no minority, just return majority.
-    sample_idx = group_random_oversampler(labels_no_minority, 0.5, labels_groups_no_maj)
+    sample_idx = group_random_oversampler(labels_no_minority, 1.5, labels_groups_no_maj)
     assert len(sample_idx) == len(labels_no_minority)
 
 
@@ -413,14 +410,14 @@ def test_random_oversampler_value_error(target_ratio, labels):
 )
 def test_group_random_oversampler_type_error(labels):
     with pytest.raises(TypeError):
-        group_random_oversampler(labels, target_ratio=0.5, groups=single_groups)
+        group_random_oversampler(labels, target_ratio=1.0, groups=single_groups)
 
 
 # Labels and groups should have the same number of samples
 def test_group_random_oversampler_mismatched_dimensions():
     with pytest.raises(ValueError):
         groups = np.array([0, 1])
-        group_random_oversampler(single_labels, target_ratio=0.5, groups=groups)
+        group_random_oversampler(single_labels, target_ratio=1.0, groups=groups)
 
 
 def test_mean_dist_sampler_basic():
@@ -430,10 +427,10 @@ def test_mean_dist_sampler_basic():
     labels = np.zeros((10, 2))
     labels[8:] = 1
 
-    # If target_ratio is 0.5, and we have 2 minority samples,
-    # we need 2/0.5 = 4 majority samples.
-    res_idx = mean_dist_sampler(data, labels, target_ratio=0.5, hard_percent=0.5)
-    assert len(res_idx) == 6  # 2 minority + 4 majority
+    # If target_ratio is 3, and we have 2 minority samples,
+    # we need 2*3 = 6 majority samples.
+    res_idx = mean_dist_sampler(data, labels, target_ratio=3.0, hard_percent=0.5)
+    assert len(res_idx) == 8  # 2 minority + 4 majority
     assert isinstance(res_idx, np.ndarray)
 
 
@@ -442,9 +439,9 @@ def test_mean_dist_sampler_exceptions():
     labels = np.zeros((5, 1))
 
     with pytest.raises(ValueError):
-        mean_dist_sampler(data, labels, target_ratio=0.5, hard_percent=1.5)
+        mean_dist_sampler(data, labels, target_ratio=1.0, hard_percent=1.5)
 
-    with pytest.raises(ValueError, match="Target ratio should be positive"):
+    with pytest.raises(ValueError):
         mean_dist_sampler(data, labels, target_ratio=-0.1)
 
 
@@ -494,9 +491,8 @@ def test_smote_invalid_ratio():
     with pytest.raises(ValueError):
         smote(data, labels, target_ratio=0, k_neighbors=1)
 
-        # --- Mock Data Setup ---
 
-
+# --- Mock Data Setup ---
 def create_smote_data():
     # Group 0: 20 majority, 5 minority (Needs oversampling)
     # Group 1: 20 majority, 20 minority (Already balanced)
@@ -523,7 +519,7 @@ def test_group_smote_logic():
     target_ratio = 1.0  # Want 1:1 ratio
     k_neighbors = 2  # Small k to ensure it works on smaller groups
 
-    X_res, y_res, g_res = group_smote(data, labels, target_ratio, groups, k_neighbors)
+    _, y_res, g_res = group_smote(data, labels, target_ratio, groups, k_neighbors)
 
     # Check Group 0 (Was 20 maj, 5 min -> Should now be 20 maj, 20 min)
     g0_mask = g_res == 0
@@ -545,7 +541,7 @@ def test_group_smote_pandas_compatibility():
     data, labels, groups = create_smote_data()
     df_data = pd.DataFrame(data, columns=[f"feat_{i}" for i in range(10)])
 
-    X_res, y_res, g_res = group_smote(df_data, labels, 0.5, groups, k_neighbors=3)
+    X_res, y_res, _ = group_smote(df_data, labels, 1.0, groups, k_neighbors=3)
 
     # Verify X_res is still a DataFrame
     assert isinstance(X_res, pd.DataFrame)
