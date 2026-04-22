@@ -44,7 +44,7 @@ if TYPE_CHECKING:
 def data_sampler(
     data: PredData,
     labels: Labels,
-    target_ratio: float = 0.25,
+    reduction_factor: float = 0.25,
     sampler_fn: str = "random_undersampler",
     groups: npt.NDArray = np.array([]),
     **kwargs: Any,
@@ -54,9 +54,10 @@ def data_sampler(
 
     The majority class is assumed to have a False or 0 label.
     The new set will have an imbalance equal to:
-        IR * target_ratio, where IR is the current imbalance ratio.
+        IR - IR * reduction_factor, where IR is the current imbalance ratio.
+        or a IR = 1, if reduction factor is 1.
 
-    If the target ratio is too small, the algorithm defaults to
+    If the reduction factor is too small, the algorithm defaults to
     obtain a balanced dataset.
 
     Parameters
@@ -65,8 +66,8 @@ def data_sampler(
         Data to sample of shape (n_samples, n_features).
     labels : Labels
         Binary prediction labels of shape (n_samples, n_classes).
-    target_ratio : float, default: 0.25
-        Target ratio between the minority and majority classes.
+    reduction_factor : float, default: 0.25
+        Reduction factor to apply to the current imbalance ratio
     sampler_fn : str, default: "random_undersampler"
         Sampler function to use to sample the data.
     groups : npt.NDArray, default: np.array([])
@@ -88,25 +89,33 @@ def data_sampler(
     TypeError
         If labels is not npt.NDArray.
     ValueError
-        If target_ratio is less than 0.0.
+        If reduction_factor is less than 0.0 or greater than 1.0
 
     """
-    if target_ratio < 0:
-        raise ValueError(f"Target ratio should be positive, but got {target_ratio}")
+    if reduction_factor < 0:
+        raise ValueError(
+            f"Reduction factor should be positive, but got {reduction_factor}"
+        )
+    if reduction_factor > 1.0:
+        raise ValueError(
+            f"Reduction factor should be less than 1, but got {reduction_factor}"
+        )
 
-    # Calculate new_ratio once
+    # Calculate target_ratio
     n_samples = len(labels)
     n_pos = np.sum(labels)
 
-    if target_ratio == 0 or n_pos == 0:
-        new_ratio = 1.0
+    if reduction_factor == 0 or n_pos == 0:
+        return data, labels, groups  # Exit early
+    elif reduction_factor == 1:
+        target_ratio = 1
     else:
         imbalance_ratio = (n_samples - n_pos) / n_pos
-        new_ratio = max(1.0, 1 / (imbalance_ratio * target_ratio))
+        target_ratio = imbalance_ratio - imbalance_ratio * reduction_factor
 
     # Dispatch logic
     if sampler_fn == "smote":
-        X_gen, y_gen = smote(data, labels, new_ratio, kwargs.get("k_neighbors", 5))
+        X_gen, y_gen = smote(data, labels, target_ratio, kwargs.get("k_neighbors", 5))
         if isinstance(data, DataFrame):
             return (
                 concat((data, cast(DataFrame, X_gen))),
@@ -121,24 +130,24 @@ def data_sampler(
 
     if sampler_fn == "group_smote":
         return group_smote(
-            data, labels, new_ratio, groups, kwargs.get("k_neighbors", 5)
+            data, labels, target_ratio, groups, kwargs.get("k_neighbors", 5)
         )
 
     # Index-based samplers
     sampler_map = {
-        "random_undersampler": lambda: random_undersampler(labels, new_ratio),
+        "random_undersampler": lambda: random_undersampler(labels, target_ratio),
         "group_random_undersampler": lambda: group_random_undersampler(
-            labels, new_ratio, groups
+            labels, target_ratio, groups
         ),
-        "random_oversampler": lambda: random_oversampler(labels, new_ratio),
+        "random_oversampler": lambda: random_oversampler(labels, target_ratio),
         "group_random_oversampler": lambda: group_random_oversampler(
-            labels, new_ratio, groups
+            labels, target_ratio, groups
         ),
         "mean_dist_sampler": lambda: mean_dist_sampler(
-            data, labels, new_ratio, kwargs.get("hard_percent", 0.5)
+            data, labels, target_ratio, kwargs.get("hard_percent", 0.5)
         ),
         "group_mean_dist_sampler": lambda: group_mean_dist_sampler(
-            data, labels, new_ratio, groups, kwargs.get("hard_percent", 0.5)
+            data, labels, target_ratio, groups, kwargs.get("hard_percent", 0.5)
         ),
     }
 
@@ -167,7 +176,7 @@ def random_undersampler(labels: Labels, target_ratio: float) -> npt.NDArray:
     labels : Labels
         Binary prediction labels of shape (n_samples, n_classes).
     target_ratio : float
-        Ratio of minority over majority classes to achieve.
+        Ratio of majority over minority classes to achieve.
 
     Returns
     -------
@@ -179,13 +188,15 @@ def random_undersampler(labels: Labels, target_ratio: float) -> npt.NDArray:
     TypeError
         If labels is not npt.NDArray.
     ValueError
-        If target_ratio is less than 0.0.
+        If target_ratio is less than 1.
 
     """
     array_check(labels)
 
-    if target_ratio <= 0:
-        raise ValueError(f"Target ratio should be positive, but got {target_ratio}")
+    if target_ratio < 1:
+        raise ValueError(
+            f"Target ratio should be greater than 1, but got {target_ratio}"
+        )
 
     # Any row with a 1 is minority; rows with all 0s are majority
     is_min = np.any(labels != 0, axis=1)
@@ -202,8 +213,7 @@ def random_undersampler(labels: Labels, target_ratio: float) -> npt.NDArray:
         return maj_potential_idx.astype(int)
 
     # Calculate target majority count
-    # Ensure n_maj_target is an integer and doesn't exceed available samples
-    n_maj_target = int(np.round(n_min_class / target_ratio))
+    n_maj_target = int(np.round(n_min_class * target_ratio))
     n_to_sample = min(n_maj_target, n_maj_available)
 
     # Random selection
@@ -225,7 +235,7 @@ def group_random_undersampler(
     labels : Labels
         Binary prediction labels of shape (n_samples, n_classes).
     target_ratio : float
-        Ratio of minority over majority classes to achieve.
+        Ratio of majority over minority classes to achieve.
     groups : npt.NDArray
         List of groups in which labels belong of shape (n_samples,).
 
@@ -240,14 +250,16 @@ def group_random_undersampler(
         If labels is not npt.NDArray.
     ValueError
         If labels and group do not have the same dimension.
-        If target_ratio is less than 0.0.
+        If target_ratio is less than 1.
 
     """
     array_check(labels)
     array_dim_check(labels, groups, dim=0)
 
-    if target_ratio <= 0:
-        raise ValueError(f"Target ratio should be positive, but got {target_ratio}")
+    if target_ratio < 1:
+        raise ValueError(
+            f"Target ratio should be greater than 1, but got {target_ratio}"
+        )
 
     all_sampled_indices = []  # List for sampled indices
 
@@ -279,7 +291,7 @@ def random_oversampler(labels: Labels, target_ratio: float) -> npt.NDArray:
     labels : Labels
         Binary prediction labels of shape (n_samples, n_classes).
     target_ratio : float
-        Ratio of minority over majority classes to achieve.
+        Ratio of majority over minority classes to achieve.
 
     Returns
     -------
@@ -291,14 +303,16 @@ def random_oversampler(labels: Labels, target_ratio: float) -> npt.NDArray:
     TypeError
         If labels is not npt.NDArray.
     ValueError
-        If target_ratio is less than 0.0.
+        If target_ratio is less than 1.
         If there is no minority class.
 
     """
     array_check(labels)
 
-    if target_ratio <= 0:
-        raise ValueError(f"Target ratio should be positive, but got {target_ratio}")
+    if target_ratio < 1:
+        raise ValueError(
+            f"Target ratio should be greater than 1, but got {target_ratio}"
+        )
 
     # Generate class masks and indices once
     is_min = np.any(labels != 0, axis=1)
@@ -314,11 +328,9 @@ def random_oversampler(labels: Labels, target_ratio: float) -> npt.NDArray:
         raise ValueError("No minority examples found; cannot oversample.")
 
     # Calculate target size
-    # We want (n_min_total / n_maj) = target_ratio
-    target_n_min = int(np.round(n_maj_class * target_ratio))
+    target_n_min = int(np.round(n_maj_class / target_ratio))
 
     # Perform oversampling
-    # This selects 'target_n_min' indices from the minority set with replacement.
     oversampled_min_idx = np.random.choice(min_indices, size=target_n_min, replace=True)
 
     # Concatenate and ensure integer type
@@ -337,7 +349,7 @@ def group_random_oversampler(
     labels : Labels
         Binary prediction labels of shape (n_samples, n_classes).
     target_ratio : float
-        Ratio of minority over majority classes to achieve.
+        Ratio of majority over minority classes to achieve.
     groups : npt.NDArray
         List of groups in which labels belong of shape (n_samples,).
 
@@ -352,14 +364,16 @@ def group_random_oversampler(
         If labels is not npt.NDArray.
     ValueError
         If labels and group do not have the same dimension.
-        If target_ratio is less than 0.0.
+        If target_ratio is less than 1.
 
     """
     array_check(labels)
     array_dim_check(labels, groups, dim=0)
 
-    if target_ratio <= 0:
-        raise ValueError(f"Target ratio should be positive, but got {target_ratio}")
+    if target_ratio < 1:
+        raise ValueError(
+            f"Target ratio should be greater than 1, but got {target_ratio}"
+        )
 
     all_sampled_indices = []  # List to contain sampled indices
     unique_groups = np.unique(groups)
@@ -405,7 +419,7 @@ def mean_dist_sampler(
     labels : Labels
         Binary prediction labels of shape (n_samples, n_classes).
     target_ratio : float
-        Ratio of minority over majority classes to achieve.
+        Ratio of majority over minority classes to achieve.
     hard_percent : float, default: 0.5
         Percentage of examples that are considered hard, between 0 and 1.
         If hard_percent is 0.5, half of the examples are chosen from
@@ -422,15 +436,17 @@ def mean_dist_sampler(
         If labels is not npt.NDArray.
     ValueError
         If hard_percent is not between 0 and 1.
-        If target_ratio is less than 0.0.
+        If target_ratio is less than 1.
 
     """
     array_check(labels)
 
     if not (0 <= hard_percent <= 1):
         raise ValueError(f"hard_percent must be between 0 and 1, got {hard_percent}")
-    if target_ratio <= 0:
-        raise ValueError(f"Target ratio should be positive, but got {target_ratio}")
+    if target_ratio < 1:
+        raise ValueError(
+            f"Target ratio should be greater than 1, but got {target_ratio}"
+        )
 
     # Identify minority and majority masks
     is_min = np.any(labels != 0, axis=1)
@@ -457,7 +473,7 @@ def mean_dist_sampler(
     sorted_rel_idx = np.argsort(dist)
 
     # Determine target counts
-    n_maj_target = int(np.round(n_min / target_ratio))
+    n_maj_target = int(np.round(n_min * target_ratio))
     n_to_sample = min(n_maj_target, n_maj_available)
 
     n_hard = int(np.round(n_to_sample * hard_percent))
@@ -497,7 +513,7 @@ def group_mean_dist_sampler(
     labels : Labels
         Binary prediction labels of shape (n_samples, n_classes).
     target_ratio : float
-        Ratio of minority over majority classes to achieve.
+        Ratio of majority over minority classes to achieve.
     groups : npt.NDArray
         List of groups in which labels belong of shape (n_samples,).
     hard_percent : float, default: 0.5
@@ -516,11 +532,16 @@ def group_mean_dist_sampler(
         If labels is not npt.NDArray.
     ValueError
         If labels and group do not have the same dimension.
+        If target ratio is less than 1.
 
     """
     array_check(labels)
     array_dim_check(labels, groups, dim=0)
 
+    if target_ratio < 1:
+        raise ValueError(
+            f"Target ratio should be greater than 1, but got {target_ratio}"
+        )
     all_sampled_indices = []  # List for sampled indices
     n_groups = np.unique(groups)
 
@@ -568,7 +589,7 @@ def smote(
     labels : Labels
         Binary prediction labels of shape (n_samples, n_classes).
     target_ratio : float
-        Ratio of minority over majority classes to achieve.
+        Ratio of majority over minority classes to achieve.
     k_neighbors : int
         Number of neighbors to use for SMOTE knn.
 
@@ -584,13 +605,15 @@ def smote(
     TypeError
         If labels is not npt.NDArray.
     ValueError
-        If target_ratio is less than 0.0.
+        It target_ratio is less than 1.
 
     """
     array_check(labels)
 
-    if target_ratio <= 0:
-        raise ValueError(f"Target ratio should be positive, but got {target_ratio}")
+    if target_ratio < 1:
+        raise ValueError(
+            f"Target ratio should be greater than 1, but got {target_ratio}"
+        )
 
     # Identify counts
     is_min = np.any(labels != 0, axis=1)
@@ -598,7 +621,7 @@ def smote(
     n_min_existing = np.sum(is_min)
 
     # Calculate how many NEW samples we need to generate
-    n_target_total_min = int(np.round(n_maj * target_ratio))
+    n_target_total_min = int(np.round(n_maj / target_ratio))
     n_to_generate = n_target_total_min - n_min_existing
 
     if n_to_generate <= 0:
@@ -652,7 +675,7 @@ def group_smote(
     labels : Labels
         Binary prediction labels of shape (n_samples, n_classes).
     target_ratio : float
-        Ratio of minority over majority classes to achieve.
+        Ratio of majority over minority classes to achieve.
     groups : npt.NDArray
         List of groups in which labels belong of shape (n_samples,).
     k_neighbors : int
@@ -673,11 +696,16 @@ def group_smote(
         If labels is not npt.NDArray
     ValueError
         If labels and group do not have the same dimension.
+        It target_ratio is less than 1.
 
     """
     array_check(labels)
     array_dim_check(labels, groups, dim=0)
 
+    if target_ratio < 1:
+        raise ValueError(
+            f"Target ratio should be greater than 1, but got {target_ratio}"
+        )
     unique_groups = np.unique(groups)
 
     # Start with original data to avoid repeated copying
