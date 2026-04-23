@@ -280,10 +280,12 @@ def compute_pred_metrics(
             # Returns array of scores for each label
             scores = func(y_true, y_pred, average=None, zero_division=0.0)
             # Append the weighted average as the last element
-            weighted = func(y_true, y_pred, average="weighted")
+            weighted = func(y_true, y_pred, average="weighted", zero_division=0.0)
             metric_dict[metric] = np.append(scores, weighted)
         else:
-            metric_dict[metric] = [func(y_true, y_pred, average="binary")]
+            metric_dict[metric] = [
+                func(y_true, y_pred, average="binary", zero_division=0.0)
+            ]
 
     return metric_dict
 

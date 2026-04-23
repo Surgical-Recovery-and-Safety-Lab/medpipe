@@ -157,7 +157,7 @@ class Pipeline:
         self.n_labels = len(self.label_list)
 
         print_message(
-            f"Setting up Pipeline v{self.version} ({self.n_labels} labels)",
+            f"Setting up Pipeline {self.version} ({self.n_labels} labels)",
             self.logger,
             SCRIPT_NAME,
         )
@@ -480,7 +480,9 @@ class Pipeline:
                 weights = self._weight_data(y_tr_label)
 
                 print_message(
-                    f"Label: {label} | Fold {i+1}/{n_folds}", self.logger, SCRIPT_NAME
+                    f"Label: {label} | {fold_key} | Fold {i+1}/{n_folds}",
+                    self.logger,
+                    SCRIPT_NAME,
                 )
 
                 # Execute training and evaluation
@@ -511,6 +513,12 @@ class Pipeline:
                 X_final, y_work[:, k : k + 1], cv_groups
             )
             weights = self._weight_data(y_tr_final)
+            print_message(
+                f"Train set size: {len(X_tr_final):,}", self.logger, SCRIPT_NAME
+            )
+            print_message(
+                f"Calibration set size: {len(X_cal_set):,}", self.logger, SCRIPT_NAME
+            )
             self.fit_model(X_tr_final, y_tr_final, "predictor", label, weights)
 
             if self.calibrator_type:
@@ -550,14 +558,17 @@ class Pipeline:
             Label associated with the model to train.
         fold_key : Any
             Key representing the current fold.
-        X_cal : PosProba, default: np.np.array([])
+        X_cal : PosProba, default: np.array([])
             Calibration data of shape (n_samples,) for the calibrator.
-        y_cal : Labels, default: np.np.array([])
+        y_cal : Labels, default: np.array([])
             Calibration labels of shape (n_samples,) for the calibrator.
-        weights : npt.NDArray, default: np.np.array([])
+        weights : npt.NDArray, default: np.array([])
             Weights to address class imbalance.
 
         """
+        print_message(f"Train set size: {len(X_train):,}", self.logger, SCRIPT_NAME)
+        print_message(f"Calibration set size: {len(X_cal):,}", self.logger, SCRIPT_NAME)
+        print_message(f"Test set size: {len(X_test):,}", self.logger, SCRIPT_NAME)
         # Fit predictor on train set
         self.fit_model(X_train, y_train, "predictor", label, weights)
 
