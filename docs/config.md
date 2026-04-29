@@ -152,7 +152,7 @@ These parameters are used for cross-validation scheme.
 | `group_k_fold` | bool  | Flag to use group K-fold cross validation. |
 | `group_name` | string  | Feature to use to create the groups. If "" then n_splits is used. |
 | `drop` | bool  | Flag to drop the feature from the training process. |
-| `n_splits` | int  | Number of splits to create for the cross validation, if group_k_fold is False. |
+| `n_splits` | int  | Number of splits to create for the cross validation, if group_k_fold is False. If n_splits is 0, no cross-validation is performed. |
 | `shuffle` | bool  | Flag to shuffle the groups. |
 | `random_state` | int  | Random seed used for repeatability. |
 
