@@ -448,55 +448,56 @@ class Pipeline:
             X_work = X_work.drop(columns=[split_group_name], errors="ignore")
 
         # Cross-Validation Loop
-        kfold_it = train_test_it(**cv_cfg)
-        n_folds = kfold_it.get_n_splits(X_work, y_work[:, 0], groups=cv_groups)
+        if cv_cfg["n_splits"] > 0:
+            kfold_it = train_test_it(**cv_cfg)
+            n_folds = kfold_it.get_n_splits(X_work, y_work[:, 0], groups=cv_groups)
 
-        for i, (train_idx, test_idx) in enumerate(
-            kfold_it.split(X_work, y_work[:, 0], groups=cv_groups)
-        ):
-            # Determine fold key (Group ID or index)
-            fold_key = cv_groups[test_idx[0]] if cv_groups is not None else i
-            fold_groups = (
-                cv_groups[train_idx] if cv_groups is not None else np.array([])
-            )
-
-            # Prepare X_fold (keeping or dropping CV group based on config)
-            X_fold = (
-                X_work.drop(columns=[cv_group_name])
-                if (cv_groups is not None and cv_drop)
-                else X_work
-            )
-            X_fold = convert_data(X_fold)
-
-            X_train_f = get_data_from_idx(X_fold, train_idx)
-            X_test_f = get_data_from_idx(X_fold, test_idx)
-            y_train_f, y_test_f = y_work[train_idx], y_work[test_idx]
-
-            for j, label in enumerate(self.label_list):
-                # Sample and Weight for specific label
-                X_tr_label, y_tr_label, _ = self._sample_data(
-                    X_train_f, y_train_f[:, j : j + 1], fold_groups
-                )
-                weights = self._weight_data(y_tr_label)
-
-                print_message(
-                    f"Label: {label} | {fold_key} | Fold {i+1}/{n_folds}",
-                    self.logger,
-                    SCRIPT_NAME,
+            for i, (train_idx, test_idx) in enumerate(
+                kfold_it.split(X_work, y_work[:, 0], groups=cv_groups)
+            ):
+                # Determine fold key (Group ID or index)
+                fold_key = cv_groups[test_idx[0]] if cv_groups is not None else i
+                fold_groups = (
+                    cv_groups[train_idx] if cv_groups is not None else np.array([])
                 )
 
-                # Execute training and evaluation
-                self._fit_and_evaluate(
-                    X_tr_label,
-                    y_tr_label,
-                    X_test_f,
-                    y_test_f[:, j],
-                    label,
-                    fold_key,
-                    X_cal=X_cal_set,
-                    y_cal=y_cal_set[:, j] if self.calibrator_type else np.array([]),
-                    weights=weights,
+                # Prepare X_fold (keeping or dropping CV group based on config)
+                X_fold = (
+                    X_work.drop(columns=[cv_group_name])
+                    if (cv_groups is not None and cv_drop)
+                    else X_work
                 )
+                X_fold = convert_data(X_fold)
+
+                X_train_f = get_data_from_idx(X_fold, train_idx)
+                X_test_f = get_data_from_idx(X_fold, test_idx)
+                y_train_f, y_test_f = y_work[train_idx], y_work[test_idx]
+
+                for j, label in enumerate(self.label_list):
+                    # Sample and Weight for specific label
+                    X_tr_label, y_tr_label, _ = self._sample_data(
+                        X_train_f, y_train_f[:, j : j + 1], fold_groups
+                    )
+                    weights = self._weight_data(y_tr_label)
+
+                    print_message(
+                        f"Label: {label} | {fold_key} | Fold {i+1}/{n_folds}",
+                        self.logger,
+                        SCRIPT_NAME,
+                    )
+
+                    # Execute training and evaluation
+                    self._fit_and_evaluate(
+                        X_tr_label,
+                        y_tr_label,
+                        X_test_f,
+                        y_test_f[:, j],
+                        label,
+                        fold_key,
+                        X_cal=X_cal_set,
+                        y_cal=y_cal_set[:, j] if self.calibrator_type else np.array([]),
+                        weights=weights,
+                    )
 
         # Final Model Training
         print_message(
