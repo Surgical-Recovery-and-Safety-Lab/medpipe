@@ -437,6 +437,9 @@ class Pipeline:
             if split_drop and split_group_name:
                 X_cal_set = X_cal_set.drop(columns=[split_group_name])
 
+            if cv_drop and cv_group_name and split_group_name != cv_group_name:
+                X_cal_set = X_cal_set.drop(columns=[cv_group_name])
+
             # Restrict training/CV to the remaining data
             X_work, y_work = X_full.iloc[t_idx], y_full[t_idx]
             cv_groups = cv_groups_full[t_idx] if cv_groups_full is not None else None
