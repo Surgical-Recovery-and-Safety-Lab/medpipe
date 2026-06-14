@@ -615,7 +615,7 @@ class Pipeline:
         self,
         X: Data,
         label_list: str | list[str] = "all",
-        model_type: str = "predictor",
+        model_type: str | list[str] = "predictor",
     ) -> FullProba:
         """
         Predicts probabilities from predictor or calibrator based on input data.
@@ -627,13 +627,18 @@ class Pipeline:
         label_list : str | list[str], default: "all"
             Label or list of labels associated with the model to use.
             If all, all models are used.
-        model_type : {"predictor", "calibrator"}, default: "predictor"
-            Model to use.
+        model_type : str | list[str], default: "predictor"
+            Model type or list of model types to use.
 
         Returns
         -------
         probabilities : FullProba
             Full predicted probabilities of shape (n_samples, 2).
+
+        Raises
+        ------
+        ValueError
+            If the label list and the model type list are not the same length.
 
         """
         X_clean = self._prepare_inference_data(X)
@@ -642,10 +647,17 @@ class Pipeline:
             if label_list == "all"
             else ([label_list] if isinstance(label_list, str) else label_list)
         )
+        model_types = [model_type] if isinstance(model_type, str) else model_type
+
+        # Check same length
+        if len(model_types) != len(target_labels):
+            raise ValueError("Label list and model types should be the same length")
 
         results = [
-            self._inference_wrapper(X_clean, label, "predict_proba", model_type)
-            for label in target_labels
+            self._inference_wrapper(
+                X_clean, target_labels[i], "predict_proba", model_types[i]
+            )
+            for i in range(len(target_labels))
         ]
 
         # If single label, return just the array; if multiple, return the stacked array
@@ -655,7 +667,7 @@ class Pipeline:
         self,
         X: Data,
         label_list: str | list[str] = "all",
-        model_type: str = "predictor",
+        model_type: str | list[str] = "predictor",
     ) -> Labels:
         """
         Predicts labels from predictor or calibrator based on input data.
@@ -667,13 +679,18 @@ class Pipeline:
         label_list : str | list[str], default: "all"
             Label or list of labels associated with the model to use.
             If all, all models are used.
-        model_type : {"predictor", "calibrator"}, default: "predictor"
-            Model to use.
+        model_type : str | list[str], default: "predictor"
+            Model type or list of model types to use.
 
         Returns
         -------
         labels : Labels
             Predicted labels of shape (n_samples,).
+
+        Raises
+        ------
+        ValueError
+            If the label list and the model type list are not the same length.
 
         """
         probabilities = self.predict_proba(X, label_list, model_type)
