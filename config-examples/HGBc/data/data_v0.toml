@@ -17,4 +17,4 @@ predictors = [
 ]
 
 [targets]
-outcomes = [ "MORTALITY_30D" ]
+outcomes = ["MORTALITY_30D"]

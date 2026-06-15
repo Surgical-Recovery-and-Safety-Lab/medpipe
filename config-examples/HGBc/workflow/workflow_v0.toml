@@ -1,5 +1,5 @@
 [preprocessing]
-preprocess = true # Perform preprocessing if true
+preprocess = true  # Perform preprocessing if true
 
 # Add extra preprocessing operations here
 [preprocessing.ordinal_encoder]

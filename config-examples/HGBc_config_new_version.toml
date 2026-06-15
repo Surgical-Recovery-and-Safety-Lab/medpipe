@@ -5,7 +5,7 @@ project_name = "ai_risk_HGBc"
 # audit: CV training, CV probability caching, evaluation metrics, calibration and fairness, final model training
 # cv: CV training, CV probability caching, evaluation metrics, final model training
 # fast: Only run final model training
-run_mode = "audit" 
+run_mode = "audit"
 
 [paths]
 # Paths can be relative or absolute
@@ -14,7 +14,7 @@ model_dir = "models/"  # Save model directory
 figure_dir = "figures/"  # Directory to save figures
 
 [model]
-algorithm = "HistGradientBoostingClassifier"  
+algorithm = "HistGradientBoostingClassifier"
 
 [calibration]
 method = "isotonic"
