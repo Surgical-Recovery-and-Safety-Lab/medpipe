@@ -1,0 +1,20 @@
+[meta]
+# Path can be relative or absolute
+path = "../../data/data.csv"  # Example path
+
+[features]
+predictors = [
+  "AGE",
+  "SEX",
+  "PRIOR_CANCER",
+  "ADMISSION_ACUITY",
+  "ADMISSION_SOURCE",
+  "CATEGORY_LEVEL_1",
+  "DHB_NAME",
+  "OP_SEVERITY",
+  "TRAUMA",
+  "OP_YEAR",
+]
+
+[targets]
+outcomes = [ "MORTALITY_30D" ]

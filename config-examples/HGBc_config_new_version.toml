@@ -1,0 +1,20 @@
+[meta]
+version = "v0.1.1"  # Used to get data, workflow, and hyperparameters
+project_name = "ai_risk_HGBc"
+# Options
+# audit: CV training, CV probability caching, evaluation metrics, calibration and fairness, final model training
+# cv: CV training, CV probability caching, evaluation metrics, final model training
+# fast: Only run final model training
+run_mode = "audit" 
+
+[paths]
+# Paths can be relative or absolute
+config_dir = "config/HGBc/"
+model_dir = "models/"  # Save model directory
+figure_dir = "figures/"  # Directory to save figures
+
+[model]
+algorithm = "HistGradientBoostingClassifier"  
+
+[calibration]
+method = "isotonic"

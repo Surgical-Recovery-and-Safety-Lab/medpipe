@@ -1,0 +1,17 @@
+[predictor.hyperparameters]
+learning_rate = 0.1
+loss = "log_loss"
+l2_regularization = 0.5
+max_features = 0.4
+
+[calibrator.hyperparameters]
+out_of_bounds = "clip"
+
+[balancing]
+[balancing.weighting]
+weighting_fn = "inverse_frequency_single_sample_weights"
+
+[balancing.sampling]
+sampler_fn = "group_random_undersampler"
+reduction_factor = 0.5
+hard_percent = 0.25

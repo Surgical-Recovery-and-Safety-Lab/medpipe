@@ -1,0 +1,35 @@
+[preprocessing]
+preprocess = true # Perform preprocessing if true
+
+# Add extra preprocessing operations here
+[preprocessing.ordinal_encoder]
+# List of features to label encode
+feature_list = [
+  "SEX",
+  "ADMISSION_ACUITY",
+  "ADMISSION_SOURCE",
+  "CATEGORY_LEVEL_1",
+]
+
+[validation]
+[validation.test_split]  # Test / train splitting variables
+strategy = "group"  # Can be random, group or none
+group_column = "OP_YEAR"  # Group to use to extract test set
+values = [2024]  # Values of group to extract the test set
+test_size = 0.1  # Size of the test set if not using group
+drop_group_column = true  # Flag for dropping group column
+
+[validation.calibration_split]  # Calibration data splitting variables
+strategy = "none"  # Can be random, group, or none
+group_column = "OP_YEAR"  # Group to use to extract test set
+values = [2023]  # Values of group to extract the calibration set
+calibration_size = 0.1  # Size of the test set if not using group
+drop_group_column = true  # Flag for dropping group column
+
+[validation.cross_validation]  # Cross-validation variables
+strategy = "none"  # Can be random, group, or none
+group_column = "DHB_NAME"
+n_splits = 20  # Number of groups (group strategy) or folds (random strategy)
+shuffle = true
+random_state = 42
+drop_group_column = true  # Flag for dropping group column
