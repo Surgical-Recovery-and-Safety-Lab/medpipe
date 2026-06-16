@@ -1,14 +1,10 @@
 [preprocessing]
 preprocess = true  # Perform preprocessing if true
 
-# Add extra preprocessing operations here
-[preprocessing.ordinal_encoder]
-# List of features to label encode
-feature_list = [
-  "SEX",
-  "ADMISSION_ACUITY",
-  "ADMISSION_SOURCE",
-  "CATEGORY_LEVEL_1",
+# Operations are run in order
+operations = [
+  { name = "OrdinalEncoder", feature_list = ["SEX", "CATEGORY_LEVEL_1"] },
+  { name = "StandardScaler", feature_list = ["CATEGORY_LEVEL_1"], with_mean = true },
 ]
 
 [validation]
