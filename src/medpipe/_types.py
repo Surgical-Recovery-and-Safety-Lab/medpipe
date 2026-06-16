@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, Annotated, Literal, Sequence, TypeAlias, TypeV
 import numpy as np
 import numpy.typing as npt
 import pandas as pd
+from pydantic import BaseModel
 from sklearn.ensemble import HistGradientBoostingClassifier
 from sklearn.isotonic import IsotonicRegression
 from sklearn.linear_model import LogisticRegression
@@ -20,6 +21,10 @@ from sklearn.preprocessing import OrdinalEncoder, PowerTransformer, StandardScal
 if TYPE_CHECKING:
     from medpipe.models.calibrators import IsotonicCalibrator, LogisticCalibrator
     from medpipe.models.predictors import HGBClassifier
+
+# ==============================================================================
+# CORE PIPELINE & DATA TYPES
+# ==============================================================================
 
 # Define data and label types
 SingleClassLabels: TypeAlias = Annotated[npt.NDArray[np.integer], Literal["N"]]
@@ -48,3 +53,46 @@ Calibrator: TypeAlias = "IsotonicCalibrator | LogisticCalibrator"
 Model: TypeAlias = Classifier | Regressor
 R = TypeVar("R", bound=Regressor)  # Generic Type Variable for Regressors
 C = TypeVar("C", bound=Classifier)  # Generic Type Variable for Classifiers
+
+
+# ==============================================================================
+# CONFIGURATION SCHEMA (pydantic)
+# ==============================================================================
+# --- TOP-LEVEL MASTER SCHEMAS ---
+
+
+class MetaConfig(BaseModel):
+    version: str
+    project_name: str
+    run_mode: Literal["fast", "cv", "audit"] = "audit"
+    model_config = {"extra": "forbid"}
+
+
+class PathsConfig(BaseModel):
+    config_dir: str
+    model_dir: str
+    figure_dir: str
+    model_config = {"extra": "forbid"}
+
+
+class ModelConfig(BaseModel):
+    algorithm: str
+    model_config = {"extra": "forbid"}
+
+
+class CalibrationConfig(BaseModel):
+    method: Literal["isotonic", "logistic"]
+    model_config = {"extra": "forbid"}
+
+
+class MedpipeConfig(BaseModel):
+    """The master schema for the top-level configuration file."""
+
+    meta: MetaConfig
+    paths: PathsConfig
+    model: ModelConfig
+    calibration: CalibrationConfig
+    model_config = {"extra": "forbid"}
+
+
+# --- DATA SCHEMAS
