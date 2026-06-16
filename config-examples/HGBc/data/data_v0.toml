@@ -1,8 +1,6 @@
-[meta]
 # Path can be relative or absolute
 path = "../../data/data.csv"  # Example path
 
-[features]
 predictors = [
   "AGE",
   "SEX",
@@ -16,5 +14,4 @@ predictors = [
   "OP_YEAR",
 ]
 
-[targets]
 outcomes = ["MORTALITY_30D"]
