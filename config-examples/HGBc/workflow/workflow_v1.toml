@@ -16,11 +16,11 @@ values = [2024]  # Values of group to extract the test set
 test_size = 0.1  # Size of the test set if not using group
 drop_group_column = true  # Flag for dropping group column
 
-[validation.calibration_split]  # Calibration data splitting variables
+[validation.recalibration_split]  # Recalibration data splitting variables
 strategy = "group"  # Can be random, group, or none
 group_column = "OP_YEAR"  # Group to use to extract test set
-values = [2023]  # Values of group to extract the calibration set
-calibration_size = 0.1  # Size of the test set if not using group
+values = [2023]  # Values of group to extract the recalibration set
+recalibration_size = 0.1  # Size of the test set if not using group
 drop_group_column = true  # Flag for dropping group column
 
 [validation.cross_validation]  # Cross-validation variables
