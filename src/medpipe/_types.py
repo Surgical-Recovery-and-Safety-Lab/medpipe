@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING, Annotated, Literal, Sequence, TypeAlias, TypeV
 import numpy as np
 import numpy.typing as npt
 import pandas as pd
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, model_validator
 from sklearn.ensemble import HistGradientBoostingClassifier
 from sklearn.isotonic import IsotonicRegression
 from sklearn.linear_model import LogisticRegression
@@ -96,3 +96,116 @@ class MedpipeConfig(BaseModel):
 
 
 # --- DATA SCHEMAS
+class DataConfig(BaseModel):
+    """The master schema for the data subconfiguration file."""
+
+    path: str
+    features: list[str]
+    outcomes: list[str]
+
+
+# --- WORKFLOW SCHEMAS
+class PreprocessOperationConfig(BaseModel):
+    name: str  # Matches the exact class name
+    feature_list: list[str]  # The specific columns this transformer applies to
+    model_config = {"extra": "allow"}
+
+
+class PreprocessingConfig(BaseModel):
+    preprocess: bool = True
+    steps: list[PreprocessOperationConfig] = Field(default_factory=list)
+    model_config = {"extra": "forbid"}
+
+
+class TestSplitConfig(BaseModel):
+    strategy: Literal["random", "group"] = "random"
+    group_column: str | None = None
+    values: list[str | int] | None = None
+    test_size: float | None = Field(default=None, gt=0.0, le=1.0)
+    drop_group_column: bool | None = None
+    model_config = {"extra": "forbid"}
+
+    @model_validator(mode="after")
+    def validate_strategy(self) -> "TestSplitConfig":
+        if self.strategy == "random" and not self.test_size:
+            raise ValueError("The random strategy requires a test size")
+
+        if self.strategy == "group":
+            msg = "The group strategy requires "
+            if not self.group_column:
+                raise ValueError(msg + "a group column to be specified")
+            elif not self.values:
+                raise ValueError(msg + "values to be specified")
+            elif type(self.drop_group_column) is not bool:
+                raise ValueError(msg + "the drop flag to be specified")
+
+        return self
+
+
+class RecalibrationSplitConfig(BaseModel):
+    strategy: Literal["random", "group"] | None = None
+    group_column: str | None = None
+    values: list[str | int] | None = None
+    recalibration_size: float | None = Field(default=None, gt=0.0, le=1.0)
+    drop_group_column: bool | None = None
+    model_config = {"extra": "forbid"}
+
+    @model_validator(mode="after")
+    def validate_strategy(self) -> "RecalibrationSplitConfig":
+        if self.strategy == "random" and not self.recalibration_size:
+            raise ValueError("The random strategy requires a test size")
+
+        if self.strategy == "group":
+            msg = "The group strategy requires "
+            if not self.group_column:
+                raise ValueError(msg + "a group column to be specified")
+            elif not self.values:
+                raise ValueError(msg + "values to be specified")
+            elif type(self.drop_group_column) is not bool:
+                raise ValueError(msg + "the drop flag to be specified")
+
+        return self
+
+
+class CrossValConfig(BaseModel):
+    strategy: Literal["random", "group"] | None = None
+    group_column: str | None = None
+    n_splits: int = Field(default=5, gt=0)
+    shuffle: bool = True
+    random_state: int = Field(default=42, gt=0)
+    drop_group_column: bool = True
+    model_config = {"extra": "forbid"}
+
+
+class WorkflowConfig(BaseModel):
+    """The master schema for the workflow subconfiguration file."""
+
+    preprocessing: PreprocessingConfig
+    test_split: TestSplitConfig = Field(..., alias="validation.test_split")
+    calibration_split: RecalibrationSplitConfig | None = Field(
+        default=None, alias="validation.calibration_split"
+    )
+    cross_validation: CrossValConfig | None = Field(
+        default=None, alias="validation.cross_validation"
+    )
+
+
+class PredictorConfig(BaseModel):
+    learning_rate: float
+    # Allow extra parameters to be passed as keyword argument to predictor
+    model_config = {"extra": "allow"}
+
+
+class CalibratorConfig(BaseModel):
+    # Allow extra parameters to be passed as keyword argument to calibrator
+    model_config = {"extra": "allow"}
+
+
+class WeightingConfig(BaseModel):
+    weighting_fn: str | None = Field(default=None)
+
+
+class SamplingConfig(BaseModel):
+    sampler_fn: str | None = Field(default=None)
+    reduction_factor: float | None = Field(default=None, gt=0.0, lt=1.0)
+    hard_percent: float | None = Field(default=None, gt=0.0, lt=1.0)
