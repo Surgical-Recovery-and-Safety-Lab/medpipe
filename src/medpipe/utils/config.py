@@ -7,20 +7,29 @@ Functions:
 - parse_version_number: Function that parses a version number.
 - read_subconfiguration_file: Reads the contents of a configuration file
     from a path.
+- validate_balancing: Checks if sampler and weighting functions are valid.
 """
 
 from __future__ import annotations
 
 import tomllib
+from pathlib import Path
 from typing import Literal, TypeAlias
 from warnings import warn
 
-from medpipe._types import DataConfig, HyperparameterConfig, WorkflowConfig
+from medpipe._types import (
+    BalancingSubConfig,
+    DataConfig,
+    HyperparameterConfig,
+    WorkflowConfig,
+)
+from medpipe.data.sampler import VALID_SAMPLER_FN
+from medpipe.data.weighting import VALID_WEIGHTING_FN
 
 from .exceptions import file_checks
 
 # Define some constants
-SUBCONFIG_REGISTRY: dict[str, type[SubConfig]] = {
+SUBCONFIG_REGISTRY: dict[SubConfigTypes, type[SubConfig]] = {
     "data": DataConfig,
     "workflow": WorkflowConfig,
     "hyperparameters": HyperparameterConfig,
@@ -31,7 +40,7 @@ SubConfig: TypeAlias = DataConfig | HyperparameterConfig | WorkflowConfig
 SubConfigTypes: TypeAlias = Literal["data", "workflow", "hyperparameters"]
 
 
-def read_subconfiguration_file(path: str, subtype: SubConfigTypes) -> SubConfig:
+def read_subconfiguration_file(path: str | Path, subtype: SubConfigTypes) -> SubConfig:
     """
     Reads the contents of a configuration file from a path.
 
@@ -40,7 +49,7 @@ def read_subconfiguration_file(path: str, subtype: SubConfigTypes) -> SubConfig:
 
     Parameters
     ----------
-    path: str
+    path: str | Path
         Path to the configuration file.
     subtype: SubConfigTypes {"data", "workflow", "hyperparameters"}
         Subtype of the configuration being read.
@@ -53,7 +62,7 @@ def read_subconfiguration_file(path: str, subtype: SubConfigTypes) -> SubConfig:
     Raises
     ------
     TypeError
-        If path is not a str.
+        If path is not a str or Path.
     FileNotFoundError
         If path does not exist.
     IsADirectoryError
@@ -74,7 +83,6 @@ def read_subconfiguration_file(path: str, subtype: SubConfigTypes) -> SubConfig:
 
     with open(path, "rb") as file:
         raw_config = tomllib.load(file)
-
     subtype_class = SUBCONFIG_REGISTRY[subtype]
 
     return subtype_class.model_validate(raw_config)
@@ -131,3 +139,39 @@ def parse_version_number(version: str) -> list[str]:
         warn(f"Expecting 3 values, but got {v_len}. Everything after 3 is ignored.")
 
     return v_list[:3]
+
+
+def validate_balancing(config: BalancingSubConfig) -> None:
+    """
+    Checks if sampler and weighting functions are valid.
+
+    Parameters
+    ----------
+    config: BalancingSubConfig
+        Configuration dictionary to verify.
+
+    Returns
+    -------
+    None
+        Nothing is returned.
+
+    Raises
+    ------
+    ValueError
+        If the sampler function is invalid.
+        If the weighting function is invalid.
+
+    """
+    if config.weighting and config.weighting.weighting_fn:
+        if config.weighting.weighting_fn not in VALID_WEIGHTING_FN:
+            raise ValueError(
+                f"Unknown weighting function {config.weighting.weighting_fn} "
+                f"should be one of {VALID_WEIGHTING_FN}"
+            )
+
+    if config.sampling and config.sampling.sampler_fn:
+        if config.sampling.sampler_fn not in VALID_SAMPLER_FN:
+            raise ValueError(
+                f"Unknown sampling function {config.sampling.sampler_fn} "
+                f"should be one of {VALID_SAMPLER_FN}"
+            )

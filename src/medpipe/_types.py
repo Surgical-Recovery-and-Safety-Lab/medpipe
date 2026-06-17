@@ -19,8 +19,6 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import OrdinalEncoder, PowerTransformer, StandardScaler
 
 if TYPE_CHECKING:
-    from medpipe.data.sampler import VALID_SAMPLER_FN
-    from medpipe.data.weighting import VALID_WEIGHTING_FN
     from medpipe.models.calibrators import IsotonicCalibrator, LogisticCalibrator
     from medpipe.models.predictors import HGBClassifier
 
@@ -209,15 +207,6 @@ class WeightingConfig(BaseModel):
     weighting_fn: str | None = Field(default=None)
     model_config = {"extra": "forbid"}
 
-    @field_validator("weighting_fn")
-    @classmethod
-    def validate_weighting_fn(cls, fn: str | None) -> str | None:
-        if fn is not None and fn not in VALID_WEIGHTING_FN:
-            raise ValueError(
-                f"Unkown weighting function {fn}, should be one of {VALID_WEIGHTING_FN}"
-            )
-        return fn
-
 
 class SamplingConfig(BaseModel):
     sampler_fn: str | None = Field(default=None)
@@ -225,14 +214,6 @@ class SamplingConfig(BaseModel):
     hard_percent: float | None = Field(default=None, gt=0.0, lt=1.0)
     model_config = {"extra": "forbid"}
 
-    @field_validator("sampler_fn")
-    @classmethod
-    def validate_sampler_fn(cls, fn: str | None) -> str | None:
-        if fn is not None and fn not in VALID_SAMPLER_FN:
-            raise ValueError(
-                f"Unkown weighting function {fn}, should be one of {VALID_SAMPLER_FN}"
-            )
-        return fn
 
 
 class HyperparameterConfig(BaseModel):
