@@ -249,3 +249,11 @@ def negative_positive_ratio_class_weights(labels: Labels) -> npt.NDArray:
         raise ZeroDivisionError("One or more classes have no positive labels")
 
     return (n_samples - pos_counts) / pos_counts
+
+
+# Dynamically gather every function name in this file that doesn't start with '_'
+VALID_WEIGHTING_FN = [
+    name
+    for name, obj in globals().items()
+    if callable(obj) and not name.startswith("_")
+]

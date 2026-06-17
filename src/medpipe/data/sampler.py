@@ -739,3 +739,11 @@ def group_smote(
         final_X = np.concatenate(all_X, axis=0)
 
     return final_X, np.concatenate(all_y, axis=0), np.concatenate(all_g, axis=0)
+
+
+# Dynamically gather every function name in this file that doesn't start with '_'
+VALID_SAMPLER_FN = [
+    name
+    for name, obj in globals().items()
+    if callable(obj) and not name.startswith("_")
+]
