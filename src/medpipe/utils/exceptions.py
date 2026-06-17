@@ -44,7 +44,7 @@ def file_checks(file: str | Path, extension: str, exists: bool = True) -> None:
     Raises
     ------
     TypeError
-        If file is not a str.
+        If file is not a str or a Path.
     FileNotFoundError
         If file does not exist.
     IsADirectoryError
@@ -70,14 +70,14 @@ def file_checks(file: str | Path, extension: str, exists: bool = True) -> None:
         raise ValueError(f"{file} should be a {extension} file")
 
 
-def path_checks(path: str) -> None:
+def path_checks(path: str | Path) -> None:
     """
     Performs checks to ensure that a path is correct and creates it
     if it does not exist.
 
     Parameters
     ----------
-    path : str
+    path : str | Path
         Path to check.
 
     Returns
@@ -88,15 +88,15 @@ def path_checks(path: str) -> None:
     Raises
     ------
     TypeError
-        If path is not a str.
+        If path is not a str or Path.
     FileNotFoundError
         If path does not exist.
     NotADirectoryError
         If path is not a directory.
 
     """
-    if type(path) is not str:
-        raise TypeError(f"{path} should be a string")
+    if not isinstance(path, (str, Path)):
+        raise TypeError(f"{path} should be a string or a Path")
 
     path_object = Path(path)  # Create a Path object
     path_suffix = path_object.suffix
