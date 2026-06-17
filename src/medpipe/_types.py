@@ -88,7 +88,7 @@ class CalibrationConfig(BaseModel):
     model_config = {"extra": "forbid"}
 
 
-class MedpipeConfig(BaseModel):
+class TopLevelConfig(BaseModel):
     """The master schema for the top-level configuration file."""
 
     meta: MetaConfig
@@ -193,6 +193,7 @@ class WorkflowConfig(BaseModel):
     )
 
 
+# --- HYPERPARAMETERS SCHEMAS
 class PredictorConfig(BaseModel):
     learning_rate: float
     # Allow extra parameters to be passed as keyword argument to predictor
@@ -243,3 +244,12 @@ class HyperparameterConfig(BaseModel):
     )
     weighting: WeightingConfig | None = Field(default=None, alias="balancing.weighting")
     sampling: SamplingConfig | None = Field(default=None, alias="balancing.sampling")
+
+
+class MedpipeConfig(BaseModel):
+    """The master schema for a medpipe pipeline."""
+
+    top_level: TopLevelConfig
+    data: DataConfig
+    workflow: WorkflowConfig
+    hyperparameters: HyperparameterConfig
