@@ -18,10 +18,9 @@ from sklearn.isotonic import IsotonicRegression
 from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import OrdinalEncoder, PowerTransformer, StandardScaler
 
-from medpipe.data.sampler import VALID_SAMPLER_FN
-from medpipe.data.weighting import VALID_WEIGHTING_FN
-
 if TYPE_CHECKING:
+    from medpipe.data.sampler import VALID_SAMPLER_FN
+    from medpipe.data.weighting import VALID_WEIGHTING_FN
     from medpipe.models.calibrators import IsotonicCalibrator, LogisticCalibrator
     from medpipe.models.predictors import HGBClassifier
 
