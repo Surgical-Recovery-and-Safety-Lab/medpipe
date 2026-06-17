@@ -98,7 +98,7 @@ def path_checks(path: str) -> None:
     if type(path) is not str:
         raise TypeError(f"{path} should be a string")
 
-    path_object = pathlib.Path(path)  # Create a Path object
+    path_object = Path(path)  # Create a Path object
     path_suffix = path_object.suffix
     dir = False
 
