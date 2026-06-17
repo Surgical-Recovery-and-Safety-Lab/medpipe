@@ -16,6 +16,14 @@ from typing import TYPE_CHECKING, Any
 
 import pandas as pd
 
+from medpipe._types import (
+    DataConfig,
+    HyperparameterConfig,
+    MedpipeConfig,
+    TopLevelConfig,
+    WorkflowConfig,
+)
+
 from . import exceptions
 
 if TYPE_CHECKING:
@@ -59,9 +67,8 @@ def load_data_from_csv(data_file: str) -> pd.DataFrame:
 
 def read_toml_configuration(config_file: str) -> dict[str, Any]:
     """
-    Reads a .TOML configuration file and returns contents.
-
-    The function adds the base_dir variable to any dir variable.
+    Reads the top-level .TOML configuration file and returns contents with
+    subconfiguration contents.
 
     Parameters
     ----------
@@ -93,16 +100,10 @@ def read_toml_configuration(config_file: str) -> dict[str, Any]:
         raise
 
     with open(config_file, "rb") as file:
-        config = tomllib.load(file)
+        raw_config = tomllib.load(file)
 
-    # Add base_dir to dir parameters
-    if "base_dir" in config.keys():
-        if "log_dir" in config.keys():
-            config["log_dir"] = config["base_dir"] + config["log_dir"]
-
-        for key, item in config.items():
-            if type(item) is type(dict()) and "dir" in item.keys():
-                # In a _parameters dictionary
-                config[key]["dir"] = config["base_dir"] + config[key]["dir"]
+    # Check top-level configuration is correct
+    config: TopLevelConfig = TopLevelConfig.model_validate(raw_config)
+    breakpoint()
 
     return config
