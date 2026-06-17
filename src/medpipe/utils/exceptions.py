@@ -12,7 +12,7 @@ Functions:
 
 from __future__ import annotations
 
-import pathlib
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from numpy import ndarray
@@ -23,13 +23,13 @@ if TYPE_CHECKING:
     import pandas as pd
 
 
-def file_checks(file: str, extension: str, exists: bool = True) -> None:
+def file_checks(file: str | Path, extension: str, exists: bool = True) -> None:
     """
     Performs checks to ensure that a file and extension are correct.
 
     Parameters
     ----------
-    file : str
+    file : str | Path
         File to check.
     extension : str
         Extension of the file to check.
@@ -53,10 +53,10 @@ def file_checks(file: str, extension: str, exists: bool = True) -> None:
         If file extension is not .extension file.
 
     """
-    if type(file) is not str:
-        raise TypeError(f"{file} should be a string")
+    if not isinstance(file, (str, Path)):
+        raise TypeError(f"{file} should be a string or Path")
 
-    path_object = pathlib.Path(file)  # Create a Path object
+    path_object = Path(file)  # Create a Path object
 
     path_checks(str(path_object.parent))
 
