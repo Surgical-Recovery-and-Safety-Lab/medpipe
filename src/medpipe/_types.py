@@ -102,8 +102,9 @@ class DataConfig(BaseModel):
     """The master schema for the data subconfiguration file."""
 
     path: str
-    features: list[str]
+    predictors: list[str]
     outcomes: list[str]
+    model_config = {"extra": "forbid"}
 
 
 # --- WORKFLOW SCHEMAS
