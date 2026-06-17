@@ -4,203 +4,130 @@ Configuration utilities module.
 This module provides helper functions for reading configuration files.
 
 Functions:
-- get_file_path: Gets a file path from a configuration dictionary.
-- get_configuration: Gets the configuration by chaining .toml configurations.
 - parse_version_number: Function that parses a version number.
-- split_version_number: Splits a version number into the data and model version numbers.
+- read_subconfiguration_file: Reads the contents of a configuration file
+    from a path.
 """
 
 from __future__ import annotations
 
-from typing import Any
+import tomllib
+from typing import Literal, TypeAlias
+from warnings import warn
+
+from medpipe._types import DataConfig, HyperparameterConfig, WorkflowConfig
 
 from .exceptions import file_checks
-from .io import read_toml_configuration
+
+# Define some constants
+SUBCONFIG_REGISTRY: dict[str, type[SubConfig]] = {
+    "data": DataConfig,
+    "workflow": WorkflowConfig,
+    "hyperparameters": HyperparameterConfig,
+}
+
+# Define file specific types
+SubConfig: TypeAlias = DataConfig | HyperparameterConfig | WorkflowConfig
+SubConfigTypes: TypeAlias = Literal["data", "workflow", "hyperparameters"]
 
 
-def get_file_path(
-    config_dict: dict[str, Any],
-    v_number: str = "",
-    path_type: str = "io",
-    exists: bool = True,
-) -> str:
+def read_subconfiguration_file(path: str, subtype: SubConfigTypes) -> SubConfig:
     """
-    Gets the path to a file from a configuration dictionary.
+    Reads the contents of a configuration file from a path.
 
-    If the path_type is "fig", the extension is removed.
+    The contents are validated using the pydantic classes defined
+    in _types.py.
 
     Parameters
     ----------
-    config_dict : dict[str, Any]
-        Dictionary from a loaded .TOML file.
-    v_number : str, default: ""
-        Version number.
-    path_type : {"io", "db", "data", "fig"}, default: "io"
-        Path type in the configuration file.
-    exists : bool, default: True
-        Flag to indicate if the file should exists.
+    path: str
+        Path to the configuration file.
+    subtype: SubConfigTypes {"data", "workflow", "hyperparameters"}
+        Subtype of the configuration being read.
 
     Returns
     -------
-    file_path : str
-        Path to the file.
-
-    """
-    if type(config_dict) is not type(dict()):
-        raise TypeError(
-            f"config_dict should be a dictionary, but got {type(config_dict)}"
-        )
-    if type(path_type) is not type(""):
-        raise TypeError(f"path_type should be a str, but got {type(path_type)}")
-
-    if path_type not in ["io", "db", "data", "fig"]:
-        raise ValueError(f"path_type should be io, db, or data, but got {path_type}")
-
-    key = path_type + "_parameters"
-    if key not in config_dict.keys():
-        raise KeyError(f"config_dict should have a {key} key")
-
-    parameters = config_dict[key]
-
-    if path_type == "fig":
-        # Create a fig folder for each version number
-        file_path = (
-            parameters["dir"]
-            + f"{v_number}/"
-            + parameters["name"]
-            + v_number
-            + parameters["extension"]
-        )
-    else:
-        file_path = (
-            parameters["dir"] + parameters["name"] + v_number + parameters["extension"]
-        )
-
-    # Run file checks before returning
-    file_checks(file_path, parameters["extension"], exists=exists)
-
-    if path_type == "fig":  # If figure remove extension
-        return file_path[: -len(parameters["extension"])]
-
-    return file_path
-
-
-def split_version_number(v_number: str) -> tuple[str, str]:
-    """
-    Splits a version number into the data and model version numbers.
-
-    Expecting a version number in the format vX.Y.Z-nN, where X.Y.Z is the
-    data version number and nN is the model version number.
-
-    Parameters
-    ----------
-    v_number : str
-        Data version number to split.
-
-    Returns
-    -------
-    data_v_number : str
-        Data version number in the format vX.Y.Z.
-    model_v_number : str
-        Model version number in the format vnN.
+    config: SubConfig
+        Subconfiguration dictionary.
 
     Raises
     ------
     TypeError
-        If v_number is not a string.
+        If path is not a str.
+    FileNotFoundError
+        If path does not exist.
+    IsADirectoryError
+        If path is not a file.
     ValueError
-        If v_number format is incorrect.
+        If path it not a .toml file.
+    tomllib.TOMLDecodeError
+        If the file was not read properly.
 
     """
-    if type(v_number) is not type(""):
-        raise TypeError(f"v_number should be a string, but got {type(v_number)}")
-
-    if "-" not in v_number:
+    if subtype not in SUBCONFIG_REGISTRY.keys():
+        valid_options = list(SUBCONFIG_REGISTRY.keys())
         raise ValueError(
-            f"Incorrect version number format, expecting vX.Y.Z-nN but got {v_number}"
+            f"Unexpected subtype {subtype}, expecting one of " f"{valid_options}"
         )
 
-    data_v_number, model_v_number = v_number.split("-")  # Split at the - sign
+    file_checks(path, ".toml")
 
-    if data_v_number[0] != "v":
-        # Add v in case version number does not have one
-        data_v_number = "v" + data_v_number
+    with open(path, "rb") as file:
+        raw_config = tomllib.load(file)
 
-    return data_v_number, "v" + model_v_number
+    subtype_class = SUBCONFIG_REGISTRY[subtype]
+
+    return subtype_class.model_validate(raw_config)
 
 
-def parse_version_number(v_number: str) -> list[str]:
+def parse_version_number(version: str) -> list[str]:
     """
     Parses a version number.
 
-    Expecting a version number in the format vX.Y.Z.
+    Expecting a version number in the format vX.Y.Z, with
+    X the data version,
+    Y the workflow version,
+    Z the hyperparameters version.
 
     Parameters
     ----------
-    v_number : str
+    version : str
         Version number to parse.
 
     Returns
     -------
     v_list : list[str]
-        List containing [source, extraction, preprocessing] numbers.
+        List containing data, workflow, hyperparameters numbers.
 
     Raises
     ------
     TypeError
         If v_number is not a string.
 
-    """
-    if type(v_number) is not type(""):
-        raise TypeError(f"v_number should be a string, but got {type(v_number)}")
+    Warns
+    -----
+    UserWarning
+        If the version string has more than 3 elements.
 
-    if v_number[0] == "v":
+    """
+    if not isinstance(version, str):
+        raise TypeError(f"version should be a string, but got {type(version)}")
+
+    v_to_parse = version
+    if version[0] == "v":
         # Remove v prefix if present
-        v_number = v_number[1:]
+        v_to_parse = version[1:]
 
-    return v_number.split(".")
+    v_list = v_to_parse.split(".")
 
-
-def get_configuration(parameters: dict[str, Any], v_number: str) -> dict[str, Any]:
-    """
-    Gets the configuration by chaining .toml configurations.
-
-    Parameters
-    ----------
-    parameters : dict[str, Any]
-        Parameters for the configuration chaining.
-    v_number : str
-        Version number of the data to recuperate.
-
-    Returns
-    -------
-    config_dict : dict[str, Any]
-        Configuration parameters dictionary.
-
-    Raises
-    ------
-    TypeError
-        If parameters is not a dict.
-
-    """
-    if type(parameters) is not type(dict()):
-        raise TypeError(f"parameters should be a dict, but got f{type(parameters)}")
-
-    config_dict = {}  # Create empty configuration dictionary
-    path = parameters["dir"]
-    v_list = parse_version_number(v_number)
-
-    for i, folder in enumerate(parameters["subfolders"]):
-        if folder[-1] != "/":
-            folder += "/"
-        file_path = (
-            path
-            + folder
-            + parameters["name"]
-            + folder[:-1]
-            + f"-v{v_list[i]}"
-            + parameters["extension"]
+    # Safety checks
+    v_len = len(v_list)
+    if v_len < 3:
+        raise ValueError(
+            f"Expecting 3 values, but got {v_len}."
+            "Check the version number is formatted as vX.Y.Z"
         )
-        config_dict.update(read_toml_configuration(file_path))
+    elif v_len > 3:
+        warn(f"Expecting 3 values, but got {v_len}. Everything after 3 is ignored.")
 
-    return config_dict
+    return v_list[:3]
