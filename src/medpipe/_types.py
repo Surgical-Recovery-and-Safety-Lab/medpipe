@@ -12,11 +12,14 @@ from typing import TYPE_CHECKING, Annotated, Literal, Sequence, TypeAlias, TypeV
 import numpy as np
 import numpy.typing as npt
 import pandas as pd
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 from sklearn.ensemble import HistGradientBoostingClassifier
 from sklearn.isotonic import IsotonicRegression
 from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import OrdinalEncoder, PowerTransformer, StandardScaler
+
+from medpipe.data.sampler import VALID_SAMPLER_FN
+from medpipe.data.weighting import VALID_WEIGHTING_FN
 
 if TYPE_CHECKING:
     from medpipe.models.calibrators import IsotonicCalibrator, LogisticCalibrator
@@ -203,9 +206,40 @@ class CalibratorConfig(BaseModel):
 
 class WeightingConfig(BaseModel):
     weighting_fn: str | None = Field(default=None)
+    model_config = {"extra": "forbid"}
+
+    @field_validator("weighting_fn")
+    @classmethod
+    def validate_weighting_fn(cls, fn: str | None) -> str | None:
+        if fn is not None and fn not in VALID_WEIGHTING_FN:
+            raise ValueError(
+                f"Unkown weighting function {fn}, should be one of {VALID_WEIGHTING_FN}"
+            )
+        return fn
 
 
 class SamplingConfig(BaseModel):
     sampler_fn: str | None = Field(default=None)
     reduction_factor: float | None = Field(default=None, gt=0.0, lt=1.0)
     hard_percent: float | None = Field(default=None, gt=0.0, lt=1.0)
+    model_config = {"extra": "forbid"}
+
+    @field_validator("sampler_fn")
+    @classmethod
+    def validate_sampler_fn(cls, fn: str | None) -> str | None:
+        if fn is not None and fn not in VALID_SAMPLER_FN:
+            raise ValueError(
+                f"Unkown weighting function {fn}, should be one of {VALID_SAMPLER_FN}"
+            )
+        return fn
+
+
+class HyperparameterConfig(BaseModel):
+    """The master schema for the hyperparameter subconfiguration file."""
+
+    predictor: PredictorConfig = Field(..., alias="predictor.hyperparameters")
+    calibrator: CalibratorConfig | None = Field(
+        default=None, alias="calibrator.hyperparameters"
+    )
+    weighting: WeightingConfig | None = Field(default=None, alias="balancing.weighting")
+    sampling: SamplingConfig | None = Field(default=None, alias="balancing.sampling")
