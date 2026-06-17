@@ -252,3 +252,9 @@ class MedpipeConfig(BaseModel):
     data: DataConfig
     workflow: WorkflowConfig
     hyperparameters: HyperparameterConfig
+
+
+# Define a generic config type as a union
+Config: TypeAlias = (
+    MedpipeConfig | TopLevelConfig | DataConfig | WorkflowConfig | HyperparameterConfig
+)
