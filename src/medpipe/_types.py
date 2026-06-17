@@ -113,9 +113,15 @@ class PreprocessOperationConfig(BaseModel):
 
 
 class PreprocessingConfig(BaseModel):
-    preprocess: bool = True
-    steps: list[PreprocessOperationConfig] = Field(default_factory=list)
+    preprocess: bool | None = None
+    operations: list[PreprocessOperationConfig] | None = None
     model_config = {"extra": "forbid"}
+
+    @model_validator(mode="after")
+    def validate_operations(self) -> "PreprocessingConfig":
+        if self.preprocess and not self.operations:
+            raise ValueError("Operations must be specified if preprocess is True")
+        return self
 
 
 class TestSplitConfig(BaseModel):
@@ -178,17 +184,17 @@ class CrossValConfig(BaseModel):
     model_config = {"extra": "forbid"}
 
 
+class ValidationSubConfig(BaseModel):
+    test_split: TestSplitConfig
+    recalibration_split: RecalibrationSplitConfig | None = None
+    cross_validation: CrossValConfig | None = None
+
+
 class WorkflowConfig(BaseModel):
     """The master schema for the workflow subconfiguration file."""
 
     preprocessing: PreprocessingConfig
-    test_split: TestSplitConfig = Field(..., alias="validation.test_split")
-    calibration_split: RecalibrationSplitConfig | None = Field(
-        default=None, alias="validation.calibration_split"
-    )
-    cross_validation: CrossValConfig | None = Field(
-        default=None, alias="validation.cross_validation"
-    )
+    validation: ValidationSubConfig
 
 
 # --- HYPERPARAMETERS SCHEMAS
@@ -203,6 +209,11 @@ class CalibratorConfig(BaseModel):
     model_config = {"extra": "allow"}
 
 
+class ModelHyperparamSubConfig(BaseModel):
+    predictor: PredictorConfig
+    calibrator: CalibratorConfig | None = None
+
+
 class WeightingConfig(BaseModel):
     weighting_fn: str | None = Field(default=None)
     model_config = {"extra": "forbid"}
@@ -215,16 +226,16 @@ class SamplingConfig(BaseModel):
     model_config = {"extra": "forbid"}
 
 
+class BalancingSubConfig(BaseModel):
+    weighting: WeightingConfig | None = None
+    sampling: SamplingConfig | None = None
+
 
 class HyperparameterConfig(BaseModel):
     """The master schema for the hyperparameter subconfiguration file."""
 
-    predictor: PredictorConfig = Field(..., alias="predictor.hyperparameters")
-    calibrator: CalibratorConfig | None = Field(
-        default=None, alias="calibrator.hyperparameters"
-    )
-    weighting: WeightingConfig | None = Field(default=None, alias="balancing.weighting")
-    sampling: SamplingConfig | None = Field(default=None, alias="balancing.sampling")
+    hyperparameters: ModelHyperparamSubConfig
+    balancing: BalancingSubConfig | None = None
 
 
 class MedpipeConfig(BaseModel):
