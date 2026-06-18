@@ -12,7 +12,6 @@ from typing import TYPE_CHECKING, Annotated, Literal, Sequence, TypeAlias, TypeV
 import numpy as np
 import numpy.typing as npt
 import pandas as pd
-from pydantic import BaseModel, Field, field_validator, model_validator
 from sklearn.ensemble import HistGradientBoostingClassifier
 from sklearn.isotonic import IsotonicRegression
 from sklearn.linear_model import LogisticRegression
@@ -21,6 +20,13 @@ from sklearn.preprocessing import OrdinalEncoder, PowerTransformer, StandardScal
 if TYPE_CHECKING:
     from medpipe.models.calibrators import IsotonicCalibrator, LogisticCalibrator
     from medpipe.models.predictors import HGBClassifier
+    from medpipe.utils.config import (
+        DataConfig,
+        HyperparameterConfig,
+        MedpipeConfig,
+        TopLevelConfig,
+        WorkflowConfig,
+    )
 
 # ==============================================================================
 # CORE PIPELINE & DATA TYPES
@@ -53,199 +59,6 @@ Calibrator: TypeAlias = "IsotonicCalibrator | LogisticCalibrator"
 Model: TypeAlias = Classifier | Regressor
 R = TypeVar("R", bound=Regressor)  # Generic Type Variable for Regressors
 C = TypeVar("C", bound=Classifier)  # Generic Type Variable for Classifiers
-
-
-# ==============================================================================
-# CONFIGURATION SCHEMA (pydantic)
-# ==============================================================================
-# --- TOP-LEVEL MASTER SCHEMAS ---
-
-
-class MetaConfig(BaseModel):
-    version: str
-    project_name: str
-    run_mode: Literal["fast", "cv", "audit"] = "audit"
-    model_config = {"extra": "forbid"}
-
-
-class PathsConfig(BaseModel):
-    config_dir: str
-    model_dir: str
-    figure_dir: str
-    model_config = {"extra": "forbid"}
-
-
-class ModelConfig(BaseModel):
-    algorithm: str
-    model_config = {"extra": "forbid"}
-
-
-class CalibrationConfig(BaseModel):
-    method: Literal["isotonic", "logistic"]
-    model_config = {"extra": "forbid"}
-
-
-class TopLevelConfig(BaseModel):
-    """The master schema for the top-level configuration file."""
-
-    meta: MetaConfig
-    paths: PathsConfig
-    model: ModelConfig
-    calibration: CalibrationConfig
-    model_config = {"extra": "forbid"}
-
-
-# --- DATA SCHEMAS
-class DataConfig(BaseModel):
-    """The master schema for the data subconfiguration file."""
-
-    path: str
-    predictors: list[str]
-    outcomes: list[str]
-    model_config = {"extra": "forbid"}
-
-
-# --- WORKFLOW SCHEMAS
-class PreprocessOperationConfig(BaseModel):
-    name: str  # Matches the exact class name
-    feature_list: list[str]  # The specific columns this transformer applies to
-    model_config = {"extra": "allow"}
-
-
-class PreprocessingConfig(BaseModel):
-    preprocess: bool | None = None
-    operations: list[PreprocessOperationConfig] | None = None
-    model_config = {"extra": "forbid"}
-
-    @model_validator(mode="after")
-    def validate_operations(self) -> "PreprocessingConfig":
-        if self.preprocess and not self.operations:
-            raise ValueError("Operations must be specified if preprocess is True")
-        return self
-
-
-class TestSplitConfig(BaseModel):
-    strategy: Literal["random", "group"] = "random"
-    group_column: str | None = None
-    values: list[str | int] | None = None
-    test_size: float | None = Field(default=None, gt=0.0, le=1.0)
-    drop_group_column: bool | None = None
-    model_config = {"extra": "forbid"}
-
-    @model_validator(mode="after")
-    def validate_strategy(self) -> "TestSplitConfig":
-        if self.strategy == "random" and not self.test_size:
-            raise ValueError("The random strategy requires a test size")
-
-        if self.strategy == "group":
-            msg = "The group strategy requires "
-            if not self.group_column:
-                raise ValueError(msg + "a group column to be specified")
-            elif not self.values:
-                raise ValueError(msg + "values to be specified")
-            elif type(self.drop_group_column) is not bool:
-                raise ValueError(msg + "the drop flag to be specified")
-
-        return self
-
-
-class RecalibrationSplitConfig(BaseModel):
-    strategy: Literal["random", "group"] | None = None
-    group_column: str | None = None
-    values: list[str | int] | None = None
-    recalibration_size: float | None = Field(default=None, gt=0.0, le=1.0)
-    drop_group_column: bool | None = None
-    model_config = {"extra": "forbid"}
-
-    @model_validator(mode="after")
-    def validate_strategy(self) -> "RecalibrationSplitConfig":
-        if self.strategy == "random" and not self.recalibration_size:
-            raise ValueError("The random strategy requires a test size")
-
-        if self.strategy == "group":
-            msg = "The group strategy requires "
-            if not self.group_column:
-                raise ValueError(msg + "a group column to be specified")
-            elif not self.values:
-                raise ValueError(msg + "values to be specified")
-            elif type(self.drop_group_column) is not bool:
-                raise ValueError(msg + "the drop flag to be specified")
-
-        return self
-
-
-class CrossValConfig(BaseModel):
-    strategy: Literal["random", "group"] | None = None
-    group_column: str | None = None
-    n_splits: int = Field(default=5, gt=0)
-    shuffle: bool = True
-    random_state: int = Field(default=42, gt=0)
-    drop_group_column: bool = True
-    model_config = {"extra": "forbid"}
-
-
-class ValidationSubConfig(BaseModel):
-    test_split: TestSplitConfig
-    recalibration_split: RecalibrationSplitConfig | None = None
-    cross_validation: CrossValConfig | None = None
-
-
-class WorkflowConfig(BaseModel):
-    """The master schema for the workflow subconfiguration file."""
-
-    preprocessing: PreprocessingConfig
-    validation: ValidationSubConfig
-
-
-# --- HYPERPARAMETERS SCHEMAS
-class PredictorConfig(BaseModel):
-    learning_rate: float
-    # Allow extra parameters to be passed as keyword argument to predictor
-    model_config = {"extra": "allow"}
-
-
-class CalibratorConfig(BaseModel):
-    # Allow extra parameters to be passed as keyword argument to calibrator
-    model_config = {"extra": "allow"}
-
-
-class ModelHyperparamSubConfig(BaseModel):
-    predictor: PredictorConfig
-    calibrator: CalibratorConfig | None = None
-
-
-class WeightingConfig(BaseModel):
-    weighting_fn: str | None = Field(default=None)
-    model_config = {"extra": "forbid"}
-
-
-class SamplingConfig(BaseModel):
-    sampler_fn: str | None = Field(default=None)
-    reduction_factor: float | None = Field(default=None, gt=0.0, lt=1.0)
-    hard_percent: float | None = Field(default=None, gt=0.0, lt=1.0)
-    model_config = {"extra": "forbid"}
-
-
-class BalancingSubConfig(BaseModel):
-    weighting: WeightingConfig | None = None
-    sampling: SamplingConfig | None = None
-
-
-class HyperparameterConfig(BaseModel):
-    """The master schema for the hyperparameter subconfiguration file."""
-
-    hyperparameters: ModelHyperparamSubConfig
-    balancing: BalancingSubConfig | None = None
-
-
-class MedpipeConfig(BaseModel):
-    """The master schema for a medpipe pipeline."""
-
-    top_level: TopLevelConfig
-    data: DataConfig
-    workflow: WorkflowConfig
-    hyperparameters: HyperparameterConfig
-
 
 # Define a generic config type as a union
 Config: TypeAlias = (
