@@ -62,6 +62,39 @@ class PathsConfig(BaseModel):
     figure_dir: str
     model_config = {"extra": "forbid"}
 
+    @field_validator("config_dir")
+    @classmethod
+    def validate_config_dir(cls, dir: str) -> str:
+        """Validate that config dir is a path and directory."""
+        path = Path(dir)
+        if path.suffix != "":
+            raise ValueError(
+                f"config_dir should be a directory, but got suffix {path.suffix}"
+            )
+        return dir
+
+    @field_validator("model_dir")
+    @classmethod
+    def validate_model_dir(cls, dir: str) -> str:
+        """Validate that model dir is a path and directory."""
+        path = Path(dir)
+        if path.suffix != "":
+            raise ValueError(
+                f"model_dir should be a directory, but got suffix {path.suffix}"
+            )
+        return dir
+
+    @field_validator("figure_dir")
+    @classmethod
+    def validate_figure_dir(cls, dir: str) -> str:
+        """Validate that figure dir is a path and directory."""
+        path = Path(dir)
+        if path.suffix != "":
+            raise ValueError(
+                f"figure_dir should be a directory, but got suffix {path.suffix}"
+            )
+        return dir
+
 
 class ModelConfig(BaseModel):
     algorithm: str
