@@ -255,5 +255,7 @@ def negative_positive_ratio_class_weights(labels: Labels) -> npt.NDArray:
 VALID_WEIGHTING_FN = [
     name
     for name, obj in globals().items()
-    if callable(obj) and not name.startswith("_")
+    if callable(obj)
+    and getattr(obj, "__module__", None) == __name__
+    and not name.startswith("_")
 ]

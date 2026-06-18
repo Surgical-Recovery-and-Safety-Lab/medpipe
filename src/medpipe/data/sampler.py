@@ -745,5 +745,7 @@ def group_smote(
 VALID_SAMPLER_FN = [
     name
     for name, obj in globals().items()
-    if callable(obj) and not name.startswith("_")
+    if callable(obj)
+    and getattr(obj, "__module__", None) == __name__
+    and not name.startswith("_")
 ]
