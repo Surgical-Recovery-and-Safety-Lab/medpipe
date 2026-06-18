@@ -125,6 +125,17 @@ class DataConfig(BaseModel):
     outcomes: list[str]
     model_config = {"extra": "forbid"}
 
+    @field_validator("path")
+    @classmethod
+    def validate_path(cls, dir: str) -> str:
+        """Validate that figure dir is a path and directory."""
+        data_path = Path(dir)
+        if data_path.suffix != "":
+            raise ValueError(
+                f"path should be a directory, but got suffix {data_path.suffix}"
+            )
+        return dir
+
     @model_validator(mode="after")
     def check_for_target_leakage(self) -> "DataConfig":
         # Check if any outcome intersects with the predictor list
