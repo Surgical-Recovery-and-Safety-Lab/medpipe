@@ -223,8 +223,22 @@ class CrossValConfig(BaseModel):
     n_splits: int = Field(default=5, ge=2)
     shuffle: bool = True
     random_state: int = Field(default=42, ge=0)
-    drop_group_column: bool = True
+    drop_group_column: bool | None = True
     model_config = {"extra": "forbid"}
+
+    @model_validator(mode="after")
+    def validate_strategy(self) -> "CrossValConfig":
+        if self.strategy == "group" and not self.group_column:
+            raise ValueError(
+                "The group strategy requires a group column to be specified"
+            )
+
+        if self.strategy == "group" and not isinstance(self.drop_group_column, bool):
+            raise ValueError(
+                "The group strategy requires the drop flag to be specified"
+            )
+
+        return self
 
 
 class ValidationSubConfig(BaseModel):
