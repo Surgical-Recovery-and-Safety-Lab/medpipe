@@ -10,6 +10,7 @@ from pydantic import ValidationError
 
 from medpipe.utils.config import (
     CalibrationConfig,
+    CrossValConfig,
     DataConfig,
     MetaConfig,
     ModelConfig,
@@ -490,3 +491,111 @@ class TestSplitRecalibrationConfig:
                     drop_group_column=drop_group_column,
                 )
             )
+
+
+class TestCrossValConfig:
+    """Test class for the CrossValConfig class"""
+
+    def _get_valid_random_config_dict(self, **overrides) -> dict:
+        """Creates a fresh valid config dict with random strategy to override."""
+        config_dict = {
+            "strategy": "random",
+            "group_column": None,
+            "n_splits": 2,
+            "shuffle": True,
+            "random_state": 0,
+            "drop_group_column": None,
+        }
+
+        config_dict.update(overrides)
+
+        return config_dict
+
+    def _get_valid_group_config_dict(self, **overrides) -> dict:
+        """Creates a fresh valid config dict with group strategy to override."""
+        config_dict = {
+            "strategy": "group",
+            "group_column": "DHB_NAME",
+            "n_splits": 2,
+            "shuffle": True,
+            "random_state": 0,
+            "drop_group_column": True,
+        }
+
+        config_dict.update(overrides)
+
+        return config_dict
+
+    def test_valid_config(self) -> None:
+        """Pass valid configuration to CrossValConfig."""
+        CrossValConfig.model_validate(self._get_valid_random_config_dict())
+        CrossValConfig.model_validate(self._get_valid_group_config_dict())
+
+        CrossValConfig.model_validate(
+            self._get_valid_group_config_dict(
+                strategy="random", group_column="DHB_NAME"
+            )
+        )
+        CrossValConfig.model_validate(
+            self._get_valid_group_config_dict(
+                strategy="random", drop_group_column=False
+            )
+        )
+        CrossValConfig.model_validate({})  # Test the None config
+
+    @pytest.mark.parametrize("strategy", ["random", "group"])
+    def test_n_splits_limits(self, strategy: str) -> None:
+        """Test the n_splits limits strategy."""
+        config_dict = {}
+
+        if strategy == "random":
+            config_dict = self._get_valid_random_config_dict(n_splits=-5)
+        elif strategy == "group":
+            config_dict = self._get_valid_group_config_dict(n_splits=-5)
+
+        with pytest.raises(
+            ValidationError, match="Input should be greater than or equal to 2"
+        ):
+            CrossValConfig.model_validate(config_dict)
+
+    @pytest.mark.parametrize("strategy", ["random", "group"])
+    def test_random_state_limits(self, strategy: str) -> None:
+        """Test the random state limits."""
+        config_dict = {}
+
+        if strategy == "random":
+            config_dict = self._get_valid_random_config_dict(random_state=-5)
+        elif strategy == "group":
+            config_dict = self._get_valid_group_config_dict(random_state=-5)
+
+        with pytest.raises(
+            ValidationError, match="Input should be greater than or equal to 0"
+        ):
+            CrossValConfig.model_validate(config_dict)
+
+    @pytest.mark.parametrize(
+        "group_column, drop_group_column, match_expr",
+        [
+            (None, True, "a group column to be specified"),
+            ("DHB_NAME", None, "the drop flag to be specified"),
+        ],
+    )
+    def test_group_stragey_interactions(
+        self,
+        group_column: str | None,
+        drop_group_column: bool | None,
+        match_expr: str,
+    ) -> None:
+        """Tests interactions between group stragey flag and
+        other parameters."""
+        with pytest.raises(
+            ValidationError, match="The group strategy requires " + match_expr
+        ):
+            CrossValConfig.model_validate(
+                self._get_valid_group_config_dict(
+                    group_column=group_column, drop_group_column=drop_group_column
+                )
+            )
+
+
+class TestValidationSubConfig:
