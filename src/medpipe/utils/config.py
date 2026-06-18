@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Literal, TypeAlias
 from warnings import warn
 
-from pydantic import BaseModel, Field, ValidationError, field_validator, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from medpipe.data.sampler import VALID_SAMPLER_FN
 from medpipe.data.weighting import VALID_WEIGHTING_FN
@@ -43,7 +43,7 @@ class MetaConfig(BaseModel):
             v_splits = v.split(".")
             assert len(v_splits) == 3
         except:
-            raise ValidationError(f"Version should be formatted as vX.Y.Z, but got {v}")
+            raise ValueError(f"Version should be formatted as vX.Y.Z, but got {v}")
         return v
 
 
@@ -88,7 +88,7 @@ class DataConfig(BaseModel):
         # Check if any outcome intersects with the predictor list
         overlap = set(self.outcomes).intersection(set(self.predictors))
         if overlap:
-            raise ValidationError(
+            raise ValueError(
                 "Overlap between predictors and outcomes which will break "
                 f"model validity: {list(overlap)}"
             )
@@ -110,7 +110,7 @@ class PreprocessingConfig(BaseModel):
     @model_validator(mode="after")
     def validate_operations(self) -> "PreprocessingConfig":
         if self.preprocess and not self.operations:
-            raise ValidationError("Operations must be specified if preprocess is True")
+            raise ValueError("Operations must be specified if preprocess is True")
         return self
 
 
@@ -125,16 +125,16 @@ class TestSplitConfig(BaseModel):
     @model_validator(mode="after")
     def validate_strategy(self) -> "TestSplitConfig":
         if self.strategy == "random" and not self.test_size:
-            raise ValidationError("The random strategy requires a test size")
+            raise ValueError("The random strategy requires a test size")
 
         if self.strategy == "group":
             msg = "The group strategy requires "
             if not self.group_column:
-                raise ValidationError(msg + "a group column to be specified")
+                raise ValueError(msg + "a group column to be specified")
             elif not self.values:
-                raise ValidationError(msg + "values to be specified")
+                raise ValueError(msg + "values to be specified")
             elif type(self.drop_group_column) is not bool:
-                raise ValidationError(msg + "the drop flag to be specified")
+                raise ValueError(msg + "the drop flag to be specified")
 
         return self
 
@@ -150,16 +150,16 @@ class RecalibrationSplitConfig(BaseModel):
     @model_validator(mode="after")
     def validate_strategy(self) -> "RecalibrationSplitConfig":
         if self.strategy == "random" and not self.recalibration_size:
-            raise ValidationError("The random strategy requires a test size")
+            raise ValueError("The random strategy requires a test size")
 
         if self.strategy == "group":
             msg = "The group strategy requires "
             if not self.group_column:
-                raise ValidationError(msg + "a group column to be specified")
+                raise ValueError(msg + "a group column to be specified")
             elif not self.values:
-                raise ValidationError(msg + "values to be specified")
+                raise ValueError(msg + "values to be specified")
             elif type(self.drop_group_column) is not bool:
-                raise ValidationError(msg + "the drop flag to be specified")
+                raise ValueError(msg + "the drop flag to be specified")
 
         return self
 
@@ -212,7 +212,7 @@ class WeightingConfig(BaseModel):
     @classmethod
     def validate_weighting_fn(cls, fn: str | None) -> str | None:
         if fn is not None and fn not in VALID_WEIGHTING_FN:
-            raise ValidationError(
+            raise ValueError(
                 f"Unknown weighting function {fn} "
                 f"should be one of {VALID_WEIGHTING_FN}"
             )
@@ -229,7 +229,7 @@ class SamplingConfig(BaseModel):
     @classmethod
     def validate_weighting_fn(cls, fn: str | None) -> str | None:
         if fn is not None and fn not in VALID_SAMPLER_FN:
-            raise ValidationError(
+            raise ValueError(
                 f"Unknown weighting function {fn} "
                 f"should be one of {VALID_SAMPLER_FN}"
             )
@@ -301,7 +301,7 @@ def read_subconfiguration_file(path: str | Path, subtype: SubConfigTypes) -> Sub
         If path does not exist.
     IsADirectoryError
         If path is not a file.
-    ValidationError
+    ValueError
         If path it not a .toml file.
     tomllib.TOMLDecodeError
         If the file was not read properly.
