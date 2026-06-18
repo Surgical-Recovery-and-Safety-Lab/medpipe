@@ -198,12 +198,32 @@ class WeightingConfig(BaseModel):
     weighting_fn: str | None = Field(default=None)
     model_config = {"extra": "forbid"}
 
+    @field_validator("weighting_fn")
+    @classmethod
+    def validate_weighting_fn(cls, fn: str | None) -> str | None:
+        if fn is not None and fn not in VALID_WEIGHTING_FN:
+            raise ValueError(
+                f"Unknown weighting function {fn} "
+                f"should be one of {VALID_WEIGHTING_FN}"
+            )
+        return fn
+
 
 class SamplingConfig(BaseModel):
     sampler_fn: str | None = Field(default=None)
     reduction_factor: float | None = Field(default=None, gt=0.0, lt=1.0)
     hard_percent: float | None = Field(default=None, gt=0.0, lt=1.0)
     model_config = {"extra": "forbid"}
+
+    @field_validator("sampler_fn")
+    @classmethod
+    def validate_weighting_fn(cls, fn: str | None) -> str | None:
+        if fn is not None and fn not in VALID_SAMPLER_FN:
+            raise ValueError(
+                f"Unknown weighting function {fn} "
+                f"should be one of {VALID_SAMPLER_FN}"
+            )
+        return fn
 
 
 class BalancingSubConfig(BaseModel):
@@ -343,39 +363,3 @@ def parse_version_number(version: str) -> list[str]:
         warn(f"Expecting 3 values, but got {v_len}. Everything after 3 is ignored.")
 
     return v_list[:3]
-
-
-def validate_balancing(config: BalancingSubConfig) -> None:
-    """
-    Checks if sampler and weighting functions are valid.
-
-    Parameters
-    ----------
-    config: BalancingSubConfig
-        Configuration dictionary to verify.
-
-    Returns
-    -------
-    None
-        Nothing is returned.
-
-    Raises
-    ------
-    ValueError
-        If the sampler function is invalid.
-        If the weighting function is invalid.
-
-    """
-    if config.weighting and config.weighting.weighting_fn:
-        if config.weighting.weighting_fn not in VALID_WEIGHTING_FN:
-            raise ValueError(
-                f"Unknown weighting function {config.weighting.weighting_fn} "
-                f"should be one of {VALID_WEIGHTING_FN}"
-            )
-
-    if config.sampling and config.sampling.sampler_fn:
-        if config.sampling.sampler_fn not in VALID_SAMPLER_FN:
-            raise ValueError(
-                f"Unknown sampling function {config.sampling.sampler_fn} "
-                f"should be one of {VALID_SAMPLER_FN}"
-            )
