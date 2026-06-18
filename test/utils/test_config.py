@@ -20,6 +20,7 @@ from medpipe.utils.config import (
     SplitRecalibrationConfig,
     SplitTestConfig,
     TopLevelConfig,
+    ValidationSubConfig,
 )
 
 # ==============================================================================
@@ -599,3 +600,38 @@ class TestCrossValConfig:
 
 
 class TestValidationSubConfig:
+    """Test class for the ValidationSubConfig class"""
+
+    def _get_valid_config_dict(self, **overrides) -> dict:
+        """Creates a fresh valid config dict to override."""
+        config_dict = {
+            "test_split": {
+                "strategy": "random",
+                "test_size": 0.1,
+            },
+            "recalibration_split": {
+                "strategy": "group",
+                "group_column": "OP_YEAR",
+                "values": [2024],
+                "recalibration_size": None,
+                "drop_group_column": True,
+            },
+            "cross_validation": {
+                "strategy": "group",
+                "group_column": "DHB_NAME",
+                "n_splits": 2,
+                "shuffle": True,
+                "random_state": 0,
+                "drop_group_column": True,
+            },
+        }
+        config_dict.update(overrides)
+
+        return config_dict
+
+    def test_valid_config(self) -> None:
+        """Pass valid configuration to TopLevelConfig."""
+        ValidationSubConfig.model_validate(self._get_valid_config_dict())
+        ValidationSubConfig.model_validate(
+            {"test_split": {"strategy": "random", "test_size": 0.1}}
+        )
