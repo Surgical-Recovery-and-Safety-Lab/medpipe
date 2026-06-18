@@ -36,6 +36,17 @@ class MetaConfig(BaseModel):
     run_mode: Literal["fast", "cv", "audit"] = "audit"
     model_config = {"extra": "forbid"}
 
+    @field_validator("version")
+    @classmethod
+    def validate_version_format(cls, v: str) -> str:
+        """Validate version is formatted as vX.Y.Z"""
+        try:
+            v_splits = v.split(".")
+            assert len(v_splits) == 3
+        except:
+            raise ValidationError(f"Version should be formatted as vX.Y.Z, but got {v}")
+        return v
+
 
 class PathsConfig(BaseModel):
     config_dir: str
