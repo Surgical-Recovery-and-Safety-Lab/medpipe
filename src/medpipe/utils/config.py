@@ -171,7 +171,7 @@ class TestSplitConfig(BaseModel):
     strategy: Literal["random", "group"] = "random"
     group_column: str | None = None
     values: list[str | int] | None = None
-    test_size: float | None = Field(default=None, gt=0.0, le=1.0)
+    test_size: float | None = Field(default=None, gt=0.0, lt=1.0)
     drop_group_column: bool | None = None
     model_config = {"extra": "forbid"}
 
@@ -196,7 +196,7 @@ class RecalibrationSplitConfig(BaseModel):
     strategy: Literal["random", "group"] | None = None
     group_column: str | None = None
     values: list[str | int] | None = None
-    recalibration_size: float | None = Field(default=None, gt=0.0, le=1.0)
+    recalibration_size: float | None = Field(default=None, gt=0.0, lt=1.0)
     drop_group_column: bool | None = None
     model_config = {"extra": "forbid"}
 
