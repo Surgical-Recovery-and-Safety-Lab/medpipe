@@ -274,6 +274,8 @@ class ModelHyperparamSubConfig(BaseModel):
     predictor: PredictorConfig
     calibrator: CalibratorConfig | None = None
 
+    model_config = {"extra": "forbid"}
+
 
 class WeightingConfig(BaseModel):
     weighting_fn: str | None = Field(default=None)
