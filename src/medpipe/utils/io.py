@@ -18,14 +18,13 @@ from typing import TYPE_CHECKING
 
 import pandas as pd
 
-from medpipe._types import MedpipeConfig, TopLevelConfig
-from medpipe.utils.config import (
+from .config import (
     SUBCONFIG_REGISTRY,
+    MedpipeConfig,
+    TopLevelConfig,
     parse_version_number,
     read_subconfiguration_file,
-    validate_balancing,
 )
-
 from .exceptions import file_checks
 
 if TYPE_CHECKING:
@@ -122,8 +121,5 @@ def read_toml_configuration(config_file: str | Path) -> MedpipeConfig:
         parsed_configs[subtype] = read_subconfiguration_file(sub_path, subtype)
 
     config = MedpipeConfig(**parsed_configs)  # type: ignore
-
-    if config.hyperparameters.balancing:  # Check sampler and weighting functions
-        validate_balancing(config.hyperparameters.balancing)
 
     return config
