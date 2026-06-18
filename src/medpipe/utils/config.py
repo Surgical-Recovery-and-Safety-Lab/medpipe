@@ -46,6 +46,15 @@ class MetaConfig(BaseModel):
             raise ValueError(f"Version should be formatted as vX.Y.Z, but got {v}")
         return v
 
+    @field_validator("project_name")
+    @classmethod
+    def validate_project_name(cls, name: str) -> str:
+        """Validate that project name is not empty."""
+        if not name:
+            raise ValueError("Project name should not be an empty string.")
+
+        return name
+
 
 class PathsConfig(BaseModel):
     config_dir: str
