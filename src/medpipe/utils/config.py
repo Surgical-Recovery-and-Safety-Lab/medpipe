@@ -167,7 +167,7 @@ class PreprocessingConfig(BaseModel):
         return self
 
 
-class TestSplitConfig(BaseModel):
+class SplitTestConfig(BaseModel):
     strategy: Literal["random", "group"] = "random"
     group_column: str | None = None
     values: list[str | int] | None = None
@@ -176,7 +176,7 @@ class TestSplitConfig(BaseModel):
     model_config = {"extra": "forbid"}
 
     @model_validator(mode="after")
-    def validate_strategy(self) -> "TestSplitConfig":
+    def validate_strategy(self) -> "SplitTestConfig":
         if self.strategy == "random" and not self.test_size:
             raise ValueError("The random strategy requires a test size")
 
@@ -192,7 +192,7 @@ class TestSplitConfig(BaseModel):
         return self
 
 
-class RecalibrationSplitConfig(BaseModel):
+class SplitRecalibrationConfig(BaseModel):
     strategy: Literal["random", "group"] | None = None
     group_column: str | None = None
     values: list[str | int] | None = None
@@ -201,7 +201,7 @@ class RecalibrationSplitConfig(BaseModel):
     model_config = {"extra": "forbid"}
 
     @model_validator(mode="after")
-    def validate_strategy(self) -> "RecalibrationSplitConfig":
+    def validate_strategy(self) -> "SplitRecalibrationConfig":
         if self.strategy == "random" and not self.recalibration_size:
             raise ValueError("The random strategy requires a test size")
 
@@ -228,8 +228,8 @@ class CrossValConfig(BaseModel):
 
 
 class ValidationSubConfig(BaseModel):
-    test_split: TestSplitConfig
-    recalibration_split: RecalibrationSplitConfig | None = None
+    test_split: SplitTestConfig
+    recalibration_split: SplitRecalibrationConfig | None = None
     cross_validation: CrossValConfig | None = None
 
 
