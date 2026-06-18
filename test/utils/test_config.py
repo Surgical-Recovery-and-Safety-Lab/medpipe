@@ -21,6 +21,7 @@ from medpipe.utils.config import (
     SplitTestConfig,
     TopLevelConfig,
     ValidationSubConfig,
+    WorkflowConfig,
 )
 
 # ==============================================================================
@@ -635,3 +636,54 @@ class TestValidationSubConfig:
         ValidationSubConfig.model_validate(
             {"test_split": {"strategy": "random", "test_size": 0.1}}
         )
+
+
+class TestWorkflowConfig:
+    """Test class for the WorkflowConfig class"""
+
+    def _get_valid_config_dict(self, **overrides) -> dict:
+        """Creates a fresh valid config dict to override."""
+        config_dict = {
+            "preprocessing": {
+                "preprocess": True,
+                "operations": [
+                    {
+                        "name": "OrdinalEncoder",
+                        "feature_list": ["SEX", "ETHNICITY"],
+                    },
+                    {
+                        "name": "StandarScaler",
+                        "feature_list": ["SEX", "ETHNICITY"],
+                        "with_mean": True,
+                    },
+                ],
+            },
+            "validation": {
+                "test_split": {
+                    "strategy": "random",
+                    "test_size": 0.1,
+                },
+                "recalibration_split": {
+                    "strategy": "group",
+                    "group_column": "OP_YEAR",
+                    "values": [2024],
+                    "recalibration_size": None,
+                    "drop_group_column": True,
+                },
+                "cross_validation": {
+                    "strategy": "group",
+                    "group_column": "DHB_NAME",
+                    "n_splits": 2,
+                    "shuffle": True,
+                    "random_state": 0,
+                    "drop_group_column": True,
+                },
+            },
+        }
+        config_dict.update(overrides)
+
+        return config_dict
+
+    def test_valid_config(self) -> None:
+        """Pass valid configuration to TopLevelConfig."""
+        WorkflowConfig.model_validate(self._get_valid_config_dict())
