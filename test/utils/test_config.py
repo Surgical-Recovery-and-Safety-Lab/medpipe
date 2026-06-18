@@ -17,6 +17,7 @@ from medpipe.utils.config import (
     CrossValConfig,
     DataConfig,
     HyperparameterConfig,
+    MedpipeConfig,
     MetaConfig,
     ModelConfig,
     ModelHyperparamSubConfig,
@@ -696,6 +697,11 @@ class TestWorkflowConfig:
     def test_valid_config(self) -> None:
         """Pass valid configuration to WorkflowConfig."""
         WorkflowConfig.model_validate(self._get_valid_config_dict())
+        WorkflowConfig.model_validate(
+            self._get_valid_config_dict(
+                preprocessing={},
+            )
+        )
 
 
 class TestPredictorConfig:
@@ -911,3 +917,52 @@ class TestHyperparameterConfig:
         """Pass valid configuration to HyperparameterConfig."""
         HyperparameterConfig.model_validate(self._get_valid_config_dict())
         HyperparameterConfig.model_validate(self._get_valid_config_dict(balancing={}))
+
+
+class TestMedpipeConfig:
+    """Test class for the MedpipeConfig class"""
+
+    def _get_valid_config_dict(self, **overrides) -> dict:
+        """Creates a fresh valid config dict to override."""
+        config_dict = {
+            "top_level": {
+                "meta": {
+                    "version": "v0.0.1",
+                    "project_name": "mepipe-test",
+                    "run_mode": "audit",
+                },
+                "paths": {
+                    "config_dir": "path/to/config",
+                    "model_dir": "path/to/models",
+                    "figure_dir": "path/to/figures",
+                },
+                "model": {"algorithm": "HistGradientBoostingClassifier"},
+                "calibration": {"method": "isotonic"},
+            },
+            "data": {
+                "path": "path/to/data",
+                "predictors": ["AGE", "SEX", "OP_SEVERITY"],
+                "outcomes": ["MORTALITY_30D"],
+            },
+            "workflow": {
+                "validation": {
+                    "test_split": {
+                        "strategy": "random",
+                        "test_size": 0.1,
+                    },
+                },
+            },
+            "hyperparameters": {
+                "hyperparameters": {
+                    "predictor": {"learning_rate": 0.1},
+                    "calibrator": {"out_of_bounds": "clip"},
+                },
+            },
+        }
+        config_dict.update(overrides)
+
+        return config_dict
+
+    def test_valid_config(self) -> None:
+        """Pass valid configuration to MedpipeConfig."""
+        MedpipeConfig.model_validate(self._get_valid_config_dict())
