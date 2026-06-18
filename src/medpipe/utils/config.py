@@ -252,7 +252,7 @@ class ValidationSubConfig(BaseModel):
 class WorkflowConfig(BaseModel):
     """The master schema for the workflow subconfiguration file."""
 
-    preprocessing: PreprocessingConfig
+    preprocessing: PreprocessingConfig | None = None
     validation: ValidationSubConfig
 
     model_config = {"extra": "forbid"}
