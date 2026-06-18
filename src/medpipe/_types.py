@@ -62,5 +62,5 @@ C = TypeVar("C", bound=Classifier)  # Generic Type Variable for Classifiers
 
 # Define a generic config type as a union
 Config: TypeAlias = (
-    MedpipeConfig | TopLevelConfig | DataConfig | WorkflowConfig | HyperparameterConfig
+    "MedpipeConfig | TopLevelConfig | DataConfig | WorkflowConfig | HyperparameterConfig"
 )
