@@ -191,7 +191,7 @@ class TestDataConfig:
     def _get_valid_config_dict(self, **overrides) -> dict:
         """Creates a fresh valid config dict to override."""
         config_dict = {
-            "path": "path/to/data",
+            "path": "path/to/data.csv",
             "predictors": ["AGE", "SEX", "OP_SEVERITY"],
             "outcomes": ["MORTALITY_30D"],
         }
@@ -204,13 +204,17 @@ class TestDataConfig:
         """Pass valid configuration to DataConfig."""
         DataConfig.model_validate(self._get_valid_config_dict())
 
-    def test_validate_path(self) -> None:
+    @pytest.mark.parametrize(
+        "path, match_expr",
+        [
+            ("path/", "path should be a file, but got no suffix"),
+            ("path.db", "path should be a .csv file, but got suffix .db"),
+        ],
+    )
+    def test_validate_path(self, path: str, match_expr: str) -> None:
         """Test data path is not a file."""
-        with pytest.raises(
-            ValidationError,
-            match=f"path should be a directory, but got suffix .csv",
-        ):
-            DataConfig.model_validate(self._get_valid_config_dict(path="path.csv"))
+        with pytest.raises(ValidationError, match=match_expr):
+            DataConfig.model_validate(self._get_valid_config_dict(path=path))
 
     @pytest.mark.parametrize(
         "predictors, outcomes, overlap",
@@ -940,7 +944,7 @@ class TestMedpipeConfig:
                 "calibration": {"method": "isotonic"},
             },
             "data": {
-                "path": "path/to/data",
+                "path": "path/to/data.csv",
                 "predictors": ["AGE", "SEX", "OP_SEVERITY"],
                 "outcomes": ["MORTALITY_30D"],
             },
