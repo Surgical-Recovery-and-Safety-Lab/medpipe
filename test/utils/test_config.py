@@ -14,6 +14,7 @@ from medpipe.utils.config import (
     MetaConfig,
     ModelConfig,
     PathsConfig,
+    PreprocessingConfig,
     PreprocessOperationConfig,
     TopLevelConfig,
 )
@@ -233,3 +234,53 @@ class TestPreprocessOperationConfig:
     def test_valid_config(self) -> None:
         """Pass valid configuration to PreprocessOperationConfig."""
         PreprocessOperationConfig.model_validate(self._get_valid_config_dict())
+
+
+class TestPreprocessingConfig:
+    """Test class for the PreprocessingConfig class"""
+
+    def _get_valid_config_dict(self, **overrides) -> dict:
+        """Creates a fresh valid config dict to override."""
+        config_dict = {
+            "preprocess": True,
+            "operations": [
+                {
+                    "name": "OrdinalEncoder",
+                    "feature_list": ["SEX", "ETHNICITY"],
+                },
+                {
+                    "name": "StandarScaler",
+                    "feature_list": ["SEX", "ETHNICITY"],
+                    "with_mean": True,
+                },
+            ],
+        }
+
+        config_dict.update(overrides)
+
+        return config_dict
+
+    def test_valid_config(self) -> None:
+        """Pass valid configuration to PreprocessingConfig."""
+        PreprocessingConfig.model_validate(self._get_valid_config_dict())
+
+    @pytest.mark.parametrize("operations", [None, []])
+    def test_validate_operations_true_flag(self, operations: None | list) -> None:
+        """Test interaction between preprocess flag True and operations."""
+        with pytest.raises(
+            ValidationError, match="Operations must be specified if preprocess is True"
+        ):
+            PreprocessingConfig.model_validate(
+                self._get_valid_config_dict(operations=operations)
+            )
+
+    @pytest.mark.parametrize(
+        "preprocess, operations", [(False, None), (False, []), (None, None), (None, [])]
+    )
+    def test_validate_operations_false_flag(
+        self, preprocess: None | bool, operations: None | list
+    ) -> None:
+        """Test interaction between preprocess flag None or False and operations."""
+        PreprocessingConfig.model_validate(
+            self._get_valid_config_dict(operations=operations, preprocess=preprocess)
+        )
