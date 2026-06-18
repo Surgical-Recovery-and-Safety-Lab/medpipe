@@ -15,6 +15,7 @@ from medpipe.utils.config import (
     MetaConfig,
     ModelConfig,
     PathsConfig,
+    PredictorConfig,
     PreprocessingConfig,
     PreprocessOperationConfig,
     SplitRecalibrationConfig,
@@ -687,3 +688,26 @@ class TestWorkflowConfig:
     def test_valid_config(self) -> None:
         """Pass valid configuration to TopLevelConfig."""
         WorkflowConfig.model_validate(self._get_valid_config_dict())
+
+
+class TestPredictorConfig:
+    """Test class for the PredictorConfig class"""
+
+    def _get_valid_config_dict(self, **overrides) -> dict:
+        """Creates a fresh valid config dict to override."""
+        config_dict = {"learning_rate": 0.1}
+        config_dict.update(overrides)
+
+        return config_dict
+
+    def test_valid_config(self) -> None:
+        """Pass valid configuration to PredictorConfig."""
+        PredictorConfig.model_validate(self._get_valid_config_dict())
+
+    @pytest.mark.parametrize("learning_rate", [-0.5, 0.0])
+    def test_learning_rate_limits(self, learning_rate: float) -> None:
+        """Test the learning rate value limits."""
+        with pytest.raises(ValidationError, match="Input should be greater than 0"):
+            PredictorConfig.model_validate(
+                self._get_valid_config_dict(learning_rate=learning_rate)
+            )
