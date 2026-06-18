@@ -6,7 +6,7 @@ Configuration function and classes tests suite.
 import pytest
 from pydantic import ValidationError
 
-from medpipe.utils.config import MetaConfig, ModelConfig, PathsConfig
+from medpipe.utils.config import CalibrationConfig, MetaConfig, ModelConfig, PathsConfig
 
 # ==============================================================================
 # SCHEMA VALIDATION TESTS
@@ -112,3 +112,20 @@ class TestModelConfig:
     def test_valid_config(self) -> None:
         """Pass valid configuration to ModelConfig."""
         ModelConfig.model_validate(self._get_valid_config_dict())
+
+
+class TestCalibrationConfig:
+    """Test class for the CalibrationConfig class"""
+
+    def _get_valid_config_dict(self, **overrides) -> dict:
+        """Creates a fresh valid config dict to override."""
+        config_dict = {
+            "method": "isotonic",
+        }
+        config_dict.update(overrides)
+
+        return config_dict
+
+    def test_valid_config(self) -> None:
+        """Pass valid configuration to CalibrationConfig."""
+        CalibrationConfig.model_validate(self._get_valid_config_dict())
