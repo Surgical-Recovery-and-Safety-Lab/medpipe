@@ -11,6 +11,7 @@ from medpipe.utils.config import (
     MetaConfig,
     ModelConfig,
     PathsConfig,
+    PreprocessOperationConfig,
     TopLevelConfig,
 )
 
@@ -163,3 +164,22 @@ class TestTopLevelConfig:
     def test_valid_config(self) -> None:
         """Pass valid configuration to TopLevelConfig."""
         TopLevelConfig.model_validate(self._get_valid_config_dict())
+
+
+class TestPreprocessOperationConfig:
+    """Test class for the PreprocessOperationConfig class"""
+
+    def _get_valid_config_dict(self, **overrides) -> dict:
+        """Creates a fresh valid config dict to override."""
+        config_dict = {
+            "name": "OrdinalEncoder",
+            "feature_list": ["SEX", "ETHNICITY"],
+        }
+
+        config_dict.update(overrides)
+
+        return config_dict
+
+    def test_valid_config(self) -> None:
+        """Pass valid configuration to PreprocessOperationConfig."""
+        PreprocessOperationConfig.model_validate(self._get_valid_config_dict())
