@@ -10,6 +10,7 @@ from pydantic import ValidationError
 
 from medpipe.utils.config import (
     CalibrationConfig,
+    CalibratorConfig,
     CrossValConfig,
     DataConfig,
     MetaConfig,
@@ -711,3 +712,18 @@ class TestPredictorConfig:
             PredictorConfig.model_validate(
                 self._get_valid_config_dict(learning_rate=learning_rate)
             )
+
+
+class TestCalibratorConfig:
+    """Test class for the CalibratorConfig class"""
+
+    def _get_valid_config_dict(self, **overrides) -> dict:
+        """Creates a fresh valid config dict to override."""
+        config_dict = {"out_of_bounds": "clip"}
+        config_dict.update(overrides)
+
+        return config_dict
+
+    def test_valid_config(self) -> None:
+        """Pass valid configuration to CalibratorConfig."""
+        CalibratorConfig.model_validate(self._get_valid_config_dict())
