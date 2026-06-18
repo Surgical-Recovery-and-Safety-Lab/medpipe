@@ -308,7 +308,7 @@ class SamplingConfig(BaseModel):
         return fn
 
     @model_validator(mode="after")
-    def validate_sampler_reduction_factor(self) -> "SamplingConfig":
+    def validate_sampler_interactions(self) -> "SamplingConfig":
         if self.sampler_fn and not self.reduction_factor:
             raise ValueError(
                 "The sampler function requires a reduction factor to be specified"
@@ -317,7 +317,7 @@ class SamplingConfig(BaseModel):
         mean_sampler_fn = ["mean_dist_sampler", "group_mean_dist_sampler"]
         if self.sampler_fn in mean_sampler_fn and not self.hard_percent:
             raise ValueError(
-                f"The {mean_sampler_fn} require hard percent to be specified"
+                f"The {self.sampler_fn} function requires hard percent to be specified"
             )
         return self
 
