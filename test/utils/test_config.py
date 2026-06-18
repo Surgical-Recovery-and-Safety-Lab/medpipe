@@ -11,6 +11,7 @@ from pydantic import ValidationError
 from medpipe.data.sampler import VALID_SAMPLER_FN
 from medpipe.data.weighting import VALID_WEIGHTING_FN
 from medpipe.utils.config import (
+    BalancingSubConfig,
     CalibrationConfig,
     CalibratorConfig,
     CrossValConfig,
@@ -692,7 +693,7 @@ class TestWorkflowConfig:
         return config_dict
 
     def test_valid_config(self) -> None:
-        """Pass valid configuration to TopLevelConfig."""
+        """Pass valid configuration to WorkflowConfig."""
         WorkflowConfig.model_validate(self._get_valid_config_dict())
 
 
@@ -855,3 +856,29 @@ class TestSamplingConfig:
             SamplingConfig.model_validate(
                 self._get_valid_config_dict(hard_percent=None, sampler_fn=sampler_fn)
             )
+
+
+class TestBalancingSubConfig:
+    """Test class for the BalancingSubConfig class"""
+
+    def _get_valid_config_dict(self, **overrides) -> dict:
+        """Creates a fresh valid config dict to override."""
+        config_dict = {
+            "weighting": {
+                "weighting_fn": "inverse_frequency_single_sample_weights",
+            },
+            "sampling": {
+                "sampler_fn": "random_oversampler",
+                "reduction_factor": 0.5,
+            },
+        }
+        config_dict.update(overrides)
+
+        return config_dict
+
+    def test_valid_config(self) -> None:
+        """Pass valid configuration to BalancingSubConfig."""
+        BalancingSubConfig.model_validate(self._get_valid_config_dict())
+        BalancingSubConfig.model_validate({})
+
+
