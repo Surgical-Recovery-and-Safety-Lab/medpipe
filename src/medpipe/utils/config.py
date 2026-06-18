@@ -7,7 +7,6 @@ Functions:
 - parse_version_number: Function that parses a version number.
 - read_subconfiguration_file: Reads the contents of a configuration file
     from a path.
-- validate_balancing: Checks if sampler and weighting functions are valid.
 """
 
 from __future__ import annotations
@@ -168,7 +167,7 @@ class RecalibrationSplitConfig(BaseModel):
 class CrossValConfig(BaseModel):
     strategy: Literal["random", "group"] | None = None
     group_column: str | None = None
-    n_splits: int = Field(default=5, gt=0)
+    n_splits: int = Field(default=5, gt=2)
     shuffle: bool = True
     random_state: int = Field(default=42, gt=0)
     drop_group_column: bool = True
