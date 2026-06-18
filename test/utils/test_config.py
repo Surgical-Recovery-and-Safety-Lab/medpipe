@@ -3,11 +3,14 @@ Configuration function and classes tests suite.
 
 """
 
+from re import escape
+
 import pytest
 from pydantic import ValidationError
 
 from medpipe.utils.config import (
     CalibrationConfig,
+    DataConfig,
     MetaConfig,
     ModelConfig,
     PathsConfig,
@@ -164,6 +167,53 @@ class TestTopLevelConfig:
     def test_valid_config(self) -> None:
         """Pass valid configuration to TopLevelConfig."""
         TopLevelConfig.model_validate(self._get_valid_config_dict())
+
+
+class TestDataConfig:
+    """Test class for the DataConfig class"""
+
+    def _get_valid_config_dict(self, **overrides) -> dict:
+        """Creates a fresh valid config dict to override."""
+        config_dict = {
+            "path": "path/to/data",
+            "predictors": ["AGE", "SEX", "OP_SEVERITY"],
+            "outcomes": ["MORTALITY_30D"],
+        }
+
+        config_dict.update(overrides)
+
+        return config_dict
+
+    def test_valid_config(self) -> None:
+        """Pass valid configuration to DataConfig."""
+        DataConfig.model_validate(self._get_valid_config_dict())
+
+    def test_validate_path(self) -> None:
+        """Test data path is not a file."""
+        with pytest.raises(
+            ValidationError,
+            match=f"path should be a directory, but got suffix .csv",
+        ):
+            DataConfig.model_validate(self._get_valid_config_dict(path="path.csv"))
+
+    @pytest.mark.parametrize(
+        "predictors, outcomes, overlap",
+        [
+            (["AGE", "SEX", "ANY_COMP"], ["ANY_COMP"], ["ANY_COMP"]),
+            (["AGE", "SEX", "ANY_COMP"], ["AGE", "SEX"], ["AGE", "SEX"]),
+        ],
+    )
+    def test_data_leakage(
+        self, predictors: list[str], outcomes: list[str], overlap: list[str]
+    ) -> None:
+        """Test data leakage safety check."""
+        match_expr = "Overlap between predictors and outcomes which will "
+        f"break model validity: {overlap}"
+
+        with pytest.raises(ValidationError, match=escape(match_expr)):
+            DataConfig.model_validate(
+                self._get_valid_config_dict(predictors=predictors, outcomes=outcomes)
+            )
 
 
 class TestPreprocessOperationConfig:
