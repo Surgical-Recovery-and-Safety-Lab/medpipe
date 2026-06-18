@@ -260,7 +260,7 @@ class WorkflowConfig(BaseModel):
 
 # --- HYPERPARAMETERS SCHEMAS
 class PredictorConfig(BaseModel):
-    learning_rate: float
+    learning_rate: float = Field(default=0.1, gt=0)
     # Allow extra parameters to be passed as keyword argument to predictor
     model_config = {"extra": "allow"}
 
