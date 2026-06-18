@@ -8,6 +8,7 @@ from re import escape
 import pytest
 from pydantic import ValidationError
 
+from medpipe.data.weighting import VALID_WEIGHTING_FN
 from medpipe.utils.config import (
     CalibrationConfig,
     CalibratorConfig,
@@ -24,6 +25,7 @@ from medpipe.utils.config import (
     SplitTestConfig,
     TopLevelConfig,
     ValidationSubConfig,
+    WeightingConfig,
     WorkflowConfig,
 )
 
@@ -750,3 +752,28 @@ class TestModelHyperparamsSubConfigConfig:
         ModelHyperparamSubConfig.model_validate(
             self._get_valid_config_dict(calibrator=None)
         )
+
+
+class TestWeightingConfig:
+    """Test class for the WeightingConfig class"""
+
+    def _get_valid_config_dict(self, **overrides) -> dict:
+        """Creates a fresh valid config dict to override."""
+        config_dict = {"weighting_fn": "inverse_frequency_single_sample_weights"}
+        config_dict.update(overrides)
+
+        return config_dict
+
+    def test_valid_config(self) -> None:
+        """Pass valid configuration to WeightingConfig."""
+        WeightingConfig.model_validate(self._get_valid_config_dict())
+        WeightingConfig.model_validate({})
+
+    def test_invalid_weighting_fn(self) -> None:
+        """Test an invalid weighting function."""
+        fn = "invalid_fn"
+        match_expr = f"Unknown weighting function {fn} "
+        f"should be one of {VALID_WEIGHTING_FN}"
+
+        with pytest.raises(ValidationError, match=escape(match_expr)):
+            WeightingConfig.model_validate(self._get_valid_config_dict(weighting_fn=fn))
