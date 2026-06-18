@@ -127,14 +127,16 @@ class DataConfig(BaseModel):
 
     @field_validator("path")
     @classmethod
-    def validate_path(cls, dir: str) -> str:
-        """Validate that figure dir is a path and directory."""
-        data_path = Path(dir)
-        if data_path.suffix != "":
-            raise ValueError(
-                f"path should be a directory, but got suffix {data_path.suffix}"
-            )
-        return dir
+    def validate_path(cls, file: str) -> str:
+        """Validate that path is a points to a file."""
+        data_path = Path(file)
+        suffix = data_path.suffix
+        if suffix == "":
+            raise ValueError("path should be a file, but got no suffix")
+
+        if suffix != ".csv":
+            raise ValueError(f"path should be a .csv file, but got suffix {suffix}")
+        return file
 
     @model_validator(mode="after")
     def check_for_target_leakage(self) -> "DataConfig":
