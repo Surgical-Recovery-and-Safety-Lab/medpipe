@@ -16,6 +16,7 @@ from medpipe.utils.config import (
     CalibratorConfig,
     CrossValConfig,
     DataConfig,
+    HyperparameterConfig,
     MetaConfig,
     ModelConfig,
     ModelHyperparamSubConfig,
@@ -882,3 +883,31 @@ class TestBalancingSubConfig:
         BalancingSubConfig.model_validate({})
 
 
+class TestHyperparameterConfig:
+    """Test class for the HyperparameterConfig class"""
+
+    def _get_valid_config_dict(self, **overrides) -> dict:
+        """Creates a fresh valid config dict to override."""
+        config_dict = {
+            "hyperparameters": {
+                "predictor": {"learning_rate": 0.1},
+                "calibrator": {"out_of_bounds": "clip"},
+            },
+            "balancing": {
+                "weighting": {
+                    "weighting_fn": "inverse_frequency_single_sample_weights",
+                },
+                "sampling": {
+                    "sampler_fn": "random_oversampler",
+                    "reduction_factor": 0.5,
+                },
+            },
+        }
+        config_dict.update(overrides)
+
+        return config_dict
+
+    def test_valid_config(self) -> None:
+        """Pass valid configuration to HyperparameterConfig."""
+        HyperparameterConfig.model_validate(self._get_valid_config_dict())
+        HyperparameterConfig.model_validate(self._get_valid_config_dict(balancing={}))
