@@ -7,12 +7,3 @@ max_features = 0.2
 
 [hyperparameters.calibrator]
 out_of_bounds = "clip"
-
-[balancing]
-[balancing.weighting]
-weighting_fn = ""
-
-[balancing.sampling]
-sampler_fn = ""
-reduction_factor = 0.5
-hard_percent = 0.25
