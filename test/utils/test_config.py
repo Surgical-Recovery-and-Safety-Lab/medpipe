@@ -16,6 +16,7 @@ from medpipe.utils.config import (
     PathsConfig,
     PreprocessingConfig,
     PreprocessOperationConfig,
+    SplitTestConfig,
     TopLevelConfig,
 )
 
@@ -284,3 +285,100 @@ class TestPreprocessingConfig:
         PreprocessingConfig.model_validate(
             self._get_valid_config_dict(operations=operations, preprocess=preprocess)
         )
+
+
+class TestSplitTestConfig:
+    """Test class for the SplitTestConfig class"""
+
+    def _get_valid_random_config_dict(self, **overrides) -> dict:
+        """Creates a fresh valid config dict with random strategy to override."""
+        config_dict = {
+            "strategy": "random",
+            "group_column": None,
+            "values": None,
+            "test_size": 0.1,
+            "drop_group_column": None,
+        }
+
+        config_dict.update(overrides)
+
+        return config_dict
+
+    def _get_valid_group_config_dict(self, **overrides) -> dict:
+        """Creates a fresh valid config dict with group strategy to override."""
+        config_dict = {
+            "strategy": "group",
+            "group_column": "OP_YEAR",
+            "values": [2024],
+            "test_size": None,
+            "drop_group_column": True,
+        }
+
+        config_dict.update(overrides)
+
+        return config_dict
+
+    def test_valid_config(self) -> None:
+        """Pass valid configuration to SplitTestConfig."""
+        SplitTestConfig.model_validate(self._get_valid_random_config_dict())
+        SplitTestConfig.model_validate(self._get_valid_group_config_dict())
+
+        SplitTestConfig.model_validate(
+            self._get_valid_group_config_dict(strategy="random", test_size=0.1)
+        )
+        SplitTestConfig.model_validate(self._get_valid_group_config_dict(test_size=0.1))
+
+    @pytest.mark.parametrize(
+        "test_size, match_expr",
+        [
+            (-0.1, "Input should be greater than 0"),
+            (0.0, "Input should be greater than 0"),
+            (1.2, "Input should be less than 1"),
+            (1.0, "Input should be less than 1"),
+        ],
+    )
+    def test_test_size_limits(self, test_size: float, match_expr: str) -> None:
+        """Test the test size limits with the random strategy."""
+        with pytest.raises(ValidationError, match=match_expr):
+            SplitTestConfig.model_validate(
+                self._get_valid_random_config_dict(test_size=test_size)
+            )
+
+    def test_random_stragey_interactions(self) -> None:
+        """Tests interactions between random stragey flag and
+        other parameters."""
+        with pytest.raises(
+            ValidationError, match="The random strategy requires a test size"
+        ):
+            SplitTestConfig.model_validate(
+                self._get_valid_random_config_dict(test_size=None)
+            )
+
+    @pytest.mark.parametrize(
+        "group_column, values, drop_group_column, match_expr",
+        [
+            (None, [2024], True, "a group column to be specified"),
+            ("OP_YEAR", [], True, "values to be specified"),
+            ("OP_YEAR", None, True, "values to be specified"),
+            ("OP_YEAR", [2024], None, "the drop flag to be specified"),
+        ],
+    )
+    def test_group_stragey_interactions(
+        self,
+        group_column: str | None,
+        values: list[str | int] | None,
+        drop_group_column: bool | None,
+        match_expr: str,
+    ) -> None:
+        """Tests interactions between group stragey flag and
+        other parameters."""
+        with pytest.raises(
+            ValidationError, match="The group strategy requires " + match_expr
+        ):
+            SplitTestConfig.model_validate(
+                self._get_valid_group_config_dict(
+                    group_column=group_column,
+                    values=values,
+                    drop_group_column=drop_group_column,
+                )
+            )
