@@ -79,8 +79,8 @@ class DataConfig(BaseModel):
         overlap = set(self.outcomes).intersection(set(self.predictors))
         if overlap:
             raise ValueError(
-                f"CRITICAL TARGET LEAKAGE DETECTED: The following outcome variables are also listed as "
-                f"predictors, which will break model validity: {list(overlap)}"
+                "Overlap between predictors and outcomes which will break "
+                f"model validity: {list(overlap)}"
             )
         return self
 
