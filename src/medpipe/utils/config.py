@@ -246,12 +246,16 @@ class ValidationSubConfig(BaseModel):
     recalibration_split: SplitRecalibrationConfig | None = None
     cross_validation: CrossValConfig | None = None
 
+    model_config = {"extra": "forbid"}
+
 
 class WorkflowConfig(BaseModel):
     """The master schema for the workflow subconfiguration file."""
 
     preprocessing: PreprocessingConfig
     validation: ValidationSubConfig
+
+    model_config = {"extra": "forbid"}
 
 
 # --- HYPERPARAMETERS SCHEMAS
