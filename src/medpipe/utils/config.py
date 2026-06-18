@@ -220,9 +220,9 @@ class SplitRecalibrationConfig(BaseModel):
 class CrossValConfig(BaseModel):
     strategy: Literal["random", "group"] | None = None
     group_column: str | None = None
-    n_splits: int = Field(default=5, gt=2)
+    n_splits: int = Field(default=5, ge=2)
     shuffle: bool = True
-    random_state: int = Field(default=42, gt=0)
+    random_state: int = Field(default=42, ge=0)
     drop_group_column: bool = True
     model_config = {"extra": "forbid"}
 
