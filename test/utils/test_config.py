@@ -15,6 +15,7 @@ from medpipe.utils.config import (
     DataConfig,
     MetaConfig,
     ModelConfig,
+    ModelHyperparamSubConfig,
     PathsConfig,
     PredictorConfig,
     PreprocessingConfig,
@@ -727,3 +728,25 @@ class TestCalibratorConfig:
     def test_valid_config(self) -> None:
         """Pass valid configuration to CalibratorConfig."""
         CalibratorConfig.model_validate(self._get_valid_config_dict())
+        CalibratorConfig.model_validate({})
+
+
+class TestModelHyperparamsSubConfigConfig:
+    """Test class for the ModelHyperparamsSubConfigConfig class"""
+
+    def _get_valid_config_dict(self, **overrides) -> dict:
+        """Creates a fresh valid config dict to override."""
+        config_dict = {
+            "predictor": {"learning_rate": 0.1},
+            "calibrator": {"out_of_bounds": "clip"},
+        }
+        config_dict.update(overrides)
+
+        return config_dict
+
+    def test_valid_config(self) -> None:
+        """Pass valid configuration to ModelHyperparamsSubConfigConfig."""
+        ModelHyperparamSubConfig.model_validate(self._get_valid_config_dict())
+        ModelHyperparamSubConfig.model_validate(
+            self._get_valid_config_dict(calibrator=None)
+        )
