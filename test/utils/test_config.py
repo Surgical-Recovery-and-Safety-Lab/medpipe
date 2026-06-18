@@ -6,7 +6,7 @@ Configuration function and classes tests suite.
 import pytest
 from pydantic import ValidationError
 
-from medpipe.utils.config import MetaConfig
+from medpipe.utils.config import MetaConfig, PathsConfig
 
 # ==============================================================================
 # SCHEMA VALIDATION TESTS
@@ -46,3 +46,52 @@ class TestMetaConfig:
             ValidationError, match="Project name should not be an empty string."
         ):
             MetaConfig.model_validate(self._get_valid_config_dict(project_name=""))
+
+
+class TestPathsConfig:
+    """Test class for the PathsConfig class"""
+
+    def _get_valid_config_dict(self, **overrides) -> dict:
+        """Creates a fresh valid config dict to override."""
+        config_dict = {
+            "config_dir": "path/to/config",
+            "model_dir": "path/to/models",
+            "figure_dir": "path/to/figures",
+        }
+        config_dict.update(overrides)
+
+        return config_dict
+
+    def test_valid_config(self) -> None:
+        """Pass valid configuration to PathsConfig."""
+        PathsConfig.model_validate(self._get_valid_config_dict())
+
+    def test_validate_config_dir(self) -> None:
+        """Test config dir is not a file."""
+        with pytest.raises(
+            ValidationError,
+            match=f"config_dir should be a directory, but got suffix .toml",
+        ):
+            PathsConfig.model_validate(
+                self._get_valid_config_dict(config_dir="config.toml")
+            )
+
+    def test_validate_model_dir(self) -> None:
+        """Test model dir is not a file."""
+        with pytest.raises(
+            ValidationError,
+            match=f"model_dir should be a directory, but got suffix .joblib",
+        ):
+            PathsConfig.model_validate(
+                self._get_valid_config_dict(model_dir="model.joblib")
+            )
+
+    def test_validate_figure_dir(self) -> None:
+        """Test figure dir is not a file."""
+        with pytest.raises(
+            ValidationError,
+            match=f"figure_dir should be a directory, but got suffix .png",
+        ):
+            PathsConfig.model_validate(
+                self._get_valid_config_dict(figure_dir="figure.png")
+            )
