@@ -3,6 +3,7 @@ Configuration function and classes tests suite.
 
 """
 
+from pathlib import Path
 from re import escape
 
 import pytest
@@ -28,10 +29,12 @@ from medpipe.utils.config import (
     SamplingConfig,
     SplitRecalibrationConfig,
     SplitTestConfig,
+    SubConfigTypes,
     TopLevelConfig,
     ValidationSubConfig,
     WeightingConfig,
     WorkflowConfig,
+    read_subconfiguration_file,
 )
 
 # ==============================================================================
@@ -970,3 +973,27 @@ class TestMedpipeConfig:
     def test_valid_config(self) -> None:
         """Pass valid configuration to MedpipeConfig."""
         MedpipeConfig.model_validate(self._get_valid_config_dict())
+
+
+# ==============================================================================
+# CONFIGURATION FUNCTION TESTS
+# ==============================================================================
+
+
+class TestReadSubconfigurationFile:
+    """Test class for the read_subconfiguration_file function"""
+
+    @pytest.fixture
+    def example_config_dir(self) -> Path:
+        """Provide the location of the example configuration files."""
+        base_dir = Path(__file__).parent.parent.parent
+
+        return base_dir / "config-examples/HGBc"
+
+    @pytest.mark.parametrize("subtype", ["data", "workflow", "hyperparameters"])
+    def test_read_subconfiguration_file_success(
+        self, example_config_dir: Path, subtype: SubConfigTypes
+    ) -> None:
+        """Test successfull function call."""
+        config_file = example_config_dir / subtype / (subtype + "_v0.toml")
+        read_subconfiguration_file(config_file, subtype)
