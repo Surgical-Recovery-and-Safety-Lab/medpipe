@@ -325,6 +325,7 @@ class SamplingConfig(BaseModel):
 class BalancingSubConfig(BaseModel):
     weighting: WeightingConfig | None = None
     sampling: SamplingConfig | None = None
+    model_config = {"extra": "forbid"}
 
 
 class HyperparameterConfig(BaseModel):
@@ -332,6 +333,7 @@ class HyperparameterConfig(BaseModel):
 
     hyperparameters: ModelHyperparamSubConfig
     balancing: BalancingSubConfig | None = None
+    model_config = {"extra": "forbid"}
 
 
 class MedpipeConfig(BaseModel):
@@ -341,6 +343,7 @@ class MedpipeConfig(BaseModel):
     data: DataConfig
     workflow: WorkflowConfig
     hyperparameters: HyperparameterConfig
+    model_config = {"extra": "forbid"}
 
 
 # ==============================================================================
