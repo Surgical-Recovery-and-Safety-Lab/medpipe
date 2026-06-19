@@ -401,7 +401,7 @@ def read_subconfiguration_file(path: str | Path, subtype: SubConfigTypes) -> Sub
     if subtype not in SUBCONFIG_REGISTRY.keys():
         valid_options = list(SUBCONFIG_REGISTRY.keys())
         raise ValueError(
-            f"Unexpected subtype {subtype}, expecting one of " f"{valid_options}"
+            f"Unexpected subtype {subtype}, expecting one of {valid_options}"
         )
 
     file_checks(path, ".toml")
