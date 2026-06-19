@@ -437,6 +437,10 @@ def parse_version_number(version: str) -> list[str]:
     ------
     TypeError
         If v_number is not a string.
+    ValueError
+        If v_number is an empty string.
+        If v_number does not have 3 elements.
+        If v_number has an empty element.
 
     Warns
     -----
@@ -445,8 +449,12 @@ def parse_version_number(version: str) -> list[str]:
 
     """
     if not isinstance(version, str):
-        raise TypeError(f"version should be a string, but got {type(version)}")
+        raise TypeError(f"Version should be a string, but got {type(version)}")
 
+    if not version:
+        raise ValueError(
+            "Version is empty. Check the version number is formatted as vX.Y.Z"
+        )
     v_to_parse = version
     if version[0] == "v":
         # Remove v prefix if present
@@ -456,12 +464,21 @@ def parse_version_number(version: str) -> list[str]:
 
     # Safety checks
     v_len = len(v_list)
+
     if v_len < 3:
         raise ValueError(
-            f"Expecting 3 values, but got {v_len}."
+            f"Expecting 3 values, but got {v_len}. "
             "Check the version number is formatted as vX.Y.Z"
         )
     elif v_len > 3:
         warn(f"Expecting 3 values, but got {v_len}. Everything after 3 is ignored.")
+
+    else:  # Check that there are not empty elements
+        for i, v in enumerate(v_list):
+            if not v:
+                raise ValueError(
+                    f"Element {i} in version is empty. "
+                    "Check the version number is formatted as vX.Y.Z"
+                )
 
     return v_list[:3]
