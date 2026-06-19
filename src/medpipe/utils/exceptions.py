@@ -112,25 +112,9 @@ def path_checks(path: str | Path) -> None:
         raise TypeError(f"Path should be a string or a Path")
 
     path_object = Path(path)  # Create a Path object
-    path_suffix = path_object.suffix
-    dir = False
-
-    if path_suffix != "":
-        try:
-            # If suffix ends with a digit because of version number
-            int(path_suffix[1:])
-            dir = True
-        except ValueError:
-            pass
-    else:
-        # If there is no suffix
-        dir = True
 
     if not path_object.exists() and dir:
         path_object.mkdir(parents=True)
-
-    if not path_object.exists():
-        raise FileNotFoundError(f"{path} does not exist")
 
     if not path_object.is_dir():
         raise NotADirectoryError(f"{path} should be a directory")
