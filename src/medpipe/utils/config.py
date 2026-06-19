@@ -23,6 +23,10 @@ from medpipe.data.weighting import VALID_WEIGHTING_FN
 
 from .exceptions import file_checks
 
+# Define file specific types
+SubConfig: TypeAlias = "DataConfig | HyperparameterConfig | WorkflowConfig"
+SubConfigTypes: TypeAlias = Literal["data", "workflow", "hyperparameters"]
+
 # ==============================================================================
 # CONFIGURATION SCHEMA (pydantic)
 # ==============================================================================
@@ -359,10 +363,6 @@ SUBCONFIG_REGISTRY: dict[SubConfigTypes, type[SubConfig]] = {
     "workflow": WorkflowConfig,
     "hyperparameters": HyperparameterConfig,
 }
-
-# Define file specific types
-SubConfig: TypeAlias = DataConfig | HyperparameterConfig | WorkflowConfig
-SubConfigTypes: TypeAlias = Literal["data", "workflow", "hyperparameters"]
 
 
 def read_subconfiguration_file(path: str | Path, subtype: SubConfigTypes) -> SubConfig:
