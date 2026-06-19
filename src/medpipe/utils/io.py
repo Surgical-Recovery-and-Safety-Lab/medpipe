@@ -114,9 +114,6 @@ def read_toml_configuration(config_file: str | Path) -> MedpipeConfig:
     )  # Create Path from config_dir
     subconfig_path = subconfig_dir.resolve()
 
-    if not subconfig_dir.is_dir():
-        raise NotADirectoryError(f"{subconfig_dir} is not a directory")
-
     v_list = parse_version_number(top_level_config.meta.version)
 
     parsed_configs: dict[str, Config] = {"top_level": top_level_config}

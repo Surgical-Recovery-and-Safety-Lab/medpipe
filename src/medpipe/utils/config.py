@@ -66,37 +66,16 @@ class PathsConfig(BaseModel):
     figure_dir: str
     model_config = {"extra": "forbid"}
 
-    @field_validator("config_dir")
+    @field_validator("config_dir", "model_dir", "figure_dir")
     @classmethod
-    def validate_config_dir(cls, dir: str) -> str:
-        """Validate that config dir is a path and directory."""
-        path = Path(dir)
-        if path.suffix != "":
-            raise ValueError(
-                f"config_dir should be a directory, but got suffix {path.suffix}"
-            )
-        return dir
+    def validate_paths(cls, dir: str) -> str:
+        """Validate that paths point to directories."""
+        path = Path(dir).resolve()
 
-    @field_validator("model_dir")
-    @classmethod
-    def validate_model_dir(cls, dir: str) -> str:
-        """Validate that model dir is a path and directory."""
-        path = Path(dir)
-        if path.suffix != "":
-            raise ValueError(
-                f"model_dir should be a directory, but got suffix {path.suffix}"
-            )
-        return dir
+        if path.is_file():
+            raise ValueError(f"{path} points to an existing file")
 
-    @field_validator("figure_dir")
-    @classmethod
-    def validate_figure_dir(cls, dir: str) -> str:
-        """Validate that figure dir is a path and directory."""
-        path = Path(dir)
-        if path.suffix != "":
-            raise ValueError(
-                f"figure_dir should be a directory, but got suffix {path.suffix}"
-            )
+        path.mkdir(parents=True, exist_ok=True)
         return dir
 
 
