@@ -12,6 +12,7 @@ from pydantic import ValidationError
 from medpipe.data.sampler import VALID_SAMPLER_FN
 from medpipe.data.weighting import VALID_WEIGHTING_FN
 from medpipe.utils.config import (
+    SUBCONFIG_REGISTRY,
     BalancingSubConfig,
     CalibrationConfig,
     CalibratorConfig,
@@ -997,3 +998,10 @@ class TestReadSubconfigurationFile:
         """Test successfull function call."""
         config_file = example_config_dir / subtype / (subtype + "_v0.toml")
         read_subconfiguration_file(config_file, subtype)
+
+    def test_incorrect_subtype(self) -> None:
+        """Test safety check on wrong subtype."""
+        match_expr = f"Unexpected subtype invalid_subtype, expecting one "
+        f"of {list(SUBCONFIG_REGISTRY.keys())}"
+        with pytest.raises(ValueError, match=match_expr):
+            read_subconfiguration_file("data.toml", "invalid_subtype")
