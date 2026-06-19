@@ -394,6 +394,7 @@ def read_subconfiguration_file(path: str | Path, subtype: SubConfigTypes) -> Sub
         If path is not a file.
     ValueError
         If path it not a .toml file.
+        If subtype is not in {"data", "workflow", "hyperparameters"}.
     tomllib.TOMLDecodeError
         If the file was not read properly.
 
