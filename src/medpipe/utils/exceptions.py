@@ -47,19 +47,20 @@ def file_checks(
     ------
     TypeError
         If file is not a str or a Path.
+        If extension is not a str or list[str].
     FileNotFoundError
         If file does not exist.
     IsADirectoryError
         If file is a directory.
     ValueError
-        If file extension is not .extension file.
+        If file extension is not correct.
 
     """
     if not isinstance(file, (str, Path)):
-        raise TypeError(f"{file} should be a string or Path")
+        raise TypeError(f"File should be a string or Path")
 
     if not isinstance(extension, (str, list)):
-        raise TypeError(f"{extension} should be a string or list of strings")
+        raise TypeError(f"Extension should be a string or list of strings")
 
     path_object = Path(file)  # Create a Path object
 
@@ -71,12 +72,15 @@ def file_checks(
     if not path_object.is_file() and exists:
         raise IsADirectoryError(f"{file} should be a file")
 
+    suffix = path_object.suffix
     if isinstance(extension, str):
-        if path_object.suffix != extension:
-            raise ValueError(f"{file} suffix should be {extension}")
+        if suffix != extension:
+            raise ValueError(f"File suffix should be {extension}, but got {suffix}")
     else:
-        if path_object.suffix not in extension:
-            raise ValueError(f"{file} suffix should be one of {extension}")
+        if suffix not in extension:
+            raise ValueError(
+                f"File suffix should be one of {extension}, but got {suffix}"
+            )
 
 
 def path_checks(path: str | Path) -> None:
@@ -105,7 +109,7 @@ def path_checks(path: str | Path) -> None:
 
     """
     if not isinstance(path, (str, Path)):
-        raise TypeError(f"{path} should be a string or a Path")
+        raise TypeError(f"Path should be a string or a Path")
 
     path_object = Path(path)  # Create a Path object
     path_suffix = path_object.suffix
@@ -154,7 +158,7 @@ def array_check(arr: npt.NDArray | pd.Series | list[Any]) -> None:
     """
     target_types = (list, ndarray, Series)
     if not isinstance(arr, target_types):
-        raise TypeError(f"arr should be an array-like but instead got {type(arr)}")
+        raise TypeError(f"Input should be an array-like but instead got {type(arr)}")
 
 
 def array_dim_check(
@@ -194,6 +198,6 @@ def array_dim_check(
             raise ValueError("The dimensions do not agree")
     else:
         if type(dim) is not int:
-            raise TypeError("dim should be an integer")
+            raise TypeError("Input dim should be an integer")
         if arr1.shape[dim] != arr2.shape[dim]:
             raise ValueError(f"The {dim} axis does not agree")
