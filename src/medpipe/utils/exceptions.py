@@ -23,7 +23,9 @@ if TYPE_CHECKING:
     import pandas as pd
 
 
-def file_checks(file: str | Path, extension: str, exists: bool = True) -> None:
+def file_checks(
+    file: str | Path, extension: str | list[str], exists: bool = True
+) -> None:
     """
     Performs checks to ensure that a file and extension are correct.
 
@@ -31,8 +33,8 @@ def file_checks(file: str | Path, extension: str, exists: bool = True) -> None:
     ----------
     file : str | Path
         File to check.
-    extension : str
-        Extension of the file to check.
+    extension : str | list[str]
+        Extension or list of extensions of the file to check.
     exists : bool, default: True
         Flag to indicate if the file should exists.
 
@@ -56,6 +58,9 @@ def file_checks(file: str | Path, extension: str, exists: bool = True) -> None:
     if not isinstance(file, (str, Path)):
         raise TypeError(f"{file} should be a string or Path")
 
+    if not isinstance(extension, (str, list)):
+        raise TypeError(f"{extension} should be a string or list of strings")
+
     path_object = Path(file)  # Create a Path object
 
     path_checks(str(path_object.parent))
@@ -66,8 +71,12 @@ def file_checks(file: str | Path, extension: str, exists: bool = True) -> None:
     if not path_object.is_file() and exists:
         raise IsADirectoryError(f"{file} should be a file")
 
-    if path_object.suffix != extension:
-        raise ValueError(f"{file} should be a {extension} file")
+    if isinstance(extension, str):
+        if path_object.suffix != extension:
+            raise ValueError(f"{file} suffix should be {extension}")
+    else:
+        if path_object.suffix not in extension:
+            raise ValueError(f"{file} suffix should be one of {extension}")
 
 
 def path_checks(path: str | Path) -> None:
