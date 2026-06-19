@@ -56,50 +56,39 @@ class TestMetaConfig:
 class TestPathsConfig:
     """Test class for the PathsConfig class"""
 
-    def _get_valid_config_dict(self, **overrides) -> dict:
+    def _get_valid_config_dict(self, tmp_path: Path, **overrides) -> dict:
         """Creates a fresh valid config dict to override."""
         config_dict = {
-            "config_dir": "path/to/config",
-            "model_dir": "path/to/models",
-            "figure_dir": "path/to/figures",
+            "config_dir": str(tmp_path / "config"),
+            "model_dir": str(tmp_path / "models"),
+            "figure_dir": str(tmp_path / "figures"),
         }
         config_dict.update(overrides)
 
         return config_dict
 
-    def test_valid_config(self) -> None:
+    def test_valid_config(self, tmp_path: Path) -> None:
         """Pass valid configuration to PathsConfig."""
-        PathsConfig.model_validate(self._get_valid_config_dict())
+        PathsConfig.model_validate(self._get_valid_config_dict(tmp_path))
 
-    def test_validate_config_dir(self) -> None:
-        """Test config dir is not a file."""
-        with pytest.raises(
-            ValidationError,
-            match=f"config_dir should be a directory, but got suffix .toml",
-        ):
-            PathsConfig.model_validate(
-                self._get_valid_config_dict(config_dir="config.toml")
-            )
+    @pytest.mark.parametrize(
+        "parameter, path",
+        [
+            ("config_dir", "config.toml"),
+            ("model_dir", "model.joblib"),
+            ("figure_dir", "figure.png"),
+        ],
+    )
+    def test_validate_paths(self, tmp_path: Path, parameter: str, path: str) -> None:
+        """Test paths are not a file."""
+        file_path = tmp_path / path
+        file_path.touch()  # Write file to tmp_path
 
-    def test_validate_model_dir(self) -> None:
-        """Test model dir is not a file."""
+        args = {parameter: str(file_path)}  # Create new kwargs
         with pytest.raises(
-            ValidationError,
-            match=f"model_dir should be a directory, but got suffix .joblib",
+            ValidationError, match=f"{file_path} points to an existing file"
         ):
-            PathsConfig.model_validate(
-                self._get_valid_config_dict(model_dir="model.joblib")
-            )
-
-    def test_validate_figure_dir(self) -> None:
-        """Test figure dir is not a file."""
-        with pytest.raises(
-            ValidationError,
-            match=f"figure_dir should be a directory, but got suffix .png",
-        ):
-            PathsConfig.model_validate(
-                self._get_valid_config_dict(figure_dir="figure.png")
-            )
+            PathsConfig.model_validate(self._get_valid_config_dict(tmp_path, **args))
 
 
 class TestModelConfig:
