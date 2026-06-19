@@ -33,14 +33,14 @@ if TYPE_CHECKING:
     from medpipe._types import Config
 
 
-def load_data_from_csv(data_file: str) -> pd.DataFrame:
+def load_data(data_file: str | Path) -> pd.DataFrame:
     """
-    Reads a .csv file and returns its contents.
+    Reads a .csv or .parquet file and returns its contents.
 
     Parameters
     __________
     data_file : str
-        Path to the .csv file to load.
+        Path to the .csv or .parquet file to load.
 
     Returns
     _______
@@ -59,9 +59,14 @@ def load_data_from_csv(data_file: str) -> pd.DataFrame:
         If data_file extension is not .csv file.
 
     """
-    file_checks(data_file, ".csv")
+    file_checks(data_file, [".csv", ".parquet"])
 
-    data = pd.read_csv(data_file)
+    extension = Path(data_file).suffix
+
+    if extension == ".csv":
+        data = pd.read_csv(data_file)
+    else:
+        data = pd.read_parquet(data_file)
     return data
 
 
