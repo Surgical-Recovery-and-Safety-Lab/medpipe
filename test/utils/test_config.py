@@ -1,6 +1,7 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
-Configuration function and classes tests suite.
-
+Configuration functions and classes tests suite.
 """
 
 from pathlib import Path

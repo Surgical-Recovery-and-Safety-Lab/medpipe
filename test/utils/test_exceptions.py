@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-test_utils_exceptions.py
-
-Test functions for the utils.exceptions module
+Exception functions tests suite.
 """
 
 from __future__ import annotations
