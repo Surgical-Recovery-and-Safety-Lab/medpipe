@@ -11,32 +11,7 @@ from pydantic import ValidationError
 
 from medpipe.data.sampler import VALID_SAMPLER_FN
 from medpipe.data.weighting import VALID_WEIGHTING_FN
-from medpipe.utils.config import (
-    SUBCONFIG_REGISTRY,
-    BalancingSubConfig,
-    CalibrationConfig,
-    CalibratorConfig,
-    CrossValConfig,
-    DataConfig,
-    HyperparameterConfig,
-    MedpipeConfig,
-    MetaConfig,
-    ModelConfig,
-    ModelHyperparamSubConfig,
-    PathsConfig,
-    PredictorConfig,
-    PreprocessingConfig,
-    PreprocessOperationConfig,
-    SamplingConfig,
-    SplitRecalibrationConfig,
-    SplitTestConfig,
-    SubConfigTypes,
-    TopLevelConfig,
-    ValidationSubConfig,
-    WeightingConfig,
-    WorkflowConfig,
-    read_subconfiguration_file,
-)
+from medpipe.utils.config import *
 
 # ==============================================================================
 # SCHEMA VALIDATION TESTS
@@ -1005,3 +980,70 @@ class TestReadSubconfigurationFile:
         f"of {list(SUBCONFIG_REGISTRY.keys())}"
         with pytest.raises(ValueError, match=match_expr):
             read_subconfiguration_file("data.toml", "invalid_subtype")
+
+
+class TestParseVersionNumber:
+    """Test class for the parse_version_number function"""
+
+    @pytest.mark.parametrize(
+        "version, output",
+        [
+            ("v0.1.1", ["0", "1", "1"]),
+            ("v10.20.10", ["10", "20", "10"]),
+            ("v300.100.200", ["300", "100", "200"]),
+            ("vX.Y.Z", ["X", "Y", "Z"]),
+            ("1.2.3", ["1", "2", "3"]),
+        ],
+    )
+    def test_parse_version_number_success(
+        self, version: str, output: list[str]
+    ) -> None:
+        """Test successfull function call."""
+        v_list = parse_version_number(version)
+        assert len(v_list) == 3  # Check that list len is correct
+        assert v_list == output
+
+    @pytest.mark.parametrize(
+        "version",
+        [
+            42,
+            3.14,
+            ("a", 1),
+            {1: "a"},
+            [1, 2, 3],
+        ],
+    )
+    def test_not_a_str(self, version) -> None:
+        """Test case when version is not a string."""
+        match_expr = f"Version should be a string, but got {type(version)}"
+        with pytest.raises(TypeError, match=match_expr):
+            parse_version_number(version)
+
+    @pytest.mark.parametrize(
+        "version, error_msg",
+        [
+            ("", "Version is empty. "),
+            ("v0", "Expecting 3 values, but got 1. "),
+            ("v0.1", "Expecting 3 values, but got 2. "),
+            ("..", "Element 0 in version is empty. "),
+            ("v0..1", "Element 1 in version is empty. "),
+            ("v0.1.", "Element 2 in version is empty. "),
+        ],
+    )
+    def test_incorrect_str(self, version: str, error_msg: str) -> None:
+        """Test case when version string is not formatted correctly."""
+        match_expr = error_msg + "Check the version number is formatted "
+        "as vX.Y.Z"
+        with pytest.raises(ValueError, match=match_expr):
+            parse_version_number(version)
+
+    def test_longer_string(self) -> None:
+        """Test case when version is longer than 3."""
+        match_expr = "Expecting 3 values, but got 4. "
+        "Everything after 3 is ignored."
+
+        with pytest.warns(UserWarning, match=match_expr):
+            v_list = parse_version_number("v0.1.2.3")
+
+        assert len(v_list) == 3
+        assert v_list == ["0", "1", "2"]
