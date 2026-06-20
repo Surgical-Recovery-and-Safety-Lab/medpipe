@@ -167,23 +167,23 @@ class Pipeline:
         self.predictor_train_outputs = {}  # Store training outputs
         self.calibrator_train_outputs = {}  # Store training outputs
 
-        for label in self.outcomes:
+        for outcome in self.outcomes:
             # Initialize Predictor
-            self.predictor[label] = create_predictor(
+            self.predictor[outcome] = create_predictor(
                 self.predictor_algo,
                 hyperparameters=pred_params,
                 logger=self.logger,
             )
-            self.predictor_train_outputs[label] = {}
+            self.predictor_train_outputs[outcome] = {}
 
             # Initialize Calibrator (if applicable)
             if self.calibrator_method:
-                self.calibrator[label] = create_calibrator(
+                self.calibrator[outcome] = create_calibrator(
                     self.calibrator_method,
                     hyperparameters=cal_params,
                     logger=self.logger,
                 )
-                self.calibrator_train_outputs[label] = {}
+                self.calibrator_train_outputs[outcome] = {}
 
         # Preprocessor initialization
         if self.medpipe_config.workflow.preprocessing:
