@@ -9,7 +9,7 @@ run_mode = "audit"
 
 [paths]
 # Paths can be relative or absolute
-config_dir = "config/HGBc/"
+config_dir = "~/Documents/srs/medpipe/config-examples/HGBc/"  # Path from medpipe root
 model_dir = "models/"  # Save model directory
 figure_dir = "figures/"  # Directory to save figures
 
