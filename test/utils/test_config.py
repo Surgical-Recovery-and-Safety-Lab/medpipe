@@ -129,7 +129,7 @@ class TestCalibrationConfig:
 class TestTopLevelConfig:
     """Test class for the TopLevelConfig class"""
 
-    def _get_valid_config_dict(self, **overrides) -> dict:
+    def _get_valid_config_dict(self, tmp_path: Path, **overrides) -> dict:
         """Creates a fresh valid config dict to override."""
         config_dict = {
             "meta": {
@@ -138,9 +138,9 @@ class TestTopLevelConfig:
                 "run_mode": "audit",
             },
             "paths": {
-                "config_dir": "path/to/config",
-                "model_dir": "path/to/models",
-                "figure_dir": "path/to/figures",
+                "config_dir": str(tmp_path / "path/to/config"),
+                "model_dir": str(tmp_path / "path/to/models"),
+                "figure_dir": str(tmp_path / "path/to/figures"),
             },
             "model": {"algorithm": "HistGradientBoostingClassifier"},
             "calibration": {"method": "isotonic"},
@@ -149,18 +149,18 @@ class TestTopLevelConfig:
 
         return config_dict
 
-    def test_valid_config(self) -> None:
+    def test_valid_config(self, tmp_path: Path) -> None:
         """Pass valid configuration to TopLevelConfig."""
-        TopLevelConfig.model_validate(self._get_valid_config_dict())
+        TopLevelConfig.model_validate(self._get_valid_config_dict(tmp_path))
 
 
 class TestDataConfig:
     """Test class for the DataConfig class"""
 
-    def _get_valid_config_dict(self, **overrides) -> dict:
+    def _get_valid_config_dict(self, tmp_path: Path, **overrides) -> dict:
         """Creates a fresh valid config dict to override."""
         config_dict = {
-            "path": "path/to/data.csv",
+            "path": str(tmp_path / "path/to/data.csv"),
             "predictors": ["AGE", "SEX", "OP_SEVERITY"],
             "outcomes": ["MORTALITY_30D"],
         }
@@ -169,9 +169,9 @@ class TestDataConfig:
 
         return config_dict
 
-    def test_valid_config(self) -> None:
+    def test_valid_config(self, tmp_path: Path) -> None:
         """Pass valid configuration to DataConfig."""
-        DataConfig.model_validate(self._get_valid_config_dict())
+        DataConfig.model_validate(self._get_valid_config_dict(tmp_path))
 
     @pytest.mark.parametrize(
         "path, match_expr",
@@ -180,10 +180,12 @@ class TestDataConfig:
             ("path.db", "path should be a .csv file, but got suffix .db"),
         ],
     )
-    def test_validate_path(self, path: str, match_expr: str) -> None:
+    def test_validate_path(self, tmp_path: Path, path: str, match_expr: str) -> None:
         """Test data path is not a file."""
         with pytest.raises(ValidationError, match=match_expr):
-            DataConfig.model_validate(self._get_valid_config_dict(path=path))
+            DataConfig.model_validate(
+                self._get_valid_config_dict(tmp_path=tmp_path, path=path)
+            )
 
     @pytest.mark.parametrize(
         "predictors, outcomes, overlap",
@@ -193,7 +195,11 @@ class TestDataConfig:
         ],
     )
     def test_data_leakage(
-        self, predictors: list[str], outcomes: list[str], overlap: list[str]
+        self,
+        tmp_path: Path,
+        predictors: list[str],
+        outcomes: list[str],
+        overlap: list[str],
     ) -> None:
         """Test data leakage safety check."""
         match_expr = "Overlap between predictors and outcomes which will "
@@ -201,7 +207,9 @@ class TestDataConfig:
 
         with pytest.raises(ValidationError, match=escape(match_expr)):
             DataConfig.model_validate(
-                self._get_valid_config_dict(predictors=predictors, outcomes=outcomes)
+                self._get_valid_config_dict(
+                    tmp_path, predictors=predictors, outcomes=outcomes
+                )
             )
 
 
@@ -895,7 +903,7 @@ class TestHyperparameterConfig:
 class TestMedpipeConfig:
     """Test class for the MedpipeConfig class"""
 
-    def _get_valid_config_dict(self, **overrides) -> dict:
+    def _get_valid_config_dict(self, tmp_path: Path, **overrides) -> dict:
         """Creates a fresh valid config dict to override."""
         config_dict = {
             "top_level": {
@@ -905,15 +913,15 @@ class TestMedpipeConfig:
                     "run_mode": "audit",
                 },
                 "paths": {
-                    "config_dir": "path/to/config",
-                    "model_dir": "path/to/models",
-                    "figure_dir": "path/to/figures",
+                    "config_dir": str(tmp_path / "path/to/config"),
+                    "model_dir": str(tmp_path / "path/to/models"),
+                    "figure_dir": str(tmp_path / "path/to/figures"),
                 },
                 "model": {"algorithm": "HistGradientBoostingClassifier"},
                 "calibration": {"method": "isotonic"},
             },
             "data": {
-                "path": "path/to/data.csv",
+                "path": str(tmp_path / "path/to/data.csv"),
                 "predictors": ["AGE", "SEX", "OP_SEVERITY"],
                 "outcomes": ["MORTALITY_30D"],
             },
@@ -936,9 +944,9 @@ class TestMedpipeConfig:
 
         return config_dict
 
-    def test_valid_config(self) -> None:
+    def test_valid_config(self, tmp_path: Path) -> None:
         """Pass valid configuration to MedpipeConfig."""
-        MedpipeConfig.model_validate(self._get_valid_config_dict())
+        MedpipeConfig.model_validate(self._get_valid_config_dict(tmp_path))
 
 
 # ==============================================================================
