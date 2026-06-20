@@ -108,11 +108,10 @@ def read_toml_configuration(config_file: str | Path) -> MedpipeConfig:
 
     # Check top-level configuration is correct
     top_level_config: TopLevelConfig = TopLevelConfig.model_validate(raw_config)
-
     subconfig_dir = Path(
         top_level_config.paths.config_dir
     )  # Create Path from config_dir
-    subconfig_path = subconfig_dir.resolve()
+    subconfig_path = subconfig_dir.expanduser().resolve()
 
     v_list = parse_version_number(top_level_config.meta.version)
 

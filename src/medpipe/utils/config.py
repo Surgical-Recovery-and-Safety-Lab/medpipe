@@ -70,7 +70,7 @@ class PathsConfig(BaseModel):
     @classmethod
     def validate_paths(cls, dir: str) -> str:
         """Validate that paths point to directories."""
-        path = Path(dir).resolve()
+        path = Path(dir).expanduser().resolve()
 
         if path.is_file():
             raise ValueError(f"{path} points to an existing file")

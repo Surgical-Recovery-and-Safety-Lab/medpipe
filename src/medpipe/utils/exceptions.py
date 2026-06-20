@@ -62,7 +62,7 @@ def file_checks(
     if not isinstance(extension, (str, list)):
         raise TypeError(f"Extension should be a string or list of strings")
 
-    path_object = Path(file)  # Create a Path object
+    path_object = Path(file).expanduser().resolve()  # Create a Path object
 
     path_checks(str(path_object.parent))
 
@@ -111,7 +111,7 @@ def path_checks(path: str | Path) -> None:
     if not isinstance(path, (str, Path)):
         raise TypeError(f"Path should be a string or a Path")
 
-    path_object = Path(path)  # Create a Path object
+    path_object = Path(path).expanduser().resolve()  # Create a Path object
 
     if not path_object.exists() and dir:
         path_object.mkdir(parents=True)
