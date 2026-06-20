@@ -9,5 +9,5 @@ submodules:
 """
 
 from . import config, exceptions, io, logger
-from .io import load_data_from_csv, read_toml_configuration
+from .io import load_data, read_toml_configuration
 from .logger import exception_handler, print_message, setup_logger

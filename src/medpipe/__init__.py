@@ -24,7 +24,7 @@ from .models import get_full_proba, get_positive_proba, load_pipeline, save_pipe
 from .pipeline.pipeline import Pipeline
 from .utils import (
     exception_handler,
-    load_data_from_csv,
+    load_data,
     print_message,
     read_toml_configuration,
     setup_logger,
@@ -33,7 +33,7 @@ from .utils import (
 __all__ = [
     "Pipeline",
     "exception_handler",
-    "load_data_from_csv",
+    "load_data",
     "print_message",
     "read_toml_configuration",
     "setup_logger",
@@ -52,4 +52,4 @@ __all__ = [
     "extract_data_from_db",
     "extract_labels",
 ]
-__version__ = "v1.0.0"
+__version__ = "v0.3.0"
