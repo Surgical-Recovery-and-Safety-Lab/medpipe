@@ -14,6 +14,7 @@ Functions:
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import joblib
@@ -158,20 +159,16 @@ def test_model(
     return metric_dict
 
 
-def save_pipeline(
-    pipeline: Pipeline, save_file: str, extension: str = ".joblib"
-) -> None:
+def save_pipeline(pipeline: Pipeline, save_file: str | Path) -> None:
     """
-    Saves a Pipeline to file.
+    Saves a Pipeline to a .joblib file.
 
     Parameters
     ----------
     pipeline : Pipeline
         Pipeline to save.
-    save_file : str
+    save_file : str | Path
         Path to the file to save the model.
-    extension : str, default: ".joblib"
-        Extension of the save file.
 
     Returns
     -------
@@ -190,7 +187,7 @@ def save_pipeline(
         If save_file extension is not extension.
 
     """
-    file_checks(save_file, extension, exists=False)
+    file_checks(save_file, ".joblib", exists=False)
     with open(save_file, "wb") as f:
         joblib.dump(pipeline, f, compress=3)
 
