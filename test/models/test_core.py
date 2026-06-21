@@ -17,6 +17,7 @@ from sklearn.linear_model import LogisticRegression
 from medpipe._types import FullProba, PosProba
 from medpipe.models.core import (
     create_model,
+    get_full_proba,
     get_positive_proba,
     load_pipeline,
     save_pipeline,
@@ -175,3 +176,52 @@ class TestGetPositiveProba:
         "The detected shape was (2,) + inhomogeneous part."
         with pytest.raises(ValueError, match=match_expr):
             get_positive_proba(mismatched_proba)
+
+
+class TestGetFullProba:
+    """Test class for the get_full_proba function."""
+
+    @pytest.mark.parametrize(
+        "pos_proba, expected_proba",
+        [
+            (
+                np.array([[1], [0.5], [0.1]]),
+                np.array([[0, 1], [0.5, 0.5], [0.9, 0.1]]),
+            ),
+            (
+                np.array([1, 0.5, 0]),
+                np.array([[0, 1], [0.5, 0.5], [1, 0]]),
+            ),
+        ],
+    )
+    def test_get_full_proba_success(
+        self, pos_proba: PosProba, expected_proba: FullProba
+    ) -> None:
+        """Test successful function call."""
+        pos_proba = get_full_proba(pos_proba)
+        assert (pos_proba == expected_proba).all()
+
+    @pytest.mark.parametrize(
+        "pos_proba",
+        [
+            np.array([[1, 0.5], [0.5, 0.1]]),
+            np.array([[1, 0.5, 0.2], [0.5, 0.1, 0.8]]),
+        ],
+    )
+    def test_get_full_proba_incorrect_shape(self, pos_proba: PosProba) -> None:
+        """Test case where pos_proba has incorrect shape."""
+        match_expr = (
+            "Input probabilities should have shape (n_samples,) or "
+            f"(n_samples, 1), but got {pos_proba.shape}"
+        )
+        with pytest.raises(ValueError, match=escape(match_expr)):
+            pos_proba = get_full_proba(pos_proba)
+
+    @pytest.mark.parametrize("pos_proba", [42, 3.14, {}, (), []])
+    def test_get_full_proba_invalid_type(self, pos_proba: Any) -> None:
+        """Test case when pos_proba is invalid type."""
+        match_expr = (
+            "Input probabilities should be a np.ndarray, " f"but got {type(pos_proba)}"
+        )
+        with pytest.raises(TypeError, match=escape(match_expr)):
+            get_full_proba(pos_proba)
