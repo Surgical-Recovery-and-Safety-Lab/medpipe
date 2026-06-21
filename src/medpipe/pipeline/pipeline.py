@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
+from warnings import warn
 
 import numpy as np
 import pandas as pd
@@ -208,8 +209,16 @@ class Pipeline:
         None
             Nothings is returned.
 
+        Warns
+        -----
+        UserWarning
+            If no preprocessor object exists.
+
         """
-        self.preprocessor.fit(X)
+        if self.preprocessor:
+            self.preprocessor.fit(X)
+        else:
+            warn("No preprocessor object created so nothing to fit")
 
     def transform(self, X: pd.DataFrame) -> pd.DataFrame:
         """
@@ -224,13 +233,24 @@ class Pipeline:
         -------
         data : pd.Dataframe
              Transformed data of shape (n_samples, n_features).
+             Returns X if no preprocessor exists.
+
+        Warns
+        -----
+        UserWarning
+            If no preprocessor object exists.
 
         """
-        return self.preprocessor.transform(X)
+        if self.preprocessor:
+            return self.preprocessor.transform(X)
+        else:
+            warn("No preprocessor object created so data not transformed")
+            return X
 
     def fit_transform(self, X: pd.DataFrame) -> pd.DataFrame:
         """
         Fits the preprocessor operations and transforms the input data.
+
 
         Parameters
         ----------
@@ -241,9 +261,19 @@ class Pipeline:
         -------
         data : pd.Dataframe
              Transformed data of shape (n_samples, n_features).
+             Returns X if no preprocessor exists.
+
+        Warns
+        -----
+        UserWarning
+            If no preprocessor object exists.
 
         """
-        return self.preprocessor.fit_transform(X)
+        if self.preprocessor:
+            return self.preprocessor.fit_transform(X)
+        else:
+            warn("No preprocessor object created so data not transformed")
+            return X
 
     def get_test_data(
         self, X: pd.DataFrame, test_group_vals: list[Any] | None = None
