@@ -968,7 +968,7 @@ class TestReadSubconfigurationFile:
     def test_read_subconfiguration_file_success(
         self, example_config_dir: Path, subtype: SubConfigTypes
     ) -> None:
-        """Test successfull function call."""
+        """Test successful function call."""
         config_file = example_config_dir / subtype / (subtype + "_v0.toml")
         read_subconfiguration_file(config_file, subtype)
 
@@ -996,7 +996,7 @@ class TestParseVersionNumber:
     def test_parse_version_number_success(
         self, version: str, output: list[str]
     ) -> None:
-        """Test successfull function call."""
+        """Test successful function call."""
         v_list = parse_version_number(version)
         assert len(v_list) == 3  # Check that list len is correct
         assert v_list == output

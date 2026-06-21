@@ -50,7 +50,7 @@ class TestFileChecks:
         exists: bool,
         example_config_dir: Path,
     ) -> None:
-        """Test successfull function call."""
+        """Test successful function call."""
         file_checks(example_config_dir / file_name, extension, exists)
 
     @pytest.mark.parametrize("file", [42, 3.14, ("a", 1), {1: "a"}, [1, 2]])
@@ -120,7 +120,7 @@ class TestPathChecks:
     """Test class for the path_checks function."""
 
     def test_path_checks_success(self, tmp_path: Path) -> None:
-        """Test successfull function call."""
+        """Test successful function call."""
         path_checks(str(tmp_path))
         path_checks(tmp_path)
         path_checks(tmp_path / "v0.1.2")  # Check that version numbers are ok
@@ -170,7 +170,7 @@ class TestArrayCheck:
         ],
     )
     def test_array_check_success(self, arr: npt.NDArray | Series) -> None:
-        """Test successfull function call."""
+        """Test successful function call."""
         array_check(arr)
 
     @pytest.mark.parametrize(
@@ -212,7 +212,7 @@ class TestArrayDimCheck:
     def test_array_dim_check_success(
         self, arr1: npt.NDArray | Series, arr2: npt.NDArray | Series, dim: int | None
     ) -> None:
-        """Test successfull function call."""
+        """Test successful function call."""
         array_dim_check(arr1, arr2, dim)
 
     @pytest.mark.parametrize(

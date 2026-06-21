@@ -23,7 +23,7 @@ class TestReadTOMLConfiguration:
         return base_dir / "config-examples/"
 
     def test_read_configuration(self, example_config_dir: Path) -> None:
-        """Test successfull function call."""
+        """Test successful function call."""
         read_toml_configuration(example_config_dir / "HGBc_config.toml")
 
 
@@ -41,7 +41,7 @@ class TestLoadData:
     def test_load_data_success(
         self, tmp_path: Path, file: str, write_data: None
     ) -> None:
-        """Test successfull function call."""
+        """Test successful function call."""
         data = load_data(tmp_path / file)
 
         assert isinstance(data, pd.DataFrame)
