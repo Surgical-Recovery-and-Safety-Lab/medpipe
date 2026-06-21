@@ -192,14 +192,14 @@ def save_pipeline(pipeline: Pipeline, save_file: str | Path) -> None:
         joblib.dump(pipeline, f, compress=3)
 
 
-def load_pipeline(load_file: str) -> Pipeline:
+def load_pipeline(load_file: str | Path) -> Pipeline:
     """
     Loads a saved Pipeline from a .joblib file.
 
     Parameters
     ----------
-    load_file : str
-        Path to the file to load the Pipeline from.
+    load_file : str | Path
+        Path to the .joblib file to load the Pipeline from.
 
     Returns
     -------
