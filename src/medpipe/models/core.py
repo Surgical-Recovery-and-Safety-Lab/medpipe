@@ -240,6 +240,11 @@ def get_positive_proba(probabilities: FullProba | list[npt.NDArray]) -> PosProba
     pos_proba : PosProba
         Probabilities of the positive labels for each class.
 
+    Raises
+    ------
+    ValueError
+        If the probabilities are not dimensionally homogenous.
+
     """
     if isinstance(probabilities, np.ndarray):
         # Using slicing is faster than expand_dims for specific column extraction
@@ -254,12 +259,8 @@ def get_positive_proba(probabilities: FullProba | list[npt.NDArray]) -> PosProba
         # Vectorized approach
         stacked = np.asarray(probabilities)
         return stacked[:, :, 1].T
-    except (ValueError, TypeError):
-        # Fallback if arrays are not uniform in shape (rare in ML pipelines)
-        pos_proba = np.zeros((probabilities[0].shape[0], len(probabilities)))
-        for i, proba in enumerate(probabilities):
-            pos_proba[:, i] = proba[:, 1]
-        return pos_proba
+    except ValueError:
+        raise
 
 
 def get_full_proba(pos_proba: PosProba) -> FullProba:
