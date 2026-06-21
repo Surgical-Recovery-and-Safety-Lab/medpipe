@@ -270,14 +270,29 @@ def get_full_proba(pos_proba: PosProba) -> FullProba:
     Parameters
     ----------
     pos_proba : PosProba
-        Probabilities of the positive labels for each class.
+        Probabilities of the positive labels of shape (n_samples, 1) or
+        (n_samples,)
 
     Returns
     -------
     probabilities : FullProba
-        Full probabilities for each class.
+        Full probabilities of shape (n_samples, 2).
+
+    Raises
+    ------
+    TypeError
+        If pos_proba is not a np.ndarray.
 
     """
+    if not isinstance(pos_proba, np.ndarray):
+        raise TypeError(
+            f"Input probabilities should be a np.ndarray, but got {type(pos_proba)}"
+        )
+    if len(pos_proba.shape) >= 2 and pos_proba.shape[1] != 1:
+        raise ValueError(
+            "Input probabilities should have shape (n_samples,) or "
+            f"(n_samples, 1), but got {pos_proba.shape}"
+        )
     # Calculate negative probabilities for all samples/classes at once
     neg_proba = 1.0 - pos_proba
 
@@ -286,10 +301,9 @@ def get_full_proba(pos_proba: PosProba) -> FullProba:
     stacked = np.stack([neg_proba, pos_proba], axis=0)
 
     # Restructure to the expected output format
-    if pos_proba.shape[1] == 1:
-        # Single class case: return (n_samples, 2)
-        # Squeeze the class dimension and transpose
-        return stacked.squeeze(axis=2).T
-    else:
-        # Multi-class case: return (n_classes, n_samples, 2)
-        return stacked.transpose(2, 1, 0)
+    if len(pos_proba.shape) == 1:
+        # Probabilities were extracted from a list
+        return stacked.T  # Return (n_samples, 2)
+
+    # return (n_samples, 2)
+    return stacked.squeeze().T
