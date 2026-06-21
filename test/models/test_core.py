@@ -4,6 +4,7 @@
 Models core module test suite.
 """
 
+from pathlib import Path
 from re import escape
 from typing import Any, TypeAlias
 
@@ -12,7 +13,8 @@ from sklearn.ensemble import HistGradientBoostingClassifier
 from sklearn.isotonic import IsotonicRegression
 from sklearn.linear_model import LogisticRegression
 
-from medpipe.models.core import create_model
+from medpipe.models.core import create_model, load_pipeline, save_pipeline
+from medpipe.pipeline.pipeline import Pipeline
 
 ModelTypes: TypeAlias = type[
     HistGradientBoostingClassifier | IsotonicRegression | LogisticRegression
@@ -81,3 +83,46 @@ class TestCreateModel:
             ValueError, match="invalid_type invalid model type. See function docstring"
         ):
             create_model(model_type="invalid_type")
+
+
+class TestSavePipeline:
+    """Test class for the save_pipeline function."""
+
+    @pytest.fixture
+    def example_config_dir(self) -> Path:
+        """Provide the location of the example configuration files."""
+        base_dir = Path(__file__).parent.parent.parent
+
+        return base_dir / "config-examples/"
+
+    def test_save_pipeline_success(
+        self, tmp_path: Path, example_config_dir: Path
+    ) -> None:
+        """Test successful function call."""
+        pipeline = Pipeline(example_config_dir / "HGBc_config.toml")
+        save_pipeline(pipeline, tmp_path / "pipeline.joblib")
+
+        assert (tmp_path / "pipeline.joblib").exists()
+
+
+class TestLoadPipeline:
+    """Test class for the load_pipeline function."""
+
+    @pytest.fixture
+    def example_config_dir(self) -> Path:
+        """Provide the location of the example configuration files."""
+        base_dir = Path(__file__).parent.parent.parent
+
+        return base_dir / "config-examples/"
+
+    def test_load_pipeline_success(
+        self, tmp_path: Path, example_config_dir: Path
+    ) -> None:
+        """Test successful function call."""
+        # Create and save a Pipeline
+        pipeline = Pipeline(example_config_dir / "HGBc_config.toml")
+        save_pipeline(pipeline, tmp_path / "pipeline.joblib")
+
+        loaded_pipeline = load_pipeline(tmp_path / "pipeline.joblib")
+
+        assert isinstance(loaded_pipeline, Pipeline)
