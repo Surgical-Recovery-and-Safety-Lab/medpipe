@@ -41,7 +41,7 @@ def create_model(
     model_type: str,
     logger: logging.Logger | None = None,
     quiet: bool = False,
-    **config_params: Any,
+    **config_params,
 ) -> Model:
     """
     Creates a AI model.
@@ -55,7 +55,7 @@ def create_model(
             isotonic: isotonic regression.
     quiet : bool, default: False
         Flag to create a model without printing.
-    **config_params : dict[str, Any]
+    **config_params : dict[str, int | float | bool | str]
         Configuration parameters for the model.
 
     Returns
@@ -73,7 +73,7 @@ def create_model(
 
     """
     if type(model_type) is not str:
-        raise TypeError(f"{model_type} shoud be a string")
+        raise TypeError(f"{model_type} should be a string")
 
     match model_type:
         case "hgb-c":
