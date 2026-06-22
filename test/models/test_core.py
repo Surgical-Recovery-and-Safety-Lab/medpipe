@@ -221,7 +221,7 @@ class TestGetFullProba:
     def test_get_full_proba_invalid_type(self, pos_proba: Any) -> None:
         """Test case when pos_proba is invalid type."""
         match_expr = (
-            "Input probabilities should be a np.ndarray, " f"but got {type(pos_proba)}"
+            f"Input probabilities should be a np.ndarray, but got {type(pos_proba)}"
         )
         with pytest.raises(TypeError, match=escape(match_expr)):
             get_full_proba(pos_proba)
