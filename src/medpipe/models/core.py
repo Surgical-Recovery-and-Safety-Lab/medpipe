@@ -248,6 +248,12 @@ def get_positive_proba(probabilities: FullProba | list[npt.NDArray]) -> PosProba
     """
     if isinstance(probabilities, np.ndarray):
         # Using slicing is faster than expand_dims for specific column extraction
+        if len(probabilities.shape) != 2 and probabilities.shape[1] != 2:
+            raise ValueError(
+                "Input probabilities should have shape (n_samples, 2) "
+                f", but got {probabilities.shape}"
+            )
+
         return (
             probabilities[:, 1:2, :]
             if probabilities.ndim == 3
