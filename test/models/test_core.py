@@ -177,6 +177,22 @@ class TestGetPositiveProba:
         with pytest.raises(ValueError, match=match_expr):
             get_positive_proba(mismatched_proba)
 
+    @pytest.mark.parametrize(
+        "full_proba",
+        [
+            np.array([[0], [0.5], [0.9]]),
+            np.array([[0, 0.5, 0.9]]),
+        ],
+    )
+    def test_get_pos_proba_incorrect_shape(self, full_proba: FullProba) -> None:
+        """Test case where full_proba has incorrect shape."""
+        match_expr = (
+            "Input probabilities should have shape (n_samples, 2), "
+            f"but got {full_proba.shape}"
+        )
+        with pytest.raises(ValueError, match=escape(match_expr)):
+            get_positive_proba(full_proba)
+
 
 class TestGetFullProba:
     """Test class for the get_full_proba function."""
