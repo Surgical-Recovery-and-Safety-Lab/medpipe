@@ -6,8 +6,8 @@ This module provides functions to core functions for models and pipelines.
 Functions:
 - create_model: Creates a new model.
 - test_model: Tests a model on some test data.
-- save_pipeline: Pickles a pipeline.
-- load_pipeline: Loads a pickled pipeline.
+- save_pipeline: Saves a pipeline with joblib.
+- load_pipeline: Loads a pipeline with joblib.
 - get_positive_proba: Returns just the positive label probabilities of the each class.
 - get_full_proba: Returns probabilities for both labels.
 """
@@ -35,7 +35,7 @@ if TYPE_CHECKING:
 
     import numpy.typing as npt
 
-    from medpipe.pipeline.pipeline import Pipeline
+    from medpipe.pipeline.pipeline import MedpipePipeline
 
 
 def create_estimator(
@@ -159,9 +159,9 @@ def test_model(
     return metric_dict
 
 
-def save_pipeline(pipeline: Pipeline, save_file: str | Path) -> None:
+def save_pipeline(pipeline: MedpipePipeline, save_file: str | Path) -> None:
     """
-    Saves a Pipeline to a .joblib file.
+    Saves a MedpipePipeline to a .joblib file.
 
     Parameters
     ----------
@@ -192,9 +192,9 @@ def save_pipeline(pipeline: Pipeline, save_file: str | Path) -> None:
         joblib.dump(pipeline, f, compress=3)
 
 
-def load_pipeline(load_file: str | Path) -> Pipeline:
+def load_pipeline(load_file: str | Path) -> MedpipePipeline:
     """
-    Loads a saved Pipeline from a .joblib file.
+    Loads a saved MedpipePipeline from a .joblib file.
 
     Parameters
     ----------
