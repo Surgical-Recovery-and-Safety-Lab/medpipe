@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from medpipe import Pipeline
+from medpipe.pipeline.pipeline import MedpipePipeline
 
 
 class TestPipline:
@@ -23,4 +23,8 @@ class TestPipline:
 
     def test_create_pipeline(self, example_config_dir: Path) -> None:
         """Test successful pipeline creation."""
-        Pipeline(example_config_dir / "HGBc_config.toml")
+        pipe = MedpipePipeline(example_config_dir / "HGBc_config.toml", logger=None)
+        assert pipe.version == "v0.1.1"
+        assert pipe.predictor_algo == "HistGradientBoostingClassifier"
+        assert pipe.calibrator_method == "IsotonicRegression"
+        assert pipe.n_outcomes == 1
