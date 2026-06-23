@@ -22,13 +22,7 @@ from medpipe.models.core import (
     load_pipeline,
     save_pipeline,
 )
-from medpipe.pipeline.pipeline import Pipeline
-
-ModelTypes: TypeAlias = type[
-    HistGradientBoostingClassifier | IsotonicRegression | LogisticRegression
-]
-
-from numpy.typing import NDArray
+from medpipe.pipeline.pipeline import MedpipePipeline
 
 
 class TestCreateModel:
@@ -109,7 +103,7 @@ class TestSavePipeline:
         self, tmp_path: Path, example_config_dir: Path
     ) -> None:
         """Test successful function call."""
-        pipeline = Pipeline(example_config_dir / "HGBc_config.toml")
+        pipeline = MedpipePipeline(example_config_dir / "HGBc_config.toml", logger=None)
         save_pipeline(pipeline, tmp_path / "pipeline.joblib")
 
         assert (tmp_path / "pipeline.joblib").exists()
@@ -129,13 +123,13 @@ class TestLoadPipeline:
         self, tmp_path: Path, example_config_dir: Path
     ) -> None:
         """Test successful function call."""
-        # Create and save a Pipeline
-        pipeline = Pipeline(example_config_dir / "HGBc_config.toml")
+        # Create and save a MedpipePipeline
+        pipeline = MedpipePipeline(example_config_dir / "HGBc_config.toml", logger=None)
         save_pipeline(pipeline, tmp_path / "pipeline.joblib")
 
         loaded_pipeline = load_pipeline(tmp_path / "pipeline.joblib")
 
-        assert isinstance(loaded_pipeline, Pipeline)
+        assert isinstance(loaded_pipeline, MedpipePipeline)
 
 
 class TestGetPositiveProba:
