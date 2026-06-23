@@ -65,6 +65,24 @@ class TestCreateEstimator:
             assert model.__getattribute__(param) == value
 
     @pytest.mark.parametrize(
+        "model_type, hyperparameters",
+        [
+            ("HistGradientBoostingClassifier", {"invalid": 0.5, "max_iter": 2}),
+            ("LogisticRegression", {"invalid": 0.3, "max_iter": 10}),
+            ("IsotonicRegression", {"invalid": "clip"}),
+        ],
+    )
+    def test_create_estimator_incorrect_hyperparameter(
+        self, model_type: str, hyperparameters: dict[str, str | int | float]
+    ) -> None:
+        """Test case when incorrect hyperparameters are passed."""
+        match_expr = (
+            f"{model_type}.__init__() got an unexpected keyword argument 'invalid'"
+        )
+        with pytest.raises(TypeError, match=escape(match_expr)):
+            create_estimator(model_type, **hyperparameters)
+
+    @pytest.mark.parametrize(
         "model_type",
         [
             42,
@@ -74,11 +92,11 @@ class TestCreateEstimator:
             [1, 2, 3],
         ],
     )
-    def test_create_model_invalid_type(self, model_type: Any) -> None:
+    def test_create_estimator_invalid_type(self, model_type: Any) -> None:
         """Test case when model type is not a string."""
         match_expr = f"{model_type} should be a string"
         with pytest.raises(TypeError, match=escape(match_expr)):
-            create_model(model_type)
+            create_estimator(model_type)
 
     def test_create_model_invalid_value(self) -> None:
         """Test case when model type is invalid."""
