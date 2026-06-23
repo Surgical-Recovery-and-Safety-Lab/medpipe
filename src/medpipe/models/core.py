@@ -4,7 +4,7 @@ Models functions module.
 This module provides functions to core functions for models and pipelines.
 
 Functions:
-- create_model: Creates a new model.
+- create_model: Creates an AI model.
 - test_model: Tests a model on some test data.
 - save_pipeline: Saves a pipeline with joblib.
 - load_pipeline: Loads a pipeline with joblib.
@@ -15,49 +15,35 @@ Functions:
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Type
 
 import joblib
 import numpy as np
-from sklearn.ensemble import HistGradientBoostingClassifier
-from sklearn.isotonic import IsotonicRegression
-from sklearn.linear_model import LogisticRegression
+import sklearn
 
 from medpipe._types import FullProba, Labels, Model, PosProba
 from medpipe.metrics.core import compute_pred_metrics, compute_score_metrics
 from medpipe.utils.exceptions import array_check, file_checks
-from medpipe.utils.logger import print_message
 
 SCRIPT_NAME = "models/core"
 
 if TYPE_CHECKING:
-    import logging
 
     import numpy.typing as npt
 
     from medpipe.pipeline.pipeline import MedpipePipeline
 
 
-def create_estimator(
-    model_type: str,
-    logger: logging.Logger | None = None,
-    quiet: bool = False,
-    **config_params,
-) -> Model:
+def create_estimator(model_type: str, **hyperparameters) -> Model:
     """
-    Creates a AI model.
+    Creates an AI model based on the input model type.
 
     Parameters
     ----------
-    model_type : {"hgb-c", "logistic", "isotonic"}
-        Type of model to create.
-            hgb-c: histogram gradient boosting classifier.
-            logistic: logistic regression.
-            isotonic: isotonic regression.
-    quiet : bool, default: False
-        Flag to create a model without printing.
-    **config_params : dict[str, int | float | bool | str]
-        Configuration parameters for the model.
+    model_type : str
+        Type of estimator to create.
+    **hyperparameters
+        Configuration parameters for the estimator.
 
     Returns
     -------
@@ -69,40 +55,52 @@ def create_estimator(
     TypeError
         If model_type is not a str.
         If an unexpected keyword argument is present.
-    ValueError
-        If model_type is not "hgb-c", "logistic" or "isotonic".
 
     """
     if type(model_type) is not str:
         raise TypeError(f"{model_type} should be a string")
 
-    match model_type:
-        case "hgb-c":
-            if not quiet:
-                print_message(
-                    "Creating a Histogram Gradient Boosting Classifier",
-                    logger,
-                    SCRIPT_NAME,
-                )
-            model = HistGradientBoostingClassifier(**config_params)
-        case "logistic":
-            if not quiet:
-                print_message(
-                    "Creating a Logistic Regression calibrator", logger, SCRIPT_NAME
-                )
-            model = LogisticRegression(**config_params)
+    estimator = _check_model_type(model_type)
 
-        case "isotonic":
-            if not quiet:
-                print_message(
-                    "Creating an Isotonic Regression calibrator", logger, SCRIPT_NAME
-                )
-            model = IsotonicRegression(**config_params)
+    return estimator(**hyperparameters)
 
-        case _:
-            raise ValueError(f"{model_type} invalid model type. See function docstring")
 
-    return model
+def _check_model_type(model_type: str) -> Type:
+    """
+    Internal function that checks if the model type is correct.
+
+    Currently checks the sklearn.ensemble, sklearn.isotonic, and
+    sklearn.linear_model.
+
+    Parameters
+    ----------
+    model_type : str
+        Estimator name.
+
+    Returns
+    -------
+    estimator : Type
+        Estimator class.
+
+    Raises
+    ------
+    ValueError
+        If the model type is not a valid class in one of the modules.
+
+    """
+    if hasattr(sklearn.ensemble, model_type):
+        return getattr(sklearn.ensemble, model_type)
+
+    if hasattr(sklearn.linear_model, model_type):
+        return getattr(sklearn.linear_model, model_type)
+
+    if hasattr(sklearn.isotonic, model_type):
+        return getattr(sklearn.isotonic, model_type)
+
+    raise ValueError(
+        f"{model_type} is not found in sklearn.ensemble, sklearn.linear_model, or "
+        "sklearn.isotonic, please check that the operation matches"
+    )
 
 
 def test_model(
