@@ -40,7 +40,7 @@ if TYPE_CHECKING:
     import numpy.typing as npt
 
 
-class Pipeline:
+class MedpipePipeline(Pipeline):
     """
      Class that creates a Pipeline.
 
