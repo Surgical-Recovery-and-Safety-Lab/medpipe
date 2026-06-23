@@ -150,10 +150,7 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
         )
 
         # Setup preprocessor
-        preprocessing_steps = self._set_preprocessing_steps()
-        self.preprocessor = (  # Set preprocessor to Pipeline or None
-            Pipeline(steps=preprocessing_steps) if preprocessing_steps else None
-        )
+        self.preprocessor = self._set_preprocessing_steps()
 
         # Create empty dictionary
         self.predictor = {}
