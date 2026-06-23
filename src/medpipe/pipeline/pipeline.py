@@ -1,7 +1,7 @@
 """
-Pipeline class.
+MedpipePipeline class.
 
-This class creates a Pipeline to prepare data, fit a predictor and
+This class creates a MedpipePipeline to prepare data, fit a predictor and
 a calibrator.
 
 """
