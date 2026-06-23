@@ -21,7 +21,7 @@ from .metrics import (
     print_metrics_CI,
 )
 from .models import get_full_proba, get_positive_proba, load_pipeline, save_pipeline
-from .pipeline.pipeline import Pipeline
+from .pipeline.pipeline import MedpipePipeline
 from .utils import (
     exception_handler,
     load_data,
@@ -31,7 +31,7 @@ from .utils import (
 )
 
 __all__ = [
-    "Pipeline",
+    "MedpipePipeline",
     "exception_handler",
     "load_data",
     "print_message",
