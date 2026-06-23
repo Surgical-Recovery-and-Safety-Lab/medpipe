@@ -220,7 +220,7 @@ class TestPreprocessOperationConfig:
         """Creates a fresh valid config dict to override."""
         config_dict = {
             "name": "OrdinalEncoder",
-            "feature_list": ["SEX", "ETHNICITY"],
+            "columns": ["SEX", "ETHNICITY"],
         }
 
         config_dict.update(overrides)
@@ -230,6 +230,13 @@ class TestPreprocessOperationConfig:
     def test_valid_config(self) -> None:
         """Pass valid configuration to PreprocessOperationConfig."""
         PreprocessOperationConfig.model_validate(self._get_valid_config_dict())
+
+    def test_valid_columns(self) -> None:
+        """Test case where columns is an empty list."""
+        with pytest.raises(ValueError, match="Columns cannot be an empty list"):
+            PreprocessOperationConfig.model_validate(
+                self._get_valid_config_dict(columns=[])
+            )
 
 
 class TestPreprocessingConfig:
@@ -242,11 +249,11 @@ class TestPreprocessingConfig:
             "operations": [
                 {
                     "name": "OrdinalEncoder",
-                    "feature_list": ["SEX", "ETHNICITY"],
+                    "columns": ["SEX", "ETHNICITY"],
                 },
                 {
                     "name": "StandarScaler",
-                    "feature_list": ["SEX", "ETHNICITY"],
+                    "columns": ["SEX", "ETHNICITY"],
                     "with_mean": True,
                 },
             ],
@@ -640,11 +647,11 @@ class TestWorkflowConfig:
                 "operations": [
                     {
                         "name": "OrdinalEncoder",
-                        "feature_list": ["SEX", "ETHNICITY"],
+                        "columns": ["SEX", "ETHNICITY"],
                     },
                     {
                         "name": "StandarScaler",
-                        "feature_list": ["SEX", "ETHNICITY"],
+                        "columns": ["SEX", "ETHNICITY"],
                         "with_mean": True,
                     },
                 ],
