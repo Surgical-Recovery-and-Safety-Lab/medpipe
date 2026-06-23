@@ -136,7 +136,7 @@ class DataConfig(BaseModel):
 # --- WORKFLOW SCHEMAS
 class PreprocessOperationConfig(BaseModel):
     name: str  # Matches the exact class name
-    feature_list: list[str]  # The specific columns this transformer applies to
+    columns: list[str]  # The specific columns this transformer applies to
     model_config = {"extra": "allow"}
 
 
