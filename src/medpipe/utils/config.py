@@ -85,7 +85,7 @@ class ModelConfig(BaseModel):
 
 
 class CalibrationConfig(BaseModel):
-    method: Literal["isotonic", "logistic"]
+    method: str
     model_config = {"extra": "forbid"}
 
 
