@@ -15,6 +15,7 @@ from warnings import warn
 import numpy as np
 import pandas as pd
 import sklearn
+from scipy.sparse import csr_array, csr_matrix
 from sklearn.base import BaseEstimator, ClassifierMixin
 from sklearn.compose import ColumnTransformer
 
@@ -258,14 +259,13 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
             return preprocess if preprocess else False
         return False
 
-    @available_if(_has_preprocessor)
-    def transform(self, X: pd.DataFrame) -> pd.DataFrame:
+    def transform(self, X: pd.DataFrame | npt.NDArray) -> None:
         """
         Transforms input data based on preprocessor fitted operations.
 
         Parameters
         ----------
-        X : pd.Dataframe
+        X : pd.Dataframe | npt.NDArray
             Data to clean of shape (n_samples, n_features).
 
         Returns
@@ -280,26 +280,27 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
             If no preprocessor object exists.
 
         """
-        if self.preprocessor:
-            return self.preprocessor.transform(X)
+        if self._has_preprocessor():
+            self.preprocessor: ColumnTransformer
+            self.preprocessor.fit(X)
         else:
             warn("No preprocessor object created so data not transformed")
-            return X
 
-    @available_if(_has_preprocessor)
-    def fit_transform(self, X: pd.DataFrame) -> pd.DataFrame:
+    def fit_transform(
+        self, X: pd.DataFrame | npt.NDArray
+    ) -> pd.DataFrame | npt.NDArray | csr_matrix | csr_array:
         """
         Fits the preprocessor operations and transforms the input data.
 
 
         Parameters
         ----------
-        X : pd.Dataframe
+        X : pd.DataFrame | npt.NDArray
             Data to clean of shape (n_samples, n_features).
 
         Returns
         -------
-        data : pd.Dataframe
+        data : pd.DataFrame | npt.NDArray | csr_matrix | csr_array:
              Transformed data of shape (n_samples, n_features).
              Returns X if no preprocessor exists.
 
@@ -309,7 +310,8 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
             If no preprocessor object exists.
 
         """
-        if self.preprocessor:
+        if self._has_preprocessor():
+            self.preprocessor: ColumnTransformer
             return self.preprocessor.fit_transform(X)
         else:
             warn("No preprocessor object created so data not transformed")
