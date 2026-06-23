@@ -98,12 +98,34 @@ class TestCreateEstimator:
         with pytest.raises(TypeError, match=escape(match_expr)):
             create_estimator(model_type)
 
-    def test_create_model_invalid_value(self) -> None:
+
+class TestCheckModelType:
+    """Test class for the _check_model_type function."""
+
+    @pytest.mark.parametrize(
+        "model_type, model_instance",
+        [
+            ("HistGradientBoostingClassifier", HistGradientBoostingClassifier),
+            ("LogisticRegression", LogisticRegression),
+            ("IsotonicRegression", IsotonicRegression),
+        ],
+    )
+    def test_check_model_type_success(
+        self, model_type: str, model_instance: Type
+    ) -> None:
+        """Test successful function call."""
+        model = _check_model_type(model_type)
+
+        assert isinstance(model, model_instance)
+
+    def test_check_model_type_invalid(self) -> None:
         """Test case when model type is invalid."""
-        with pytest.raises(
-            ValueError, match="invalid_type invalid model type. See function docstring"
-        ):
-            create_model(model_type="invalid_type")
+        match_expr = f"invalid_type is not found in sklearn.ensemble, "
+        "sklearn.linear_model, or sklearn.isotonic, "
+        "please check that the operation matches"
+
+        with pytest.raises(ValueError, match=match_expr):
+            _check_model_type(model_type="invalid_type")
 
 
 class TestSavePipeline:
