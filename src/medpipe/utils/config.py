@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import tomllib
 from pathlib import Path
-from typing import Literal, TypeAlias
+from typing import Any, Literal, TypeAlias
 from warnings import warn
 
 from pydantic import BaseModel, Field, field_validator, model_validator
@@ -138,6 +138,13 @@ class PreprocessOperationConfig(BaseModel):
     name: str  # Matches the exact class name
     columns: list[str]  # The specific columns this transformer applies to
     model_config = {"extra": "allow"}
+
+    @field_validator("columns")
+    @classmethod
+    def validate_columns(cls, columns: list[str]) -> None:
+        """Validate that columns are not empty."""
+        if not columns:
+            raise ValueError("Columns cannot be an empty list")
 
 
 class PreprocessingConfig(BaseModel):
