@@ -6,17 +6,19 @@ Models core module test suite.
 
 from pathlib import Path
 from re import escape
-from typing import TYPE_CHECKING, Any, TypeAlias
+from typing import Any, Type
 
 import numpy as np
 import pytest
+from numpy.typing import NDArray
 from sklearn.ensemble import HistGradientBoostingClassifier
 from sklearn.isotonic import IsotonicRegression
 from sklearn.linear_model import LogisticRegression
 
 from medpipe._types import FullProba, PosProba
 from medpipe.models.core import (
-    create_model,
+    _check_model_type,
+    create_estimator,
     get_full_proba,
     get_positive_proba,
     load_pipeline,
