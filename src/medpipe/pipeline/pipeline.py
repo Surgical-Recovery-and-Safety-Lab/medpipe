@@ -9,16 +9,16 @@ a calibrator.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
-from warnings import warn
+from typing import TYPE_CHECKING, Any, Type, overload
 
 import numpy as np
 import pandas as pd
+import sklearn
+from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline, available_if
 
 import medpipe.data.weighting as weight
 from medpipe._types import Data, FullProba, Labels, PosProba, PredData
-from medpipe.data.preprocessing import train_test_it
-from medpipe.data.preprocessor import Preprocessor
 from medpipe.data.sampler import data_sampler
 from medpipe.data.utils import (
     convert_data,
@@ -30,6 +30,7 @@ from medpipe.metrics.core import print_metrics
 from medpipe.models.calibrators import create_calibrator
 from medpipe.models.core import get_positive_proba, test_model
 from medpipe.models.predictors import create_predictor
+from medpipe.utils.config import MedpipeConfig
 from medpipe.utils.io import read_toml_configuration
 from medpipe.utils.logger import print_message
 
@@ -75,50 +76,43 @@ class MedpipePipeline(Pipeline):
 
      Methods
      -------
-     __init__(pipeline_config={}, logger=None)
-         Init method.
      fit_preprocessor(X)
          Fits the preprocessor operations based on input data.
      transform(X)
          Transforms input data based on preprocessor fitted operations.
-     fit_transform(X)
-         Fits the preprocessor operations and transforms the input data.
      fit_model(X, y, model, **kwargs)
          Fits the predictor or calibrator model on the provided dataset.
      test_model(X, y, model, outcomes, key=None)
          Tests the predictor or calibrator model on the provided dataset.
      run(X)
          Run pipeline with input data.
-     _fit_and_evaluate(
-         X_train, y_train, X_test, y_test, label, fold_key, X_cal, y_cal, weights
-         )
-         Helper function to handle the Train -> Test -> Store lifecycle for a single label.
      predict_proba(X)
          Predicts probabilities from predictor or calibrator based on input data.
      predict(X)
          Predicts labels from predictor or calibrator based on input data.
-     _inference_wrapper(X, label, prediction_type)
-         Unified wrapper for predictor and calibrator inference.
-     _prepare_inference_data(X)
-         Ensure group columns are removed before passing to models.
-     _sample_data(X, y, groups)
-         Samples the data based on configuration.
-     _weight_data(y)
-         Gets the weights for the data based on configuration.
-     _get_calibrator_data(X, label)
-         Get the calibrator data based on the calibrator type.
     """
 
+    @overload
+    def __init__(self, config: str | Path, logger: logging.Logger | None) -> None: ...
+
+    @overload
     def __init__(
-        self, config_file: str | Path, logger: logging.Logger | None = None
+        self, config: MedpipeConfig, logger: logging.Logger | None
+    ) -> None: ...
+
+    def __init__(
+        self,
+        config: str | Path | MedpipeConfig,
+        logger: logging.Logger | None = None,
     ) -> None:
         """
-        Initialise a Pipeline class instance.
+        Initialise a MedpipePipeline class instance.
 
         Parameters
         ----------
-        config_file : str | Path
-            Path to the top-level configuration file to load.
+        config : str | Path | MedpipeConfig
+            Path to the top-level configuration file to load or
+            loaded MedpipeConfig.
         logger : logging.Logger | None, default: None
             Logger object to log prints. If None print to terminal.
 
@@ -128,8 +122,16 @@ class MedpipePipeline(Pipeline):
             Nothing is returned.
 
         """
+        if isinstance(config, (str, Path)):
+            self.medpipe_config = read_toml_configuration(config)
+        elif isinstance(config, MedpipeConfig):
+            self.medpipe_config = config
+        else:
+            raise ValueError(
+                "A configuration file or a MedpipeConfig must be specified."
+            )
+
         self.logger = logger
-        self.medpipe_config = read_toml_configuration(config_file)
 
         top_level = (
             self.medpipe_config.top_level.model_dump()
@@ -142,12 +144,18 @@ class MedpipePipeline(Pipeline):
 
         # Get outcomes from configuration
         self.outcomes = self.medpipe_config.data.outcomes
-        self.n_labels = len(self.outcomes)
+        self.n_outcomes = len(self.outcomes)
 
         print_message(
-            f"Setting up Pipeline {self.version} ({self.n_labels} labels)",
+            f"Setting up MedpipePipeline {self.version}",
             self.logger,
             SCRIPT_NAME,
+        )
+
+        # Setup preprocessor
+        preprocessing_steps = self._set_preprocessing_steps()
+        self.preprocessor = (  # Set preprocessor to Pipeline or None
+            Pipeline(steps=preprocessing_steps) if preprocessing_steps else None
         )
 
         # Cache hyperparameters for the loop
@@ -186,40 +194,88 @@ class MedpipePipeline(Pipeline):
                 )
                 self.calibrator_train_outputs[outcome] = {}
 
-        # Preprocessor initialization
-        if self.medpipe_config.workflow.preprocessing:
-            self.preprocessor = Preprocessor(
-                self.medpipe_config.workflow.preprocessing.model_dump(),
-                logger=self.logger,
-            )
-        else:
-            self.preprocessor = None
-
-    def fit_preprocessor(self, X: pd.DataFrame) -> None:
+    def _set_preprocessing_steps(self) -> ColumnTransformer | None:
         """
-        Fits the preprocessor operations based on input data.
-
-        Parameters
-        ----------
-        X : pd.Dataframe
-            Data of shape (n_samples, n_features) to clean.
+        Sets data preprocessing steps if the have been specified.
 
         Returns
         -------
-        None
-            Nothings is returned.
-
-        Warns
-        -----
-        UserWarning
-            If no preprocessor object exists.
+        transformers : ColumnTransformer or None
+            If preprocessing operations are provided return the ColumnTransformer
+            otherwise return None.
 
         """
-        if self.preprocessor:
-            self.preprocessor.fit(X)
-        else:
-            warn("No preprocessor object created so nothing to fit")
+        preprocessing_dict = self.medpipe_config.workflow.preprocessing
+        if preprocessing_dict and preprocessing_dict.preprocess:
+            # Preprocessing config passed with preprocess flag True
+            transformers = []  # Empty list to be passed to the ColumnTransformer
+            if preprocessing_dict.operations:
+                for i, operation in enumerate(preprocessing_dict.operations):
+                    op_type = self._check_operation(operation.name)
+                    op_extras = (
+                        {} if not operation.model_extra else operation.model_extra
+                    )
+                    transformers.append(
+                        (
+                            f"op_{i+1}",
+                            op_type(**op_extras),
+                            operation.columns,
+                        )
+                    )
+            return ColumnTransformer(transformers=transformers, remainder="passthrough")
 
+        return None
+
+    def _check_operation(self, op: str) -> Type:
+        """
+        Internal function that checks if the operation is valid.
+
+        Currently checks the sklearn.preprocessing and sklearn.impute modules.
+
+        Parameters
+        ----------
+        op : str
+            Operation name.
+
+        Returns
+        -------
+        operation : Type
+            Return the attribute if it exists.
+
+        Raises
+        ------
+        ValueError
+            If the operation is invalid.
+
+        """
+        if hasattr(sklearn.preprocessing, op):
+            return getattr(sklearn.preprocessing, op)
+
+        if hasattr(sklearn.impute, op):
+            return getattr(sklearn.impute, op)
+
+        raise ValueError(
+            f"{op} is not found in sklearn.preprocessing or sklearn.impute, "
+            "please check that the operation matches"
+        )
+
+    def _has_preprocessor(self) -> bool:
+        """
+        Internal function that checks for the presence of
+        a preprocessing attribute.
+
+        Returns
+        -------
+        has_preprocessor : bool
+            True if the pipeline has a preprocessor.
+
+        """
+        if self.medpipe_config.workflow.preprocessing:
+            preprocess = self.medpipe_config.workflow.preprocessing.preprocess
+            return preprocess if preprocess else False
+        return False
+
+    @available_if(_has_preprocessor)
     def transform(self, X: pd.DataFrame) -> pd.DataFrame:
         """
         Transforms input data based on preprocessor fitted operations.
@@ -247,6 +303,7 @@ class MedpipePipeline(Pipeline):
             warn("No preprocessor object created so data not transformed")
             return X
 
+    @available_if(_has_preprocessor)
     def fit_transform(self, X: pd.DataFrame) -> pd.DataFrame:
         """
         Fits the preprocessor operations and transforms the input data.
