@@ -5,7 +5,6 @@ preprocess = true  # Perform preprocessing if true
 operations = [
   { name = "OrdinalEncoder", columns = ["SEX", "CATEGORY_LEVEL_1"] },
   { name = "StandardScaler", columns = ["CATEGORY_LEVEL_1"], with_mean = true },
-  { name = "ScoreBinner", columns = ["M3_SCORE"], min = 0, max = 4, step = 1 }
 ]
 
 [validation]

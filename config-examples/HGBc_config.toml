@@ -17,4 +17,4 @@ figure_dir = "figures/"  # Directory to save figures
 algorithm = "HistGradientBoostingClassifier"
 
 [calibration]
-method = "isotonic"
+method = "IsotonicRegression"
