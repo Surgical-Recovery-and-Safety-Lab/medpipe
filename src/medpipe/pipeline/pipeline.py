@@ -10,12 +10,13 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Type, overload
+from warnings import warn
 
 import numpy as np
 import pandas as pd
 import sklearn
+from sklearn.base import BaseEstimator, ClassifierMixin
 from sklearn.compose import ColumnTransformer
-from sklearn.pipeline import Pipeline, available_if
 
 import medpipe.data.weighting as weight
 from medpipe._types import Data, FullProba, Labels, PosProba, PredData
@@ -41,9 +42,9 @@ if TYPE_CHECKING:
     import numpy.typing as npt
 
 
-class MedpipePipeline(Pipeline):
+class MedpipePipeline(BaseEstimator, ClassifierMixin):
     """
-     Class that creates a Pipeline.
+     Class that creates a MedpipePipeline.
 
      Attributes
      ----------
