@@ -3,9 +3,9 @@ preprocess = true  # Perform preprocessing if true
 
 # Operations are run in order
 operations = [
-  { name = "OrdinalEncoder", feature_list = ["SEX", "CATEGORY_LEVEL_1"] },
-  { name = "StandardScaler", feature_list = ["CATEGORY_LEVEL_1"], with_mean = true },
-  { name = "ScoreBinner", feature_list = ["M3_SCORE"], min = 0, max = 4, step = 1 }
+  { name = "OrdinalEncoder", columns = ["SEX", "CATEGORY_LEVEL_1"] },
+  { name = "StandardScaler", columns = ["CATEGORY_LEVEL_1"], with_mean = true },
+  { name = "ScoreBinner", columns = ["M3_SCORE"], min = 0, max = 4, step = 1 }
 ]
 
 [validation]
