@@ -28,9 +28,7 @@ from medpipe.data.utils import (
     get_validation_idx,
 )
 from medpipe.metrics.core import print_metrics
-from medpipe.models.calibrators import create_calibrator
-from medpipe.models.core import get_positive_proba, test_model
-from medpipe.models.predictors import create_predictor
+from medpipe.models.core import create_estimator, get_positive_proba, test_model
 from medpipe.utils.config import MedpipeConfig
 from medpipe.utils.io import read_toml_configuration
 from medpipe.utils.logger import print_message
