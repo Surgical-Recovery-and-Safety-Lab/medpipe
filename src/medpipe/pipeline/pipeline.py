@@ -155,39 +155,28 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
             Pipeline(steps=preprocessing_steps) if preprocessing_steps else None
         )
 
-        # Cache hyperparameters for the loop
-        pred_params = (
-            self.medpipe_config.hyperparameters.hyperparameters.predictor.model_dump()
-        )
-        if self.medpipe_config.hyperparameters.hyperparameters.calibrator:
-            cal_params = (
-                self.medpipe_config.hyperparameters.hyperparameters.calibrator.model_dump()
-            )
-        else:
-            cal_params = {}
-
-        # Efficiently initialize model dictionaries
-        # Using a single loop to populate all per-label attributes
+        # Create empty dictionary
         self.predictor = {}
         self.calibrator = {}
         self.predictor_train_outputs = {}  # Store training outputs
         self.calibrator_train_outputs = {}  # Store training outputs
 
         for outcome in self.outcomes:
-            # Initialize Predictor
-            self.predictor[outcome] = create_predictor(
+            # Initialise predictors
+            self.predictor[outcome] = create_estimator(
                 self.predictor_algo,
-                hyperparameters=pred_params,
-                logger=self.logger,
+                **self.medpipe_config.hyperparameters.hyperparameters.predictor.model_dump(),
             )
             self.predictor_train_outputs[outcome] = {}
 
-            # Initialize Calibrator (if applicable)
-            if self.calibrator_method:
-                self.calibrator[outcome] = create_calibrator(
+            # Initialise calibrators (if applicable)
+            if (
+                self.calibrator_method
+                and self.medpipe_config.hyperparameters.hyperparameters.calibrator
+            ):
+                self.calibrator[outcome] = create_estimator(
                     self.calibrator_method,
-                    hyperparameters=cal_params,
-                    logger=self.logger,
+                    **self.medpipe_config.hyperparameters.hyperparameters.calibrator.model_dump(),
                 )
                 self.calibrator_train_outputs[outcome] = {}
 
