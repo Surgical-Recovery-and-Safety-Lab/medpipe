@@ -27,43 +27,40 @@ from medpipe.models.core import (
 from medpipe.pipeline.pipeline import MedpipePipeline
 
 
-class TestCreateModel:
-    """Test class for the create_model function."""
+class TestCreateEstimator:
+    """Test class for the create_estimator function."""
 
     @pytest.mark.parametrize(
         "model_type, model_instance",
         [
-            ("hgb-c", HistGradientBoostingClassifier),
-            ("logistic", LogisticRegression),
-            ("isotonic", IsotonicRegression),
+            ("HistGradientBoostingClassifier", HistGradientBoostingClassifier),
+            ("LogisticRegression", LogisticRegression),
+            ("IsotonicRegression", IsotonicRegression),
         ],
     )
-    def test_create_model_success(
-        self, model_type: str, model_instance: ModelTypes
+    def test_create_estimator_success(
+        self, model_type: str, model_instance: Type
     ) -> None:
         """Test successful function call."""
-        model = create_model(
-            model_type,
-            logger=None,
-        )
+        model = create_estimator(model_type)
 
         assert isinstance(model, model_instance)
 
     @pytest.mark.parametrize(
-        "model_type, config_params",
+        "model_type, hyperparameters",
         [
-            ("hgb-c", {"learning_rate": 0.5, "max_iter": 2}),
-            ("logistic", {"l1_ratio": 0.3, "max_iter": 10}),
-            ("isotonic", {"out_of_bounds": "clip"}),
+            ("HistGradientBoostingClassifier", {"learning_rate": 0.5, "max_iter": 2}),
+            ("LogisticRegression", {"l1_ratio": 0.3, "max_iter": 10}),
+            ("IsotonicRegression", {"out_of_bounds": "clip"}),
         ],
     )
-    def test_create_model_config_params(
-        self, model_type: str, config_params: dict[str, str | int | float]
+    def test_create_estimator_config_params(
+        self, model_type: str, hyperparameters: dict[str, str | int | float]
     ) -> None:
         """Test that configuration parameters are passed correctly."""
-        model = create_model(model_type, logger=None, quiet=False, **config_params)
+        model = create_estimator(model_type, **hyperparameters)
 
-        for param, value in config_params.items():
+        for param, value in hyperparameters.items():
             # Check that parameters have been changed correctly
             assert model.__getattribute__(param) == value
 
