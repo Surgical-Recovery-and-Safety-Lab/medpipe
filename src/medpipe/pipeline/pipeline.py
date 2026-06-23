@@ -42,53 +42,51 @@ if TYPE_CHECKING:
 
 class MedpipePipeline(BaseEstimator, ClassifierMixin):
     """
-     Class that creates a MedpipePipeline.
+    Class that creates a MedpipePipeline.
 
-     Attributes
-     ----------
-     version : str
-         Version number.
-     outcomes : list[str]
-         List of labels to predict.
-     n_labels : int
-         Number of labels to predict.
-     predictor_algo : str
-         Algorithm used by the predictor.
-     calibrator_method : Literal["isotonic", "logistic"]
-         Method used by the calibrator.
-    preprocessor : Preprocessor | None
-         Data preprocessor object.
-     predictor : dict[str, Predictor]
-         Dictionary of Predictor instances for each label.
-     calibrator : dict[str, Calibrator] | None
-         Dictionary of Calibrator instances for each label.
-     predictor_train_outputs : dict[str, dict[int, PredProba]]
-         Dictionary of predicted probabilities for each predictor
-         The dictionary keys are the labels and the values are
-         the predicted probabilities of the predictor for that fold.
-     calibrator_train_outputs : dict[str, dict[int, PredProba]] | None
-         Dictionary of predicted probabilities for each calibrator
-         The dictionary keys are the labels and the values are
-         the predicted probabilities of the calibrator for that fold.
-     logger : logging.Logger | None, default: None
-         Logger object to log prints. If None print to terminal.
+    Attributes
+    ----------
+    version : str
+        Version number.
+    outcomes : list[str]
+        List of labels to predict.
+    n_labels : int
+        Number of labels to predict.
+    predictor_algo : str
+        Algorithm used by the predictor.
+    calibrator_method : Literal["isotonic", "logistic"]
+        Method used by the calibrator.
+    preprocessor : ColumnTransformer | None
+        Column transformer to preprocess data.
+    predictor : dict[str, Type]
+        Dictionary of predictor instances for each label.
+    calibrator : dict[str, Type] | None
+        Dictionary of calibrator instances for each label.
+    predictor_train_outputs : dict[str, dict[int, PredProba]]
+        Dictionary of predicted probabilities for each predictor
+        The dictionary keys are the labels and the values are
+        the predicted probabilities of the predictor for that fold.
+    calibrator_train_outputs : dict[str, dict[int, PredProba]] | None
+        Dictionary of predicted probabilities for each calibrator
+        The dictionary keys are the labels and the values are
+        the predicted probabilities of the calibrator for that fold.
+    logger : logging.Logger | None, default: None
+        Logger object to log prints. If None print to terminal.
 
-     Methods
-     -------
-     fit_preprocessor(X)
-         Fits the preprocessor operations based on input data.
-     transform(X)
-         Transforms input data based on preprocessor fitted operations.
-     fit_model(X, y, model, **kwargs)
-         Fits the predictor or calibrator model on the provided dataset.
-     test_model(X, y, model, outcomes, key=None)
-         Tests the predictor or calibrator model on the provided dataset.
-     run(X)
-         Run pipeline with input data.
-     predict_proba(X)
-         Predicts probabilities from predictor or calibrator based on input data.
-     predict(X)
-         Predicts labels from predictor or calibrator based on input data.
+    Methods
+    -------
+    transform(X)
+        Transforms input data based on preprocessor fitted operations.
+    fit_model(X, y, model, **kwargs)
+        Fits the predictor or calibrator model on the provided dataset.
+    test_model(X, y, model, outcomes, key=None)
+        Tests the predictor or calibrator model on the provided dataset.
+    run(X)
+        Run pipeline with input data.
+    predict_proba(X)
+        Predicts probabilities from predictor or calibrator based on input data.
+    predict(X)
+        Predicts labels from predictor or calibrator based on input data.
     """
 
     @overload
