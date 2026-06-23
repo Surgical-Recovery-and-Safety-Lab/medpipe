@@ -15,7 +15,7 @@ Functions:
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import joblib
 import numpy as np
@@ -38,7 +38,7 @@ if TYPE_CHECKING:
     from medpipe.pipeline.pipeline import Pipeline
 
 
-def create_model(
+def create_estimator(
     model_type: str,
     logger: logging.Logger | None = None,
     quiet: bool = False,
