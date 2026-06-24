@@ -78,9 +78,71 @@ def get_split_idx(
     return train_idx, other_idx
 
 
+def split_data(
+    features: pd.DataFrame,
+    labels: Labels,
+    strategy: Literal["random", "group"],
+    group_column: str | None = None,
+    values: str | None = None,
+    test_size: float | None = None,
+    recalibration_size: float | None = None,
+) -> tuple[pd.DataFrame, Labels, pd.DataFrame, Labels]:
+    """
+    Split data into train and test or train and recalibration sets.
+
+    Parameters
+    ----------
+    features : pd.DataFrame
+        Features to split.
+    labels : Labels
+        Labels to split.
+    strategy : {"random", "group"}
+        Strategy used to split the data.
+    group_column : str | None, default: None
+        Name of the column used to split with if strategy is group.
+    values : str | None, default: None
+        Values of the group column that do not belong to the train set.
+    test_size : float | None, default: None
+        Test set size if the strategy is random.
+    recalibration_size : float | None, default: None
+        Recalibration set size if the strategy is random.
+
+    Returns
+    -------
+    X_train, X_test : pd.DataFrame
+        Train and test / recalibration set.
+    y_train, y_test : Labels
+        Train and test / recalibration labels.
+
+    """
+    if strategy == "group":
+        train_idx, test_idx = get_split_idx(
+            np.arange(len(features)),
+            features[group_column],  # type: ignore
+            values,  # type: ignore
         )
 
-    return train_idx, val_idx
+        X_train = features.iloc[train_idx]
+        y_train = labels[train_idx]
+        X_test = features.iloc[test_idx]
+        y_test = labels[test_idx]
+
+    elif strategy == "random":
+        try:
+            size = test_size
+        except KeyError:
+            size = recalibration_size
+
+        X_train, y_train, X_test, y_test = train_test_split(
+            features, labels, test_size=size
+        )
+
+    return (
+        cast(pd.DataFrame, X_train),
+        cast(Labels, y_train),
+        cast(pd.DataFrame, X_test),
+        cast(Labels, y_test),
+    )
 
 
 def extract_labels(
