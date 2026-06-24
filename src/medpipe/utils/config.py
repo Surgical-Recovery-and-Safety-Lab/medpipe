@@ -270,13 +270,13 @@ class ModelHyperparamSubConfig(BaseModel):
 
 
 class WeightingConfig(BaseModel):
-    weighting_fn: str | None = Field(default=None)
+    weighting_fn: str
     model_config = {"extra": "forbid"}
 
     @field_validator("weighting_fn")
     @classmethod
-    def validate_weighting_fn(cls, fn: str | None) -> str | None:
-        if fn is not None and fn not in VALID_WEIGHTING_FN:
+    def validate_weighting_fn(cls, fn: str) -> str:
+        if fn not in VALID_WEIGHTING_FN:
             raise ValueError(
                 f"Unknown weighting function {fn} "
                 f"should be one of {VALID_WEIGHTING_FN}"
