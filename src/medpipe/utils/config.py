@@ -332,6 +332,17 @@ class MedpipeConfig(BaseModel):
     hyperparameters: HyperparameterConfig
     model_config = {"extra": "forbid"}
 
+    @model_validator(mode="after")
+    def validate_recalibration(self) -> "MedpipeConfig":
+        """Check recalibration split is specified with recalibration method."""
+        if self.top_level.calibration:  # Recalibration is present
+            if not self.workflow.validation.recalibration_split:
+                raise ValueError(
+                    "Recalibration validation split must be "
+                    "specified when a recalibration method is used"
+                )
+        return self
+
 
 # ==============================================================================
 # CONFIGURATION FUNCTIONS
