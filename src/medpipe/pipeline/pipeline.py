@@ -151,7 +151,9 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
         )
 
         # Setup preprocessor
-        self.preprocessor = self._set_preprocessing_steps()
+        self.preprocessor = (
+            self._set_preprocessing_steps() if self._has_preprocessor() else None
+        )
 
         # Create empty dictionary
         self.predictor = {}
@@ -246,7 +248,7 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
     def _has_preprocessor(self) -> bool:
         """
         Internal function that checks for the presence of
-        a preprocessing attribute.
+        the preprocessing attributes.
 
         Returns
         -------
@@ -280,8 +282,7 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
             If no preprocessor object exists.
 
         """
-        if self._has_preprocessor():
-            self.preprocessor: ColumnTransformer
+        if self.preprocessor:
             self.preprocessor.fit(X)
         else:
             warn("No preprocessor object created so data not transformed")
@@ -310,8 +311,7 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
             If no preprocessor object exists.
 
         """
-        if self._has_preprocessor():
-            self.preprocessor: ColumnTransformer
+        if self.preprocessor:
             return self.preprocessor.fit_transform(X)
         else:
             warn("No preprocessor object created so data not transformed")
