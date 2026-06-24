@@ -935,6 +935,13 @@ class TestMedpipeConfig:
                         "strategy": "random",
                         "test_size": 0.1,
                     },
+                    "recalibration_split": {
+                        "strategy": "group",
+                        "group_column": "OP_YEAR",
+                        "values": [2024],
+                        "recalibration_size": None,
+                        "drop_group_column": True,
+                    },
                 },
             },
             "hyperparameters": {
@@ -951,6 +958,20 @@ class TestMedpipeConfig:
     def test_valid_config(self, tmp_path: Path) -> None:
         """Pass valid configuration to MedpipeConfig."""
         MedpipeConfig.model_validate(self._get_valid_config_dict(tmp_path))
+
+    def test_recalibration_split(self, tmp_path: Path) -> None:
+        """Test case when recalibration method and split mismatch."""
+        match_expr = "Recalibration validation split must be "
+        "specified when a recalibration method is used"
+        validation_dict = {"test_split": {"strategy": "random", "test_size": 0.1}}
+
+        with pytest.raises(ValueError, match=match_expr):
+            MedpipeConfig.model_validate(
+                self._get_valid_config_dict(
+                    tmp_path,
+                    **{"workflow": {"validation": validation_dict}},
+                )
+            )
 
 
 # ==============================================================================
