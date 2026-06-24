@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import tomllib
 from pathlib import Path
-from typing import Any, Literal, TypeAlias
+from typing import Literal, TypeAlias
 from warnings import warn
 
 from pydantic import BaseModel, Field, field_validator, model_validator
@@ -285,15 +285,15 @@ class WeightingConfig(BaseModel):
 
 
 class SamplingConfig(BaseModel):
-    sampler_fn: str | None = Field(default=None)
-    reduction_factor: float | None = Field(default=None, ge=0.0, le=1.0)
+    sampler_fn: str
+    reduction_factor: float = Field(default=0.5, ge=0.0, le=1.0)
     hard_percent: float | None = Field(default=None, gt=0.0, lt=1.0)
     model_config = {"extra": "forbid"}
 
     @field_validator("sampler_fn")
     @classmethod
-    def validate_sampler_fn(cls, fn: str | None) -> str | None:
-        if fn is not None and fn not in VALID_SAMPLER_FN:
+    def validate_sampler_fn(cls, fn: str) -> str:
+        if fn not in VALID_SAMPLER_FN:
             raise ValueError(
                 f"Unknown sampler function {fn} " f"should be one of {VALID_SAMPLER_FN}"
             )
@@ -301,11 +301,6 @@ class SamplingConfig(BaseModel):
 
     @model_validator(mode="after")
     def validate_sampler_interactions(self) -> "SamplingConfig":
-        if self.sampler_fn and not self.reduction_factor:
-            raise ValueError(
-                "The sampler function requires a reduction factor to be specified"
-            )
-
         mean_sampler_fn = ["mean_dist_sampler", "group_mean_dist_sampler"]
         if self.sampler_fn in mean_sampler_fn and not self.hard_percent:
             raise ValueError(
