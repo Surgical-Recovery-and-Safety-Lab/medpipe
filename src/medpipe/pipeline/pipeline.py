@@ -18,6 +18,9 @@ import sklearn
 from scipy.sparse import csr_array, csr_matrix
 from sklearn.base import BaseEstimator, ClassifierMixin
 from sklearn.compose import ColumnTransformer
+from sklearn.exceptions import NotFittedError
+from sklearn.model_selection import cross_val_predict
+from sklearn.utils.validation import check_if_fitted
 
 import medpipe.data.weighting as weight
 from medpipe._types import Data, FullProba, Labels, PosProba, PredData
@@ -317,56 +320,62 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
             warn("No preprocessor object created so data not transformed")
             return X
 
-    def get_test_data(
-        self, X: pd.DataFrame, test_group_vals: list[Any] | None = None
-    ) -> tuple[pd.DataFrame, pd.DataFrame]:
+    def fit(
+        self,
+        X: PredData,
+        y: Labels,
+        X_cal: FullProba | None = None,
+        y_cal: Labels | None = None,
+    ) -> None:
         """
-        Returns train and test data based on input data.
+        Fit the MedpipePipeline estimators.
+
+        X is transformed if there is a preprocessor object.
 
         Parameters
         ----------
-        X : pd.DataFrame
-            Data of shape (n_samples, n_features) to split.
-        test_group_vals : list[Any] | None, default: None
-            Group values that should be in the test set.
+        X : PredData
+            Data to fit on of shape (n_samples, n_features).
+        y : Labels
+            Ground truth labels of shape (n_samples,).
+        X_cal : FullProba | None
+            Calibration data to train the calibrator of shape (n_samples, 2) or None.
+        y_cal : Labels | None
+            Ground truth labels for the calibration data of shape (n_samples,).
 
         Returns
         -------
-        X_train : pd.DataFrame
-            Train set of shape (n_samples, n_features).
-        X_test : pd.DataFrame
-            Test set of shape (n_samples, n_features).
+        None
+            Nothing is returned.
+
+        Raises
+        ------
+        ValueError
+            If no calibration data is specified with a calibrator.
 
         """
-        # Access config with defaults
-        split_vars = self.preprocessor_config.get("split_variables", {})
-        group_col = split_vars.get("group_name")
-        test_size = split_vars.get("test_size", 0.1)
-
-        # Determine indices
-        indices = np.arange(len(X))
-
-        if group_col and test_group_vals:
-            # Group-based split using the optimized utility
-            groups = X[group_col].to_numpy()
-            train_idx, test_idx = get_validation_idx(
-                indices, groups=groups, group_vals=test_group_vals
-            )
+        if self.preprocessor:
+            try:  # Transform or fit and transform training data
+                check_if_fitted(self.preprocessor)
+                X_train = self.transform(X)
+            except NotFittedError:
+                X_train = self.fit_transform(X)
         else:
-            # Standard random split
-            train_idx, test_idx = get_validation_idx(indices, val_size=test_size)
+            X_train = X
 
-        # Extract and return
-        return X.iloc[train_idx], X.iloc[test_idx]
+        for outcome in self.outcomes:
+            self.predictor[outcome].fit(X_train, y)
 
-    def fit_model(
-        self,
-        X: Data,
-        y: Labels,
-        model: str,
-        label: str,
-        weights: npt.NDArray = np.array([]),
-    ) -> None:
+            if self.calibrator:
+                # Fit the calibrators if specified
+                if X_cal is None or y_cal is None:
+                    raise ValueError(
+                        f"Cannot fit {outcome} calibrator without calibration data"
+                    )
+                raw_outputs = self.predictor[outcome].predict_proba(X_cal)
+                self.calibrator[outcome].fit(raw_outputs, y_cal)
+
+    def run(self) -> None:
         """
         Fits the predictor or calibrator model on the provided dataset.
 
