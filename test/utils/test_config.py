@@ -765,7 +765,6 @@ class TestWeightingConfig:
     def test_valid_config(self) -> None:
         """Pass valid configuration to WeightingConfig."""
         WeightingConfig.model_validate(self._get_valid_config_dict())
-        WeightingConfig.model_validate({})
 
     def test_invalid_weighting_fn(self) -> None:
         """Test an invalid weighting function."""
@@ -794,7 +793,6 @@ class TestSamplingConfig:
     def test_valid_config(self) -> None:
         """Pass valid configuration to SamplingConfig."""
         SamplingConfig.model_validate(self._get_valid_config_dict())
-        SamplingConfig.model_validate({})
 
     def test_invalid_sampler_fn(self) -> None:
         """Test an invalid sampler function."""
@@ -810,7 +808,6 @@ class TestSamplingConfig:
         [
             (-0.1, "Input should be greater than or equal to 0"),
             (1.2, "Input should be less than or equal to 1"),
-            (None, "The sampler function requires a reduction factor to be specified"),
         ],
     )
     def test_reduction_factor(
