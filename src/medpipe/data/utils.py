@@ -4,7 +4,7 @@ Utility functions module.
 This module provides utility functions for data manipulation.
 
 Functions:
-- get_validation_idx: Removes some of the indices to create a validation set.
+- get_split_idx: Returns the indices for the data splits.
 - extract_labels: Extracts prediction labels from data.
 - downcast_dtypes: Downcasts the float and int dtypes in data.
 - convert_data: Convert data to a ndarray if possible.
@@ -12,11 +12,11 @@ Functions:
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Literal, cast
 
 import numpy as np
 import pandas as pd
-import sklearn as skl
+from sklearn.model_selection import train_test_split
 
 from medpipe._types import Labels, PredData
 from medpipe.utils.exceptions import array_check, array_dim_check
@@ -25,84 +25,59 @@ if TYPE_CHECKING:
     import numpy.typing as npt
 
 
-def get_validation_idx(
+def get_split_idx(
     idx_list: npt.NDArray,
-    groups: pd.Series | npt.NDArray = np.array([]),
-    group_vals: list[Any] | None = None,
-    val_size: float = 0.1,
+    column: pd.Series | npt.NDArray,
+    values: list[str | int],
 ) -> tuple[npt.NDArray, npt.NDArray]:
     """
-    Removes some of the indices to create a validation set.
-
-    If groups are provided and group_vals is None, all the indices of
-    the group with the largest value are selected as the validation set.
-    If group_vals is specified with groups, then the group_vals are
-    selected as the validation/test set.
+    Returns the indices for the data splits.
 
     Parameters
     ----------
     idx_list : npt.NDArray
         Indices of the set to split of shape (n_samples,).
-    groups : pd.Series | npt.NDArray, default: np.array([])
-        Groups of shape (n_samples,) to which the train indices belong or empty.
-    group_vals : list[Any] | None, default: None
-        Group values that should be in the test set.
-    val_size : float, default: 0.1
-        Size of the validation set if groups are None.
+    column : pd.Series | npt.NDArray
+        Column of shape (n_samples,) used to split the data.
+    values : list[str | int]
+        Group values that should be in the test or recalibration set.
 
     Returns
     -------
     train_idx : npt.NDArray
         Train indices.
-    val_idx : npt.NDArray
-        Validation indices.
+    other_idx : npt.NDArray
+        Other indices for the test or recalibration set.
 
     Raises
     ------
     TypeError
-        If groups is not pd.Series or np.ndarray.
-        If group_vals is not iterable.
-        If group_vals is not a list or a np.ndarray.
-        If val_size is not a float.
-    ValueError
-        If val_size < 0 or val_size > 1.
+        If column is not pd.Series or np.ndarray.
+        If values is not a list or a np.ndarray.
 
     """
     array_check(idx_list)
 
     # Standardize groups to numpy
-    if isinstance(groups, pd.Series):
-        groups = groups.to_numpy()
-    elif not isinstance(groups, np.ndarray):
-        raise TypeError(f"groups should be pd.Series or np.array, got {type(groups)}")
+    if isinstance(column, pd.Series):
+        column = column.to_numpy()
+    elif not isinstance(column, np.ndarray):
+        raise TypeError(f"column should be pd.Series or np.array, got {type(column)}")
 
-    if groups.size != 0:
-        array_dim_check(idx_list, groups, dim=0)
+    array_dim_check(idx_list, column, dim=0)  # Ensure dimension match
 
-        if group_vals is not None:
-            # Type checking validation
-            if not isinstance(group_vals, (list, np.ndarray)):
-                raise TypeError("group_vals should be list or array")
+    # Type checking validation
+    if not isinstance(values, (list, np.ndarray)):
+        raise TypeError("values should be list or array")
 
-            # Vectorized selection: Find where 'groups' matches any value in 'group_vals'
-            val_mask = np.isin(groups, group_vals)
-            val_idx = np.where(val_mask)[0]
-            train_idx = np.where(~val_mask)[0]
-        else:
-            # Default: Take the largest group ID as validation
-            group_max = np.max(groups)
-            val_mask = groups == group_max
-            val_idx = np.where(val_mask)[0]
-            train_idx = np.where(~val_mask)[0]
+    # Vectorized selection: Find where 'column' matches any value in 'values'
+    val_mask = np.isin(column, values)
+    other_idx = np.where(val_mask)[0]
+    train_idx = np.where(~val_mask)[0]
 
-    else:
-        if not isinstance(val_size, float):
-            raise TypeError(f"val_size should be a float, but got {type(val_size)}")
-        if not (0.0 <= val_size <= 1.0):
-            raise ValueError(f"val_size should be between 0 and 1, but got {val_size}")
+    return train_idx, other_idx
 
-        train_idx, val_idx = skl.model_selection.train_test_split(
-            idx_list, test_size=val_size, random_state=42
+
         )
 
     return train_idx, val_idx
