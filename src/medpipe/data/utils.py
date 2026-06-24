@@ -170,8 +170,8 @@ def extract_labels(
     TypeError
         If data is not a pd.DataFrame.
     TypeError
-        If labels is not list(str).
-    KeyError
+        If labels is not list[str].
+    ValueError
         If a prediction label is not a valid key.
 
     """
@@ -183,6 +183,10 @@ def extract_labels(
         raise TypeError(f"labels should contain strings, but got {type(labels[0])}")
 
     # .drop() and column selection are already highly optimized in Pandas
+    for label in labels:
+        if label not in data.columns:
+            raise ValueError(f"{label} was not found in data")
+
     X = data.drop(columns=labels)
     y = data[labels].to_numpy()
 
