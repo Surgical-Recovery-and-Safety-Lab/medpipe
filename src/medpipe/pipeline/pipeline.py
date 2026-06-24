@@ -29,7 +29,8 @@ from medpipe.data.utils import (
     convert_data,
     extract_labels,
     get_data_from_idx,
-    get_validation_idx,
+    get_split_idx,
+    split_data,
 )
 from medpipe.metrics.core import print_metrics
 from medpipe.models.core import create_estimator, get_positive_proba, test_model
@@ -263,6 +264,57 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
             preprocess = self.medpipe_config.workflow.preprocessing.preprocess
             return preprocess if preprocess else False
         return False
+
+    def _get_data_sets(
+        self, data: pd.DataFrame
+    ) -> tuple[PredData, Labels, PredData, Labels, PredData | None, Labels | None]:
+        """
+        Splits data into train, test, and calibration sets.
+
+        Returns in order X_train, y_train, X_test, y_test, X_recal, y_recal.
+        If no calibration is required, X_recal and y_recal are None.
+
+        Parameters
+        ----------
+        data : PredData
+            Data to split.
+
+        Returns
+        -------
+        X_train, X_test : PredData
+            Train and test data.
+        y_train, y_test : Labels
+            Train and test labels.
+        X_recal : PredData | None
+            Calibration data if needed in the pipeline, None otherwise.
+        y_recal : Labels | None
+            Calibration labels if needed in the pipeline, None otherwise.
+
+        """
+        # Extract labels from the data
+        features, labels = extract_labels(data, self.outcomes)
+
+        test_split_config = self.medpipe_config.workflow.validation.test_split
+
+        # Set to default value None
+        X_recal = None
+        y_recal = None
+
+        # Split test set
+        X_train, y_train, X_test, y_test = split_data(
+            features, labels, **test_split_config.model_dump()
+        )
+
+        if self.medpipe_config.workflow.validation.recalibration_split:
+            # Split recalibration set
+            recal_split_config = (
+                self.medpipe_config.workflow.validation.recalibration_split
+            )
+            _, _, X_recal, y_recal = split_data(
+                features, labels, **recal_split_config.model_dump()
+            )
+
+        return X_train, y_train, X_test, y_test, X_recal, y_recal
 
     def transform(self, X: pd.DataFrame | npt.NDArray) -> None:
         """
