@@ -1,0 +1,77 @@
+AGE,SEX,PRIOR_CANCER,ADMISSION_ACUITY,ADMISSION_SOURCE,CATEGORY_LEVEL_1,OP_SEVERITY,DHB_NAME,OP_YEAR,MORTALITY_30D,ANY_COMP
+19,F,0,Acute,Routine,Obstetrics & Gynaecology,2,Auckland,2024,0,1
+29,M,1,Acute,Routine,General Surgery,3,Auckland,2024,1,1
+23,M,1,Acute,Routine,Plastics,2,Wellington,2024,1,0
+33,M,1,Acute,Routine,Plastics,2,Christchruch,2024,0,0
+32,F,1,Acute,Routine,General Surgery,2,Auckland,2024,0,0
+23,F,1,Acute,Routine,Plastics,2,Wellington,2024,0,0
+53,M,0,Elective,Routine,General Surgery,2,Wellington,2024,0,0
+83,M,0,Acute,Routine,Plastics,2,Christchruch,2024,0,0
+71,F,1,Elective,Routine,Orthopaedics,1,Auckland,2024,0,1
+71,F,1,Elective,Routine,Orthopaedics,1,Wellington,2024,1,0
+71,F,1,Elective,Routine,Orthopaedics,1,Christchruch,2024,1,1
+71,F,1,Elective,Routine,Orthopaedics,1,Wellington,2024,0,0
+71,F,1,Elective,Routine,Orthopaedics,1,Wellington,2024,0,0
+71,F,1,Elective,Routine,Orthopaedics,1,Auckland,2024,0,0
+71,F,1,Elective,Routine,Orthopaedics,1,Auckland,2024,0,0
+71,F,1,Elective,Routine,Orthopaedics,1,Wellington,2024,0,0
+71,F,1,Elective,Routine,Orthopaedics,1,Wellington,2024,0,0
+71,F,1,Elective,Routine,Orthopaedics,1,Auckland,2024,0,0
+71,F,1,Elective,Routine,Orthopaedics,1,Auckland,2024,0,0
+18,M,0,Elective,Routine,Orthopaedics,3,Auckland,2023,0,1
+50,M,0,Acute,Routine,Plastics,2,Wellington,2023,1,1
+63,F,0,Acute,Routine,General Surgery,2,Christchruch,2023,1,0
+35,F,0,Acute,Routine,Plastics,1,Christchruch,2023,0,0
+44,F,0,Acute,Routine,Plastics,4,Christchruch,2023,0,0
+68,M,0,Acute,Routine,Plastics,3,Wellington,2023,0,0
+25,F,0,Acute,Routine,Plastics,2,Christchruch,2023,0,1
+90,M,0,Acute,Routine,Plastics,2,Auckland,2023,1,0
+85,M,0,Acute,Routine,Plastics,3,Wellington,2023,1,1
+85,M,0,Acute,Routine,Plastics,3,Christchruch,2023,0,1
+85,M,0,Acute,Routine,Plastics,3,Christchruch,2023,0,0
+85,M,0,Acute,Routine,Plastics,3,Christchruch,2023,0,0
+85,M,0,Acute,Routine,Plastics,3,Wellington,2023,0,0
+85,M,0,Acute,Routine,Plastics,3,Auckland,2023,0,0
+85,M,0,Acute,Routine,Plastics,3,Auckland,2023,0,0
+85,M,0,Acute,Routine,Plastics,3,Wellington,2023,0,0
+85,M,0,Acute,Routine,Plastics,3,Wellington,2023,0,0
+85,M,0,Acute,Routine,Plastics,3,Wellington,2023,0,0
+85,M,0,Acute,Routine,Plastics,3,Christchruch,2023,0,0
+19,F,0,Acute,Routine,Obstetrics & Gynaecology,2,Christchruch,2022,0,1
+84,M,1,Acute,Routine,General Surgery,3,Christchruch,2022,1,1
+27,M,1,Acute,Routine,Plastics,2,Christchruch,2022,1,0
+41,M,0,Acute,Routine,Plastics,2,Christchruch,2022,0,0
+21,F,0,Elective,Routine,General Surgery,1,Christchruch,2022,0,0
+21,F,0,Elective,Routine,General Surgery,1,Wellington,2022,0,0
+21,F,0,Elective,Routine,General Surgery,1,Auckland,2022,0,0
+21,F,0,Elective,Routine,General Surgery,1,Auckland,2022,0,0
+21,F,0,Elective,Routine,General Surgery,1,Wellington,2022,0,0
+21,F,0,Elective,Routine,General Surgery,1,Auckland,2022,1,0
+21,F,0,Elective,Routine,General Surgery,1,Auckland,2022,0,1
+21,F,0,Elective,Routine,General Surgery,1,Wellington,2022,1,1
+21,F,0,Elective,Routine,General Surgery,1,Wellington,2022,0,0
+21,F,0,Elective,Routine,General Surgery,1,Wellington,2022,0,0
+21,F,0,Elective,Routine,General Surgery,1,Christchruch,2022,0,0
+34,M,0,Elective,Routine,Plastics,3,Christchruch,2022,0,0
+51,F,1,Acute,Routine,General Surgery,2,Christchruch,2022,0,0
+77,F,1,Acute,Routine,Plastics,4,Christchruch,2022,0,0
+63,M,1,Elective,Routine,Plastics,2,Wellington,2022,0,0
+88,M,0,Elective,Routine,Orthopaedics,3,Auckland,2021,0,0
+20,M,0,Acute,Routine,Plastics,2,Auckland,2021,1,0
+75,F,0,Acute,Routine,General Surgery,2,Wellington,2021,0,1
+28,M,0,Elective,Routine,General Surgery,3,Christchruch,2021,0,0
+88,M,0,Acute,Routine,Orthopaedics,3,Christchruch,2021,0,0
+55,F,0,Acute,Routine,Orthopaedics,3,Christchruch,2021,0,0
+62,F,0,Elective,Routine,Orthopaedics,1,Wellington,2021,0,0
+89,M,0,Elective,Routine,Plastics,2,Christchruch,2021,0,0
+89,M,0,Elective,Routine,Plastics,2,Auckland,2021,0,0
+89,M,0,Elective,Routine,Plastics,2,Auckland,2021,0,0
+89,M,0,Elective,Routine,Plastics,2,Christchruch,2021,0,1
+89,M,0,Elective,Routine,Plastics,2,Wellington,2021,1,1
+89,M,0,Elective,Routine,Plastics,2,Auckland,2021,1,0
+89,M,0,Elective,Routine,Plastics,2,Auckland,2021,0,0
+89,M,0,Elective,Routine,Plastics,2,Christchruch,2021,0,0
+89,M,0,Elective,Routine,Plastics,2,Christchruch,2021,0,0
+89,M,0,Elective,Routine,Plastics,2,Christchruch,2021,0,0
+89,M,0,Elective,Routine,Plastics,2,Auckland,2021,0,0
+35,F,1,Acute,Routine,Plastics,1,Auckland,2021,1,1
