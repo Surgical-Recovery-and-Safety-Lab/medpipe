@@ -8,11 +8,12 @@ from pathlib import Path
 from typing import Any, Generator
 from unittest.mock import patch
 
+import numpy as np
 import pytest
 from sklearn.compose import ColumnTransformer
 
 from medpipe.pipeline.pipeline import MedpipePipeline
-from medpipe.utils.io import read_toml_configuration
+from medpipe.utils.io import load_data, read_toml_configuration
 
 # ==============================================================================
 # Fixtures for all tests
@@ -136,7 +137,7 @@ class TestHasPreprocessor:
         self, mp_pipeline: MedpipePipeline
     ) -> None:
         """Test cases when _has_preprocesor return False."""
-        mp_pipeline.medpipe_config.workflow.preprocessing.preprocess = False
+        mp_pipeline.medpipe_config.workflow.preprocessing.preprocess = False  # type: ignore
 
         assert mp_pipeline._has_preprocessor() == False
 
@@ -145,3 +146,42 @@ class TestHasPreprocessor:
         assert mp_pipeline._has_preprocessor() == False
 
 
+class TestGetDataSets:
+    """Test class for the _get_data_sets function of the
+    MedpipePipeline class."""
+
+    def test_pipeline_get_data_sets_success(self, mp_pipeline: MedpipePipeline) -> None:
+        """Test successful function call."""
+        mock_data = load_data(mp_pipeline.medpipe_config.data.path)
+
+        group_column = (
+            mp_pipeline.medpipe_config.workflow.validation.test_split.group_column
+        )
+        X_train, _, X_test, _, X_recal, _ = mp_pipeline._get_data_sets(mock_data)
+
+        assert group_column not in X_train.columns
+        assert group_column not in X_test.columns
+        assert X_recal is not None  # Default config has recalibration set
+        assert group_column not in X_recal.columns
+
+    def test_pipeline_get_data_sets_no_recal(
+        self, mp_pipeline: MedpipePipeline
+    ) -> None:
+        """Test case when there is no recalibration."""
+        mock_data = load_data(mp_pipeline.medpipe_config.data.path)
+
+        mp_pipeline.medpipe_config.workflow.validation.recalibration_split = None
+
+        _, _, _, _, X_recal, y_recal = mp_pipeline._get_data_sets(mock_data)
+
+        assert X_recal is None
+        assert y_recal is None
+
+    @pytest.mark.parametrize("data", [3.14, 42, [], {}, (), np.array([])])
+    def test_pipeline_get_data_sets_invalid_data(
+        self, mp_pipeline: MedpipePipeline, data: Any
+    ) -> None:
+        """Test case when the data is not pd.DataFrame."""
+        match_expr = f"data should be a pd.DataFrame, but got {type(data)}"
+        with pytest.raises(TypeError, match=match_expr):
+            mp_pipeline._get_data_sets(data)
