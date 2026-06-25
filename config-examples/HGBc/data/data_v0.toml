@@ -1,5 +1,5 @@
 # Path can be relative or absolute
-path = "../../data/data.csv"  # Example path
+path = "test/test_data.csv"  # Example path
 
 predictors = [
   "AGE",
