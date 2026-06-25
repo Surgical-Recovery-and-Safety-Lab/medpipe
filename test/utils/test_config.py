@@ -323,7 +323,6 @@ class TestSplitTestConfig:
             "group_column": None,
             "values": None,
             "test_size": 0.1,
-            "drop_group_column": None,
         }
 
         config_dict.update(overrides)
@@ -337,7 +336,6 @@ class TestSplitTestConfig:
             "group_column": "OP_YEAR",
             "values": [2024],
             "test_size": None,
-            "drop_group_column": True,
         }
 
         config_dict.update(overrides)
@@ -394,19 +392,17 @@ class TestSplitTestConfig:
             )
 
     @pytest.mark.parametrize(
-        "group_column, values, drop_group_column, match_expr",
+        "group_column, values, match_expr",
         [
-            (None, [2024], True, "a group column to be specified"),
-            ("OP_YEAR", [], True, "values to be specified"),
-            ("OP_YEAR", None, True, "values to be specified"),
-            ("OP_YEAR", [2024], None, "the drop flag to be specified"),
+            (None, [2024], "a group column to be specified"),
+            ("OP_YEAR", [], "values to be specified"),
+            ("OP_YEAR", None, "values to be specified"),
         ],
     )
     def test_group_stragey_interactions(
         self,
         group_column: str | None,
         values: list[str | int] | None,
-        drop_group_column: bool | None,
         match_expr: str,
     ) -> None:
         """Tests interactions between group stragey flag and
@@ -418,7 +414,6 @@ class TestSplitTestConfig:
                 self._get_valid_group_config_dict(
                     group_column=group_column,
                     values=values,
-                    drop_group_column=drop_group_column,
                 )
             )
 
@@ -433,7 +428,6 @@ class TestSplitRecalibrationConfig:
             "group_column": None,
             "values": None,
             "recalibration_size": 0.1,
-            "drop_group_column": None,
         }
 
         config_dict.update(overrides)
@@ -447,7 +441,6 @@ class TestSplitRecalibrationConfig:
             "group_column": "OP_YEAR",
             "values": [2024],
             "recalibration_size": None,
-            "drop_group_column": True,
         }
 
         config_dict.update(overrides)
@@ -516,19 +509,17 @@ class TestSplitRecalibrationConfig:
             )
 
     @pytest.mark.parametrize(
-        "group_column, values, drop_group_column, match_expr",
+        "group_column, values, match_expr",
         [
-            (None, [2024], True, "a group column to be specified"),
-            ("OP_YEAR", [], True, "values to be specified"),
-            ("OP_YEAR", None, True, "values to be specified"),
-            ("OP_YEAR", [2024], None, "the drop flag to be specified"),
+            (None, [2024], "a group column to be specified"),
+            ("OP_YEAR", [], "values to be specified"),
+            ("OP_YEAR", None, "values to be specified"),
         ],
     )
     def test_group_stragey_interactions(
         self,
         group_column: str | None,
         values: list[str | int] | None,
-        drop_group_column: bool | None,
         match_expr: str,
     ) -> None:
         """Tests interactions between group stragey flag and
@@ -540,7 +531,6 @@ class TestSplitRecalibrationConfig:
                 self._get_valid_group_config_dict(
                     group_column=group_column,
                     values=values,
-                    drop_group_column=drop_group_column,
                 )
             )
 
@@ -556,7 +546,6 @@ class TestCrossValConfig:
             "n_splits": 2,
             "shuffle": True,
             "random_state": 0,
-            "drop_group_column": None,
         }
 
         config_dict.update(overrides)
@@ -571,7 +560,6 @@ class TestCrossValConfig:
             "n_splits": 2,
             "shuffle": True,
             "random_state": 0,
-            "drop_group_column": True,
         }
 
         config_dict.update(overrides)
@@ -587,26 +575,23 @@ class TestCrossValConfig:
         assert config.model_dump() == raw_config
 
     @pytest.mark.parametrize(
-        "strategy, group_column, drop_group_column",
+        "strategy, group_column",
         [
-            ("group", "DHB_NAME", True),
-            ("random", "DHB_NAME", None),
-            ("random", None, True),
-            ("random", "DHB_NAME", True),
+            ("group", "DHB_NAME"),
+            ("random", "DHB_NAME"),
+            ("random", None),
         ],
     )
     def test_valid_config_group(
         self,
         strategy: Literal["group", "random"],
         group_column: str | None,
-        drop_group_column: str | None,
     ) -> None:
         """Pass valid configuration from _get_valid_group_config_dict
         to CrossValConfig."""
         raw_config = self._get_valid_group_config_dict(
             strategy=strategy,
             group_column=group_column,
-            drop_group_column=drop_group_column,
         )
         config = CrossValConfig.model_validate(raw_config)
 
@@ -649,28 +634,15 @@ class TestCrossValConfig:
         ):
             CrossValConfig.model_validate(config_dict)
 
-    @pytest.mark.parametrize(
-        "group_column, drop_group_column, match_expr",
-        [
-            (None, True, "a group column to be specified"),
-            ("DHB_NAME", None, "the drop flag to be specified"),
-        ],
-    )
-    def test_group_stragey_interactions(
-        self,
-        group_column: str | None,
-        drop_group_column: bool | None,
-        match_expr: str,
-    ) -> None:
+    def test_group_stragey_interactions(self) -> None:
         """Tests interactions between group stragey flag and
         other parameters."""
         with pytest.raises(
-            ValidationError, match="The group strategy requires " + match_expr
+            ValidationError,
+            match="The group strategy requires a group column to be specified",
         ):
             CrossValConfig.model_validate(
-                self._get_valid_group_config_dict(
-                    group_column=group_column, drop_group_column=drop_group_column
-                )
+                self._get_valid_group_config_dict(group_column=None)
             )
 
 
@@ -683,7 +655,6 @@ class TestValidationSubConfig:
             "test_split": {
                 "strategy": "random",
                 "test_size": 0.1,
-                "drop_group_column": None,
                 "group_column": None,
                 "values": None,
             },
@@ -692,7 +663,6 @@ class TestValidationSubConfig:
                 "group_column": "OP_YEAR",
                 "values": [2024],
                 "recalibration_size": None,
-                "drop_group_column": True,
             },
             "cross_validation": {
                 "strategy": "group",
@@ -700,7 +670,6 @@ class TestValidationSubConfig:
                 "n_splits": 2,
                 "shuffle": True,
                 "random_state": 0,
-                "drop_group_column": True,
             },
         }
         config_dict.update(overrides)
@@ -739,7 +708,6 @@ class TestWorkflowConfig:
                 "test_split": {
                     "strategy": "random",
                     "test_size": 0.1,
-                    "drop_group_column": None,
                     "group_column": None,
                     "values": None,
                 },
@@ -748,7 +716,6 @@ class TestWorkflowConfig:
                     "group_column": "OP_YEAR",
                     "values": [2024],
                     "recalibration_size": None,
-                    "drop_group_column": True,
                 },
                 "cross_validation": {
                     "strategy": "group",
@@ -756,7 +723,6 @@ class TestWorkflowConfig:
                     "n_splits": 2,
                     "shuffle": True,
                     "random_state": 0,
-                    "drop_group_column": True,
                 },
             },
         }
@@ -1048,7 +1014,6 @@ class TestMedpipeConfig:
                         "strategy": "random",
                         "test_size": 0.1,
                         "group_column": None,
-                        "drop_group_column": None,
                         "values": None,
                     },
                     "recalibration_split": {
@@ -1056,7 +1021,6 @@ class TestMedpipeConfig:
                         "group_column": "OP_YEAR",
                         "values": [2024],
                         "recalibration_size": None,
-                        "drop_group_column": True,
                     },
                 },
             },
