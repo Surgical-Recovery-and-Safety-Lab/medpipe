@@ -141,10 +141,11 @@ class PreprocessOperationConfig(BaseModel):
 
     @field_validator("columns")
     @classmethod
-    def validate_columns(cls, columns: list[str]) -> None:
+    def validate_columns(cls, columns: list[str]) -> list[str]:
         """Validate that columns are not empty."""
         if not columns:
             raise ValueError("Columns cannot be an empty list")
+        return columns
 
 
 class PreprocessingConfig(BaseModel):
@@ -212,10 +213,10 @@ class SplitRecalibrationConfig(BaseModel):
 class CrossValConfig(BaseModel):
     strategy: Literal["random", "group"] | None = None
     group_column: str | None = None
-    n_splits: int = Field(default=5, ge=2)
-    shuffle: bool = True
-    random_state: int = Field(default=42, ge=0)
-    drop_group_column: bool | None = True
+    n_splits: int | None = Field(default=None, ge=2)
+    shuffle: bool | None = None
+    random_state: int | None = Field(default=None, ge=0)
+    drop_group_column: bool | None = None
     model_config = {"extra": "forbid"}
 
     @model_validator(mode="after")
