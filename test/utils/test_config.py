@@ -597,13 +597,6 @@ class TestCrossValConfig:
 
         assert config.model_dump() == raw_config
 
-    def test_valid_config_None(self) -> None:
-        """Test case when configuration is empty dictionary."""
-        config = CrossValConfig.model_validate({})
-
-        for value in config.model_dump().values():
-            assert value == None
-
     @pytest.mark.parametrize("strategy", ["random", "group"])
     def test_n_splits_limits(self, strategy: str) -> None:
         """Test the n_splits limits strategy."""
@@ -1009,7 +1002,13 @@ class TestMedpipeConfig:
             "workflow": {
                 "preprocessing": None,
                 "validation": {
-                    "cross_validation": None,
+                    "cross_validation": {
+                        "strategy": "random",
+                        "n_splits": 5,
+                        "shuffle": True,
+                        "random_state": 42,
+                        "group_column": None,
+                    },
                     "test_split": {
                         "strategy": "random",
                         "test_size": 0.1,
@@ -1047,7 +1046,10 @@ class TestMedpipeConfig:
         """Test case when recalibration method and split mismatch."""
         match_expr = "Recalibration validation split must be "
         "specified when a recalibration method is used"
-        validation_dict = {"test_split": {"strategy": "random", "test_size": 0.1}}
+        validation_dict = {
+            "test_split": {"strategy": "random", "test_size": 0.1},
+            "cross_validation": {"strategy": "random", "n_splits": 5},
+        }
 
         with pytest.raises(ValueError, match=match_expr):
             MedpipeConfig.model_validate(

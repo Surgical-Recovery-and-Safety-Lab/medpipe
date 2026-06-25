@@ -165,7 +165,6 @@ class SplitTestConfig(BaseModel):
     group_column: str | None = None
     values: list[str | int] | None = None
     test_size: float | None = Field(default=None, gt=0.0, lt=1.0)
-    drop_group_column: bool | None = None
     model_config = {"extra": "forbid"}
 
     @model_validator(mode="after")
@@ -179,8 +178,6 @@ class SplitTestConfig(BaseModel):
                 raise ValueError(msg + "a group column to be specified")
             elif not self.values:
                 raise ValueError(msg + "values to be specified")
-            elif type(self.drop_group_column) is not bool:
-                raise ValueError(msg + "the drop flag to be specified")
 
         return self
 
@@ -190,7 +187,6 @@ class SplitRecalibrationConfig(BaseModel):
     group_column: str | None = None
     values: list[str | int] | None = None
     recalibration_size: float | None = Field(default=None, gt=0.0, lt=1.0)
-    drop_group_column: bool | None = None
     model_config = {"extra": "forbid"}
 
     @model_validator(mode="after")
@@ -204,19 +200,16 @@ class SplitRecalibrationConfig(BaseModel):
                 raise ValueError(msg + "a group column to be specified")
             elif not self.values:
                 raise ValueError(msg + "values to be specified")
-            elif type(self.drop_group_column) is not bool:
-                raise ValueError(msg + "the drop flag to be specified")
 
         return self
 
 
 class CrossValConfig(BaseModel):
-    strategy: Literal["random", "group"] | None = None
+    strategy: Literal["random", "group"]
     group_column: str | None = None
-    n_splits: int | None = Field(default=None, ge=2)
+    n_splits: int = Field(default=2, ge=2)
     shuffle: bool | None = None
     random_state: int | None = Field(default=None, ge=0)
-    drop_group_column: bool | None = None
     model_config = {"extra": "forbid"}
 
     @model_validator(mode="after")
@@ -225,19 +218,13 @@ class CrossValConfig(BaseModel):
             raise ValueError(
                 "The group strategy requires a group column to be specified"
             )
-
-        if self.strategy == "group" and not isinstance(self.drop_group_column, bool):
-            raise ValueError(
-                "The group strategy requires the drop flag to be specified"
-            )
-
         return self
 
 
 class ValidationSubConfig(BaseModel):
     test_split: SplitTestConfig
+    cross_validation: CrossValConfig
     recalibration_split: SplitRecalibrationConfig | None = None
-    cross_validation: CrossValConfig | None = None
 
     model_config = {"extra": "forbid"}
 
