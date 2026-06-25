@@ -133,7 +133,17 @@ def split_data(
         If test_size or recalibration_size not specified with random strategy.
 
     """
+    if not isinstance(features, pd.DataFrame):
+        raise TypeError(f"features should be a pd.DataFrame, but got {type(features)}")
+    if not isinstance(labels, np.ndarray):
+        raise TypeError(f"labels should be a np.array, but got {type(labels)}")
+
     if strategy == "group":
+        if not group_column or not values:
+            raise ValueError(
+                "group_column and values must be specified with group strategy"
+            )
+
         train_idx, test_idx = get_split_idx(
             np.arange(len(features)),
             features[group_column],  # type: ignore
@@ -146,14 +156,21 @@ def split_data(
         y_test = labels[test_idx]
 
     elif strategy == "random":
-        try:
+        if test_size:
             size = test_size
-        except KeyError:
+        elif recalibration_size:
             size = recalibration_size
+        else:
+            raise ValueError(
+                "test_size or recalibration_size must be specified with random strategy"
+            )
 
-        X_train, y_train, X_test, y_test = train_test_split(
+        X_train, X_test, y_train, y_test = train_test_split(
             features, labels, test_size=size
         )
+
+    else:
+        raise ValueError(f"strategy should be random or group, but got {strategy}")
 
     return (
         cast(pd.DataFrame, X_train),
