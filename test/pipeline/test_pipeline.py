@@ -76,7 +76,7 @@ class TestCheckOp:
     """Test class for the _check_op function of the MedpipePipeline class."""
 
     @pytest.mark.parametrize("op", ("StandardScaler", "SimpleImputer"))
-    def test_pipeline_check_operation(
+    def test_pipeline_check_operation_success(
         self, mp_pipeline: MedpipePipeline, op: str
     ) -> None:
         """Test successful function call."""
