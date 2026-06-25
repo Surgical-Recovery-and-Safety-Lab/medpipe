@@ -265,9 +265,14 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
             return preprocess if preprocess else False
         return False
 
-    def _get_data_sets(
-        self, data: pd.DataFrame
-    ) -> tuple[PredData, Labels, PredData, Labels, PredData | None, Labels | None]:
+    def _get_data_sets(self, data: pd.DataFrame) -> tuple[
+        pd.DataFrame,
+        Labels,
+        pd.DataFrame,
+        Labels,
+        pd.DataFrame | None,
+        Labels | None,
+    ]:
         """
         Splits data into train, test, and calibration sets.
 
@@ -276,22 +281,30 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
 
         Parameters
         ----------
-        data : PredData
+        data : pd.DataFrame
             Data to split.
 
         Returns
         -------
-        X_train, X_test : PredData
+        X_train, X_test : pd.DataFrame
             Train and test data.
         y_train, y_test : Labels
             Train and test labels.
-        X_recal : PredData | None
+        X_recal : pd.DataFrame | None
             Calibration data if needed in the pipeline, None otherwise.
         y_recal : Labels | None
             Calibration labels if needed in the pipeline, None otherwise.
 
+        Raises
+        ------
+        TypeError
+            If data is not a pd.DataFrame
+
         """
         # Extract labels from the data
+        if not isinstance(data, pd.DataFrame):
+            raise TypeError(f"data should be a pd.DataFrame, but got {type(data)}")
+
         features, labels = extract_labels(data, self.outcomes)
 
         test_split_config = self.medpipe_config.workflow.validation.test_split
@@ -313,8 +326,16 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
             _, _, X_recal, y_recal = split_data(
                 features, labels, **recal_split_config.model_dump()
             )
+            X_recal = X_recal.drop(recal_split_config.group_column, axis=1)
 
-        return X_train, y_train, X_test, y_test, X_recal, y_recal
+        return (
+            X_train.drop(test_split_config.group_column, axis=1),
+            y_train,
+            X_test.drop(test_split_config.group_column, axis=1),
+            y_test,
+            X_recal,
+            y_recal,
+        )
 
     def transform(self, X: pd.DataFrame | npt.NDArray) -> None:
         """
