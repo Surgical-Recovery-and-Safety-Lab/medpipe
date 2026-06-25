@@ -120,3 +120,28 @@ class TestSetPreprocessingSteps:
         mp_pipeline.medpipe_config.workflow.preprocessing = None
         assert mp_pipeline._set_preprocessing_steps() == None
 
+
+class TestHasPreprocessor:
+    """Test class for the _has_preprocessor function of the
+    MedpipePipeline class."""
+
+    def test_pipeline_has_preprocessor_success(
+        self, mp_pipeline: MedpipePipeline
+    ) -> None:
+        """Test successful function call."""
+        # Should be true in the default configuration file
+        assert mp_pipeline._has_preprocessor() == True
+
+    def test_pipeline_has_preprocessor_False(
+        self, mp_pipeline: MedpipePipeline
+    ) -> None:
+        """Test cases when _has_preprocesor return False."""
+        mp_pipeline.medpipe_config.workflow.preprocessing.preprocess = False
+
+        assert mp_pipeline._has_preprocessor() == False
+
+        mp_pipeline.medpipe_config.workflow.preprocessing = None
+
+        assert mp_pipeline._has_preprocessor() == False
+
+
