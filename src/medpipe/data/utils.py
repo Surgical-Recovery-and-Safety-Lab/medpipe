@@ -5,6 +5,7 @@ This module provides utility functions for data manipulation.
 
 Functions:
 - get_split_idx: Returns the indices for the data splits.
+- split_data: Split data into train and test or train and recalibration sets.
 - extract_labels: Extracts prediction labels from data.
 - downcast_dtypes: Downcasts the float and int dtypes in data.
 - convert_data: Convert data to a ndarray if possible.
@@ -28,7 +29,7 @@ if TYPE_CHECKING:
 def get_split_idx(
     idx_list: npt.NDArray,
     column: pd.Series | npt.NDArray,
-    values: list[str | int],
+    values: list[str] | list[int],
 ) -> tuple[npt.NDArray, npt.NDArray]:
     """
     Returns the indices for the data splits.
@@ -39,7 +40,7 @@ def get_split_idx(
         Indices of the set to split of shape (n_samples,).
     column : pd.Series | npt.NDArray
         Column of shape (n_samples,) used to split the data.
-    values : list[str | int]
+    values : list[str] | list[int]
         Group values that should be in the test or recalibration set.
 
     Returns
@@ -68,7 +69,7 @@ def get_split_idx(
 
     # Type checking validation
     if not isinstance(values, (list, np.ndarray)):
-        raise TypeError("values should be list or array")
+        raise TypeError(f"values should be list or np.array, got {type(values)}")
 
     # Vectorized selection: Find where 'column' matches any value in 'values'
     val_mask = np.isin(column, values)
