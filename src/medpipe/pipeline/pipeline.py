@@ -9,7 +9,7 @@ a calibrator.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Type, overload
+from typing import TYPE_CHECKING, Type, overload
 from warnings import warn
 
 import numpy as np
@@ -22,20 +22,14 @@ from sklearn.exceptions import NotFittedError
 from sklearn.model_selection import cross_val_predict
 from sklearn.utils.validation import check_is_fitted
 
-import medpipe.data.weighting as weight
+import medpipe.data.sampler as sampler
+import medpipe.data.weighting as weighting
 from medpipe._types import Data, FullProba, Labels, PosProba, PredData
-from medpipe.data.sampler import data_sampler
-from medpipe.data.utils import (
-    convert_data,
-    extract_labels,
-    get_data_from_idx,
-    get_split_idx,
-    split_data,
-)
+from medpipe.data.utils import extract_labels, split_data
 from medpipe.metrics.core import print_metrics
 from medpipe.models.core import create_estimator, get_positive_proba, test_model
 from medpipe.utils.config import MedpipeConfig
-from medpipe.utils.io import read_toml_configuration
+from medpipe.utils.io import load_data, read_toml_configuration
 from medpipe.utils.logger import print_message
 
 SCRIPT_NAME = "pipeline/pipeline"
