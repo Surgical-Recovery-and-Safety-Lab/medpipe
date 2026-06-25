@@ -91,3 +91,32 @@ class TestCheckOp:
 
         with pytest.raises(ValueError, match=match_expr):
             mp_pipeline._check_operation("invalid")
+
+
+class TestSetPreprocessingSteps:
+    """Test class for the _set_preprocesing_steps function of the
+    MedpipePipeline class."""
+
+    def test_pipeline_set_preprocessing_steps_success(
+        self, mp_pipeline: MedpipePipeline
+    ) -> None:
+        """Test successful function call."""
+        ct = mp_pipeline._set_preprocessing_steps()
+
+        assert isinstance(ct, ColumnTransformer)
+        assert ct.transformers[0][0] == "op_1"
+        assert ct.transformers[1][0] == "op_2"
+        assert ct.transformers[0][2] == ["SEX", "CATEGORY_LEVEL_1"]
+        assert ct.transformers[1][2] == ["CATEGORY_LEVEL_1"]
+        assert ct.remainder == "passthrough"
+
+    def test_pipeline_set_preprocessing_steps_None(
+        self, mp_pipeline: MedpipePipeline
+    ) -> None:
+        """Test that None is returned correctly."""
+        mp_pipeline.medpipe_config.workflow.preprocessing.preprocess = False  # type: ignore
+        assert mp_pipeline._set_preprocessing_steps() == None
+
+        mp_pipeline.medpipe_config.workflow.preprocessing = None
+        assert mp_pipeline._set_preprocessing_steps() == None
+
