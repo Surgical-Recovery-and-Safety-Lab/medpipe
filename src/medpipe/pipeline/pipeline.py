@@ -266,12 +266,16 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
         Labels,
         pd.DataFrame | None,
         Labels | None,
+        npt.NDArray | None,
     ]:
         """
         Splits data into train, test, and calibration sets.
 
-        Returns in order X_train, y_train, X_test, y_test, X_recal, y_recal.
+        Returns in order X_train, y_train, X_test, y_test, X_recal,
+        y_recal, group_column.
         If no calibration is required, X_recal and y_recal are None.
+        The group_column is the data column of the train set based on
+        cross validation parameters.
 
         Parameters
         ----------
@@ -288,6 +292,9 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
             Calibration data if needed in the pipeline, None otherwise.
         y_recal : Labels | None
             Calibration labels if needed in the pipeline, None otherwise.
+        groups : npt.NDArray | None
+            Train set group column for cross validation, None if not
+            specified.
 
         Raises
         ------
@@ -301,34 +308,47 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
 
         features, labels = extract_labels(data, self.outcomes)
 
-        test_split_config = self.medpipe_config.workflow.validation.test_split
+        # Extract validation configurations
+        validation_config = self.medpipe_config.workflow.validation
+        test_split_config = validation_config.test_split
+        cross_val_config = validation_config.cross_validation
 
         # Set to default value None
         X_recal = None
         y_recal = None
+        groups = None
 
         # Split test set
         X_train, y_train, X_test, y_test = split_data(
             features, labels, **test_split_config.model_dump()
         )
 
-        if self.medpipe_config.workflow.validation.recalibration_split:
+        if cross_val_config.group_column:
+            # If a group column is specified retrieve column and drop it
+            groups = X_train[cross_val_config.group_column].to_numpy()
+            X_train = X_train.drop(cross_val_config.group_column, axis=1)
+
+        if cross_val_config.group_column != test_split_config.group_column:
+            # If cross validation and test group columns are different
+            X_train = X_train.drop(test_split_config.group_column, axis=1)
+
+        if validation_config.recalibration_split:
             # Split recalibration set
-            recal_split_config = (
-                self.medpipe_config.workflow.validation.recalibration_split
-            )
+            recal_split_config = validation_config.recalibration_split
+
             _, _, X_recal, y_recal = split_data(
                 features, labels, **recal_split_config.model_dump()
             )
             X_recal = X_recal.drop(recal_split_config.group_column, axis=1)
 
         return (
-            X_train.drop(test_split_config.group_column, axis=1),
+            X_train,
             y_train,
             X_test.drop(test_split_config.group_column, axis=1),
             y_test,
             X_recal,
             y_recal,
+            groups,
         )
 
     def transform(self, X: pd.DataFrame | npt.NDArray) -> None:
