@@ -88,12 +88,16 @@ def split_data(
     labels: Labels,
     strategy: Literal["random", "group"],
     group_column: str | None = None,
-    values: str | None = None,
+    values: list[str] | list[int] | None = None,
     test_size: float | None = None,
     recalibration_size: float | None = None,
 ) -> tuple[pd.DataFrame, Labels, pd.DataFrame, Labels]:
     """
     Split data into train and test or train and recalibration sets.
+
+    If strategy is group then group_column and values must be specified.
+    If strategy is random then test_size or recalibration_size must be
+    specified. If both are specified, the selected value is test_size.
 
     Parameters
     ----------
@@ -105,7 +109,7 @@ def split_data(
         Strategy used to split the data.
     group_column : str | None, default: None
         Name of the column used to split with if strategy is group.
-    values : str | None, default: None
+    values : list[str] | list[int] | None, default: None
         Values of the group column that do not belong to the train set.
     test_size : float | None, default: None
         Test set size if the strategy is random.
@@ -118,6 +122,15 @@ def split_data(
         Train and test / recalibration set.
     y_train, y_test : Labels
         Train and test / recalibration labels.
+
+    Raises
+    ------
+    TypeError
+        If features is not a pd.DataFrame.
+        If labels is not a np.ndarray.
+    ValueError
+        If group_colum and values not specified with group strategy.
+        If test_size or recalibration_size not specified with random strategy.
 
     """
     if strategy == "group":
