@@ -76,6 +76,10 @@ def get_split_idx(
     other_idx = np.where(val_mask)[0]
     train_idx = np.where(~val_mask)[0]
 
+    if len(other_idx) == 0:
+        # Other indices are empty because value was not in column
+        raise ValueError(f"{values} not present in column")
+
     return train_idx, other_idx
 
 
