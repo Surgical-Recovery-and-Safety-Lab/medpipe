@@ -5,12 +5,13 @@ Pipeline class tests suite.
 """
 
 from pathlib import Path
-from typing import Any, Generator
+from typing import Any, Generator, Literal
 from unittest.mock import patch
 
 import numpy as np
 import pytest
 from sklearn.compose import ColumnTransformer
+from sklearn.model_selection import GroupKFold, StratifiedKFold
 
 from medpipe.pipeline.pipeline import MedpipePipeline
 from medpipe.utils.io import load_data, read_toml_configuration
@@ -218,3 +219,25 @@ class TestGetDataSets:
         match_expr = f"data should be a pd.DataFrame, but got {type(data)}"
         with pytest.raises(TypeError, match=match_expr):
             mp_pipeline._get_data_sets(data)
+
+
+class TestGetCvGenerator:
+    """Test class for the _get_cv_generator function of the
+    MedpipePipeline class."""
+
+    @pytest.mark.parametrize("strategy", ["random", "group"])
+    def test_pipeline_get_cv_generator_success(
+        self, mp_pipeline: MedpipePipeline, strategy: Literal["random", "group"]
+    ) -> None:
+        """Test successful function call."""
+        cv_config = mp_pipeline.medpipe_config.workflow.validation.cross_validation
+        cv_config.strategy = strategy  # Test both strategies
+        cv_generator = mp_pipeline._get_cv_generator()
+
+        if strategy == "random":
+            assert isinstance(cv_generator, StratifiedKFold)
+        if strategy == "group":
+            assert isinstance(cv_generator, GroupKFold)
+        assert cv_generator.n_splits == cv_config.n_splits
+        assert cv_generator.shuffle == cv_config.shuffle
+        assert cv_generator.random_state == cv_config.random_state
