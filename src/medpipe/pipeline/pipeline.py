@@ -20,7 +20,7 @@ from sklearn.base import BaseEstimator, ClassifierMixin
 from sklearn.compose import ColumnTransformer
 from sklearn.exceptions import NotFittedError
 from sklearn.model_selection import cross_val_predict
-from sklearn.utils.validation import check_if_fitted
+from sklearn.utils.validation import check_is_fitted
 
 import medpipe.data.weighting as weight
 from medpipe._types import Data, FullProba, Labels, PosProba, PredData
@@ -408,7 +408,7 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
         """
         if self.preprocessor:
             try:  # Transform or fit and transform training data
-                check_if_fitted(self.preprocessor)
+                check_is_fitted(self.preprocessor)
                 X_train = self.transform(X)
             except NotFittedError:
                 X_train = self.fit_transform(X)
