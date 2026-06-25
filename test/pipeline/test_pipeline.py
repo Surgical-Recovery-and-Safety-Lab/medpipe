@@ -71,3 +71,23 @@ class TestPipeline:
         assert pipe.n_outcomes == 1
         assert isinstance(pipe.preprocessor, ColumnTransformer)
 
+
+class TestCheckOp:
+    """Test class for the _check_op function of the MedpipePipeline class."""
+
+    @pytest.mark.parametrize("op", ("StandardScaler", "SimpleImputer"))
+    def test_pipeline_check_operation(
+        self, mp_pipeline: MedpipePipeline, op: str
+    ) -> None:
+        """Test successful function call."""
+        assert mp_pipeline._check_operation(op)
+
+    def test_pipeline_check_operation_invalid_op(
+        self, mp_pipeline: MedpipePipeline
+    ) -> None:
+        """Test case when invalid operation is provided."""
+        match_expr = f"invalid is not found in sklearn.preprocessing or "
+        "sklearn.impute, please check that the operation matches"
+
+        with pytest.raises(ValueError, match=match_expr):
+            mp_pipeline._check_operation("invalid")
