@@ -5,9 +5,11 @@ Test functions for the data.utils module
 """
 
 import pathlib
-from typing import Any
+from re import escape
+from typing import Any, Literal
 
 import numpy as np
+import numpy.typing as npt
 import pandas as pd
 import pytest
 from pandas.testing import assert_frame_equal
@@ -85,6 +87,72 @@ class TestExtractLabels:
         """Test case when label is not in data."""
         with pytest.raises(ValueError, match=f"invalid_label was not found in data"):
             extract_labels(mock_data, ["invalid_label"])
+
+
+class TestGetSplitIdx:
+    """Test class for the get_split_idx function."""
+
+    def _generate_mock_data(
+        self, data_type: Literal["str", "int"]
+    ) -> tuple[npt.NDArray, pd.Series | npt.NDArray, list[str] | list[int]]:
+        """Generate mock data for tests."""
+        idx_list = np.arange(6)
+        if data_type == "int":
+            column = np.array([2024, 2022, 2024, 2023, 2022, 2023])
+            values = [2024]
+        else:
+            column = pd.Series(
+                [
+                    "primary",
+                    "tertiary",
+                    "primary",
+                    "secondaray",
+                    "secondary",
+                    "tertiary",
+                ]
+            )
+            values = ["primary", "tertiary"]
+        return (idx_list, column, values)
+
+    @pytest.mark.parametrize(
+        "data_type, true_train_idx",
+        [("str", np.array([3, 4])), ("int", np.array([1, 3, 4, 5]))],
+    )
+    def test_get_split_idx_success(
+        self, data_type: Literal["int", "str"], true_train_idx: npt.NDArray
+    ) -> None:
+        """Test successful function call."""
+        train_idx, test_idx = get_split_idx(*self._generate_mock_data(data_type))
+
+        assert (train_idx == true_train_idx).all()
+        assert (
+            test_idx == np.setdiff1d(np.arange(6), true_train_idx, assume_unique=True)
+        ).all()
+
+    @pytest.mark.parametrize("column", [3.14, 42, {}, [], ()])
+    def test_get_split_idx_invalid_column_type(self, column: Any) -> None:
+        """Test case when column is invalid type."""
+        match_expr = f"column should be pd.Series or np.array, got {type(column)}"
+        with pytest.raises(TypeError, match=match_expr):
+            get_split_idx(np.arange(6), column, [2024])
+
+    @pytest.mark.parametrize("values", [3.14, 42, {}, ()])
+    def test_get_split_idx_invalid_value_type(self, values: Any) -> None:
+        """Test case when column is invalid type."""
+        match_expr = f"values should be list or np.array, got {type(values)}"
+        with pytest.raises(TypeError, match=match_expr):
+            get_split_idx(np.arange(6), np.zeros((6, 1)), values)
+
+    @pytest.mark.parametrize(
+        "column, values", [(np.zeros((6, 1)), [1]), (np.array(["a"] * 6), ["b"])]
+    )
+    def test_get_split_idx_value_not_in_column(
+        self, column: npt.NDArray, values: list[str] | list[int]
+    ) -> None:
+        """Test case when value is not in column."""
+        match_expr = f"{values} not present in column"
+        with pytest.raises(ValueError, match=escape(match_expr)):
+            get_split_idx(np.arange(6), column=column, values=values)
 
 
 """
