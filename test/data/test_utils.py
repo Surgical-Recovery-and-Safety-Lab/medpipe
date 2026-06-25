@@ -239,7 +239,7 @@ class TestSplitData:
         """Test case when features is not pd.DataFrame."""
         match_expr = f"features should be a pd.DataFrame, but got {type(features)}"
         with pytest.raises(TypeError, match=match_expr):
-            split_data(features, np.zeros((6, 1)), "random")
+            split_data(features, np.zeros((6, 1)), "random")  # type: ignore
 
     @pytest.mark.parametrize(
         "labels",
@@ -295,4 +295,4 @@ class TestSplitData:
         with pytest.raises(
             ValueError, match="strategy should be random or group, but got invalid"
         ):
-            split_data(pd.DataFrame({}), np.array([]), "invalid")
+            split_data(pd.DataFrame({}), np.array([]), "invalid")  # type: ignore
