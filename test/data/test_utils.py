@@ -14,6 +14,7 @@ import pandas as pd
 import pytest
 from pandas.testing import assert_frame_equal
 
+from medpipe._types import Labels
 from medpipe.data.utils import (
     convert_data,
     downcast_dtypes,
@@ -153,6 +154,156 @@ class TestGetSplitIdx:
         match_expr = f"{values} not present in column"
         with pytest.raises(ValueError, match=escape(match_expr)):
             get_split_idx(np.arange(6), column=column, values=values)
+
+
+class TestSplitData:
+    """Test class for the split_data function."""
+
+    def _generate_mock_data(self) -> tuple[pd.DataFrame, Labels]:
+        """Generate mock data for tests."""
+        features = pd.DataFrame(
+            {
+                "age": [25, 30, 35, 19, 80, 47, 20, 42],
+                "sex": ["M", "F", "M", "M", "M", "F", "M", "M"],
+                "op_year": [2024, 2024, 2024, 2023, 2023, 2022, 2022, 2023],
+            }
+        )
+        labels = np.array([True, False, False, False, True, True, False, False])
+        return (features, labels)
+
+    @pytest.mark.parametrize(
+        "test_size, recalibration_size, train_len, test_len",
+        [
+            (0.5, None, 4, 4),
+            (0.25, None, 6, 2),
+            (0.75, None, 2, 6),
+            (None, 0.5, 4, 4),
+            (None, 0.25, 6, 2),
+            (None, 0.75, 2, 6),
+            (0.5, 1.0, 4, 4),  # Check that test size is used
+        ],
+    )
+    def test_split_data_success_random(
+        self,
+        test_size: float | None,
+        recalibration_size: float | None,
+        train_len: int,
+        test_len: int,
+    ) -> None:
+        """Test successful function call with random strategy."""
+        features, labels = self._generate_mock_data()
+
+        X_train, y_train, X_test, y_test = split_data(
+            features,
+            labels,
+            strategy="random",
+            test_size=test_size,
+            recalibration_size=recalibration_size,
+        )
+
+        assert len(X_train) == train_len
+        assert len(y_train) == train_len
+        assert len(X_test) == test_len
+        assert len(y_test) == test_len
+
+    @pytest.mark.parametrize(
+        "column, values, train_len, test_len",
+        [
+            ("op_year", [2024], 5, 3),
+            ("sex", ["F"], 6, 2),
+        ],
+    )
+    def test_split_data_success_group(
+        self,
+        column: str,
+        values: list[str] | list[int],
+        train_len: int,
+        test_len: int,
+    ) -> None:
+        """Test successful function call with group strategy."""
+        features, labels = self._generate_mock_data()
+
+        X_train, y_train, X_test, y_test = split_data(
+            features, labels, strategy="group", group_column=column, values=values
+        )
+
+        assert len(X_train) == train_len
+        assert len(y_train) == train_len
+        assert len(X_test) == test_len
+        assert len(y_test) == test_len
+
+    @pytest.mark.parametrize(
+        "features",
+        [
+            3.14,
+            42,
+            {},
+            [],
+            (),
+            np.array([]),
+        ],
+    )
+    def test_split_data_incorrect_features_type(self, features: Any) -> None:
+        """Test case when features is not pd.DataFrame."""
+        match_expr = f"features should be a pd.DataFrame, but got {type(features)}"
+        with pytest.raises(TypeError, match=match_expr):
+            split_data(features, np.zeros((6, 1)), "random")
+
+    @pytest.mark.parametrize(
+        "labels",
+        [
+            3.14,
+            42,
+            {},
+            [],
+            (),
+            pd.Series([]),
+        ],
+    )
+    def test_split_data_incorrect_labels_type(self, labels: Any) -> None:
+        """Test case when features is not pd.DataFrame."""
+        match_expr = f"labels should be a np.array, but got {type(labels)}"
+        with pytest.raises(TypeError, match=match_expr):
+            split_data(pd.DataFrame({}), labels, "random")
+
+    @pytest.mark.parametrize(
+        "group_column, values",
+        [
+            (None, [0]),
+            ("group", None),
+            (None, None),
+        ],
+    )
+    def test_split_data_missing_group_args(
+        self, group_column: str | None, values: list[int] | None
+    ) -> None:
+        """Test case when group_column or values are missing in group strategy."""
+        with pytest.raises(
+            ValueError,
+            match="group_column and values must be specified with group strategy",
+        ):
+            split_data(
+                pd.DataFrame({}),
+                np.array([]),
+                strategy="group",
+                group_column=group_column,
+                values=values,
+            )
+
+    def test_split_data_missing_random_args(self) -> None:
+        """Test case when test_size or recalibration_size are missing in random strategy."""
+        with pytest.raises(
+            ValueError,
+            match="test_size or recalibration_size must be specified with random strategy",
+        ):
+            split_data(pd.DataFrame({}), np.array([]), "random")
+
+    def test_split_data_incorrect_strategy(self) -> None:
+        """Test case when strategy is invalid."""
+        with pytest.raises(
+            ValueError, match="strategy should be random or group, but got invalid"
+        ):
+            split_data(pd.DataFrame({}), np.array([]), "invalid")
 
 
 """
