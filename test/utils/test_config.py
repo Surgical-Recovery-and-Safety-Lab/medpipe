@@ -35,7 +35,10 @@ class TestMetaConfig:
 
     def test_valid_config(self) -> None:
         """Pass valid configuration to MetaConfig."""
-        MetaConfig.model_validate(self._get_valid_config_dict())
+        raw_config = self._get_valid_config_dict()
+        config = MetaConfig.model_validate(raw_config)
+
+        assert config.model_dump() == raw_config
 
     @pytest.mark.parametrize("version", ["v0.1", "not_a_version"])
     def test_version_format(self, version: str) -> None:
@@ -70,7 +73,10 @@ class TestPathsConfig:
 
     def test_valid_config(self, tmp_path: Path) -> None:
         """Pass valid configuration to PathsConfig."""
-        PathsConfig.model_validate(self._get_valid_config_dict(tmp_path))
+        raw_config = self._get_valid_config_dict(tmp_path)
+        config = PathsConfig.model_validate(raw_config)
+
+        assert config.model_dump() == raw_config
 
     @pytest.mark.parametrize(
         "parameter, path",
@@ -106,7 +112,10 @@ class TestModelConfig:
 
     def test_valid_config(self) -> None:
         """Pass valid configuration to ModelConfig."""
-        ModelConfig.model_validate(self._get_valid_config_dict())
+        raw_config = self._get_valid_config_dict()
+        config = ModelConfig.model_validate(raw_config)
+
+        assert config.model_dump() == raw_config
 
 
 class TestCalibrationConfig:
@@ -123,7 +132,10 @@ class TestCalibrationConfig:
 
     def test_valid_config(self) -> None:
         """Pass valid configuration to CalibrationConfig."""
-        CalibrationConfig.model_validate(self._get_valid_config_dict())
+        raw_config = self._get_valid_config_dict()
+        config = CalibrationConfig.model_validate(raw_config)
+
+        assert config.model_dump() == raw_config
 
 
 class TestTopLevelConfig:
@@ -151,7 +163,10 @@ class TestTopLevelConfig:
 
     def test_valid_config(self, tmp_path: Path) -> None:
         """Pass valid configuration to TopLevelConfig."""
-        TopLevelConfig.model_validate(self._get_valid_config_dict(tmp_path))
+        raw_config = self._get_valid_config_dict(tmp_path)
+        config = TopLevelConfig.model_validate(raw_config)
+
+        assert config.model_dump() == raw_config
 
 
 class TestDataConfig:
@@ -171,7 +186,10 @@ class TestDataConfig:
 
     def test_valid_config(self, tmp_path: Path) -> None:
         """Pass valid configuration to DataConfig."""
-        DataConfig.model_validate(self._get_valid_config_dict(tmp_path))
+        raw_config = self._get_valid_config_dict(tmp_path)
+        config = DataConfig.model_validate(raw_config)
+
+        assert config.model_dump() == raw_config
 
     @pytest.mark.parametrize(
         "path, match_expr",
@@ -229,7 +247,10 @@ class TestPreprocessOperationConfig:
 
     def test_valid_config(self) -> None:
         """Pass valid configuration to PreprocessOperationConfig."""
-        PreprocessOperationConfig.model_validate(self._get_valid_config_dict())
+        raw_config = self._get_valid_config_dict()
+        config = PreprocessOperationConfig.model_validate(raw_config)
+
+        assert config.model_dump() == raw_config
 
     def test_valid_columns(self) -> None:
         """Test case where columns is an empty list."""
@@ -252,7 +273,7 @@ class TestPreprocessingConfig:
                     "columns": ["SEX", "ETHNICITY"],
                 },
                 {
-                    "name": "StandarScaler",
+                    "name": "StandardScaler",
                     "columns": ["SEX", "ETHNICITY"],
                     "with_mean": True,
                 },
@@ -265,7 +286,10 @@ class TestPreprocessingConfig:
 
     def test_valid_config(self) -> None:
         """Pass valid configuration to PreprocessingConfig."""
-        PreprocessingConfig.model_validate(self._get_valid_config_dict())
+        raw_config = self._get_valid_config_dict()
+        config = PreprocessingConfig.model_validate(raw_config)
+
+        assert config.model_dump() == raw_config
 
     @pytest.mark.parametrize("operations", [None, []])
     def test_validate_operations_true_flag(self, operations: None | list) -> None:
@@ -320,15 +344,28 @@ class TestSplitTestConfig:
 
         return config_dict
 
-    def test_valid_config(self) -> None:
-        """Pass valid configuration to SplitTestConfig."""
-        SplitTestConfig.model_validate(self._get_valid_random_config_dict())
-        SplitTestConfig.model_validate(self._get_valid_group_config_dict())
+    def test_valid_config_random(self) -> None:
+        """Pass valid configuration from _get_valid_random_config_dict
+        to SplitTestConfig."""
+        raw_config = self._get_valid_random_config_dict()
+        config = SplitTestConfig.model_validate(raw_config)
 
-        SplitTestConfig.model_validate(
-            self._get_valid_group_config_dict(strategy="random", test_size=0.1)
+        assert config.model_dump() == raw_config
+
+    @pytest.mark.parametrize(
+        "strategy, test_size", [("group", None), ("group", 0.1), ("random", 0.1)]
+    )
+    def test_valid_config_group(
+        self, strategy: Literal["group", "random"], test_size: float | None
+    ) -> None:
+        """Pass valid configuration with _get_valid_group_config_dict
+        to SplitTestConfig."""
+        raw_config = self._get_valid_group_config_dict(
+            strategy=strategy, test_size=test_size
         )
-        SplitTestConfig.model_validate(self._get_valid_group_config_dict(test_size=0.1))
+        config = SplitTestConfig.model_validate(raw_config)
+
+        assert config.model_dump() == raw_config
 
     @pytest.mark.parametrize(
         "test_size, match_expr",
@@ -417,21 +454,36 @@ class TestSplitRecalibrationConfig:
 
         return config_dict
 
-    def test_valid_config(self) -> None:
-        """Pass valid configuration to SplitRecalibrationConfig."""
-        SplitRecalibrationConfig.model_validate(self._get_valid_random_config_dict())
-        SplitRecalibrationConfig.model_validate(self._get_valid_group_config_dict())
+    def test_valid_config_random(self) -> None:
+        """Pass valid configuration from _get_valid_random_config_dict
+        to SplitRecalibrationConfig."""
+        raw_config = self._get_valid_random_config_dict()
+        config = SplitRecalibrationConfig.model_validate(raw_config)
 
-        # Test unmatched parameters
-        SplitRecalibrationConfig.model_validate(
-            self._get_valid_group_config_dict(strategy="random", recalibration_size=0.1)
-        )
-        SplitRecalibrationConfig.model_validate(
-            self._get_valid_group_config_dict(recalibration_size=0.1)
-        )
+        assert config.model_dump() == raw_config
 
-        # Test None case
-        SplitRecalibrationConfig.model_validate({})
+    @pytest.mark.parametrize(
+        "strategy, recalibration_size",
+        [("group", None), ("group", 0.1), ("random", 0.1)],
+    )
+    def test_valid_config_group(
+        self, strategy: Literal["group", "random"], recalibration_size: float | None
+    ) -> None:
+        """Pass valid configuration with _get_valid_group_config_dict
+        to SplitRecalibrationConfig."""
+        raw_config = self._get_valid_group_config_dict(
+            strategy=strategy, recalibration_size=recalibration_size
+        )
+        config = SplitRecalibrationConfig.model_validate(raw_config)
+
+        assert config.model_dump() == raw_config
+
+    def test_valid_config_None(self) -> None:
+        """Test case when configuration is empty dictionary."""
+        config = SplitRecalibrationConfig.model_validate({})
+
+        for value in config.model_dump().values():
+            assert value == None
 
     @pytest.mark.parametrize(
         "recalibration_size, match_expr",
@@ -526,22 +578,46 @@ class TestCrossValConfig:
 
         return config_dict
 
-    def test_valid_config(self) -> None:
-        """Pass valid configuration to CrossValConfig."""
-        CrossValConfig.model_validate(self._get_valid_random_config_dict())
-        CrossValConfig.model_validate(self._get_valid_group_config_dict())
+    def test_valid_config_random(self) -> None:
+        """Pass valid configuration from _get_valid_random_config_dict
+        to CrossValConfig."""
+        raw_config = self._get_valid_random_config_dict()
+        config = CrossValConfig.model_validate(raw_config)
 
-        CrossValConfig.model_validate(
-            self._get_valid_group_config_dict(
-                strategy="random", group_column="DHB_NAME"
-            )
+        assert config.model_dump() == raw_config
+
+    @pytest.mark.parametrize(
+        "strategy, group_column, drop_group_column",
+        [
+            ("group", "DHB_NAME", True),
+            ("random", "DHB_NAME", None),
+            ("random", None, True),
+            ("random", "DHB_NAME", True),
+        ],
+    )
+    def test_valid_config_group(
+        self,
+        strategy: Literal["group", "random"],
+        group_column: str | None,
+        drop_group_column: str | None,
+    ) -> None:
+        """Pass valid configuration from _get_valid_group_config_dict
+        to CrossValConfig."""
+        raw_config = self._get_valid_group_config_dict(
+            strategy=strategy,
+            group_column=group_column,
+            drop_group_column=drop_group_column,
         )
-        CrossValConfig.model_validate(
-            self._get_valid_group_config_dict(
-                strategy="random", drop_group_column=False
-            )
-        )
-        CrossValConfig.model_validate({})  # Test the None config
+        config = CrossValConfig.model_validate(raw_config)
+
+        assert config.model_dump() == raw_config
+
+    def test_valid_config_None(self) -> None:
+        """Test case when configuration is empty dictionary."""
+        config = CrossValConfig.model_validate({})
+
+        for value in config.model_dump().values():
+            assert value == None
 
     @pytest.mark.parametrize("strategy", ["random", "group"])
     def test_n_splits_limits(self, strategy: str) -> None:
@@ -607,6 +683,9 @@ class TestValidationSubConfig:
             "test_split": {
                 "strategy": "random",
                 "test_size": 0.1,
+                "drop_group_column": None,
+                "group_column": None,
+                "values": None,
             },
             "recalibration_split": {
                 "strategy": "group",
@@ -629,11 +708,11 @@ class TestValidationSubConfig:
         return config_dict
 
     def test_valid_config(self) -> None:
-        """Pass valid configuration to TopLevelConfig."""
-        ValidationSubConfig.model_validate(self._get_valid_config_dict())
-        ValidationSubConfig.model_validate(
-            {"test_split": {"strategy": "random", "test_size": 0.1}}
-        )
+        """Pass valid configuration to TestValidationSubConfig."""
+        raw_config = self._get_valid_config_dict()
+        config = ValidationSubConfig.model_validate(raw_config)
+
+        assert config.model_dump() == raw_config
 
 
 class TestWorkflowConfig:
@@ -660,6 +739,9 @@ class TestWorkflowConfig:
                 "test_split": {
                     "strategy": "random",
                     "test_size": 0.1,
+                    "drop_group_column": None,
+                    "group_column": None,
+                    "values": None,
                 },
                 "recalibration_split": {
                     "strategy": "group",
@@ -684,12 +766,10 @@ class TestWorkflowConfig:
 
     def test_valid_config(self) -> None:
         """Pass valid configuration to WorkflowConfig."""
-        WorkflowConfig.model_validate(self._get_valid_config_dict())
-        WorkflowConfig.model_validate(
-            self._get_valid_config_dict(
-                preprocessing={},
-            )
-        )
+        raw_config = self._get_valid_config_dict()
+        config = WorkflowConfig.model_validate(raw_config)
+
+        assert config.model_dump() == raw_config
 
 
 class TestPredictorConfig:
@@ -704,7 +784,10 @@ class TestPredictorConfig:
 
     def test_valid_config(self) -> None:
         """Pass valid configuration to PredictorConfig."""
-        PredictorConfig.model_validate(self._get_valid_config_dict())
+        raw_config = self._get_valid_config_dict()
+        config = PredictorConfig.model_validate(raw_config)
+
+        assert config.model_dump() == raw_config
 
     @pytest.mark.parametrize("learning_rate", [-0.5, 0.0])
     def test_learning_rate_limits(self, learning_rate: float) -> None:
@@ -727,8 +810,17 @@ class TestCalibratorConfig:
 
     def test_valid_config(self) -> None:
         """Pass valid configuration to CalibratorConfig."""
-        CalibratorConfig.model_validate(self._get_valid_config_dict())
-        CalibratorConfig.model_validate({})
+        raw_config = self._get_valid_config_dict()
+        config = CalibratorConfig.model_validate(raw_config)
+
+        assert config.model_dump() == raw_config
+
+    def test_valid_config_None(self) -> None:
+        """Test case when configuration is empty dictionary."""
+        config = CalibratorConfig.model_validate({})
+
+        for value in config.model_dump().values():
+            assert value == None
 
 
 class TestModelHyperparamsSubConfigConfig:
@@ -746,10 +838,10 @@ class TestModelHyperparamsSubConfigConfig:
 
     def test_valid_config(self) -> None:
         """Pass valid configuration to ModelHyperparamsSubConfigConfig."""
-        ModelHyperparamSubConfig.model_validate(self._get_valid_config_dict())
-        ModelHyperparamSubConfig.model_validate(
-            self._get_valid_config_dict(calibrator=None)
-        )
+        raw_config = self._get_valid_config_dict()
+        config = ModelHyperparamSubConfig.model_validate(raw_config)
+
+        assert config.model_dump() == raw_config
 
 
 class TestWeightingConfig:
@@ -764,7 +856,10 @@ class TestWeightingConfig:
 
     def test_valid_config(self) -> None:
         """Pass valid configuration to WeightingConfig."""
-        WeightingConfig.model_validate(self._get_valid_config_dict())
+        raw_config = self._get_valid_config_dict()
+        config = WeightingConfig.model_validate(raw_config)
+
+        assert config.model_dump() == raw_config
 
     def test_invalid_weighting_fn(self) -> None:
         """Test an invalid weighting function."""
@@ -792,7 +887,10 @@ class TestSamplingConfig:
 
     def test_valid_config(self) -> None:
         """Pass valid configuration to SamplingConfig."""
-        SamplingConfig.model_validate(self._get_valid_config_dict())
+        raw_config = self._get_valid_config_dict()
+        config = SamplingConfig.model_validate(raw_config)
+
+        assert config.model_dump() == raw_config
 
     def test_invalid_sampler_fn(self) -> None:
         """Test an invalid sampler function."""
@@ -862,6 +960,7 @@ class TestBalancingSubConfig:
             "sampling": {
                 "sampler_fn": "random_oversampler",
                 "reduction_factor": 0.5,
+                "hard_percent": None,
             },
         }
         config_dict.update(overrides)
@@ -870,8 +969,17 @@ class TestBalancingSubConfig:
 
     def test_valid_config(self) -> None:
         """Pass valid configuration to BalancingSubConfig."""
-        BalancingSubConfig.model_validate(self._get_valid_config_dict())
-        BalancingSubConfig.model_validate({})
+        raw_config = self._get_valid_config_dict()
+        config = BalancingSubConfig.model_validate(raw_config)
+
+        assert config.model_dump() == raw_config
+
+    def test_valid_config_None(self) -> None:
+        """Test case when configuration is empty dictionary."""
+        config = BalancingSubConfig.model_validate({})
+
+        for value in config.model_dump().values():
+            assert value == None
 
 
 class TestHyperparameterConfig:
@@ -891,6 +999,7 @@ class TestHyperparameterConfig:
                 "sampling": {
                     "sampler_fn": "random_oversampler",
                     "reduction_factor": 0.5,
+                    "hard_percent": None,
                 },
             },
         }
@@ -900,8 +1009,10 @@ class TestHyperparameterConfig:
 
     def test_valid_config(self) -> None:
         """Pass valid configuration to HyperparameterConfig."""
-        HyperparameterConfig.model_validate(self._get_valid_config_dict())
-        HyperparameterConfig.model_validate(self._get_valid_config_dict(balancing={}))
+        raw_config = self._get_valid_config_dict()
+        config = HyperparameterConfig.model_validate(raw_config)
+
+        assert config.model_dump() == raw_config
 
 
 class TestMedpipeConfig:
@@ -930,10 +1041,15 @@ class TestMedpipeConfig:
                 "outcomes": ["MORTALITY_30D"],
             },
             "workflow": {
+                "preprocessing": None,
                 "validation": {
+                    "cross_validation": None,
                     "test_split": {
                         "strategy": "random",
                         "test_size": 0.1,
+                        "group_column": None,
+                        "drop_group_column": None,
+                        "values": None,
                     },
                     "recalibration_split": {
                         "strategy": "group",
@@ -945,6 +1061,7 @@ class TestMedpipeConfig:
                 },
             },
             "hyperparameters": {
+                "balancing": None,
                 "hyperparameters": {
                     "predictor": {"learning_rate": 0.1},
                     "calibrator": {"out_of_bounds": "clip"},
@@ -957,7 +1074,10 @@ class TestMedpipeConfig:
 
     def test_valid_config(self, tmp_path: Path) -> None:
         """Pass valid configuration to MedpipeConfig."""
-        MedpipeConfig.model_validate(self._get_valid_config_dict(tmp_path))
+        raw_config = self._get_valid_config_dict(tmp_path)
+        config = MedpipeConfig.model_validate(raw_config)
+
+        assert config.model_dump() == raw_config
 
     def test_recalibration_split(self, tmp_path: Path) -> None:
         """Test case when recalibration method and split mismatch."""
@@ -1002,7 +1122,7 @@ class TestReadSubconfigurationFile:
         match_expr = f"Unexpected subtype invalid_subtype, expecting one "
         f"of {list(SUBCONFIG_REGISTRY.keys())}"
         with pytest.raises(ValueError, match=match_expr):
-            read_subconfiguration_file("data.toml", "invalid_subtype")
+            read_subconfiguration_file("data.toml", "invalid_subtype")  # type: ignore
 
 
 class TestParseVersionNumber:
