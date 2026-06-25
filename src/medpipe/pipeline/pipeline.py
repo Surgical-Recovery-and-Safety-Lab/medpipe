@@ -19,11 +19,10 @@ from scipy.sparse import csr_array, csr_matrix
 from sklearn.base import BaseEstimator, ClassifierMixin
 from sklearn.compose import ColumnTransformer
 from sklearn.exceptions import NotFittedError
-from sklearn.model_selection import cross_val_predict
+from sklearn.model_selection import GroupKFold, StratifiedKFold, cross_val_predict
 from sklearn.utils.validation import check_is_fitted
 
 import medpipe.data.sampler as sampler
-import medpipe.data.weighting as weighting
 from medpipe._types import Data, FullProba, Labels, PosProba, PredData
 from medpipe.data.utils import extract_labels, split_data
 from medpipe.metrics.core import print_metrics
@@ -206,6 +205,7 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
                             operation.columns,
                         )
                     )
+
             return ColumnTransformer(transformers=transformers, remainder="passthrough")
 
         return None
@@ -350,6 +350,28 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
             y_recal,
             groups,
         )
+
+    def _get_cv_generator(self) -> StratifiedKFold | GroupKFold:
+        """
+        Creates a cross-validation generator from the configuration.
+
+        Returns
+        -------
+        cv_generator : StratifiedKFold | GroupKFold
+            Cross-validation generator.
+
+        """
+        cv_config = self.medpipe_config.workflow.validation.cross_validation
+        kwargs = cv_config.model_dump()  # Keyword args for cv generators
+
+        # Get strategy and remove group_column for keyword args
+        strategy = kwargs.pop("strategy")
+        kwargs.pop("group_column")
+
+        if strategy == "random":
+            return StratifiedKFold(**kwargs)
+        else:
+            return GroupKFold(**kwargs)
 
     def transform(self, X: pd.DataFrame | npt.NDArray) -> None:
         """
