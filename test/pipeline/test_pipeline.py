@@ -12,8 +12,10 @@ import numpy as np
 import pytest
 from sklearn.compose import ColumnTransformer
 from sklearn.model_selection import GroupKFold, StratifiedKFold
+from sklearn.pipeline import Pipeline
 
 from medpipe.pipeline.pipeline import MedpipePipeline
+from medpipe.utils.config import PreprocessOperationConfig
 from medpipe.utils.io import load_data, read_toml_configuration
 
 # ==============================================================================
@@ -61,7 +63,7 @@ class TestPipeline:
         assert pipe.predictor_algo == "HistGradientBoostingClassifier"
         assert pipe.calibrator_method == "IsotonicRegression"
         assert pipe.n_outcomes == 1
-        assert isinstance(pipe.preprocessor, ColumnTransformer)
+        assert isinstance(pipe.preprocessor, Pipeline)
 
     def test_create_pipeline_from_config(self, example_config_dir: Path) -> None:
         """Test successful pipeline creation from MedpipeConfig."""
@@ -71,7 +73,7 @@ class TestPipeline:
         assert pipe.predictor_algo == "HistGradientBoostingClassifier"
         assert pipe.calibrator_method == "IsotonicRegression"
         assert pipe.n_outcomes == 1
-        assert isinstance(pipe.preprocessor, ColumnTransformer)
+        assert isinstance(pipe.preprocessor, Pipeline)
 
 
 class TestCheckOp:
@@ -103,14 +105,34 @@ class TestSetPreprocessingSteps:
         self, mp_pipeline: MedpipePipeline
     ) -> None:
         """Test successful function call."""
-        ct = mp_pipeline._set_preprocessing_steps()
+        preprocessing_config = mp_pipeline.medpipe_config.workflow.preprocessing
+        pipe = mp_pipeline._set_preprocessing_steps()
 
-        assert isinstance(ct, ColumnTransformer)
-        assert ct.transformers[0][0] == "op_1"
-        assert ct.transformers[1][0] == "op_2"
-        assert ct.transformers[0][2] == ["SEX", "CATEGORY_LEVEL_1"]
-        assert ct.transformers[1][2] == ["CATEGORY_LEVEL_1"]
-        assert ct.remainder == "passthrough"
+        if preprocessing_config:
+            assert isinstance(pipe, Pipeline)
+
+            if preprocessing_config.operations is not None:
+
+                for i in range(len(preprocessing_config.operations)):
+                    op_config = preprocessing_config.operations[i]
+
+                    # Check the Pipeline steps are correct
+                    step = pipe.steps[i]
+                    assert isinstance(step, tuple)
+                    assert isinstance(step[1], ColumnTransformer)
+                    assert step[0] == f"transformer_{i+1}"
+
+                    # Check the ColumnTransformers are correct
+                    transformer = step[1].transformers
+                    assert isinstance(transformer, list)
+                    assert transformer[0][0] == f"op_{i+1}"
+                    assert isinstance(
+                        transformer[0][1],
+                        mp_pipeline._check_operation(op_config.name),
+                    )
+
+        else:
+            assert pipe is None
 
     def test_pipeline_set_preprocessing_steps_None(
         self, mp_pipeline: MedpipePipeline
@@ -121,6 +143,54 @@ class TestSetPreprocessingSteps:
 
         mp_pipeline.medpipe_config.workflow.preprocessing = None
         assert mp_pipeline._set_preprocessing_steps() == None
+
+    @pytest.mark.parametrize(
+        "operations, columns",
+        [
+            ([{"name": "OrdinalEncoder", "columns": ["SEX"]}], [["SEX"]]),
+            (
+                [
+                    {"name": "OrdinalEncoder", "columns": ["SEX"]},
+                    {"name": "StandardScaler", "columns": ["SEX"]},
+                ],
+                [["SEX"], ["op_1__SEX"]],
+            ),
+            (
+                [
+                    {"name": "OrdinalEncoder", "columns": ["SEX", "PRIOR_CANCER"]},
+                    {"name": "StandardScaler", "columns": ["SEX"]},
+                    {"name": "PowerTransformer", "columns": ["SEX", "PRIOR_CANCER"]},
+                ],
+                [
+                    ["SEX", "PRIOR_CANCER"],
+                    ["op_1__SEX"],
+                    ["op_2__op_1__SEX", "remainder__op_1__PRIOR_CANCER"],
+                ],
+            ),
+        ],
+    )
+    def test_pipeline_set_preprocessing_steps_ct_columns(
+        self,
+        mp_pipeline: MedpipePipeline,
+        operations: list[dict[str, str | list[str]]],
+        columns: list[list[str]],
+    ) -> None:
+        """Test that the ColumnTransformer get the correct column names."""
+        preprocessing_config = mp_pipeline.medpipe_config.workflow.preprocessing
+
+        if preprocessing_config:
+            preprocessing_config.operations = [
+                PreprocessOperationConfig.model_validate(operation)
+                for operation in operations
+            ]  # Reset operations
+            pipe = mp_pipeline._set_preprocessing_steps()
+
+            assert isinstance(pipe, Pipeline)
+
+            for i in range(len(preprocessing_config.operations)):
+                # Check the ColumnTransformers columns are correct
+                transformer = pipe.steps[i][1].transformers
+                assert transformer[0][2] == columns[i]
 
 
 class TestHasPreprocessor:
@@ -241,3 +311,11 @@ class TestGetCvGenerator:
         assert cv_generator.n_splits == cv_config.n_splits
         assert cv_generator.shuffle == cv_config.shuffle
         assert cv_generator.random_state == cv_config.random_state
+
+
+class TestRun:
+    """Test class for the run function of the MedpipePipeline class."""
+
+    def test_pipeline_run(self, mp_pipeline: MedpipePipeline) -> None:
+        """Test successful function call."""
+        mp_pipeline.run()
