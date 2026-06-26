@@ -20,6 +20,7 @@ from sklearn.base import BaseEstimator, ClassifierMixin
 from sklearn.compose import ColumnTransformer
 from sklearn.exceptions import NotFittedError
 from sklearn.model_selection import GroupKFold, StratifiedKFold, cross_val_predict
+from sklearn.pipeline import Pipeline
 from sklearn.utils.validation import check_is_fitted
 
 import medpipe.data.sampler as sampler
@@ -177,36 +178,56 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
                 )
                 self.calibrator_train_outputs[outcome] = {}
 
-    def _set_preprocessing_steps(self) -> ColumnTransformer | None:
+    def _set_preprocessing_steps(self) -> Pipeline | None:
         """
         Sets data preprocessing steps if the have been specified.
 
         Returns
         -------
-        transformers : ColumnTransformer or None
-            If preprocessing operations are provided return the ColumnTransformer
-            otherwise return None.
+        pipe : Pipeline or None
+            If preprocessing operations are provided return the Pipeline
+            of ColumnTransformers, otherwise return None.
 
         """
         preprocessing_dict = self.medpipe_config.workflow.preprocessing
         if preprocessing_dict and preprocessing_dict.preprocess:
             # Preprocessing config passed with preprocess flag True
-            transformers = []  # Empty list to be passed to the ColumnTransformer
+            steps = []  # Empty list to be passed to the ColumnTransformer
             if preprocessing_dict.operations:
+                ct_columns_dict = {
+                    pred: pred for pred in self.medpipe_config.data.predictors
+                }
                 for i, operation in enumerate(preprocessing_dict.operations):
                     op_type = self._check_operation(operation.name)
                     op_extras = (
                         {} if not operation.model_extra else operation.model_extra
                     )
-                    transformers.append(
-                        (
-                            f"op_{i+1}",
-                            op_type(**op_extras),
-                            operation.columns,
-                        )
-                    )
 
-            return ColumnTransformer(transformers=transformers, remainder="passthrough")
+                    ct_columns = [  # Columns for the ColumnTransformer
+                        ct_columns_dict[column] for column in operation.columns
+                    ]
+                    ct = ColumnTransformer(  # ColumnTransformer for operation
+                        [(f"op_{i+1}", op_type(**op_extras), ct_columns)],
+                        remainder="passthrough",
+                    )
+                    ct.set_output(transform="pandas")  # Return pd.DataFrame
+
+                    if i == len(preprocessing_dict.operations) - 1:
+                        ct.set_output(transform="default")  # Last ct return a np.array
+
+                    steps.append((f"transformer_{i+1}", ct))  # Steps for the Pipeline
+
+                    # Update the ct_columns_dict
+                    ct_columns_dict = {
+                        pred: (
+                            f"remainder__{column}"
+                            if column not in ct_columns
+                            else f"op_{i+1}__{column}"
+                        )
+                        for (pred, column) in ct_columns_dict.items()
+                    }
+
+            return Pipeline(steps=steps)
 
         return None
 
