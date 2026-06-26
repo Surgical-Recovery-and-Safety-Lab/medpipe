@@ -19,7 +19,7 @@ from scipy.sparse import csr_array, csr_matrix
 from sklearn.base import BaseEstimator, ClassifierMixin
 from sklearn.compose import ColumnTransformer
 from sklearn.exceptions import NotFittedError
-from sklearn.model_selection import GroupKFold, StratifiedKFold, cross_val_predict
+from sklearn.model_selection import GroupKFold, StratifiedKFold, cross_validate
 from sklearn.pipeline import Pipeline
 from sklearn.utils.validation import check_is_fitted
 
@@ -296,7 +296,7 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
         y_recal, group_column.
         If no calibration is required, X_recal and y_recal are None.
         The group_column is the data column of the train set based on
-        cross validation parameters.
+        cross-validationd parameters.
 
         Parameters
         ----------
@@ -314,7 +314,7 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
         y_recal : Labels | None
             Calibration labels if needed in the pipeline, None otherwise.
         groups : npt.NDArray | None
-            Train set group column for cross validation, None if not
+            Train set group column for cross-validationd, None if not
             specified.
 
         Raises
@@ -350,7 +350,7 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
             X_train = X_train.drop(cross_val_config.group_column, axis=1)
 
         if cross_val_config.group_column != test_split_config.group_column:
-            # If cross validation and test group columns are different
+            # If cross-validationd and test group columns are different
             X_train = X_train.drop(test_split_config.group_column, axis=1)
 
         if validation_config.recalibration_split:
@@ -393,6 +393,86 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
             return StratifiedKFold(**kwargs)
         else:
             return GroupKFold(**kwargs)
+
+    def _cv_fit(
+        self,
+        X_train: npt.NDArray,
+        y_train: Labels,
+        outcome: str,
+        cv_generator: StratifiedKFold | GroupKFold,
+        groups: npt.NDArray | None = None,
+        X_recal: npt.NDArray | None = None,
+        y_recal: Labels | None = None,
+    ) -> None:
+        """
+        Performs cross-validation and fitting of predictor and calibrator.
+
+        Parameters
+        ----------
+        X_train: npt.NDArray
+            Training data.
+        y_train: Labels
+            Training labels.
+        outcome: str
+            Outcome to predict.
+        cv_generator: StratifiedKFold | GroupKFold
+            Cross-validation generator.
+        groups: npt.NDArray | None, default: None
+            Groups for the GroupKFold cross-validation.
+        X_recal: npt.NDArray | None, default: None
+            Recalibration data, or None if no recalibrator.
+        y_recal: Labels | None, default: None
+            Recalibration labels, or None if no recalibrator.
+
+        Returns
+        -------
+        None
+            Nothing is returned.
+
+        Raises
+        ------
+        ValueError
+            If no calibration data is specified with a calibrator.
+
+        """
+        if self.calibrator and (X_recal is None or y_recal is None):
+            raise ValueError(
+                "Recalibration dataset is needed when recalibrator is specified"
+            )
+
+        cv_results = cross_validate(  # Generate cross-validation results
+            self.predictor[outcome],
+            X=X_train,
+            y=y_train,
+            cv=cv_generator,
+            groups=groups,
+            return_estimator=True,
+            return_indices=True,
+        )
+        self.predictor[outcome].fit(X_train, y_train)  # Fit predictor
+
+        for fold_idx, (estimator, test_idx) in enumerate(
+            zip(cv_results["estimator"], cv_results["indices"]["test"])
+        ):
+            # Iterate to get the training predictions for the predictor
+            raw_outputs = estimator.predict_proba(X_train[test_idx])
+            fold_name = fold_idx
+            if groups is not None:
+                fold_name = groups[test_idx][0]  # Get the first group name
+
+            self.predictor_train_outputs[outcome].update({fold_name: raw_outputs})
+
+            if self.calibrator:
+                # Fit calibrator based on prediction on the X_recal dataset
+                raw_outputs = estimator.predict_proba(X_recal)
+                self.calibrator[outcome].fit(raw_outputs[:, 1], y_recal)
+                self.calibrator_train_outputs[outcome].update(
+                    {fold_name: self.calibrator[outcome].predict(raw_outputs)}
+                )
+
+        # Final fit for the calibrator
+        raw_outputs = self.predictor[outcome].predict_proba(X_recal)
+        self.calibrator[outcome].fit(raw_outputs[:, 1], y_recal)
 
     def transform(self, X: pd.DataFrame | npt.NDArray) -> None:
         """
