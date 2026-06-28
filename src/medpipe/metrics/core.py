@@ -15,11 +15,13 @@ Functions:
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable
 
 import numpy as np
 import sklearn as skl
+from ml_insights import SplineCalib
 from scipy.stats import sem, t
+from sklearn.metrics import get_scorer, make_scorer
 
 from medpipe._types import CI, CIDict, FullProba, Labels, MetricDict, ModelMetrics
 from medpipe.utils.exceptions import array_check
@@ -31,6 +33,18 @@ if TYPE_CHECKING:
     import numpy.typing as npt
 
 SCRIPT_NAME = "metrics/core"
+
+METRIC_MAPPING = {
+    "accuracy": "accuracy",
+    "log_loss": "neg_log_loss",
+    "brier_score": "neg_brier_score",
+    "f1": "f1_score",
+    "roc_auc": "roc_auc",
+    "auroc": "roc_auc",
+    "ici": "ici",
+}
+
+METRICS = [key for key in METRIC_MAPPING.keys()]
 
 
 def print_metrics(
