@@ -12,6 +12,7 @@ from pydantic import ValidationError
 
 from medpipe.data.sampler import VALID_SAMPLER_FN
 from medpipe.data.weighting import VALID_WEIGHTING_FN
+from medpipe.metrics.core import METRICS
 from medpipe.utils.config import *
 
 # ==============================================================================
@@ -677,6 +678,97 @@ class TestValidationSubConfig:
         assert config.model_dump() == raw_config
 
 
+class TestMetricsConfig:
+    """Test class for the MetricsConfig class"""
+
+    def _get_valid_config_dict(self, **overrides) -> dict:
+        """Creates a fresh valid config dict to override."""
+        config_dict = {"metrics": ["roc_auc", "log_loss", "ici"]}
+        config_dict.update(overrides)
+
+        return config_dict
+
+    def test_valid_config(self) -> None:
+        """Pass valid configuration to MetricsConfig."""
+        raw_config = self._get_valid_config_dict()
+        config = MetricsConfig.model_validate(raw_config)
+
+        assert config.model_dump() == raw_config
+
+    def test_invalid_metric(self) -> None:
+        """Test case when invalid metric is provided."""
+        match_expr = (
+            "invalid was not found in available metric "
+            f"list. Available metrics are {METRICS}"
+        )
+
+        with pytest.raises(ValidationError, match=escape(match_expr)):
+            MetricsConfig.model_validate(
+                self._get_valid_config_dict(metrics=["invalid"])
+            )
+
+
+class TestFairnessConfig:
+    """Test class for the FairnessConfig class"""
+
+    def _get_valid_config_dict(self, **overrides) -> dict:
+        """Creates a fresh valid config dict to override."""
+        config_dict = {
+            "strata": ["AGE", "SEX"],
+            "groups": {"AGE": [[18, 50], [51, 120]]},
+        }
+        config_dict.update(overrides)
+
+        return config_dict
+
+    def test_valid_config(self) -> None:
+        """Pass valid configuration to TestFairnessConfig."""
+        raw_config = self._get_valid_config_dict()
+        config = FairnessConfig.model_validate(raw_config)
+
+        assert config.model_dump() == raw_config
+
+    def test_group_not_in_strata(self) -> None:
+        """Test case when groups are not in strata."""
+        with pytest.raises(
+            ValidationError, match="invalid should be in the strata list"
+        ):
+            FairnessConfig.model_validate(
+                self._get_valid_config_dict(groups={"invalid": []})
+            )
+
+    def test_group_is_empty(self) -> None:
+        """Test case when group has an empty list as value."""
+        with pytest.raises(ValidationError, match="AGE should not have an empty list"):
+            FairnessConfig.model_validate(
+                self._get_valid_config_dict(groups={"AGE": []})
+            )
+
+
+class TestEvaluationSubConfig:
+    """Test class for the EvaluationSubConfig class"""
+
+    def _get_valid_config_dict(self, **overrides) -> dict:
+        """Creates a fresh valid config dict to override."""
+        config_dict = {
+            "metrics": {"metrics": ["roc_auc", "ici"]},
+            "fairness": {
+                "strata": ["AGE", "SEX"],
+                "groups": {"AGE": [[18, 50], [51, 120]]},
+            },
+        }
+        config_dict.update(overrides)
+
+        return config_dict
+
+    def test_valid_config(self) -> None:
+        """Pass valid configuration to TestEvaluationSubConfig."""
+        raw_config = self._get_valid_config_dict()
+        config = EvaluationSubConfig.model_validate(raw_config)
+
+        assert config.model_dump() == raw_config
+
+
 class TestWorkflowConfig:
     """Test class for the WorkflowConfig class"""
 
@@ -716,6 +808,13 @@ class TestWorkflowConfig:
                     "n_splits": 2,
                     "shuffle": True,
                     "random_state": 0,
+                },
+            },
+            "evaluation": {
+                "metrics": {"metrics": ["roc_auc", "ici"]},
+                "fairness": {
+                    "strata": ["AGE", "SEX"],
+                    "groups": {"AGE": [[18, 50], [51, 120]]},
                 },
             },
         }
@@ -1022,6 +1121,13 @@ class TestMedpipeConfig:
                         "recalibration_size": None,
                     },
                 },
+                "evaluation": {
+                    "metrics": {"metrics": ["roc_auc", "ici"]},
+                    "fairness": {
+                        "strata": ["AGE", "SEX"],
+                        "groups": {"AGE": [[18, 50], [51, 120]]},
+                    },
+                },
             },
             "hyperparameters": {
                 "balancing": None,
@@ -1044,18 +1150,41 @@ class TestMedpipeConfig:
 
     def test_recalibration_split(self, tmp_path: Path) -> None:
         """Test case when recalibration method and split mismatch."""
-        match_expr = "Recalibration validation split must be "
-        "specified when a recalibration method is used"
-        validation_dict = {
-            "test_split": {"strategy": "random", "test_size": 0.1},
-            "cross_validation": {"strategy": "random", "n_splits": 5},
+        match_expr = (
+            "Recalibration validation split must be "
+            "specified when a recalibration method is used"
+        )
+
+        invalid_workflow_dict = {
+            "preprocessing": None,
+            "validation": {
+                "cross_validation": {
+                    "strategy": "random",
+                    "n_splits": 5,
+                    "shuffle": True,
+                    "random_state": 42,
+                    "group_column": None,
+                },
+                "test_split": {
+                    "strategy": "random",
+                    "test_size": 0.1,
+                    "group_column": None,
+                    "values": None,
+                },
+            },
+            "evaluation": {
+                "metrics": {"metrics": ["roc_auc", "ici"]},
+                "fairness": {
+                    "strata": ["AGE", "SEX"],
+                    "groups": {"AGE": [[18, 50], [51, 120]]},
+                },
+            },
         }
 
         with pytest.raises(ValueError, match=match_expr):
             MedpipeConfig.model_validate(
                 self._get_valid_config_dict(
-                    tmp_path,
-                    **{"workflow": {"validation": validation_dict}},
+                    tmp_path, **{"workflow": invalid_workflow_dict}
                 )
             )
 

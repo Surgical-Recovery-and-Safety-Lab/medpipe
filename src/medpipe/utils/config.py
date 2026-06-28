@@ -20,6 +20,7 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 
 from medpipe.data.sampler import VALID_SAMPLER_FN
 from medpipe.data.weighting import VALID_WEIGHTING_FN
+from medpipe.metrics.core import METRICS
 
 from .exceptions import file_checks
 
@@ -229,11 +230,53 @@ class ValidationSubConfig(BaseModel):
     model_config = {"extra": "forbid"}
 
 
+class MetricsConfig(BaseModel):
+    metrics: list[str] = Field(default=["roc_auc", "ici"])
+    model_config = {"extra": "forbid"}
+
+    @model_validator(mode="after")
+    def validate_metrics(self) -> "MetricsConfig":
+        """Validate input metrics."""
+        for metric in self.metrics:
+            if metric not in METRICS:
+                expr = (
+                    f"{metric} was not found in available metric "
+                    f"list. Available metrics are {METRICS}"
+                )
+                raise ValueError(expr)
+
+        return self
+
+
+class FairnessConfig(BaseModel):
+    strata: list[str]
+    groups: dict[str, list[list[int | float | str]]] | None = None
+    model_config = {"extra": "forbid"}
+
+    @model_validator(mode="after")
+    def validate_group_keys(self) -> "FairnessConfig":
+        """Validate group keys are in strata."""
+        if self.groups:
+            for key in self.groups.keys():
+                if key not in self.strata:
+                    raise ValueError(f"{key} should be in the strata list")
+                if not self.groups[key]:
+                    raise ValueError(f"{key} should not have an empty list")
+        return self
+
+
+class EvaluationSubConfig(BaseModel):
+    metrics: MetricsConfig
+    fairness: FairnessConfig | None = None
+    model_config = {"extra": "forbid"}
+
+
 class WorkflowConfig(BaseModel):
     """The master schema for the workflow subconfiguration file."""
 
     preprocessing: PreprocessingConfig | None = None
     validation: ValidationSubConfig
+    evaluation: EvaluationSubConfig
 
     model_config = {"extra": "forbid"}
 

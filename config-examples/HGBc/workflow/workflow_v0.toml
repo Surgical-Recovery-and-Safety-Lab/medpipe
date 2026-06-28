@@ -19,3 +19,11 @@ strategy = "random"  # Can be random, group, or none
 n_splits = 20  # Number of groups (group strategy) or folds (random strategy)
 shuffle = true
 random_state = 42
+
+[evaluation]
+[evaluation.metrics]
+metrics = ["roc_auc", "log_loss", "ici"]
+
+[evaluation.fairness]
+strata = ["SEX", "AGE"]
+groups = { "AGE" = [[18, 50], [51, 120]] }

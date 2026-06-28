@@ -29,3 +29,11 @@ group_column = "DHB_NAME"
 n_splits = 3  # Number of groups (group strategy) or folds (random strategy)
 shuffle = true
 random_state = 42
+
+[evaluation]
+[evaluation.metrics]
+metrics = ["roc_auc", "log_loss", "ici"]
+
+[evaluation.fairness]
+strata = ["SEX", "AGE"]
+groups = { "AGE" = [[18, 50], [51, 120]] }
