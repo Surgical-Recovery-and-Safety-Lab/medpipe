@@ -87,6 +87,48 @@ def ici_score(
         raise ValueError("Error predicting probabilities with spline")
 
 
+def build_scorers(metrics: list[str]) -> dict[str, Callable]:
+    """
+    Build the dictionary of scorers for cross-validation.
+
+    Parameters
+    ----------
+    metrics : list[str]
+        List of metrics to use.
+
+    Returns
+    -------
+    scorers : dict[str, Callable]
+        Dictionary of scorers to pass to cross_validate.
+
+    Raises
+    ------
+    TypeError
+        If metrics is not a list of strings.
+    ValueError
+        If a metric is not a valid option.
+
+    """
+    if not isinstance(metrics, list) and metrics and isinstance(metrics[0], str):
+        # Ensure metrics is not an empty list and is a list of strings
+        raise TypeError("Input metrics should be a list of strings")
+
+    scorers = {}  # Empty dict to contain scorers
+    for metric in metrics:
+        if metric == "ici":
+            scorers[metric] = make_scorer(ici_score, response_method="predict_proba")
+
+        elif metric in METRICS:
+            scorers[metric] = get_scorer(METRIC_MAPPING[metric])
+        else:
+            expr = (
+                f"{metric} was not found in available metric "
+                f"list. Available metrics are {METRICS}"
+            )
+            raise ValueError(expr)
+    return scorers
+
+
 def print_metrics(
     metric_dict: dict[str, list[float]],
     label_list: list[str],
