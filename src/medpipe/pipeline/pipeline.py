@@ -467,7 +467,7 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
                 raw_outputs = estimator.predict_proba(X_recal)
                 self.calibrator[outcome].fit(raw_outputs[:, 1], y_recal)
                 self.calibrator_train_outputs[outcome].update(
-                    {fold_name: self.calibrator[outcome].predict(raw_outputs)}
+                    {fold_name: self.calibrator[outcome].predict(raw_outputs[:, 1])}
                 )
 
         # Final fit for the calibrator
