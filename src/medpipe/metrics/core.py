@@ -47,6 +47,46 @@ METRIC_MAPPING = {
 METRICS = [key for key in METRIC_MAPPING.keys()]
 
 
+def ici_score(
+    y: Labels,
+    y_pred: FullProba,
+) -> float:
+    """
+    Computes the integrated calibration index using a spline-based
+    calibration curve.
+
+    Parameters
+    ----------
+    y : Labels
+        Ground truth labels.
+    y_pred : FullProba
+        Predictions from the model.
+
+    Returns
+    -------
+    ici : float
+        Integrated calibration index value.
+
+    Raises
+    ------
+    ValueError
+        If spline predicted probabilities are None.
+
+    """
+    if y_pred.ndim == 2:
+        y_pred = y_pred[:, 1]  # Get only positive probabilities
+
+    # Create and fit spline
+    spline = SplineCalib(logodds_scale=True)
+    spline.fit(y_pred, y)
+    smoothed_outputs = spline.predict(y_pred)
+
+    if smoothed_outputs is not None:
+        return float(np.mean(np.abs(smoothed_outputs - y_pred)))
+    else:
+        raise ValueError("Error predicting probabilities with spline")
+
+
 def print_metrics(
     metric_dict: dict[str, list[float]],
     label_list: list[str],
