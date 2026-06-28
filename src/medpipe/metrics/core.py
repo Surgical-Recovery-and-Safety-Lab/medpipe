@@ -21,7 +21,15 @@ import numpy as np
 import sklearn as skl
 from ml_insights import SplineCalib
 from scipy.stats import sem, t
-from sklearn.metrics import get_scorer, make_scorer
+from sklearn.metrics import (
+    accuracy_score,
+    brier_score_loss,
+    f1_score,
+    get_scorer,
+    log_loss,
+    make_scorer,
+    roc_auc_score,
+)
 
 from medpipe._types import CI, CIDict, FullProba, Labels, MetricDict, ModelMetrics
 from medpipe.utils.exceptions import array_check
@@ -33,18 +41,6 @@ if TYPE_CHECKING:
     import numpy.typing as npt
 
 SCRIPT_NAME = "metrics/core"
-
-METRIC_MAPPING = {
-    "accuracy": "accuracy",
-    "log_loss": "neg_log_loss",
-    "brier_score": "neg_brier_score",
-    "f1": "f1_score",
-    "roc_auc": "roc_auc",
-    "auroc": "roc_auc",
-    "ici": "ici",
-}
-
-METRICS = [key for key in METRIC_MAPPING.keys()]
 
 
 def ici_score(
@@ -87,7 +83,30 @@ def ici_score(
         raise ValueError("Error predicting probabilities with spline")
 
 
-def build_scorers(metrics: list[str]) -> dict[str, Callable]:
+# Define some registeries
+METRIC_MAPPING = {
+    "accuracy": "accuracy",
+    "log_loss": "neg_log_loss",
+    "brier_score": "neg_brier_score",
+    "f1": "f1",
+    "roc_auc": "roc_auc",
+    "auroc": "roc_auc",
+    "ici": "ici",
+}
+METRIC_SCORES = {
+    "accuracy": accuracy_score,
+    "log_loss": log_loss,
+    "brier_score": brier_score_loss,
+    "f1": f1_score,
+    "roc_auc": roc_auc_score,
+    "auroc": roc_auc_score,
+    "ici": ici_score,
+}
+
+METRICS = [key for key in METRIC_MAPPING.keys()]
+
+
+def build_scorers(metrics: list[str] | npt.NDArray) -> dict[str, Callable]:
     """
     Build the dictionary of scorers for cross-validation.
 
@@ -109,7 +128,11 @@ def build_scorers(metrics: list[str]) -> dict[str, Callable]:
         If a metric is not a valid option.
 
     """
-    if not isinstance(metrics, list) and metrics and isinstance(metrics[0], str):
+    if (
+        not isinstance(metrics, (list, np.ndarray))
+        or not metrics
+        or not isinstance(metrics[0], str)
+    ):
         # Ensure metrics is not an empty list and is a list of strings
         raise TypeError("Input metrics should be a list of strings")
 
