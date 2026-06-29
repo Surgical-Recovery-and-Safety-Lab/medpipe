@@ -455,6 +455,51 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
 
         return X_train, X_test, X_recal, groups
 
+    def _prepare_features(
+        self, X_train: pd.DataFrame, X_test: pd.DataFrame, X_recal: pd.DataFrame | None
+    ) -> tuple[npt.NDArray, npt.NDArray, npt.NDArray | None]:
+        """
+        Prepares features of the different data sets.
+
+        Parameters
+        ----------
+        X_train, X_test : pd.DataFrame
+            Train and test data.
+        X_recal : pd.DataFrame | None
+            Calibration data if needed in the pipeline, None otherwise.
+
+        Returns
+        -------
+        X_train_array, X_test_array : npt.NDArray
+            Processed train and test data.
+        X_recal_array : npt.NDArray | None
+            Processed recalibration data or None.
+
+        """
+        X_recal_array = None
+
+        if self.preprocessor:
+            # Fit preprocessor on X_train than transform datasets
+            X_train = self.preprocessor.fit_transform(X_train)
+            X_test = self.preprocessor.transform(X_test)
+
+            if X_recal is not None:
+                X_recal = self.preprocessor.transform(X_recal)
+
+        if X_recal is not None:
+            # Convert pd.DataFrame to np.array
+            X_recal_array = (
+                X_recal.to_numpy() if isinstance(X_recal, pd.DataFrame) else X_recal
+            )
+
+        # Convert to numpy if needed
+        X_train_array = (
+            X_train.to_numpy() if isinstance(X_train, pd.DataFrame) else X_train
+        )
+        X_test_array = X_test.to_numpy() if isinstance(X_test, pd.DataFrame) else X_test
+
+        return X_train_array, X_test_array, X_recal_array
+
     def _get_cv_generator(self) -> StratifiedKFold | GroupKFold:
         """
         Creates a cross-validation generator from the configuration.
