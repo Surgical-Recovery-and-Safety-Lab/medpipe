@@ -45,7 +45,7 @@ SCRIPT_NAME = "metrics/core"
 
 def ici_score(
     y: Labels,
-    y_pred: FullProba,
+    y_pred: FullProba | PosProba,
 ) -> float:
     """
     Computes the integrated calibration index using a spline-based
@@ -55,8 +55,9 @@ def ici_score(
     ----------
     y : Labels
         Ground truth labels.
-    y_pred : FullProba
-        Predictions from the model.
+    y_pred : FullProba | PosProba
+        Predictions from the model. Can be just the positive label
+        probabilities.
 
     Returns
     -------
