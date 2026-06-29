@@ -382,6 +382,79 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
             groups,
         )
 
+    def _drop_group_columns(
+        self, X_train: pd.DataFrame, X_test: pd.DataFrame, X_recal: pd.DataFrame | None
+    ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame | None, npt.NDArray | None]:
+        """
+        Drops the different group columns if needed.
+
+        Parameters
+        ----------
+        X_train, X_test : pd.DataFrame
+            Train and test data.
+        X_recal : pd.DataFrame | None
+            Calibration data if needed in the pipeline, None otherwise.
+
+        Returns
+        -------
+        X_train_dropped, X_test_dropped : pd.DataFrame
+            Train and test data without the group columns.
+        X_recal_dropped : pd.DataFrame | None
+            Calibration data without the group columns or None.
+        groups : npt.NDArray | None
+            Train set group column for cross-validationd, None if not
+            specified.
+
+        """
+        # Extract validation configurations
+        validation_config = self.medpipe_config.workflow.validation
+        test_split_config = validation_config.test_split
+        cross_val_config = validation_config.cross_validation
+
+        cross_val_grp_col = cross_val_config.group_column
+        test_split_grp_col = test_split_config.group_column
+        groups = None
+
+        if cross_val_config.strategy == "group" and cross_val_grp_col:
+            # If a cross-validation group column is specified drop it
+            groups = X_train[cross_val_grp_col].to_numpy()
+            X_train = X_train.drop(cross_val_grp_col, axis=1)
+            X_test = X_test.drop(cross_val_grp_col, axis=1)
+            X_recal = (
+                X_recal.drop(cross_val_grp_col, axis=1)
+                if X_recal is not None
+                else X_recal
+            )
+
+        if (
+            cross_val_config.strategy == "group"
+            and test_split_config.strategy == "group"
+            and cross_val_grp_col != test_split_grp_col
+        ):
+            # If cross-validation and test group columns are different
+            X_train = X_train.drop(test_split_grp_col, axis=1)
+            X_test = X_test.drop(test_split_grp_col, axis=1)
+            X_recal = (
+                X_recal.drop(test_split_grp_col, axis=1)
+                if X_recal is not None
+                else X_recal
+            )
+
+            # No need to check test_split_grp_col so exit early
+            return X_train, X_test, X_recal, groups
+
+        if test_split_config.strategy == "group" and test_split_grp_col:
+            # If a test split group column is specified drop it
+            X_train = X_train.drop(test_split_grp_col, axis=1)
+            X_test = X_test.drop(test_split_grp_col, axis=1)
+            X_recal = (
+                X_recal.drop(test_split_grp_col, axis=1)
+                if X_recal is not None
+                else X_recal
+            )
+
+        return X_train, X_test, X_recal, groups
+
     def _get_cv_generator(self) -> StratifiedKFold | GroupKFold:
         """
         Creates a cross-validation generator from the configuration.
