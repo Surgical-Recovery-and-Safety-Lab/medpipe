@@ -176,6 +176,8 @@ def compute_metrics(
     ------
     TypeError
         If metrics is not a list of strings.
+        If y is not a np.ndarray.
+        If y_pred is not a np.ndarray
 
     """
     if (
