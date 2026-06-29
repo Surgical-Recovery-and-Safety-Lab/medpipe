@@ -11,11 +11,11 @@ from unittest.mock import patch
 import numpy as np
 import pandas as pd
 import pytest
+from sklearn.base import check_is_fitted
 from sklearn.compose import ColumnTransformer
 from sklearn.model_selection import GroupKFold, StratifiedKFold
 from sklearn.pipeline import Pipeline
 
-from medpipe.data.utils import extract_labels, split_data
 from medpipe.pipeline.pipeline import MedpipePipeline
 from medpipe.utils.config import PreprocessOperationConfig
 from medpipe.utils.io import load_data, read_toml_configuration
@@ -507,6 +507,67 @@ class TestDropGroupColumns:
         assert (X_test.columns == column_list).all()
         assert X_recal is not None
         assert (X_recal.columns == column_list).all()
+
+
+class TestPrepareFeatures:
+    """Test class for the _prepare_features function of the
+    MedpipePipeline class."""
+
+    def test_pipeline_prepare_features_success(
+        self,
+        mp_pipeline: MedpipePipeline,
+        mock_data: tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame],
+    ) -> None:
+        """Test successful function call."""
+        X_train, X_test, X_recal = mock_data
+
+        X_train, X_test, X_recal = mp_pipeline._prepare_features(
+            X_train, X_test, X_recal
+        )
+
+        assert isinstance(X_train, np.ndarray)
+        assert isinstance(X_test, np.ndarray)
+        assert isinstance(X_recal, np.ndarray)
+
+        if mp_pipeline.preprocessor:
+            check_is_fitted(mp_pipeline.preprocessor)
+
+    def test_pipeline_prepare_features_no_recal(
+        self,
+        mp_pipeline: MedpipePipeline,
+        mock_data: tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame],
+    ) -> None:
+        """Test case when X_recal is None."""
+        X_train, X_test, X_recal = mock_data
+        X_recal = None
+
+        X_train, X_test, X_recal = mp_pipeline._prepare_features(
+            X_train, X_test, X_recal
+        )
+
+        assert isinstance(X_train, np.ndarray)
+        assert isinstance(X_test, np.ndarray)
+        assert X_recal is None
+
+        if mp_pipeline.preprocessor:
+            check_is_fitted(mp_pipeline.preprocessor)
+
+    def test_pipeline_prepare_features_no_preprocessing(
+        self,
+        mp_pipeline: MedpipePipeline,
+        mock_data: tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame],
+    ) -> None:
+        """Test case when there is no preprocessor."""
+        X_train, X_test, X_recal = mock_data
+        mp_pipeline.preprocessor = None  # Set preprocessor to None
+
+        X_train, X_test, X_recal = mp_pipeline._prepare_features(
+            X_train, X_test, X_recal
+        )
+
+        assert isinstance(X_train, np.ndarray)
+        assert isinstance(X_test, np.ndarray)
+        assert isinstance(X_recal, np.ndarray)
 
 
 class TestGetCvGenerator:
