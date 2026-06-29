@@ -230,7 +230,7 @@ class ValidationSubConfig(BaseModel):
     model_config = {"extra": "forbid"}
 
     @model_validator(mode="after")
-    def validate_strategies(self) -> "ValidationSubConfig":
+    def validate_group_strategies(self) -> "ValidationSubConfig":
         """Validate that recalibration and test split have same strategy."""
         if self.recalibration_split:
             if self.recalibration_split.strategy != self.test_split.strategy:
@@ -238,11 +238,36 @@ class ValidationSubConfig(BaseModel):
         return self
 
     @model_validator(mode="after")
-    def validate_group_column(self) -> "ValidationSubConfig":
-        """Validate that recalibration and test split have same strategy."""
+    def validate_group_columns(self) -> "ValidationSubConfig":
+        """Validate that recalibration and test split have same group columns."""
         if self.recalibration_split:
-            if self.recalibration_split.group_column != self.test_split.group_column:
-                raise ValueError("Recalibration and test group columns should match")
+            # Check only when strategy is group
+            if (
+                self.recalibration_split.strategy == "group"
+                and self.test_split.strategy == "group"
+            ):
+                if (
+                    self.recalibration_split.group_column
+                    != self.test_split.group_column
+                ):
+                    raise ValueError(
+                        "Recalibration and test group columns should match"
+                    )
+        return self
+
+    @model_validator(mode="after")
+    def validate_group_values(self) -> "ValidationSubConfig":
+        """Validate that recalibration and test split have different values."""
+        if self.recalibration_split and self.recalibration_split.values is not None:
+            if (
+                self.recalibration_split.strategy == "group"
+                and self.test_split.strategy == "group"
+            ):
+                for value in self.recalibration_split.values:
+                    if value in self.test_split.values:  # type: ignore
+                        raise ValueError(
+                            "Recalibration and test values should be different"
+                        )
         return self
 
 
