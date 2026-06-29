@@ -50,6 +50,51 @@ def mp_pipeline(example_config_dir: Path) -> MedpipePipeline:
     return MedpipePipeline(example_config_dir / "HGBc_config.toml", logger=None)
 
 
+@pytest.fixture
+def mock_data() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    """Generate some mock data for the some tests."""
+    X_train = pd.DataFrame(
+        {
+            "SEX": ["F", "M"],
+            "AGE": [20, 43],
+            "PRIOR_CANCER": [0, 1],
+            "ADMISSION_ACUITY": ["Acute", "Elective"],
+            "ADMISSION_SOURCE": ["Routine", "Transfer"],
+            "CATEGORY_LEVEL_1": ["Plastics", "General Surgery"],
+            "OP_SEVERITY": [1, 3],
+            "OP_YEAR": [2022, 2021],
+            "DHB_NAME": ["Auckland", "Christchurch"],
+        }
+    )
+    X_recal = pd.DataFrame(
+        {
+            "SEX": ["M", "F"],
+            "AGE": [23, 45],
+            "PRIOR_CANCER": [0, 1],
+            "ADMISSION_ACUITY": ["Elective", "Acute"],
+            "ADMISSION_SOURCE": ["Routine", "Routine"],
+            "CATEGORY_LEVEL_1": ["Plastics", "General Surgery"],
+            "OP_SEVERITY": [1, 2],
+            "OP_YEAR": [2023, 2023],
+            "DHB_NAME": ["Wellington", "Christchurch"],
+        }
+    )
+    X_test = pd.DataFrame(
+        {
+            "SEX": ["M", "M"],
+            "AGE": [69, 43],
+            "PRIOR_CANCER": [0, 1],
+            "ADMISSION_ACUITY": ["Acute", "Elective"],
+            "ADMISSION_SOURCE": ["Transfer", "Transfer"],
+            "CATEGORY_LEVEL_1": ["Plastics", "General Surgery"],
+            "OP_SEVERITY": [1, 4],
+            "OP_YEAR": [2024, 2024],
+            "DHB_NAME": ["Auckland", "Wellington"],
+        }
+    )
+    return (X_train, X_recal, X_test)
+
+
 # ==============================================================================
 # Test classes
 # ==============================================================================
@@ -304,50 +349,28 @@ class TestDropGroupColumns:
     """Test class for the _drop_group_columns function of the
     MedpipePipeline class."""
 
-    @pytest.fixture
-    def mock_drop_data(self) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-        """Generate some mock data for the drop tests."""
-        X_train = pd.DataFrame(
-            {
-                "SEX": ["F", "M"],
-                "AGE": [20, 43],
-                "OP_YEAR": [2022, 2021],
-                "DHB_NAME": ["Auckland", "Christchurch"],
-            }
-        )
-        X_recal = pd.DataFrame(
-            {
-                "SEX": ["M", "F"],
-                "AGE": [23, 45],
-                "OP_YEAR": [2023, 2023],
-                "DHB_NAME": ["Wellington", "Christchurch"],
-            }
-        )
-        X_test = pd.DataFrame(
-            {
-                "SEX": ["M", "M"],
-                "AGE": [69, 43],
-                "OP_YEAR": [2024, 2024],
-                "DHB_NAME": ["Auckland", "Wellington"],
-            }
-        )
-        return (X_train, X_recal, X_test)
-
     def test_pipeline_drop_group_columns_success(
         self,
         mp_pipeline: MedpipePipeline,
-        mock_drop_data: tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame],
+        mock_data: tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame],
     ) -> None:
         """Test successful function call."""
         # Get mock data and drop columns
-        X_train, X_test, X_recal = mock_drop_data
+        X_train, X_test, X_recal = mock_data
         X_train, X_test, X_recal, groups = mp_pipeline._drop_group_columns(
             X_train, X_test, X_recal
         )
 
         # Create the column list to check
-        column_list = ["SEX", "AGE"]
-
+        column_list = [
+            "SEX",
+            "AGE",
+            "PRIOR_CANCER",
+            "ADMISSION_ACUITY",
+            "ADMISSION_SOURCE",
+            "CATEGORY_LEVEL_1",
+            "OP_SEVERITY",
+        ]
         # Check everything is correct
         assert (X_train.columns == column_list).all()
         assert (X_test.columns == column_list).all()
@@ -359,17 +382,25 @@ class TestDropGroupColumns:
     def test_pipeline_drop_group_columns_no_recal(
         self,
         mp_pipeline: MedpipePipeline,
-        mock_drop_data: tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame],
+        mock_data: tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame],
     ) -> None:
         """Test case when X_recal is None."""
         # Get mock data and drop columns
-        X_train, X_test, X_recal = mock_drop_data
+        X_train, X_test, X_recal = mock_data
         X_recal = None  # Set X_recal to None
         X_train, X_test, X_recal, _ = mp_pipeline._drop_group_columns(
             X_train, X_test, X_recal
         )
 
-        column_list = ["SEX", "AGE"]
+        column_list = [
+            "SEX",
+            "AGE",
+            "PRIOR_CANCER",
+            "ADMISSION_ACUITY",
+            "ADMISSION_SOURCE",
+            "CATEGORY_LEVEL_1",
+            "OP_SEVERITY",
+        ]
         assert X_recal is None
         assert (X_train.columns == column_list).all()
         assert (X_test.columns == column_list).all()
@@ -377,11 +408,11 @@ class TestDropGroupColumns:
     def test_pipeline_drop_group_columns_no_cv_groups(
         self,
         mp_pipeline: MedpipePipeline,
-        mock_drop_data: tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame],
+        mock_data: tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame],
     ) -> None:
         """Test case when cross-validation groups are None."""
         # Get mock data and drop columns
-        X_train, X_test, X_recal = mock_drop_data
+        X_train, X_test, X_recal = mock_data
 
         mp_pipeline.medpipe_config.workflow.validation.cross_validation.strategy = (
             "random"  # Set cross-validation strategy to random to have no groups
@@ -390,7 +421,16 @@ class TestDropGroupColumns:
             X_train, X_test, X_recal
         )
 
-        column_list = ["SEX", "AGE", "DHB_NAME"]  # DHB_NAME is not dropped
+        column_list = [
+            "SEX",
+            "AGE",
+            "PRIOR_CANCER",
+            "ADMISSION_ACUITY",
+            "ADMISSION_SOURCE",
+            "CATEGORY_LEVEL_1",
+            "OP_SEVERITY",
+            "DHB_NAME",  # DHB_NAME is not dropped
+        ]
 
         assert groups is None
         assert (X_train.columns == column_list).all()
@@ -401,11 +441,11 @@ class TestDropGroupColumns:
     def test_pipeline_drop_group_columns_no_test_groups(
         self,
         mp_pipeline: MedpipePipeline,
-        mock_drop_data: tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame],
+        mock_data: tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame],
     ) -> None:
         """Test case when test_split groups are None."""
         # Get mock data and drop columns
-        X_train, X_test, X_recal = mock_drop_data
+        X_train, X_test, X_recal = mock_data
 
         mp_pipeline.medpipe_config.workflow.validation.test_split.strategy = (
             "random"  # Set test split strategy to random to have no groups
@@ -414,7 +454,16 @@ class TestDropGroupColumns:
             X_train, X_test, X_recal
         )
 
-        column_list = ["SEX", "AGE", "OP_YEAR"]  # OP_YEAR is not dropped
+        column_list = [
+            "SEX",
+            "AGE",
+            "PRIOR_CANCER",
+            "ADMISSION_ACUITY",
+            "ADMISSION_SOURCE",
+            "CATEGORY_LEVEL_1",
+            "OP_SEVERITY",
+            "OP_YEAR",  # OP_YEAR is not dropped
+        ]
 
         assert groups is not None
         assert (X_train.columns == column_list).all()
@@ -425,11 +474,11 @@ class TestDropGroupColumns:
     def test_pipeline_drop_group_columns_no_groups(
         self,
         mp_pipeline: MedpipePipeline,
-        mock_drop_data: tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame],
+        mock_data: tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame],
     ) -> None:
         """Test case when test_split and cross-validation groups are None."""
         # Get mock data and drop columns
-        X_train, X_test, X_recal = mock_drop_data
+        X_train, X_test, X_recal = mock_data
 
         mp_pipeline.medpipe_config.workflow.validation.test_split.strategy = (
             "random"  # Set test split strategy to random to have no groups
@@ -441,7 +490,17 @@ class TestDropGroupColumns:
             X_train, X_test, X_recal
         )
 
-        column_list = ["SEX", "AGE", "OP_YEAR", "DHB_NAME"]
+        column_list = [
+            "SEX",
+            "AGE",
+            "PRIOR_CANCER",
+            "ADMISSION_ACUITY",
+            "ADMISSION_SOURCE",
+            "CATEGORY_LEVEL_1",
+            "OP_SEVERITY",
+            "OP_YEAR",  # OP_YEAR is not dropped
+            "DHB_NAME",  # DHB_NAME is not dropped
+        ]
 
         assert groups is None
         assert (X_train.columns == column_list).all()
