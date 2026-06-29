@@ -143,6 +143,74 @@ def build_scorers(metrics: list[str] | npt.NDArray) -> dict[str, Callable]:
     return scorers
 
 
+def compute_metrics(
+    metrics: list[str] | npt.NDArray, y: Labels, y_pred: FullProba | PosProba
+) -> dict[str, float]:
+    """
+    Computes metrics based on predicted data.
+
+    Parameters
+    ----------
+    metrics : list[str]
+        List of metrics to use.
+    y : Labels
+        Ground truth labels.
+    y_pred : FullProba | PosProba
+        Predictions from the model.
+
+    Returns
+    -------
+    scores : dict[str, float]
+        Score dictionary with metrics as keys.
+
+    Raises
+    ------
+    TypeError
+        If metrics is not a list of strings.
+
+    """
+    if (
+        not isinstance(metrics, (list, np.ndarray))
+        or not metrics
+        or not isinstance(metrics[0], str)
+    ):
+        # Ensure metrics is not an empty list and is a list of strings
+        raise TypeError("Input metrics should be a list of strings")
+
+    if not isinstance(y_pred, np.ndarray):
+        raise TypeError(f"Input y_pred should be a np.ndarray, but got {type(y_pred)}")
+
+    if not isinstance(y, np.ndarray):
+        raise TypeError(f"Input y should be a np.ndarray, but got {type(y)}")
+
+    if y_pred.ndim == 2:
+        y_pred = y_pred[:, 1]  # Get only positive probabilities
+
+    array_dim_check(y, y_pred)
+
+    scores = {}  # Empty dict to hold scores
+    y_labels = np.round(y_pred)  # Get labels based on probabilities
+
+    for metric in metrics:
+        try:
+            method = METRIC_MAPPING[metric][2]
+        except KeyError:
+            expr = (
+                "invalid was not found in available metric "
+                f"list. Available metrics are {METRICS}"
+            )
+            raise ValueError(expr)
+
+        if "predict_proba" in method:
+            # Use the predictions to compute the score
+            scores[metric] = METRIC_MAPPING[metric][1](y, y_pred)
+
+        else:
+            scores[metric] = METRIC_MAPPING[metric][1](y, y_labels)
+
+    return scores
+
+
 def print_metrics(
     metric_dict: dict[str, list[float]],
     label_list: list[str],
