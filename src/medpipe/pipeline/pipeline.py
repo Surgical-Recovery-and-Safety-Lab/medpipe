@@ -9,7 +9,7 @@ a calibrator.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING, Type, overload
+from typing import TYPE_CHECKING, Any, Type, overload
 from warnings import warn
 
 import numpy as np
@@ -23,10 +23,9 @@ from sklearn.model_selection import GroupKFold, StratifiedKFold, cross_validate
 from sklearn.pipeline import Pipeline
 from sklearn.utils.validation import check_is_fitted
 
-import medpipe.data.sampler as sampler
 from medpipe._types import Data, FullProba, Labels, PosProba, PredData
 from medpipe.data.utils import extract_labels, split_data
-from medpipe.metrics.core import print_metrics
+from medpipe.metrics.core import build_scorers, compute_metrics, print_metrics
 from medpipe.models.core import create_estimator, get_positive_proba, test_model
 from medpipe.utils.config import MedpipeConfig
 from medpipe.utils.io import load_data, read_toml_configuration
@@ -531,31 +530,31 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
         groups: npt.NDArray | None = None,
         X_recal: npt.NDArray | None = None,
         y_recal: Labels | None = None,
-    ) -> None:
+    ) -> dict[str, Any]:
         """
         Performs cross-validation and fitting of predictor and calibrator.
 
         Parameters
         ----------
-        X_train: npt.NDArray
+        X_train : npt.NDArray
             Training data.
-        y_train: Labels
+        y_train : Labels
             Training labels.
-        outcome: str
+        outcome : str
             Outcome to predict.
-        cv_generator: StratifiedKFold | GroupKFold
+        cv_generator : StratifiedKFold | GroupKFold
             Cross-validation generator.
-        groups: npt.NDArray | None, default: None
+        groups : npt.NDArray | None, default: None
             Groups for the GroupKFold cross-validation.
-        X_recal: npt.NDArray | None, default: None
+        X_recal : npt.NDArray | None, default: None
             Recalibration data, or None if no recalibrator.
-        y_recal: Labels | None, default: None
+        y_recal : Labels | None, default: None
             Recalibration labels, or None if no recalibrator.
 
         Returns
         -------
-        None
-            Nothing is returned.
+        cv_results : dict[str, Any]
+            Cross-validation results for predictor and calibrator.
 
         Raises
         ------
@@ -567,6 +566,8 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
             raise ValueError(
                 "Recalibration dataset is needed when recalibrator is specified"
             )
+        metrics = self.medpipe_config.workflow.evaluation.metrics.metrics
+        scorers = build_scorers(metrics)
 
         cv_results = cross_validate(  # Generate cross-validation results
             self.predictor[outcome],
@@ -576,9 +577,22 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
             groups=groups,
             return_estimator=True,
             return_indices=True,
+            scoring=scorers,
         )
         self.predictor[outcome].fit(X_train, y_train)  # Fit predictor
 
+        # Get calibrator metrics and save predictor fold information
+        calibrator_metrics = self._fit_fold_calibrator(
+            outcome, cv_results, X_train, groups, X_recal, y_recal
+        )
+
+        # Final fit for the calibrator
+        raw_outputs = self.predictor[outcome].predict_proba(X_recal)
+        self.calibrator[outcome].fit(raw_outputs[:, 1], y_recal)
+
+        # Update and return cv_results with calibrator_metrics
+        cv_results.update(calibrator_metrics)
+        return cv_results
         for fold_idx, (estimator, test_idx) in enumerate(
             zip(cv_results["estimator"], cv_results["indices"]["test"])
         ):
