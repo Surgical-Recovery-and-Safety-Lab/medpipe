@@ -224,24 +224,31 @@ class TestGetDataSets:
     def test_pipeline_get_data_sets_success(self, mp_pipeline: MedpipePipeline) -> None:
         """Test successful function call."""
         mock_data = load_data(mp_pipeline.medpipe_config.data.path)
-        validation_config = mp_pipeline.medpipe_config.workflow.validation
 
-        test_group_column = validation_config.test_split.group_column
-        cv_group_column = validation_config.cross_validation.group_column
-
-        X_train, _, X_test, _, X_recal, _, groups = mp_pipeline._get_data_sets(
-            mock_data
+        X_train, y_train, X_test, y_test, X_recal, y_recal, groups = (
+            mp_pipeline._get_data_sets(mock_data)
         )
 
-        assert test_group_column not in X_train.columns
-        assert test_group_column not in X_test.columns
-        assert X_recal is not None  # Default config has recalibration set
-        assert test_group_column not in X_recal.columns
+        # Create the column list to check
+        column_list = mp_pipeline.medpipe_config.data.predictors
+
+        # Check columns are correct
+        assert (X_train.columns == column_list).all()
+        assert (X_test.columns == column_list).all()
+
+        assert len(X_train) == len(y_train)
+        assert len(X_test) == len(y_test)
+
+        if mp_pipeline.medpipe_config.workflow.validation.recalibration_split:
+            assert X_recal is not None
+            assert y_recal is not None
+            assert (X_recal.columns == column_list).all()
+            assert len(X_recal) == len(y_recal)
 
         # Check group_column and X_train
-        assert groups is not None  # Default config has group_column
-        assert cv_group_column not in X_train.columns
-        assert len(groups) == len(X_train)
+        if mp_pipeline.medpipe_config.workflow.validation.cross_validation.group_column:
+            assert groups is not None
+            assert len(groups) == len(X_train)
 
     def test_pipeline_get_data_sets_no_recal(
         self, mp_pipeline: MedpipePipeline
