@@ -5,43 +5,42 @@ Test functions for the metrics.core module
 """
 
 from re import escape
+from typing import Any
 
 import numpy as np
-import numpy.typing as npt
 import pytest
 
-from medpipe.metrics.core import METRICS, build_scorers, ici_score
+from medpipe._types import FullProba, Labels
+from medpipe.metrics.core import METRICS, build_scorers, compute_metrics, ici_score
+
+
+@pytest.fixture
+def mock_data() -> tuple[Labels, FullProba]:
+    """Generate some mock labels and predictions for tests."""
+    rng = np.random.default_rng(seed=42)
+    n_samples = 100
+    y = rng.integers(low=0, high=2, size=n_samples)
+    y_pred = np.zeros((n_samples, 2))  # Full probabilities
+    y_pred[:, 0] = rng.random(100)  # Generate 100 probabilities
+    y_pred[:, 1] = 1 - y_pred[:, 0]  # Get positive class probabilities
+
+    return y, y_pred
 
 
 class TestIciScore:
     """Test class for the ici_score function."""
 
-    @pytest.mark.parametrize(
-        "y, y_pred",
-        [
-            (
-                np.array([0, 0, 0, 0, 1, 1, 1, 1]),
-                np.array([0.01, 0.2, 0.1, 0.2, 0.4, 0.8, 0.9, 0.5]),
-            ),
-            (
-                np.array([0, 0, 0, 0, 1, 1, 1, 1]),
-                np.array(
-                    [
-                        [0.99, 0.01],
-                        [0.8, 0.2],
-                        [0.9, 0.1],
-                        [0.8, 0.2],
-                        [0.6, 0.4],
-                        [0.2, 0.8],
-                        [0.1, 0.9],
-                        [0.5, 0.5],
-                    ]
-                ),
-            ),
-        ],
-    )
-    def test_ici_score_success(self, y: npt.NDArray, y_pred: npt.NDArray) -> None:
+    def test_ici_score_success(self, mock_data: tuple[Labels, FullProba]) -> None:
         """Test successful function call."""
+        y, y_pred = mock_data
+        ici = ici_score(y, y_pred)
+
+        assert isinstance(ici, float)
+
+    def test_ici_score_pos_proba(self, mock_data: tuple[Labels, FullProba]) -> None:
+        """Test successful function call with positive class probabilities only."""
+        y, y_pred = mock_data  # Unpack mock data
+        y_pred = y_pred[:, 1]
         ici = ici_score(y, y_pred)
 
         assert isinstance(ici, float)
