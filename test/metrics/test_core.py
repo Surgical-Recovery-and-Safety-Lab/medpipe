@@ -98,6 +98,17 @@ class TestComputeMetrics:
         assert len(scores) == len(METRICS)
         assert (metric in METRICS for metric in scores.keys())
 
+    def test_compute_metrics_success_pos_proba(
+        self, mock_data: tuple[Labels, FullProba]
+    ) -> None:
+        """Test successful function call."""
+        y, y_pred = mock_data  # Unpack mock data
+        y_pred = y_pred[:, 1]  # Get only positive class
+        scores = compute_metrics(METRICS, y, y_pred)
+
+        assert len(scores) == len(METRICS)
+        assert (metric in METRICS for metric in scores.keys())
+
     @pytest.mark.parametrize(
         "metrics",
         [
