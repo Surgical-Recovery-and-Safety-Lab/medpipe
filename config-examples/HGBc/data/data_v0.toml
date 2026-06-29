@@ -8,10 +8,7 @@ predictors = [
   "ADMISSION_ACUITY",
   "ADMISSION_SOURCE",
   "CATEGORY_LEVEL_1",
-  "DHB_NAME",
   "OP_SEVERITY",
-  "TRAUMA",
-  "OP_YEAR",
 ]
 
 outcomes = ["MORTALITY_30D"]
