@@ -643,14 +643,15 @@ class TestCrossValConfig:
 class TestValidationSubConfig:
     """Test class for the ValidationSubConfig class"""
 
-    def _get_valid_config_dict(self, **overrides) -> dict:
-        """Creates a fresh valid config dict to override."""
+    def _get_valid_config_dict_group(self, **overrides) -> dict:
+        """Creates a fresh valid config dict with group strategy
+        to override."""
         config_dict = {
             "test_split": {
-                "strategy": "random",
+                "strategy": "group",
+                "group_column": "OP_YEAR",
+                "values": [2023],
                 "test_size": 0.1,
-                "group_column": None,
-                "values": None,
             },
             "recalibration_split": {
                 "strategy": "group",
@@ -670,12 +671,140 @@ class TestValidationSubConfig:
 
         return config_dict
 
+    def _get_valid_config_dict_random(self, **overrides) -> dict:
+        """Creates a fresh valid config dict with random strategy
+        to override."""
+        config_dict = {
+            "test_split": {
+                "strategy": "random",
+                "group_column": None,
+                "values": None,
+                "test_size": 0.1,
+            },
+            "recalibration_split": {
+                "strategy": "random",
+                "group_column": "OP_YEAR",
+                "values": [2024],
+                "recalibration_size": 0.1,
+            },
+            "cross_validation": {
+                "strategy": "random",
+                "group_column": None,
+                "n_splits": 2,
+                "shuffle": True,
+                "random_state": 0,
+            },
+        }
+        config_dict.update(overrides)
+
+        return config_dict
+
     def test_valid_config(self) -> None:
         """Pass valid configuration to TestValidationSubConfig."""
-        raw_config = self._get_valid_config_dict()
+        raw_config = self._get_valid_config_dict_group()
+        config = ValidationSubConfig.model_validate(raw_config)
+
+        raw_config = self._get_valid_config_dict_random()
         config = ValidationSubConfig.model_validate(raw_config)
 
         assert config.model_dump() == raw_config
+
+    @pytest.mark.parametrize(
+        "strategy, recalibration_dict",
+        [
+            (
+                "random",
+                {
+                    "strategy": "group",
+                    "recalibration_size": None,
+                    "values": [2023],
+                    "group_column": "OP_YEAR",
+                },
+            ),
+            (
+                "group",
+                {
+                    "strategy": "random",
+                    "recalibration_size": 0.1,
+                    "values": None,
+                    "group_column": "OP_YEAR",
+                },
+            ),
+        ],
+    )
+    def test_invalid_strategies(
+        self, strategy: str, recalibration_dict: dict[str, str | list[int | str] | None]
+    ) -> None:
+        """Test case when test and recalibration strategies differ."""
+        with pytest.raises(
+            ValidationError, match="Recalibration and test strategies should match"
+        ):
+            if strategy == "group":
+                ValidationSubConfig.model_validate(
+                    self._get_valid_config_dict_group(
+                        **{"recalibration_split": recalibration_dict}
+                    )
+                )
+            elif strategy == "random":
+                ValidationSubConfig.model_validate(
+                    self._get_valid_config_dict_random(
+                        **{"recalibration_split": recalibration_dict}
+                    )
+                )
+
+    def test_invalid_columns(self) -> None:
+        """Test case when test and recalibration groups differ."""
+        recalibration_dict = {
+            "strategy": "group",
+            "recalibration_size": None,
+            "values": [2023],
+            "group_column": "invalid",
+        }
+        with pytest.raises(
+            ValidationError, match="Recalibration and test group columns should match"
+        ):
+            ValidationSubConfig.model_validate(
+                self._get_valid_config_dict_group(
+                    **{"recalibration_split": recalibration_dict}
+                )
+            )
+
+    @pytest.mark.parametrize(
+        "test_values, recal_values",
+        [
+            (["test"], ["test"]),
+            ([2023], [2023]),
+            (["test_1", "test_2"], ["test_2"]),
+            ([2023, 2024], [2024]),
+        ],
+    )
+    def test_same_values(
+        self, test_values: list[str | int], recal_values: list[str | int]
+    ) -> None:
+        """Test case when test and recalibration values are similar."""
+        recalibration_dict = {
+            "strategy": "group",
+            "recalibration_size": None,
+            "values": recal_values,
+            "group_column": "group",
+        }
+        test_dict = {
+            "strategy": "group",
+            "test_size": None,
+            "values": test_values,
+            "group_column": "group",
+        }
+        with pytest.raises(
+            ValidationError, match="Recalibration and test values should be different"
+        ):
+            ValidationSubConfig.model_validate(
+                self._get_valid_config_dict_group(
+                    **{
+                        "recalibration_split": recalibration_dict,
+                        "test_split": test_dict,
+                    }
+                )
+            )
 
 
 class TestMetricsConfig:
@@ -791,10 +920,10 @@ class TestWorkflowConfig:
             },
             "validation": {
                 "test_split": {
-                    "strategy": "random",
-                    "test_size": 0.1,
-                    "group_column": None,
-                    "values": None,
+                    "strategy": "group",
+                    "test_size": None,
+                    "group_column": "OP_YEAR",
+                    "values": [2023],
                 },
                 "recalibration_split": {
                     "strategy": "group",
@@ -1109,10 +1238,10 @@ class TestMedpipeConfig:
                         "group_column": None,
                     },
                     "test_split": {
-                        "strategy": "random",
-                        "test_size": 0.1,
-                        "group_column": None,
-                        "values": None,
+                        "strategy": "group",
+                        "test_size": None,
+                        "group_column": "OP_YEAR",
+                        "values": [2023],
                     },
                     "recalibration_split": {
                         "strategy": "group",
