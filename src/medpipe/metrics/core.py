@@ -31,8 +31,16 @@ from sklearn.metrics import (
     roc_auc_score,
 )
 
-from medpipe._types import CI, CIDict, FullProba, Labels, MetricDict, ModelMetrics
-from medpipe.utils.exceptions import array_check
+from medpipe._types import (
+    CI,
+    CIDict,
+    FullProba,
+    Labels,
+    MetricDict,
+    ModelMetrics,
+    PosProba,
+)
+from medpipe.utils.exceptions import array_check, array_dim_check
 from medpipe.utils.logger import print_message
 
 if TYPE_CHECKING:
