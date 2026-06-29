@@ -229,6 +229,22 @@ class ValidationSubConfig(BaseModel):
 
     model_config = {"extra": "forbid"}
 
+    @model_validator(mode="after")
+    def validate_strategies(self) -> "ValidationSubConfig":
+        """Validate that recalibration and test split have same strategy."""
+        if self.recalibration_split:
+            if self.recalibration_split.strategy != self.test_split.strategy:
+                raise ValueError("Recalibration and test strategies should match")
+        return self
+
+    @model_validator(mode="after")
+    def validate_group_column(self) -> "ValidationSubConfig":
+        """Validate that recalibration and test split have same strategy."""
+        if self.recalibration_split:
+            if self.recalibration_split.group_column != self.test_split.group_column:
+                raise ValueError("Recalibration and test group columns should match")
+        return self
+
 
 class MetricsConfig(BaseModel):
     metrics: list[str] = Field(default=["roc_auc", "ici"])
