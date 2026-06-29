@@ -292,6 +292,8 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
         """
         Splits data into train, test, and calibration sets.
 
+        Only the columns containing the predictors and the features
+        are extracted and split.
         Returns in order X_train, y_train, X_test, y_test, X_recal,
         y_recal, group_column.
         If no calibration is required, X_recal and y_recal are None.
@@ -320,14 +322,23 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
         Raises
         ------
         TypeError
-            If data is not a pd.DataFrame
+            If data is not a pd.DataFrame.
+        ValueError
+            If some predictors or outcomes are not in the data.
 
         """
         # Extract labels from the data
         if not isinstance(data, pd.DataFrame):
             raise TypeError(f"data should be a pd.DataFrame, but got {type(data)}")
 
-        features, labels = extract_labels(data, self.outcomes)
+        column_list = self.outcomes + self.medpipe_config.data.predictors
+
+        try:
+            pipeline_data = pd.DataFrame(data[column_list])
+        except KeyError:
+            raise ValueError("Some outcomes or predictors are not in the data")
+
+        features, labels = extract_labels(pipeline_data, self.outcomes)
 
         # Extract validation configurations
         validation_config = self.medpipe_config.workflow.validation
