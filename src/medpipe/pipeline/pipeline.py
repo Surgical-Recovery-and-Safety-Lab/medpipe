@@ -593,12 +593,50 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
         # Update and return cv_results with calibrator_metrics
         cv_results.update(calibrator_metrics)
         return cv_results
+
+    def _fit_fold_calibrator(
+        self,
+        outcome: str,
+        cv_results: dict[str, Any],
+        X_train: npt.NDArray,
+        groups: npt.NDArray | None,
+        X_recal: npt.NDArray | None,
+        y_recal: Labels | None,
+    ) -> dict[str, float]:
+        """
+        Save fold outputs from predictor and fit the calibrators.
+
+        Parameters
+        ----------
+        outcome : str
+            Outcome to predict.
+        cv_results : dict[str, Any]
+            Cross-validation results for predictor and calibrator.
+        X_train : npt.NDArray
+            Training data.
+        groups : npt.NDArray | None, default: None
+            Groups for the GroupKFold cross-validation.
+        X_recal : npt.NDArray | None, default: None
+            Recalibration data, or None if no recalibrator.
+        y_recal : Labels | None, default: None
+            Recalibration labels, or None if no recalibrator.
+
+        Returns
+        -------
+        calibrator_metrics : dict[str, float]
+            Calibrator metrics for each fold or empty dictionary.
+
+        """
+        metrics = self.medpipe_config.workflow.evaluation.metrics.metrics
+        calibrator_metrics = {}
+
         for fold_idx, (estimator, test_idx) in enumerate(
             zip(cv_results["estimator"], cv_results["indices"]["test"])
         ):
             # Iterate to get the training predictions for the predictor
             raw_outputs = estimator.predict_proba(X_train[test_idx])
             fold_name = fold_idx
+
             if groups is not None:
                 fold_name = groups[test_idx][0]  # Get the first group name
 
@@ -608,13 +646,16 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
                 # Fit calibrator based on prediction on the X_recal dataset
                 raw_outputs = estimator.predict_proba(X_recal)
                 self.calibrator[outcome].fit(raw_outputs[:, 1], y_recal)
+                calibrator_outputs = self.calibrator[outcome].predict(raw_outputs[:, 1])
                 self.calibrator_train_outputs[outcome].update(
-                    {fold_name: self.calibrator[outcome].predict(raw_outputs[:, 1])}
+                    {fold_name: calibrator_outputs}
                 )
+                if y_recal is not None:
+                    calibrator_metrics[fold_name] = compute_metrics(
+                        metrics, y_recal, calibrator_outputs
+                    )
 
-        # Final fit for the calibrator
-        raw_outputs = self.predictor[outcome].predict_proba(X_recal)
-        self.calibrator[outcome].fit(raw_outputs[:, 1], y_recal)
+        return calibrator_metrics
 
     def transform(self, X: pd.DataFrame | npt.NDArray) -> None:
         """
