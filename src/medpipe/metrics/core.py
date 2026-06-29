@@ -83,24 +83,15 @@ def ici_score(
         raise ValueError("Error predicting probabilities with spline")
 
 
-# Define some registeries
-METRIC_MAPPING = {
-    "accuracy": "accuracy",
-    "log_loss": "neg_log_loss",
-    "brier_score": "neg_brier_score",
-    "f1": "f1",
-    "roc_auc": "roc_auc",
-    "auroc": "roc_auc",
-    "ici": "ici",
-}
-METRIC_SCORES = {
-    "accuracy": accuracy_score,
-    "log_loss": log_loss,
-    "brier_score": brier_score_loss,
-    "f1": f1_score,
-    "roc_auc": roc_auc_score,
-    "auroc": roc_auc_score,
-    "ici": ici_score,
+# Define metric registery
+METRIC_MAPPING = {  #  metric name, scorer, function to use
+    "accuracy": ("accuracy", accuracy_score, "predict"),
+    "log_loss": ("neg_log_loss", log_loss, "predict_proba"),
+    "brier_score": ("neg_brier_score", brier_score_loss, "predict_proba"),
+    "f1": ("f1", f1_score, "predict"),
+    "roc_auc": ("roc_auc", roc_auc_score, ("decision_function", "predict_proba")),
+    "auroc": ("roc_auc", roc_auc_score, ("decision_function", "predict_proba")),
+    "ici": ("ici", ici_score, "predict_proba"),
 }
 
 METRICS = [key for key in METRIC_MAPPING.keys()]
@@ -142,7 +133,7 @@ def build_scorers(metrics: list[str] | npt.NDArray) -> dict[str, Callable]:
             scorers[metric] = make_scorer(ici_score, response_method="predict_proba")
 
         elif metric in METRICS:
-            scorers[metric] = get_scorer(METRIC_MAPPING[metric])
+            scorers[metric] = get_scorer(METRIC_MAPPING[metric][0])
         else:
             expr = (
                 f"{metric} was not found in available metric "
