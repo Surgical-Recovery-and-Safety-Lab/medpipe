@@ -331,7 +331,17 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
         if not isinstance(data, pd.DataFrame):
             raise TypeError(f"data should be a pd.DataFrame, but got {type(data)}")
 
+        # Extract validation configurations
+        validation_config = self.medpipe_config.workflow.validation
+        test_split_config = validation_config.test_split
+        cross_val_config = validation_config.cross_validation
+
+        # Create list of columns to extract from the data
         column_list = self.outcomes + self.medpipe_config.data.predictors
+        if test_split_config.strategy == "group" and test_split_config.group_column:
+            column_list.append(test_split_config.group_column)
+        if cross_val_config.strategy == "group" and cross_val_config.group_column:
+            column_list.append(cross_val_config.group_column)
 
         try:
             pipeline_data = pd.DataFrame(data[column_list])
@@ -339,11 +349,6 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
             raise ValueError("Some outcomes or predictors are not in the data")
 
         features, labels = extract_labels(pipeline_data, self.outcomes)
-
-        # Extract validation configurations
-        validation_config = self.medpipe_config.workflow.validation
-        test_split_config = validation_config.test_split
-        cross_val_config = validation_config.cross_validation
 
         # Set to default value None
         X_recal = None
@@ -355,28 +360,22 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
             features, labels, **test_split_config.model_dump()
         )
 
-        if cross_val_config.group_column:
-            # If a group column is specified retrieve column and drop it
-            groups = X_train[cross_val_config.group_column].to_numpy()
-            X_train = X_train.drop(cross_val_config.group_column, axis=1)
-
-        if cross_val_config.group_column != test_split_config.group_column:
-            # If cross-validationd and test group columns are different
-            X_train = X_train.drop(test_split_config.group_column, axis=1)
-
         if validation_config.recalibration_split:
-            # Split recalibration set
             recal_split_config = validation_config.recalibration_split
 
             _, _, X_recal, y_recal = split_data(
                 features, labels, **recal_split_config.model_dump()
             )
-            X_recal = X_recal.drop(recal_split_config.group_column, axis=1)
+
+        # Drop group columns
+        X_train, X_test, X_recal, groups = self._drop_group_columns(
+            X_train, X_test, X_recal
+        )
 
         return (
             X_train,
             y_train,
-            X_test.drop(test_split_config.group_column, axis=1),
+            X_test,
             y_test,
             X_recal,
             y_recal,
