@@ -85,3 +85,59 @@ class TestBuildScorers:
 
         with pytest.raises(ValueError, match=escape(match_expr)):
             build_scorers(["invalid"])
+
+
+class TestComputeMetrics:
+    """Test class for the compute_metrics function."""
+
+    def test_compute_metrics_success(self, mock_data: tuple[Labels, FullProba]) -> None:
+        """Test successful function call."""
+        y, y_pred = mock_data  # Unpack mock data
+        scores = compute_metrics(METRICS, y, y_pred)
+
+        assert len(scores) == len(METRICS)
+        assert (metric in METRICS for metric in scores.keys())
+
+    @pytest.mark.parametrize(
+        "metrics",
+        [
+            3.14,
+            42,
+            "llama",
+            {},
+            (),
+            [],
+            [42],
+            [3.14],
+        ],
+    )
+    def test_compute_metricss_invalid_metric_type(self, metrics: Any) -> None:
+        """Test case when metrics is not a list of strings."""
+        with pytest.raises(
+            TypeError, match="Input metrics should be a list of strings"
+        ):
+            compute_metrics(metrics, np.array([]), np.array([]))
+
+    def test_compute_metrics_invalid_metric(self) -> None:
+        """Test case when metrics has invalid value."""
+        match_expr = (
+            "invalid was not found in available metric "
+            f"list. Available metrics are {METRICS}"
+        )
+
+        with pytest.raises(ValueError, match=escape(match_expr)):
+            compute_metrics(["invalid"], np.array([]), np.array([]))
+
+    @pytest.mark.parametrize("y", [3.14, 42, "llama", {}, ()])
+    def test_compute_metrics_invalid_y(self, y: Any) -> None:
+        """Test case when y is not a np.array."""
+        match_expr = f"Input y should be a np.ndarray, but got {type(y)}"
+        with pytest.raises(TypeError, match=match_expr):
+            compute_metrics(METRICS, y, np.array([]))
+
+    @pytest.mark.parametrize("y_pred", [3.14, 42, "llama", {}, ()])
+    def test_compute_metrics_invalid_y_pred(self, y_pred: Any) -> None:
+        """Test case when y is not a np.array."""
+        match_expr = f"Input y_pred should be a np.ndarray, but got {type(y_pred)}"
+        with pytest.raises(TypeError, match=match_expr):
+            compute_metrics(METRICS, np.array([]), y_pred)
