@@ -48,8 +48,10 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
         Version number.
     outcomes : list[str]
         List of labels to predict.
-    n_labels : int
-        Number of labels to predict.
+    n_outcomes : int
+        Number of outcomes to predict.
+    metrics : list[str]
+        List of metrics to evaluate models with.
     predictor_algo : str
         Algorithm used by the predictor.
     recalibrator_method : Literal["isotonic", "logistic"]
@@ -139,9 +141,10 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
         self.predictor_algo = top_level["model"]["algorithm"]
         self.recalibrator_method = top_level["recalibration"]["method"]
 
-        # Get outcomes from configuration
+        # Get outcomes and metrics from configuration
         self.outcomes = self.medpipe_config.data.outcomes
         self.n_outcomes = len(self.outcomes)
+        self.metrics = self.medpipe_config.workflow.evaluation.metrics.metrics
 
         print_message(
             f"Setting up MedpipePipeline {self.version}",
@@ -617,8 +620,7 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
             Cross-validation results for predictor.
 
         """
-        metrics = self.medpipe_config.workflow.evaluation.metrics.metrics
-        scorers = build_scorers(metrics)
+        scorers = build_scorers(self.metrics)
 
         cv_results = cross_validate(  # Generate cross-validation results
             self.predictor[outcome],
@@ -667,12 +669,11 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
             Recalibrator metrics for each fold or empty dictionary.
 
         """
-        metrics = self.medpipe_config.workflow.evaluation.metrics.metrics
         n_splits = self.medpipe_config.workflow.validation.cross_validation.n_splits
 
         # Prepare for saving recalibrator metrics
         recalibrator_metrics = {}
-        metrics_matrix = np.zeros((len(metrics), n_splits))
+        metrics_matrix = np.zeros((len(self.metrics), n_splits))
 
         for fold_idx, (estimator, test_idx) in enumerate(
             zip(cv_results["estimator"], cv_results["indices"]["test"])
@@ -701,13 +702,13 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
 
                 if y_recal is not None:
                     metrics_matrix[:, fold_idx] = compute_metrics(
-                        metrics, y_recal, recalibrator_outputs
+                        self.metrics, y_recal, recalibrator_outputs
                     )
 
         if not (metrics_matrix == False).all():
             # If the metrics matrix was filled
-            for i in range(len(metrics)):
-                recalibrator_metrics["recal_" + metrics[i]] = metrics_matrix[i, :]
+            for i in range(len(self.metrics)):
+                recalibrator_metrics["recal_" + self.metrics[i]] = metrics_matrix[i, :]
 
         return recalibrator_metrics
 
