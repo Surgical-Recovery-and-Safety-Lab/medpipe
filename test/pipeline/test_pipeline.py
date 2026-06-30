@@ -7,6 +7,7 @@ Pipeline class tests suite.
 from pathlib import Path
 from unittest.mock import patch
 from typing import Any, Generator, Literal, TypeAlias
+from unittest.mock import MagicMock, patch
 
 import numpy as np
 import numpy.typing as npt
@@ -35,6 +36,7 @@ DataPrep: TypeAlias = tuple[
     npt.NDArray | None,
     StratifiedKFold | GroupKFold,
 ]
+
 
 @pytest.fixture(autouse=True)
 def shield_local_filesystem() -> Generator[Any, Any, Any]:
@@ -381,7 +383,7 @@ class TestDropGroupColumns:
     def test_pipeline_drop_group_columns_success(
         self,
         mp_pipeline: MedpipePipeline,
-        mock_data: tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame],
+        mock_data: MockData,
     ) -> None:
         """Test successful function call."""
         # Get mock data and drop columns
@@ -411,7 +413,7 @@ class TestDropGroupColumns:
     def test_pipeline_drop_group_columns_no_recal(
         self,
         mp_pipeline: MedpipePipeline,
-        mock_data: tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame],
+        mock_data: MockData,
     ) -> None:
         """Test case when X_recal is None."""
         # Get mock data and drop columns
@@ -437,7 +439,7 @@ class TestDropGroupColumns:
     def test_pipeline_drop_group_columns_no_cv_groups(
         self,
         mp_pipeline: MedpipePipeline,
-        mock_data: tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame],
+        mock_data: MockData,
     ) -> None:
         """Test case when cross-validation groups are None."""
         # Get mock data and drop columns
@@ -470,7 +472,7 @@ class TestDropGroupColumns:
     def test_pipeline_drop_group_columns_no_test_groups(
         self,
         mp_pipeline: MedpipePipeline,
-        mock_data: tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame],
+        mock_data: MockData,
     ) -> None:
         """Test case when test_split groups are None."""
         # Get mock data and drop columns
@@ -503,7 +505,7 @@ class TestDropGroupColumns:
     def test_pipeline_drop_group_columns_no_groups(
         self,
         mp_pipeline: MedpipePipeline,
-        mock_data: tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame],
+        mock_data: MockData,
     ) -> None:
         """Test case when test_split and cross-validation groups are None."""
         # Get mock data and drop columns
@@ -545,7 +547,7 @@ class TestPrepareFeatures:
     def test_pipeline_prepare_features_success(
         self,
         mp_pipeline: MedpipePipeline,
-        mock_data: tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame],
+        mock_data: MockData,
     ) -> None:
         """Test successful function call."""
         X_train, X_test, X_recal = mock_data
@@ -564,7 +566,7 @@ class TestPrepareFeatures:
     def test_pipeline_prepare_features_no_recal(
         self,
         mp_pipeline: MedpipePipeline,
-        mock_data: tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame],
+        mock_data: MockData,
     ) -> None:
         """Test case when X_recal is None."""
         X_train, X_test, X_recal = mock_data
@@ -584,7 +586,7 @@ class TestPrepareFeatures:
     def test_pipeline_prepare_features_no_preprocessing(
         self,
         mp_pipeline: MedpipePipeline,
-        mock_data: tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame],
+        mock_data: MockData,
     ) -> None:
         """Test case when there is no preprocessor."""
         X_train, X_test, X_recal = mock_data
