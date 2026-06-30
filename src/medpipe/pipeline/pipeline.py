@@ -824,41 +824,46 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
 
     def run(self) -> None:
         """
-        Fits the predictor or calibrator model on the provided dataset.
-
-        Parameters
-        ----------
-        X : Data
-            Training data of shape (n_samples, n_features) or (n_samples,).
-        y : Labels
-            Prediction labels of shape (n_samples, self.n_labels).
-        model : {"predictor", "calibrator"}
-            Model to fit.
-        label : str
-            Label associated with the model to use.
-        weights : npt.NDArray, default: np.array([])
-            Weights for addressing class imbalance.
+        Run the entire pipeline from preprocessing to plotting.
 
         Returns
         -------
         None
             Nothing is returned.
 
-        Raises
-        ------
-        ValueError
-            If model is not "predictor" or "calibrator".
-
         """
-        match model:
-            case "predictor":
-                self.predictor[label].fit(X, y, weights)
-            case "calibrator":
-                self.calibrator[label].fit(X, y)
-            case _:
-                raise ValueError(
-                    f"Model should be predictor or calibrator, but got {model}"
+        data = load_data(self.medpipe_config.data.path)
+
+        # Get different split data sets
+        X_train, y_train, X_test, y_test, X_recal, y_recal, groups = (
+            self._get_data_sets(data)
+        )
+
+        X_train, X_test, X_recal = self._prepare_features(X_train, X_test, X_recal)
+
+        # Create cross-validation generator
+        cv_generator = self._get_cv_generator()
+
+        for i, outcome in enumerate(self.outcomes):
+            # Perform cross-validationd for each outcome and fit model
+            self.folds[outcome] = {}  # Create empty dict for folds
+
+            if self.medpipe_config.top_level.meta.run_mode != "fast":
+                cv_results = self._cv_fit(
+                    X_train,
+                    y_train[:, i],
+                    outcome,
+                    cv_generator,
+                    groups=groups,
+                    X_recal=X_recal,
+                    y_recal=y_recal[:, i],  # type: ignore
                 )
+            else:
+                self.predictor[outcome].fit(X_train, y_train[:, i])
+
+                if self.recalibrator and y_recal is not None:
+                    raw_outputs = self.predictor[outcome].predict_proba(X_recal)
+                    self.recalibrator[outcome].fit(raw_outputs, y_recal[:, i])
 
     def test_model(self, X: Data, y: Labels, model: str, label: str) -> None:
         """
