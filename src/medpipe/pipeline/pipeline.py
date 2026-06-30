@@ -401,7 +401,7 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
         X_recal_dropped : pd.DataFrame | None
             Calibration data without the group columns or None.
         groups : npt.NDArray | None
-            Train set group column for cross-validationd, None if not
+            Train set group column for cross-validation, None if not
             specified.
 
         """
