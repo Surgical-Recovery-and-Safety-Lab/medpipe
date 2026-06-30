@@ -5,7 +5,6 @@ Pipeline class tests suite.
 """
 
 from pathlib import Path
-from unittest.mock import patch
 from typing import Any, Generator, Literal, TypeAlias
 from unittest.mock import MagicMock, patch
 
@@ -621,6 +620,54 @@ class TestGetCvGenerator:
         assert cv_generator.n_splits == cv_config.n_splits
         assert cv_generator.shuffle == cv_config.shuffle
         assert cv_generator.random_state == cv_config.random_state
+
+
+class TestCrossValidateAndFit:
+    """Test class for the _cross_validate_and_fit function of the
+    MedpipePipeline class."""
+
+    @patch("medpipe.pipeline.pipeline.cross_validate")
+    def test_pipeline_cross_validate_and_fit_success(
+        self,
+        mock_cv_results: MagicMock,
+        mp_pipeline: MedpipePipeline,
+        cv_data_prep: DataPrep,
+    ) -> None:
+        """Test successful function call."""
+        X_train, y_train, _, _, groups, cv_generator = cv_data_prep
+        outcome = "MORTALITY_30D"
+
+        mp_pipeline._cross_validate_and_fit(
+            outcome, X_train, y_train.ravel(), cv_generator, groups
+        )
+
+        mock_cv_results.assert_called_once()
+        check_is_fitted(mp_pipeline.predictor[outcome])
+
+    @patch("medpipe.pipeline.pipeline.cross_validate")
+    def test_pipeline_cross_validate_and_fit_stratified_cv(
+        self,
+        mock_cv_results: MagicMock,
+        mp_pipeline: MedpipePipeline,
+        cv_data_prep: DataPrep,
+    ) -> None:
+        """Test successful function call."""
+        X_train, y_train, _, _, groups, cv_generator = cv_data_prep
+        outcome = "MORTALITY_30D"
+
+        # Change cross-validation generator
+        mp_pipeline.medpipe_config.workflow.validation.cross_validation.strategy = (
+            "random"
+        )
+        cv_generator = mp_pipeline._get_cv_generator()
+        groups = None
+
+        mp_pipeline._cross_validate_and_fit(
+            outcome, X_train, y_train.ravel(), cv_generator, groups
+        )
+
+        mock_cv_results.assert_called_once()
+        check_is_fitted(mp_pipeline.predictor[outcome])
 
 
 class TestRun:
