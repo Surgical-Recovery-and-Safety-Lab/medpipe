@@ -9,6 +9,7 @@ from unittest.mock import patch
 from typing import Any, Generator, Literal, TypeAlias
 
 import numpy as np
+import numpy.typing as npt
 import pandas as pd
 import pytest
 from sklearn.base import check_is_fitted
@@ -103,6 +104,24 @@ def mock_data() -> MockData:
         }
     )
     return (X_train, X_test, X_recal)
+
+
+@pytest.fixture
+def cv_data_prep(mp_pipeline: MedpipePipeline, mock_data: MockData) -> DataPrep:
+    """Run preparation code before calling _cv_fit."""
+    # Get different split data sets
+    X_train, X_test, X_recal = mock_data
+    y_train = np.array([0, 1, 0])
+    y_recal = np.array([0, 1, 1])
+
+    X_train, X_test, X_recal, groups = mp_pipeline._drop_group_columns(
+        X_train, X_test, X_recal
+    )
+    X_train, _, X_recal = mp_pipeline._prepare_features(X_train, X_test, X_recal)
+    # Create cross-validation generator
+    cv_generator = mp_pipeline._get_cv_generator()
+
+    return (X_train, y_train, X_recal, y_recal, groups, cv_generator)
 
 
 # ==============================================================================
