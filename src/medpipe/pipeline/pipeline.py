@@ -2,7 +2,7 @@
 MedpipePipeline class.
 
 This class creates a MedpipePipeline to prepare data, fit a predictor and
-a calibrator.
+a recalibrator.
 
 """
 
@@ -52,22 +52,22 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
         Number of labels to predict.
     predictor_algo : str
         Algorithm used by the predictor.
-    calibrator_method : Literal["isotonic", "logistic"]
-        Method used by the calibrator.
+    recalibrator_method : Literal["isotonic", "logistic"]
+        Method used by the recalibrator.
     preprocessor : ColumnTransformer | None
         Column transformer to preprocess data.
     predictor : dict[str, Type]
         Dictionary of predictor instances for each label.
-    calibrator : dict[str, Type] | None
-        Dictionary of calibrator instances for each label.
+    recalibrator : dict[str, Type] | None
+        Dictionary of recalibrator instances for each label.
     predictor_train_outputs : dict[str, dict[int, PredProba]]
         Dictionary of predicted probabilities for each predictor
         The dictionary keys are the labels and the values are
         the predicted probabilities of the predictor for that fold.
-    calibrator_train_outputs : dict[str, dict[int, PredProba]] | None
-        Dictionary of predicted probabilities for each calibrator
+    recalibrator_train_outputs : dict[str, dict[int, PredProba]] | None
+        Dictionary of predicted probabilities for each recalibrator
         The dictionary keys are the labels and the values are
-        the predicted probabilities of the calibrator for that fold.
+        the predicted probabilities of the recalibrator for that fold.
     folds : dict[str | int, int]
         Dictionary containing the fold names and the fold index.
     logger : logging.Logger | None, default: None
@@ -78,15 +78,15 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
     transform(X)
         Transforms input data based on preprocessor fitted operations.
     fit_model(X, y, model, **kwargs)
-        Fits the predictor or calibrator model on the provided dataset.
+        Fits the predictor or recalibrator model on the provided dataset.
     test_model(X, y, model, outcomes, key=None)
-        Tests the predictor or calibrator model on the provided dataset.
+        Tests the predictor or recalibrator model on the provided dataset.
     run(X)
         Run pipeline with input data.
     predict_proba(X)
-        Predicts probabilities from predictor or calibrator based on input data.
+        Predicts probabilities from predictor or recalibrator based on input data.
     predict(X)
-        Predicts labels from predictor or calibrator based on input data.
+        Predicts labels from predictor or recalibrator based on input data.
     """
 
     @overload
@@ -137,7 +137,7 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
         # Extract some top-level parameters
         self.version = top_level["meta"]["version"]
         self.predictor_algo = top_level["model"]["algorithm"]
-        self.calibrator_method = top_level["calibration"]["method"]
+        self.recalibrator_method = top_level["recalibration"]["method"]
 
         # Get outcomes from configuration
         self.outcomes = self.medpipe_config.data.outcomes
@@ -156,9 +156,9 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
 
         # Create empty dictionary
         self.predictor = {}
-        self.calibrator = {}
+        self.recalibrator = {}
         self.predictor_train_outputs = {}  # Store training outputs
-        self.calibrator_train_outputs = {}  # Store training outputs
+        self.recalibrator_train_outputs = {}  # Store training outputs
         self.folds = {}  # Store fold name and fold index
 
         for outcome in self.outcomes:
@@ -169,16 +169,16 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
             )
             self.predictor_train_outputs[outcome] = {}
 
-            # Initialise calibrators (if applicable)
+            # Initialise recalibrators (if applicable)
             if (
-                self.calibrator_method
-                and self.medpipe_config.hyperparameters.hyperparameters.calibrator
+                self.recalibrator_method
+                and self.medpipe_config.hyperparameters.hyperparameters.recalibrator
             ):
-                self.calibrator[outcome] = create_estimator(
-                    self.calibrator_method,
-                    **self.medpipe_config.hyperparameters.hyperparameters.calibrator.model_dump(),
+                self.recalibrator[outcome] = create_estimator(
+                    self.recalibrator_method,
+                    **self.medpipe_config.hyperparameters.hyperparameters.recalibrator.model_dump(),
                 )
-                self.calibrator_train_outputs[outcome] = {}
+                self.recalibrator_train_outputs[outcome] = {}
 
     def _set_preprocessing_steps(self) -> Pipeline | None:
         """
@@ -292,13 +292,13 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
         npt.NDArray | None,
     ]:
         """
-        Splits data into train, test, and calibration sets.
+        Splits data into train, test, and recalibration sets.
 
         Only the columns containing the predictors and the features
         are extracted and split.
         Returns in order X_train, y_train, X_test, y_test, X_recal,
         y_recal, group_column.
-        If no calibration is required, X_recal and y_recal are None.
+        If no recalibration is required, X_recal and y_recal are None.
         The group_column is the data column of the train set based on
         cross-validationd parameters.
 
@@ -314,9 +314,9 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
         y_train, y_test : Labels
             Train and test labels.
         X_recal : pd.DataFrame | None
-            Calibration data if needed in the pipeline, None otherwise.
+            Recalibration data if needed in the pipeline, None otherwise.
         y_recal : Labels | None
-            Calibration labels if needed in the pipeline, None otherwise.
+            Recalibration labels if needed in the pipeline, None otherwise.
         groups : npt.NDArray | None
             Train set group column for cross-validationd, None if not
             specified.
@@ -395,14 +395,14 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
         X_train, X_test : pd.DataFrame
             Train and test data.
         X_recal : pd.DataFrame | None
-            Calibration data if needed in the pipeline, None otherwise.
+            Recalibration data if needed in the pipeline, None otherwise.
 
         Returns
         -------
         X_train_dropped, X_test_dropped : pd.DataFrame
             Train and test data without the group columns.
         X_recal_dropped : pd.DataFrame | None
-            Calibration data without the group columns or None.
+            Recalibration data without the group columns or None.
         groups : npt.NDArray | None
             Train set group column for cross-validation, None if not
             specified.
@@ -468,7 +468,7 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
         X_train, X_test : pd.DataFrame
             Train and test data.
         X_recal : pd.DataFrame | None
-            Calibration data if needed in the pipeline, None otherwise.
+            Recalibration data if needed in the pipeline, None otherwise.
 
         Returns
         -------
@@ -535,7 +535,7 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
         y_recal: Labels | None = None,
     ) -> dict[str, Any]:
         """
-        Performs cross-validation and fitting of predictor and calibrator.
+        Performs cross-validation and fitting of predictor and recalibrator.
 
         Parameters
         ----------
@@ -557,15 +557,15 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
         Returns
         -------
         cv_results : dict[str, Any]
-            Cross-validation results for predictor and calibrator.
+            Cross-validation results for predictor and recalibrator.
 
         Raises
         ------
         ValueError
-            If no calibration data is specified with a calibrator.
+            If no recalibration data is specified with a recalibrator.
 
         """
-        if self.calibrator and (X_recal is None or y_recal is None):
+        if self.recalibrator and (X_recal is None or y_recal is None):
             raise ValueError(
                 "Recalibration dataset is needed when recalibrator is specified"
             )
@@ -574,17 +574,17 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
             outcome, X_train, y_train.ravel(), cv_generator, groups
         )
 
-        # Get calibrator metrics and save predictor fold information
-        calibrator_metrics = self._fit_fold_calibrator(
+        # Get recalibrator metrics and save predictor fold information
+        recalibrator_metrics = self._fit_fold_recalibrator(
             outcome, cv_results, X_train, groups, X_recal, y_recal
         )
 
-        # Final fit for the calibrator
+        # Final fit for the recalibrator
         raw_outputs = self.predictor[outcome].predict_proba(X_recal)
-        self.calibrator[outcome].fit(raw_outputs[:, 1], y_recal)
+        self.recalibrator[outcome].fit(raw_outputs[:, 1], y_recal)
 
-        # Update and return cv_results with calibrator_metrics
-        cv_results.update(calibrator_metrics)
+        # Update and return cv_results with recalibrator_metrics
+        cv_results.update(recalibrator_metrics)
         return cv_results
 
     def _cross_validate_and_fit(
@@ -634,7 +634,7 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
 
         return cv_results
 
-    def _fit_fold_calibrator(
+    def _fit_fold_recalibrator(
         self,
         outcome: str,
         cv_results: dict[str, Any],
@@ -644,14 +644,14 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
         y_recal: Labels | None,
     ) -> dict[str, npt.NDArray]:
         """
-        Save fold outputs from predictor and fit the calibrators.
+        Save fold outputs from predictor and fit the recalibrators.
 
         Parameters
         ----------
         outcome : str
             Outcome to predict.
         cv_results : dict[str, Any]
-            Cross-validation results for predictor and calibrator.
+            Cross-validation results for predictor and recalibrator.
         X_train : npt.NDArray
             Training data.
         groups : npt.NDArray | None, default: None
@@ -663,15 +663,15 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
 
         Returns
         -------
-        calibrator_metrics : dict[str, npt.NDArray]
-            Calibrator metrics for each fold or empty dictionary.
+        recalibrator_metrics : dict[str, npt.NDArray]
+            Recalibrator metrics for each fold or empty dictionary.
 
         """
         metrics = self.medpipe_config.workflow.evaluation.metrics.metrics
         n_splits = self.medpipe_config.workflow.validation.cross_validation.n_splits
 
-        # Prepare for saving calibrator metrics
-        calibrator_metrics = {}
+        # Prepare for saving recalibrator metrics
+        recalibrator_metrics = {}
         metrics_matrix = np.zeros((len(metrics), n_splits))
 
         for fold_idx, (estimator, test_idx) in enumerate(
@@ -688,26 +688,28 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
             self.folds[outcome].update({fold_name: fold_idx})
             self.predictor_train_outputs[outcome].update({fold_name: raw_outputs})
 
-            if self.calibrator:
-                # Fit calibrator based on prediction on the X_recal dataset
+            if self.recalibrator:
+                # Fit recalibrator based on prediction on the X_recal dataset
                 raw_outputs = estimator.predict_proba(X_recal)
-                self.calibrator[outcome].fit(raw_outputs[:, 1], y_recal)
-                calibrator_outputs = self.calibrator[outcome].predict(raw_outputs[:, 1])
-                self.calibrator_train_outputs[outcome].update(
-                    {fold_name: calibrator_outputs}
+                self.recalibrator[outcome].fit(raw_outputs[:, 1], y_recal)
+                recalibrator_outputs = self.recalibrator[outcome].predict(
+                    raw_outputs[:, 1]
+                )
+                self.recalibrator_train_outputs[outcome].update(
+                    {fold_name: recalibrator_outputs}
                 )
 
                 if y_recal is not None:
                     metrics_matrix[:, fold_idx] = compute_metrics(
-                        metrics, y_recal, calibrator_outputs
+                        metrics, y_recal, recalibrator_outputs
                     )
 
         if not (metrics_matrix == False).all():
             # If the metrics matrix was filled
             for i in range(len(metrics)):
-                calibrator_metrics["recal_" + metrics[i]] = metrics_matrix[i, :]
+                recalibrator_metrics["recal_" + metrics[i]] = metrics_matrix[i, :]
 
-        return calibrator_metrics
+        return recalibrator_metrics
 
     def transform(self, X: pd.DataFrame | npt.NDArray) -> None:
         """
@@ -784,9 +786,9 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
         y : Labels
             Ground truth labels of shape (n_samples,).
         X_cal : FullProba | None
-            Calibration data to train the calibrator of shape (n_samples, 2) or None.
+            Recalibration data to train the recalibrator of shape (n_samples, 2) or None.
         y_cal : Labels | None
-            Ground truth labels for the calibration data of shape (n_samples,).
+            Ground truth labels for the recalibration data of shape (n_samples,).
 
         Returns
         -------
@@ -796,7 +798,7 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
         Raises
         ------
         ValueError
-            If no calibration data is specified with a calibrator.
+            If no recalibration data is specified with a recalibrator.
 
         """
         if self.preprocessor:
@@ -811,14 +813,14 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
         for outcome in self.outcomes:
             self.predictor[outcome].fit(X_train, y)
 
-            if self.calibrator:
-                # Fit the calibrators if specified
+            if self.recalibrator:
+                # Fit the recalibrators if specified
                 if X_cal is None or y_cal is None:
                     raise ValueError(
-                        f"Cannot fit {outcome} calibrator without calibration data"
+                        f"Cannot fit {outcome} recalibrator without recalibration data"
                     )
                 raw_outputs = self.predictor[outcome].predict_proba(X_cal)
-                self.calibrator[outcome].fit(raw_outputs, y_cal)
+                self.recalibrator[outcome].fit(raw_outputs, y_cal)
 
     def run(self) -> None:
         """

@@ -85,7 +85,7 @@ class ModelConfig(BaseModel):
     model_config = {"extra": "forbid"}
 
 
-class CalibrationConfig(BaseModel):
+class RecalibrationConfig(BaseModel):
     method: str
     model_config = {"extra": "forbid"}
 
@@ -96,7 +96,7 @@ class TopLevelConfig(BaseModel):
     meta: MetaConfig
     paths: PathsConfig
     model: ModelConfig
-    calibration: CalibrationConfig
+    recalibration: RecalibrationConfig
     model_config = {"extra": "forbid"}
 
 
@@ -329,14 +329,14 @@ class PredictorConfig(BaseModel):
     model_config = {"extra": "allow"}
 
 
-class CalibratorConfig(BaseModel):
-    # Allow extra parameters to be passed as keyword argument to calibrator
+class RecalibratorConfig(BaseModel):
+    # Allow extra parameters to be passed as keyword argument to recalibrator
     model_config = {"extra": "allow"}
 
 
 class ModelHyperparamSubConfig(BaseModel):
     predictor: PredictorConfig
-    calibrator: CalibratorConfig | None = None
+    recalibrator: RecalibratorConfig | None = None
 
     model_config = {"extra": "forbid"}
 
@@ -407,7 +407,7 @@ class MedpipeConfig(BaseModel):
     @model_validator(mode="after")
     def validate_recalibration(self) -> "MedpipeConfig":
         """Check recalibration split is specified with recalibration method."""
-        if self.top_level.calibration:  # Recalibration is present
+        if self.top_level.recalibration:  # Recalibration is present
             if not self.workflow.validation.recalibration_split:
                 raise ValueError(
                     "Recalibration validation split must be "

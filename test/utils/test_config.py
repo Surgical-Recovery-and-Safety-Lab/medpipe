@@ -119,8 +119,8 @@ class TestModelConfig:
         assert config.model_dump() == raw_config
 
 
-class TestCalibrationConfig:
-    """Test class for the CalibrationConfig class"""
+class TestRecalibrationConfig:
+    """Test class for the RecalibrationConfig class"""
 
     def _get_valid_config_dict(self, **overrides) -> dict:
         """Creates a fresh valid config dict to override."""
@@ -132,9 +132,9 @@ class TestCalibrationConfig:
         return config_dict
 
     def test_valid_config(self) -> None:
-        """Pass valid configuration to CalibrationConfig."""
+        """Pass valid configuration to RecalibrationConfig."""
         raw_config = self._get_valid_config_dict()
-        config = CalibrationConfig.model_validate(raw_config)
+        config = RecalibrationConfig.model_validate(raw_config)
 
         assert config.model_dump() == raw_config
 
@@ -156,7 +156,7 @@ class TestTopLevelConfig:
                 "figure_dir": str(tmp_path / "path/to/figures"),
             },
             "model": {"algorithm": "HistGradientBoostingClassifier"},
-            "calibration": {"method": "isotonic"},
+            "recalibration": {"method": "isotonic"},
         }
         config_dict.update(overrides)
 
@@ -985,8 +985,8 @@ class TestPredictorConfig:
             )
 
 
-class TestCalibratorConfig:
-    """Test class for the CalibratorConfig class"""
+class TestRecalibratorConfig:
+    """Test class for the RecalibratorConfig class"""
 
     def _get_valid_config_dict(self, **overrides) -> dict:
         """Creates a fresh valid config dict to override."""
@@ -996,15 +996,15 @@ class TestCalibratorConfig:
         return config_dict
 
     def test_valid_config(self) -> None:
-        """Pass valid configuration to CalibratorConfig."""
+        """Pass valid configuration to RecalibratorConfig."""
         raw_config = self._get_valid_config_dict()
-        config = CalibratorConfig.model_validate(raw_config)
+        config = RecalibratorConfig.model_validate(raw_config)
 
         assert config.model_dump() == raw_config
 
     def test_valid_config_None(self) -> None:
         """Test case when configuration is empty dictionary."""
-        config = CalibratorConfig.model_validate({})
+        config = RecalibratorConfig.model_validate({})
 
         for value in config.model_dump().values():
             assert value == None
@@ -1017,7 +1017,7 @@ class TestModelHyperparamsSubConfigConfig:
         """Creates a fresh valid config dict to override."""
         config_dict = {
             "predictor": {"learning_rate": 0.1},
-            "calibrator": {"out_of_bounds": "clip"},
+            "recalibrator": {"out_of_bounds": "clip"},
         }
         config_dict.update(overrides)
 
@@ -1177,7 +1177,7 @@ class TestHyperparameterConfig:
         config_dict = {
             "hyperparameters": {
                 "predictor": {"learning_rate": 0.1},
-                "calibrator": {"out_of_bounds": "clip"},
+                "recalibrator": {"out_of_bounds": "clip"},
             },
             "balancing": {
                 "weighting": {
@@ -1220,7 +1220,7 @@ class TestMedpipeConfig:
                     "figure_dir": str(tmp_path / "path/to/figures"),
                 },
                 "model": {"algorithm": "HistGradientBoostingClassifier"},
-                "calibration": {"method": "isotonic"},
+                "recalibration": {"method": "isotonic"},
             },
             "data": {
                 "path": str(tmp_path / "path/to/data.csv"),
@@ -1262,7 +1262,7 @@ class TestMedpipeConfig:
                 "balancing": None,
                 "hyperparameters": {
                     "predictor": {"learning_rate": 0.1},
-                    "calibrator": {"out_of_bounds": "clip"},
+                    "recalibrator": {"out_of_bounds": "clip"},
                 },
             },
         }
