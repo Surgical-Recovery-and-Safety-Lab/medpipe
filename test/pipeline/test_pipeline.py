@@ -5,8 +5,8 @@ Pipeline class tests suite.
 """
 
 from pathlib import Path
-from typing import Any, Generator, Literal
 from unittest.mock import patch
+from typing import Any, Generator, Literal, TypeAlias
 
 import numpy as np
 import pandas as pd
@@ -16,6 +16,7 @@ from sklearn.compose import ColumnTransformer
 from sklearn.model_selection import GroupKFold, StratifiedKFold
 from sklearn.pipeline import Pipeline
 
+from medpipe._types import Labels
 from medpipe.pipeline.pipeline import MedpipePipeline
 from medpipe.utils.config import PreprocessOperationConfig
 from medpipe.utils.io import load_data, read_toml_configuration
@@ -24,6 +25,15 @@ from medpipe.utils.io import load_data, read_toml_configuration
 # Fixtures for all tests
 # ==============================================================================
 
+MockData: TypeAlias = tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]
+DataPrep: TypeAlias = tuple[
+    npt.NDArray,
+    Labels,
+    npt.NDArray | None,
+    Labels | None,
+    npt.NDArray | None,
+    StratifiedKFold | GroupKFold,
+]
 
 @pytest.fixture(autouse=True)
 def shield_local_filesystem() -> Generator[Any, Any, Any]:
