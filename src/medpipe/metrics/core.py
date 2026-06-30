@@ -172,7 +172,7 @@ def compute_metrics(
     Returns
     -------
     scores : npt.NDArray
-        Score array of shape (n_metrics, 1).
+        Score array of shape (n_metrics,).
 
     Raises
     ------
@@ -201,7 +201,7 @@ def compute_metrics(
 
     array_dim_check(y, y_pred)
 
-    scores = np.zeros((len(metrics), 1))  # Empty array to hold scores
+    scores = np.zeros(len(metrics))  # Empty array to hold scores
     y_labels = np.round(y_pred)  # Get labels based on probabilities
 
     for i, metric in enumerate(metrics):
