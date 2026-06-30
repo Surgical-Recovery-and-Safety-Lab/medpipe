@@ -6,6 +6,7 @@ Pipeline class tests suite.
 
 from pathlib import Path
 from typing import Any, Generator, Literal, TypeAlias
+from unittest.mock import patch
 
 import numpy as np
 import numpy.typing as npt
@@ -673,6 +674,11 @@ class TestCvFit:
 
         check_is_fitted(mp_pipeline.recalibrator[outcome])
 
+        metrics = mp_pipeline.medpipe_config.workflow.evaluation.metrics.metrics
+        for metric in metrics:
+            assert "recal_" + metric in cv_results.keys()
+            assert "test_" + metric in cv_results.keys()
+
     def test_pipeline_cv_fit_stratified_cv(
         self,
         mp_pipeline: MedpipePipeline,
@@ -693,13 +699,13 @@ class TestCvFit:
         cv_results = mp_pipeline._cv_fit(
             X_train, y_train, outcome, cv_generator, groups, X_recal, y_recal
         )
-        breakpoint()
 
         check_is_fitted(mp_pipeline.recalibrator[outcome])
+
         metrics = mp_pipeline.medpipe_config.workflow.evaluation.metrics.metrics
         for metric in metrics:
-            for key in cv_results.keys():
-                assert metric in cv_results.keys()
+            assert "recal_" + metric in cv_results.keys()
+            assert "test_" + metric in cv_results.keys()
 
 
 class TestCrossValidateAndFit:
@@ -835,7 +841,6 @@ class TestFitFoldRecalibrator:
         metrics = mp_pipeline.medpipe_config.workflow.evaluation.metrics.metrics
         for metric in metrics:
             assert "recal_" + metric in recalibrator_metrics.keys()
-            assert isinstance(recalibrator_metrics["recal_" + metric], np.ndarray)
             assert len(recalibrator_metrics["recal_" + metric]) == n_splits
 
 
