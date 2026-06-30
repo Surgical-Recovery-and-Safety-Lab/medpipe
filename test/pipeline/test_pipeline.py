@@ -666,6 +666,7 @@ class TestCrossValidateAndFit:
         """Test successful function call."""
         X_train, y_train, _, _, groups, cv_generator = cv_data_prep
         outcome = "MORTALITY_30D"
+        mp_pipeline.folds[outcome] = {}  # Patch because done in run function
 
         mp_pipeline._cross_validate_and_fit(
             outcome, X_train, y_train.ravel(), cv_generator, groups
@@ -681,6 +682,7 @@ class TestCrossValidateAndFit:
         """Test successful function call."""
         X_train, y_train, _, _, groups, cv_generator = cv_data_prep
         outcome = "MORTALITY_30D"
+        mp_pipeline.folds[outcome] = {}  # Patch because done in run function
 
         # Change cross-validation generator
         mp_pipeline.medpipe_config.workflow.validation.cross_validation.strategy = (
@@ -708,6 +710,7 @@ class TestFitFoldCalibrator:
         """Test successful function call."""
         X_train, y_train, X_recal, y_recal, groups, cv_generator = cv_data_prep
         outcome = "MORTALITY_30D"
+        mp_pipeline.folds[outcome] = {}  # Patch because done in run function
 
         cv_results = mp_pipeline._cross_validate_and_fit(
             outcome, X_train, y_train.ravel(), cv_generator, groups
@@ -742,6 +745,7 @@ class TestFitFoldCalibrator:
         """Test successful function call."""
         X_train, y_train, X_recal, y_recal, groups, cv_generator = cv_data_prep
         outcome = "MORTALITY_30D"
+        mp_pipeline.folds[outcome] = {}  # Patch because done in run function
 
         # Change cross-validation generator
         mp_pipeline.medpipe_config.workflow.validation.cross_validation.strategy = (
