@@ -11,7 +11,13 @@ import numpy as np
 import pytest
 
 from medpipe._types import FullProba, Labels
-from medpipe.metrics.core import METRICS, build_scorers, compute_metrics, ici_score
+from medpipe.metrics.core import (
+    METRICS,
+    build_scorers,
+    compute_metrics,
+    ici_score,
+    print_metrics,
+)
 
 
 @pytest.fixture
@@ -152,3 +158,50 @@ class TestComputeMetrics:
         match_expr = f"Input y_pred should be a np.ndarray, but got {type(y_pred)}"
         with pytest.raises(TypeError, match=match_expr):
             compute_metrics(METRICS, np.array([]), y_pred)
+
+
+class TestPrintMetrics:
+    """Test class for the print_metrics function."""
+
+    def test_print_metrics_success(self, capsys) -> None:
+        """Test successful function call."""
+        print_metrics(np.array([0.95, 0.1]), ["accuracy", "log_loss"])
+
+        captured = capsys.readouterr()
+        msg = "Accuracy: 0.95\nLog loss: 0.1\n"
+        assert captured.out == msg
+
+    def test_print_metrics_invalid_metric(self) -> None:
+        """Test case when an invalid metric is in metrics."""
+        match_expr = (
+            "invalid was not found in available metric "
+            f"list. Available metrics are {METRICS}"
+        )
+        with pytest.raises(ValueError, match=escape(match_expr)):
+            print_metrics(np.array([0.0]), ["invalid"])
+
+    def test_print_metrics_dimension_mismatch(self) -> None:
+        """Test case when results and metrics dimensions do
+        not agree."""
+        match_expr = (
+            "Input results and metrics should have the same length, " f"but got 2 and 1"
+        )
+
+        with pytest.raises(ValueError, match=match_expr):
+            print_metrics(np.array([0.0, 1.0]), ["metric"])
+
+    @pytest.mark.parametrize("results", [3.14, 42, "llama", [], {}, ()])
+    def test_print_metrics_invalid_results(self, results: Any) -> None:
+        """Test case when results is not a np.ndarray."""
+        match_expr = f"Input results should be a np.ndarray, but got {type(results)}"
+        with pytest.raises(TypeError, match=match_expr):
+            print_metrics(results, ["metric"])
+
+    @pytest.mark.parametrize("metrics", [3.14, 42, "llama", np.array([]), {}, ()])
+    def test_print_metrics_invalid_metrics(self, metrics: Any) -> None:
+        """Test case when metrics is not a np.ndarray."""
+        match_expr = (
+            f"Input metrics should be a list of strings, but got {type(metrics)}"
+        )
+        with pytest.raises(TypeError, match=match_expr):
+            print_metrics(np.array([0]), metrics)
