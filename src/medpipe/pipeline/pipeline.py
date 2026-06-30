@@ -566,6 +566,54 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
             raise ValueError(
                 "Recalibration dataset is needed when recalibrator is specified"
             )
+
+        cv_results = self._cross_validate_and_fit(
+            outcome, X_train, y_train, cv_generator, groups
+        )
+
+        # Get calibrator metrics and save predictor fold information
+        calibrator_metrics = self._fit_fold_calibrator(
+            outcome, cv_results, X_train, groups, X_recal, y_recal
+        )
+
+        # Final fit for the calibrator
+        raw_outputs = self.predictor[outcome].predict_proba(X_recal)
+        self.calibrator[outcome].fit(raw_outputs[:, 1], y_recal)
+
+        # Update and return cv_results with calibrator_metrics
+        cv_results.update(calibrator_metrics)
+        return cv_results
+
+    def _cross_validate_and_fit(
+        self,
+        outcome: str,
+        X_train: npt.NDArray,
+        y_train: Labels,
+        cv_generator: StratifiedKFold | GroupKFold,
+        groups: npt.NDArray | None,
+    ) -> dict[str, Any]:
+        """
+        Computes the cross-validation step for the predictor and fits the model.
+
+        Parameters
+        ----------
+        X_train : npt.NDArray
+            Training data.
+        y_train : Labels
+            Training labels.
+        outcome : str
+            Outcome to predict.
+        cv_generator : StratifiedKFold | GroupKFold
+            Cross-validation generator.
+        groups : npt.NDArray | None, default: None
+            Groups for the GroupKFold cross-validation.
+
+        Returns
+        -------
+        cv_results : dict[str, Any]
+            Cross-validation results for predictor.
+
+        """
         metrics = self.medpipe_config.workflow.evaluation.metrics.metrics
         scorers = build_scorers(metrics)
 
@@ -581,17 +629,6 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
         )
         self.predictor[outcome].fit(X_train, y_train)  # Fit predictor
 
-        # Get calibrator metrics and save predictor fold information
-        calibrator_metrics = self._fit_fold_calibrator(
-            outcome, cv_results, X_train, groups, X_recal, y_recal
-        )
-
-        # Final fit for the calibrator
-        raw_outputs = self.predictor[outcome].predict_proba(X_recal)
-        self.calibrator[outcome].fit(raw_outputs[:, 1], y_recal)
-
-        # Update and return cv_results with calibrator_metrics
-        cv_results.update(calibrator_metrics)
         return cv_results
 
     def _fit_fold_calibrator(
