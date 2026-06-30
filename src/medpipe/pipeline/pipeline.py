@@ -68,6 +68,8 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
         Dictionary of predicted probabilities for each calibrator
         The dictionary keys are the labels and the values are
         the predicted probabilities of the calibrator for that fold.
+    folds : dict[str | int, int]
+        Dictionary containing the fold names and the fold index.
     logger : logging.Logger | None, default: None
         Logger object to log prints. If None print to terminal.
 
@@ -157,6 +159,7 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
         self.calibrator = {}
         self.predictor_train_outputs = {}  # Store training outputs
         self.calibrator_train_outputs = {}  # Store training outputs
+        self.folds = {}  # Store fold name and fold index
 
         for outcome in self.outcomes:
             # Initialise predictors
@@ -677,6 +680,7 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
             if groups is not None:
                 fold_name = groups[test_idx][0]  # Get the first group name
 
+            self.folds.update({fold_name: fold_idx})  # Add current fold to the list
             self.predictor_train_outputs[outcome].update({fold_name: raw_outputs})
 
             if self.calibrator:
