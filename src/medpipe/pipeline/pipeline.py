@@ -9,7 +9,7 @@ a recalibrator.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Type, overload
+from typing import TYPE_CHECKING, Any, Literal, Type, overload
 from warnings import warn
 
 import numpy as np
@@ -711,6 +711,43 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
                 recalibrator_metrics["recal_" + self.metrics[i]] = metrics_matrix[i, :]
 
         return recalibrator_metrics
+
+    def _extract_fold_results(
+        self, cv_results: dict[str, Any], result_type: Literal["test", "recal"]
+    ) -> npt.NDArray:
+        """
+        Extract fold results from the cross-validation results.
+
+        Choose which of the predictor (test) or recalibrator (recal)
+        results to extract.
+
+        Parameters
+        ----------
+        cv_results : dict[str, Any]
+            Cross-validation results for predictor and recalibrator.
+        result_type : {"test", "recal"}
+            Result type to extract.
+
+        Returns
+        -------
+        results : npt.NDArray
+            Results using the metrics list indexing.
+
+        Raises
+        ------
+        Error
+            Add exceptions that might be raised.
+
+        """
+        prefix = "test_" if result_type is "test" else "recal_"
+        n_splits = self.medpipe_config.workflow.validation.cross_validation.n_splits
+
+        results = np.zeros((len(self.metrics), n_splits))  # Store results
+
+        for i, metric in enumerate(self.metrics):
+            results[i, :] = cv_results[prefix + metric]
+
+        return results
 
     def transform(self, X: pd.DataFrame | npt.NDArray) -> None:
         """
