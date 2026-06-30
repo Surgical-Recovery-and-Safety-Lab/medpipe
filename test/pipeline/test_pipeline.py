@@ -61,48 +61,48 @@ def mp_pipeline(example_config_dir: Path) -> MedpipePipeline:
 
 
 @pytest.fixture
-def mock_data() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+def mock_data() -> MockData:
     """Generate some mock data for the some tests."""
     X_train = pd.DataFrame(
         {
-            "SEX": ["F", "M"],
-            "AGE": [20, 43],
-            "PRIOR_CANCER": [0, 1],
-            "ADMISSION_ACUITY": ["Acute", "Elective"],
-            "ADMISSION_SOURCE": ["Routine", "Transfer"],
-            "CATEGORY_LEVEL_1": ["Plastics", "General Surgery"],
-            "OP_SEVERITY": [1, 3],
-            "OP_YEAR": [2022, 2021],
-            "DHB_NAME": ["Auckland", "Christchurch"],
-        }
-    )
-    X_recal = pd.DataFrame(
-        {
-            "SEX": ["M", "F"],
-            "AGE": [23, 45],
-            "PRIOR_CANCER": [0, 1],
-            "ADMISSION_ACUITY": ["Elective", "Acute"],
-            "ADMISSION_SOURCE": ["Routine", "Routine"],
-            "CATEGORY_LEVEL_1": ["Plastics", "General Surgery"],
-            "OP_SEVERITY": [1, 2],
-            "OP_YEAR": [2023, 2023],
-            "DHB_NAME": ["Wellington", "Christchurch"],
+            "SEX": ["F", "M", "M"],
+            "AGE": [20, 43, 84],
+            "PRIOR_CANCER": [0, 1, 0],
+            "ADMISSION_ACUITY": ["Acute", "Elective", "Acute"],
+            "ADMISSION_SOURCE": ["Routine", "Transfer", "Routine"],
+            "CATEGORY_LEVEL_1": ["Plastics", "General Surgery", "Plastics"],
+            "OP_SEVERITY": [1, 3, 2],
+            "OP_YEAR": [2022, 2021, 2023],
+            "DHB_NAME": ["Auckland", "Christchurch", "Wellington"],
         }
     )
     X_test = pd.DataFrame(
         {
-            "SEX": ["M", "M"],
-            "AGE": [69, 43],
-            "PRIOR_CANCER": [0, 1],
-            "ADMISSION_ACUITY": ["Acute", "Elective"],
-            "ADMISSION_SOURCE": ["Transfer", "Transfer"],
-            "CATEGORY_LEVEL_1": ["Plastics", "General Surgery"],
-            "OP_SEVERITY": [1, 4],
-            "OP_YEAR": [2024, 2024],
-            "DHB_NAME": ["Auckland", "Wellington"],
+            "SEX": ["M", "M", "F"],
+            "AGE": [69, 43, 24],
+            "PRIOR_CANCER": [0, 1, 0],
+            "ADMISSION_ACUITY": ["Acute", "Elective", "Elective"],
+            "ADMISSION_SOURCE": ["Transfer", "Transfer", "Routine"],
+            "CATEGORY_LEVEL_1": ["Plastics", "General Surgery", "General Surgery"],
+            "OP_SEVERITY": [1, 4, 2],
+            "OP_YEAR": [2024, 2024, 2024],
+            "DHB_NAME": ["Auckland", "Wellington", "Auckland"],
         }
     )
-    return (X_train, X_recal, X_test)
+    X_recal = pd.DataFrame(
+        {
+            "SEX": ["M", "F", "F"],
+            "AGE": [23, 45, 72],
+            "PRIOR_CANCER": [0, 1, 1],
+            "ADMISSION_ACUITY": ["Elective", "Acute", "Elective"],
+            "ADMISSION_SOURCE": ["Routine", "Routine", "Routine"],
+            "CATEGORY_LEVEL_1": ["Plastics", "General Surgery", "Plastics"],
+            "OP_SEVERITY": [1, 2, 2],
+            "OP_YEAR": [2023, 2023, 2023],
+            "DHB_NAME": ["Wellington", "Christchurch", "Christchurch"],
+        }
+    )
+    return (X_train, X_test, X_recal)
 
 
 # ==============================================================================
