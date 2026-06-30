@@ -733,13 +733,8 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
         results : npt.NDArray
             Results using the metrics list indexing.
 
-        Raises
-        ------
-        Error
-            Add exceptions that might be raised.
-
         """
-        prefix = "test_" if result_type is "test" else "recal_"
+        prefix = "test_" if result_type == "test" else "recal_"
         n_splits = self.medpipe_config.workflow.validation.cross_validation.n_splits
 
         results = np.zeros((len(self.metrics), n_splits))  # Store results
@@ -896,6 +891,7 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
                     X_recal=X_recal,
                     y_recal=y_recal[:, i],  # type: ignore
                 )
+
             else:
                 self.predictor[outcome].fit(X_train, y_train[:, i])
 
