@@ -568,7 +568,7 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
             )
 
         cv_results = self._cross_validate_and_fit(
-            outcome, X_train, y_train, cv_generator, groups
+            outcome, X_train, y_train.ravel(), cv_generator, groups
         )
 
         # Get calibrator metrics and save predictor fold information
