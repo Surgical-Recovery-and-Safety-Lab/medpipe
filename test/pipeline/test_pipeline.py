@@ -844,6 +844,35 @@ class TestFitFoldRecalibrator:
             assert len(recalibrator_metrics["recal_" + metric]) == n_splits
 
 
+class TestExtractFoldResults:
+    """Test class for the _extract_fold_results function of the
+    MedpipePipeline class."""
+
+    @pytest.fixture
+    def mock_cv_results(self) -> dict[str, npt.NDArray]:
+        """Generate mock cv_results."""
+        cv_results = {
+            "test_auroc": np.array([0.94, 0.99, 0.95]),
+            "test_ici": np.array([0.01, 0.02, 0.00]),
+            "recal_auroc": np.array([0.99, 0.93, 0.92]),
+            "recal_ici": np.array([0.01, 0.01, 0.00]),
+        }
+        return cv_results
+
+    @pytest.mark.parametrize("result_type", ["test", "recal"])
+    def test_pipeline_extract_fold_results_success(
+        self,
+        mp_pipeline: MedpipePipeline,
+        mock_cv_results: dict[str, npt.NDArray],
+        result_type: Literal["test", "recal"],
+    ) -> None:
+        """Test successful function call."""
+        mp_pipeline.metrics = ["auroc", "ici"]
+        results = mp_pipeline._extract_fold_results(mock_cv_results, result_type)
+
+        assert results.shape == (2, 3)
+
+
 class TestRun:
     """Test class for the run function of the MedpipePipeline class."""
 
