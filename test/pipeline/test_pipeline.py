@@ -658,10 +658,8 @@ class TestCrossValidateAndFit:
     """Test class for the _cross_validate_and_fit function of the
     MedpipePipeline class."""
 
-    @patch("medpipe.pipeline.pipeline.cross_validate")
     def test_pipeline_cross_validate_and_fit_success(
         self,
-        mock_cv_results: MagicMock,
         mp_pipeline: MedpipePipeline,
         cv_data_prep: DataPrep,
     ) -> None:
@@ -673,7 +671,6 @@ class TestCrossValidateAndFit:
             outcome, X_train, y_train.ravel(), cv_generator, groups
         )
 
-        mock_cv_results.assert_called_once()
         check_is_fitted(mp_pipeline.predictor[outcome])
 
     @patch("medpipe.pipeline.pipeline.cross_validate")
