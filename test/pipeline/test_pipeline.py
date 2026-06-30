@@ -67,15 +67,47 @@ def mock_data() -> MockData:
     """Generate some mock data for the some tests."""
     X_train = pd.DataFrame(
         {
-            "SEX": ["F", "M", "M"],
-            "AGE": [20, 43, 84],
-            "PRIOR_CANCER": [0, 1, 0],
-            "ADMISSION_ACUITY": ["Acute", "Elective", "Acute"],
-            "ADMISSION_SOURCE": ["Routine", "Transfer", "Routine"],
-            "CATEGORY_LEVEL_1": ["Plastics", "General Surgery", "Plastics"],
-            "OP_SEVERITY": [1, 3, 2],
-            "OP_YEAR": [2022, 2021, 2023],
-            "DHB_NAME": ["Auckland", "Christchurch", "Wellington"],
+            "SEX": ["F", "M", "M", "F", "M", "M", "F"],
+            "AGE": [20, 43, 84, 19, 43, 28, 71],
+            "PRIOR_CANCER": [0, 1, 0, 1, 0, 0, 0],
+            "ADMISSION_ACUITY": [
+                "Acute",
+                "Elective",
+                "Acute",
+                "Acute",
+                "Elective",
+                "Elective",
+                "Elective",
+            ],
+            "ADMISSION_SOURCE": [
+                "Routine",
+                "Routine",
+                "Routine",
+                "Transfer",
+                "Routine",
+                "Transfer",
+                "Routine",
+            ],
+            "CATEGORY_LEVEL_1": [
+                "Plastics",
+                "Plastics",
+                "Plastics",
+                "General Surgery",
+                "General Surgery",
+                "General Surgery",
+                "Plastics",
+            ],
+            "OP_SEVERITY": [1, 3, 2, 1, 1, 2, 4],
+            "OP_YEAR": [2022, 2021, 2023, 2022, 2021, 2022, 2023],
+            "DHB_NAME": [
+                "Auckland",
+                "Christchurch",
+                "Wellington",
+                "Auckland",
+                "Auckland",
+                "Wellington",
+                "Christchurch",
+            ],
         }
     )
     X_test = pd.DataFrame(
@@ -112,7 +144,7 @@ def cv_data_prep(mp_pipeline: MedpipePipeline, mock_data: MockData) -> DataPrep:
     """Run preparation code before calling _cv_fit."""
     # Get different split data sets
     X_train, X_test, X_recal = mock_data
-    y_train = np.array([0, 1, 0])
+    y_train = np.array([1, 1, 1, 1, 0, 0, 0])
     y_recal = np.array([0, 1, 1])
 
     X_train, X_test, X_recal, groups = mp_pipeline._drop_group_columns(
