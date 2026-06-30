@@ -712,6 +712,46 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
 
         return recalibrator_metrics
 
+    def _print_fold_metrics(self, cv_results: dict[str, Any], outcome: str) -> None:
+        """
+        Prints fold metrics to the terminal.
+
+        Parameters
+        ----------
+        cv_results : dict[str, Any]
+            Cross-validation results for predictor and recalibrator.
+        outcome : str
+            Outcome to predict.
+
+        Returns
+        -------
+        None
+            Nothing is returned.
+
+        """
+        print(f"Outcome: {outcome}")
+
+        test_fold_results = self._extract_fold_results(cv_results, "test")
+
+        recal_fold_results = None
+        if self.recalibrator:  # Get only if recalibrator is specified
+            recal_fold_results = self._extract_fold_results(cv_results, "recal")
+
+        for fold_name, fold_idx in self.folds[outcome].items():
+            print(f"  Fold: {fold_name}")
+            for i in range(len(self.metrics)):
+                print_metrics(
+                    np.array([test_fold_results[i, fold_idx]]), [self.metrics[i]]
+                )
+
+            # Run loop a second time to get recalibration afterwards
+            if recal_fold_results is not None:
+                print(f"  Recalibrated:")
+                for i in range(len(self.metrics)):
+                    print_metrics(
+                        np.array([recal_fold_results[i, fold_idx]]), [self.metrics[i]]
+                    )
+
     def _extract_fold_results(
         self, cv_results: dict[str, Any], result_type: Literal["test", "recal"]
     ) -> npt.NDArray:
@@ -892,6 +932,7 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
                     y_recal=y_recal[:, i],  # type: ignore
                 )
 
+                self._print_fold_metrics(cv_results, outcome)
             else:
                 self.predictor[outcome].fit(X_train, y_train[:, i])
 
