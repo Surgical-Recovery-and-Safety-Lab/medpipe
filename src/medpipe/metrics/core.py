@@ -93,14 +93,29 @@ def ici_score(
 
 
 # Define metric registery
-METRIC_MAPPING = {  #  metric name, scorer, function to use
-    "accuracy": ("accuracy", accuracy_score, "predict"),
-    "log_loss": ("neg_log_loss", log_loss, "predict_proba"),
-    "brier_score": ("neg_brier_score", brier_score_loss, "predict_proba"),
-    "f1": ("f1", f1_score, "predict"),
-    "roc_auc": ("roc_auc", roc_auc_score, ("decision_function", "predict_proba")),
-    "auroc": ("roc_auc", roc_auc_score, ("decision_function", "predict_proba")),
-    "ici": ("ici", ici_score, "predict_proba"),
+METRIC_MAPPING = {  #  metric name, scorer, function to use, print name
+    "accuracy": ("accuracy", accuracy_score, "predict", "Accuracy"),
+    "log_loss": ("neg_log_loss", log_loss, "predict_proba", "Log loss"),
+    "brier_score": (
+        "neg_brier_score",
+        brier_score_loss,
+        "predict_proba",
+        "Brier score",
+    ),
+    "f1": ("f1", f1_score, "predict", "F1"),
+    "roc_auc": (
+        "roc_auc",
+        roc_auc_score,
+        ("decision_function", "predict_proba"),
+        "AUROC",
+    ),
+    "auroc": (
+        "roc_auc",
+        roc_auc_score,
+        ("decision_function", "predict_proba"),
+        "AUROC",
+    ),
+    "ici": ("ici", ici_score, "predict_proba", "ICI"),
 }
 
 METRICS = [key for key in METRIC_MAPPING.keys()]
