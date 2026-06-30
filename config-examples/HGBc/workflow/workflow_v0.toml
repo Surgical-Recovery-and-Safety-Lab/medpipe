@@ -22,7 +22,7 @@ random_state = 42
 
 [evaluation]
 [evaluation.metrics]
-metrics = ["roc_auc", "log_loss", "ici"]
+metrics = ["roc_auc", "log_loss"]
 
 [evaluation.fairness]
 strata = ["SEX", "AGE"]
