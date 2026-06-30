@@ -240,47 +240,61 @@ def compute_metrics(
 
 
 def print_metrics(
-    metric_dict: dict[str, list[float]],
-    label_list: list[str],
-    logger: logging.Logger | None = None,
+    results: npt.NDArray,
+    metrics: list[str],
 ) -> None:
     """
     Prints the metrics on the terminal.
 
+    Metric names are read in order and the index should
+    correspond to the value at the same index in results.
+
     Parameters
     ----------
-    metric_dict : dict[str, list[float]]
-        Dictionary of the model performance for one fold.
-        Keys are the metric name and values are the metric value.
-        The test metrics used are:
-         - accuracy
-         - f1
-         - precision
-         - recall
-         - log_loss
-         - auroc (Area Under Receiver Operator Characteristic)
-         - ap (Average Precision)
-    label_list : list[str]
-        List of predicted labels.
-    logger : logging.Logger | None, default: None
-        Logger object to log prints. If None print to terminal.
+    results : npt.NDArray
+        Array of metric values to print.
+    metrics : list[str]
+        List of metric names to print.
 
     Returns
     -------
     None
         Nothing is returned.
 
-    """
-    # Get all keys except ones we don't want to print (like curves)
-    printable_metrics = [k for k in metric_dict.keys() if k not in ["roc", "prc"]]
+    Raises
+    ------
+    TypeError
+        If results is not a np.ndarray.
+        If metrics is not a list.
+    ValueError
+        If metrics and results are not the same length.
+        If metrics contains an invalid metric.
 
-    for i, label in enumerate(label_list):
-        print_message(f"  {label} metrics:", logger, SCRIPT_NAME)
-        for metric in printable_metrics:
-            val = metric_dict[metric][i]
-            # Dynamic spacing and capitalization
-            name = metric.replace("_", " ").capitalize()
-            print_message(f"    {name}: {val:.3f}", logger, SCRIPT_NAME)
+    """
+    if not isinstance(results, np.ndarray):
+        expr = f"Input results should be a np.ndarray, but got {type(results)}"
+        raise TypeError(expr)
+
+    if not isinstance(metrics, list):
+        expr = f"Input metrics should be a list of strings, but got {type(metrics)}"
+        raise TypeError(expr)
+
+    if len(metrics) != len(results):
+        expr = (
+            "Input results and metrics should have the same length, "
+            f"but got {len(results)} and {len(metrics)}"
+        )
+        raise ValueError(expr)
+
+    for i, metric in enumerate(metrics):
+        if metric not in METRICS:
+            expr = (
+                f"{metric} was not found in available metric "
+                f"list. Available metrics are {METRICS}"
+            )
+            raise ValueError(expr)
+
+        print(f"{METRIC_MAPPING[metric][3]}: {results[i]}")
 
 
 def print_metrics_CI(
