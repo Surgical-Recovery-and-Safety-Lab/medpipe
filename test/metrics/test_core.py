@@ -168,7 +168,7 @@ class TestPrintMetrics:
         print_metrics(np.array([0.95, 0.1]), ["accuracy", "log_loss"])
 
         captured = capsys.readouterr()
-        msg = "Accuracy: 0.95\nLog loss: 0.1\n"
+        msg = "Accuracy: 0.950\nLog loss: 0.100\n"
         assert captured.out == msg
 
     def test_print_metrics_invalid_metric(self) -> None:
