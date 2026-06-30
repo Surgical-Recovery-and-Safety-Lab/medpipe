@@ -5,7 +5,7 @@ loss = "log_loss"
 l2_regularization = 0.5
 max_features = 0.2
 
-[hyperparameters.calibrator]
+[hyperparameters.recalibrator]
 out_of_bounds = "clip"
 
 [balancing]
