@@ -157,6 +157,18 @@ def cv_data_prep(mp_pipeline: MedpipePipeline, mock_data: MockData) -> DataPrep:
     return (X_train, y_train, X_recal, y_recal, groups, cv_generator)
 
 
+@pytest.fixture
+def mock_cv_results() -> dict[str, npt.NDArray]:
+    """Generate mock cv_results."""
+    cv_results = {
+        "test_auroc": np.array([0.94, 0.99, 0.952]),
+        "test_ici": np.array([0.01, 0.0223, 0.001]),
+        "recal_auroc": np.array([0.9900, 0.93, 0.92]),
+        "recal_ici": np.array([0.01, 0.01, 0.00]),
+    }
+    return cv_results
+
+
 # ==============================================================================
 # Test classes
 # ==============================================================================
@@ -848,14 +860,6 @@ class TestExtractFoldResults:
     """Test class for the _extract_fold_results function of the
     MedpipePipeline class."""
 
-    @pytest.fixture
-    def mock_cv_results(self) -> dict[str, npt.NDArray]:
-        """Generate mock cv_results."""
-        cv_results = {
-            "test_auroc": np.array([0.94, 0.99, 0.95]),
-            "test_ici": np.array([0.01, 0.02, 0.00]),
-            "recal_auroc": np.array([0.99, 0.93, 0.92]),
-            "recal_ici": np.array([0.01, 0.01, 0.00]),
         }
         return cv_results
 
