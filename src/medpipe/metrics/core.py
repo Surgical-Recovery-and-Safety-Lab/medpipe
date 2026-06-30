@@ -294,7 +294,7 @@ def print_metrics(
             )
             raise ValueError(expr)
 
-        print(f"{METRIC_MAPPING[metric][3]}: {results[i]}")
+        print(f"{METRIC_MAPPING[metric][3]}: {results[i]:.3f}")
 
 
 def print_metrics_CI(
