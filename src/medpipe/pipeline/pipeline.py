@@ -639,7 +639,7 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
         groups: npt.NDArray | None,
         X_recal: npt.NDArray | None,
         y_recal: Labels | None,
-    ) -> dict[str, float]:
+    ) -> dict[str | int, dict[str, float]]:
         """
         Save fold outputs from predictor and fit the calibrators.
 
@@ -660,7 +660,7 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
 
         Returns
         -------
-        calibrator_metrics : dict[str, float]
+        calibrator_metrics : dict[str | int, dict[str, float]]
             Calibrator metrics for each fold or empty dictionary.
 
         """
