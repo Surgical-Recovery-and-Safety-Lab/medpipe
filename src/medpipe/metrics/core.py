@@ -154,9 +154,11 @@ def build_scorers(metrics: list[str] | npt.NDArray) -> dict[str, Callable]:
 
 def compute_metrics(
     metrics: list[str] | npt.NDArray, y: Labels, y_pred: FullProba | PosProba
-) -> dict[str, float]:
+) -> npt.NDArray:
     """
     Computes metrics based on predicted data.
+
+    Scores are located at the same index as in the metrics array.
 
     Parameters
     ----------
@@ -169,8 +171,8 @@ def compute_metrics(
 
     Returns
     -------
-    scores : dict[str, float]
-        Score dictionary with metrics as keys.
+    scores : npt.NDArray
+        Score array of shape (n_metrics, 1).
 
     Raises
     ------
@@ -199,10 +201,10 @@ def compute_metrics(
 
     array_dim_check(y, y_pred)
 
-    scores = {}  # Empty dict to hold scores
+    scores = np.zeros((len(metrics), 1))  # Empty array to hold scores
     y_labels = np.round(y_pred)  # Get labels based on probabilities
 
-    for metric in metrics:
+    for i, metric in enumerate(metrics):
         try:
             method = METRIC_MAPPING[metric][2]
         except KeyError:
@@ -214,10 +216,10 @@ def compute_metrics(
 
         if "predict_proba" in method:
             # Use the predictions to compute the score
-            scores[metric] = METRIC_MAPPING[metric][1](y, y_pred)
+            scores[i] = METRIC_MAPPING[metric][1](y, y_pred)
 
         else:
-            scores[metric] = METRIC_MAPPING[metric][1](y, y_labels)
+            scores[i] = METRIC_MAPPING[metric][1](y, y_labels)
 
     return scores
 
