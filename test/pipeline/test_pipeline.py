@@ -856,12 +856,66 @@ class TestFitFoldRecalibrator:
             assert len(recalibrator_metrics["recal_" + metric]) == n_splits
 
 
+class TestPrintFoldMetrics:
+    """Test class for the _print_fold_metrics function of the
+    MedpipePipeline class."""
+
+    def test_pipeline_print_fold_metrics_success(
+        self,
+        capsys,
+        mp_pipeline: MedpipePipeline,
+        mock_cv_results: dict[str, npt.NDArray],
+    ) -> None:
+        """Test successful function call."""
+        mp_pipeline.metrics = ["auroc", "ici"]
+        mp_pipeline.folds = {
+            "MORTALITY_30D": {"Auckland": 0, "Christchurch": 1, "Wellington": 2}
+        }
+
+        mp_pipeline._print_fold_metrics(mock_cv_results, "MORTALITY_30D")
+
+        # Capture output
+        captured = capsys.readouterr()
+        msg = (
+            "Outcome: MORTALITY_30D\n"
+            "  Fold: Auckland\nAUROC: 0.940\nICI: 0.010\n"
+            "  Recalibrated:\nAUROC: 0.990\nICI: 0.010\n"
+            "  Fold: Christchurch\nAUROC: 0.990\nICI: 0.022\n"
+            "  Recalibrated:\nAUROC: 0.930\nICI: 0.010\n"
+            "  Fold: Wellington\nAUROC: 0.952\nICI: 0.001\n"
+            "  Recalibrated:\nAUROC: 0.920\nICI: 0.000\n"
+        )
+        assert msg in captured.out
+
+    def test_pipeline_print_fold_metrics_no_recal(
+        self,
+        capsys,
+        mp_pipeline: MedpipePipeline,
+        mock_cv_results: dict[str, npt.NDArray],
+    ) -> None:
+        """Test case when there is no recalibration."""
+        mp_pipeline.metrics = ["auroc", "ici"]
+        mp_pipeline.folds = {
+            "MORTALITY_30D": {"Auckland": 0, "Christchurch": 1, "Wellington": 2}
+        }
+        mp_pipeline.recalibrator = {}
+
+        mp_pipeline._print_fold_metrics(mock_cv_results, "MORTALITY_30D")
+
+        # Capture output
+        captured = capsys.readouterr()
+        msg = (
+            "Outcome: MORTALITY_30D\n"
+            "  Fold: Auckland\nAUROC: 0.940\nICI: 0.010\n"
+            "  Fold: Christchurch\nAUROC: 0.990\nICI: 0.022\n"
+            "  Fold: Wellington\nAUROC: 0.952\nICI: 0.001\n"
+        )
+        assert msg in captured.out
+
+
 class TestExtractFoldResults:
     """Test class for the _extract_fold_results function of the
     MedpipePipeline class."""
-
-        }
-        return cv_results
 
     @pytest.mark.parametrize("result_type", ["test", "recal"])
     def test_pipeline_extract_fold_results_success(
