@@ -673,10 +673,8 @@ class TestCrossValidateAndFit:
 
         check_is_fitted(mp_pipeline.predictor[outcome])
 
-    @patch("medpipe.pipeline.pipeline.cross_validate")
     def test_pipeline_cross_validate_and_fit_stratified_cv(
         self,
-        mock_cv_results: MagicMock,
         mp_pipeline: MedpipePipeline,
         cv_data_prep: DataPrep,
     ) -> None:
@@ -695,8 +693,88 @@ class TestCrossValidateAndFit:
             outcome, X_train, y_train.ravel(), cv_generator, groups
         )
 
-        mock_cv_results.assert_called_once()
         check_is_fitted(mp_pipeline.predictor[outcome])
+
+
+class TestFitFoldCalibrator:
+    """Test class for the _fit_fold_calibrator function of the
+    MedpipePipeline class."""
+
+    def test_pipeline_fit_fold_calibrator_success(
+        self,
+        mp_pipeline: MedpipePipeline,
+        cv_data_prep: DataPrep,
+    ) -> None:
+        """Test successful function call."""
+        X_train, y_train, X_recal, y_recal, groups, cv_generator = cv_data_prep
+        outcome = "MORTALITY_30D"
+
+        cv_results = mp_pipeline._cross_validate_and_fit(
+            outcome, X_train, y_train.ravel(), cv_generator, groups
+        )
+
+        calibrator_results = mp_pipeline._fit_fold_calibrator(
+            outcome, cv_results, X_train, groups, X_recal, y_recal
+        )
+
+        # Check that fold predictions have been saved
+        assert groups is not None
+        assert outcome in mp_pipeline.predictor_train_outputs.keys()
+        assert outcome in mp_pipeline.calibrator_train_outputs.keys()
+
+        for group in groups:
+            assert group in mp_pipeline.predictor_train_outputs[outcome]
+            assert group in mp_pipeline.calibrator_train_outputs[outcome]
+
+        check_is_fitted(mp_pipeline.calibrator[outcome])
+        assert calibrator_results  # Make sure not an empty dict
+
+        metrics = mp_pipeline.medpipe_config.workflow.evaluation.metrics.metrics
+        for metric in metrics:
+            for key in calibrator_results.keys():
+                assert metric in calibrator_results[key].keys()
+
+    def test_pipeline_cross_validate_and_fit_stratified_cv(
+        self,
+        mp_pipeline: MedpipePipeline,
+        cv_data_prep: DataPrep,
+    ) -> None:
+        """Test successful function call."""
+        X_train, y_train, X_recal, y_recal, groups, cv_generator = cv_data_prep
+        outcome = "MORTALITY_30D"
+
+        # Change cross-validation generator
+        mp_pipeline.medpipe_config.workflow.validation.cross_validation.strategy = (
+            "random"
+        )
+        cv_generator = mp_pipeline._get_cv_generator()
+        groups = None
+
+        cv_results = mp_pipeline._cross_validate_and_fit(
+            outcome, X_train, y_train.ravel(), cv_generator, groups
+        )
+
+        calibrator_results = mp_pipeline._fit_fold_calibrator(
+            outcome, cv_results, X_train, groups, X_recal, y_recal
+        )
+
+        # Check that fold predictions have been saved
+        assert outcome in mp_pipeline.predictor_train_outputs.keys()
+        assert outcome in mp_pipeline.calibrator_train_outputs.keys()
+
+        for i in range(
+            mp_pipeline.medpipe_config.workflow.validation.cross_validation.n_splits
+        ):
+            assert i in mp_pipeline.predictor_train_outputs[outcome]
+            assert i in mp_pipeline.calibrator_train_outputs[outcome]
+
+        check_is_fitted(mp_pipeline.calibrator[outcome])
+        assert calibrator_results  # Make sure not an empty dict
+
+        metrics = mp_pipeline.medpipe_config.workflow.evaluation.metrics.metrics
+        for metric in metrics:
+            for key in calibrator_results.keys():
+                assert metric in calibrator_results[key].keys()
 
 
 class TestRun:
