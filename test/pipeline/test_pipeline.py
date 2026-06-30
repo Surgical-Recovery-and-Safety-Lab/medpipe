@@ -716,7 +716,7 @@ class TestFitFoldCalibrator:
             outcome, X_train, y_train.ravel(), cv_generator, groups
         )
 
-        calibrator_results = mp_pipeline._fit_fold_calibrator(
+        calibrator_metrics = mp_pipeline._fit_fold_calibrator(
             outcome, cv_results, X_train, groups, X_recal, y_recal
         )
 
@@ -728,16 +728,21 @@ class TestFitFoldCalibrator:
         for group in groups:
             assert group in mp_pipeline.predictor_train_outputs[outcome]
             assert group in mp_pipeline.calibrator_train_outputs[outcome]
+            assert group in mp_pipeline.folds[outcome]
 
         check_is_fitted(mp_pipeline.calibrator[outcome])
-        assert calibrator_results  # Make sure not an empty dict
+        assert calibrator_metrics  # Make sure not an empty dict
 
+        n_splits = (
+            mp_pipeline.medpipe_config.workflow.validation.cross_validation.n_splits
+        )
         metrics = mp_pipeline.medpipe_config.workflow.evaluation.metrics.metrics
         for metric in metrics:
-            for key in calibrator_results.keys():
-                assert metric in calibrator_results[key].keys()
+            assert "recal_" + metric in calibrator_metrics.keys()
+            assert isinstance(calibrator_metrics["recal_" + metric], np.ndarray)
+            assert len(calibrator_metrics["recal_" + metric]) == n_splits
 
-    def test_pipeline_cross_validate_and_fit_stratified_cv(
+    def test_pipeline_fit_fold_calibrator_stratified_cv(
         self,
         mp_pipeline: MedpipePipeline,
         cv_data_prep: DataPrep,
@@ -758,7 +763,7 @@ class TestFitFoldCalibrator:
             outcome, X_train, y_train.ravel(), cv_generator, groups
         )
 
-        calibrator_results = mp_pipeline._fit_fold_calibrator(
+        calibrator_metrics = mp_pipeline._fit_fold_calibrator(
             outcome, cv_results, X_train, groups, X_recal, y_recal
         )
 
@@ -771,14 +776,19 @@ class TestFitFoldCalibrator:
         ):
             assert i in mp_pipeline.predictor_train_outputs[outcome]
             assert i in mp_pipeline.calibrator_train_outputs[outcome]
+            assert i in mp_pipeline.folds[outcome]
 
         check_is_fitted(mp_pipeline.calibrator[outcome])
-        assert calibrator_results  # Make sure not an empty dict
+        assert calibrator_metrics  # Make sure not an empty dict
 
+        n_splits = (
+            mp_pipeline.medpipe_config.workflow.validation.cross_validation.n_splits
+        )
         metrics = mp_pipeline.medpipe_config.workflow.evaluation.metrics.metrics
         for metric in metrics:
-            for key in calibrator_results.keys():
-                assert metric in calibrator_results[key].keys()
+            assert "recal_" + metric in calibrator_metrics.keys()
+            assert isinstance(calibrator_metrics["recal_" + metric], np.ndarray)
+            assert len(calibrator_metrics["recal_" + metric]) == n_splits
 
 
 class TestRun:
