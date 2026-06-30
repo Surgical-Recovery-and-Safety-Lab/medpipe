@@ -224,7 +224,7 @@ def compute_metrics(
             method = METRIC_MAPPING[metric][2]
         except KeyError:
             expr = (
-                "invalid was not found in available metric "
+                f"{metric} was not found in available metric "
                 f"list. Available metrics are {METRICS}"
             )
             raise ValueError(expr)
