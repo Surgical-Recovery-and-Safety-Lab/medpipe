@@ -642,7 +642,7 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
         groups: npt.NDArray | None,
         X_recal: npt.NDArray | None,
         y_recal: Labels | None,
-    ) -> dict[str | int, dict[str, float]]:
+    ) -> dict[str, npt.NDArray]:
         """
         Save fold outputs from predictor and fit the calibrators.
 
@@ -663,12 +663,16 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
 
         Returns
         -------
-        calibrator_metrics : dict[str | int, dict[str, float]]
+        calibrator_metrics : dict[str, npt.NDArray]
             Calibrator metrics for each fold or empty dictionary.
 
         """
         metrics = self.medpipe_config.workflow.evaluation.metrics.metrics
+        n_splits = self.medpipe_config.workflow.validation.cross_validation.n_splits
+
+        # Prepare for saving calibrator metrics
         calibrator_metrics = {}
+        metrics_matrix = np.zeros((len(metrics), n_splits))
 
         for fold_idx, (estimator, test_idx) in enumerate(
             zip(cv_results["estimator"], cv_results["indices"]["test"])
@@ -680,7 +684,8 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
             if groups is not None:
                 fold_name = groups[test_idx][0]  # Get the first group name
 
-            self.folds.update({fold_name: fold_idx})  # Add current fold to the list
+            # Update dictionaries
+            self.folds[outcome].update({fold_name: fold_idx})
             self.predictor_train_outputs[outcome].update({fold_name: raw_outputs})
 
             if self.calibrator:
@@ -691,10 +696,16 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
                 self.calibrator_train_outputs[outcome].update(
                     {fold_name: calibrator_outputs}
                 )
+
                 if y_recal is not None:
-                    calibrator_metrics[fold_name] = compute_metrics(
+                    metrics_matrix[:, fold_idx] = compute_metrics(
                         metrics, y_recal, calibrator_outputs
                     )
+
+        if not (metrics_matrix == False).all():
+            # If the metrics matrix was filled
+            for i in range(len(metrics)):
+                calibrator_metrics["recal_" + metrics[i]] = metrics_matrix[i, :]
 
         return calibrator_metrics
 
