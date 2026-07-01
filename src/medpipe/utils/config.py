@@ -86,7 +86,7 @@ class ModelConfig(BaseModel):
 
 
 class RecalibrationConfig(BaseModel):
-    method: str
+    method: str | None = None
     model_config = {"extra": "forbid"}
 
 
@@ -96,7 +96,7 @@ class TopLevelConfig(BaseModel):
     meta: MetaConfig
     paths: PathsConfig
     model: ModelConfig
-    recalibration: RecalibrationConfig
+    recalibration: RecalibrationConfig | None = None
     model_config = {"extra": "forbid"}
 
 

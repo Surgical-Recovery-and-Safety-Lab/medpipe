@@ -139,7 +139,10 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
         # Extract some top-level parameters
         self.version = top_level["meta"]["version"]
         self.predictor_algo = top_level["model"]["algorithm"]
-        self.recalibrator_method = top_level["recalibration"]["method"]
+        if top_level["recalibration"]:
+            self.recalibrator_method = top_level["recalibration"]["method"]
+        else:
+            self.recalibrator_method = None
 
         # Get outcomes and metrics from configuration
         self.outcomes = self.medpipe_config.data.outcomes
