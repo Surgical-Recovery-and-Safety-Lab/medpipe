@@ -18,8 +18,6 @@ from warnings import warn
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-from medpipe.data.sampler import VALID_SAMPLER_FN
-from medpipe.data.weighting import VALID_WEIGHTING_FN
 from medpipe.metrics.core import METRICS
 
 from .exceptions import file_checks
@@ -348,31 +346,12 @@ class WeightingConfig(BaseModel):
     weighting_fn: str
     model_config = {"extra": "forbid"}
 
-    @field_validator("weighting_fn")
-    @classmethod
-    def validate_weighting_fn(cls, fn: str) -> str:
-        if fn not in VALID_WEIGHTING_FN:
-            raise ValueError(
-                f"Unknown weighting function {fn} "
-                f"should be one of {VALID_WEIGHTING_FN}"
-            )
-        return fn
-
 
 class SamplingConfig(BaseModel):
     sampler_fn: str
     reduction_factor: float = Field(default=0.5, ge=0.0, le=1.0)
     hard_percent: float | None = Field(default=None, gt=0.0, lt=1.0)
     model_config = {"extra": "forbid"}
-
-    @field_validator("sampler_fn")
-    @classmethod
-    def validate_sampler_fn(cls, fn: str) -> str:
-        if fn not in VALID_SAMPLER_FN:
-            raise ValueError(
-                f"Unknown sampler function {fn} " f"should be one of {VALID_SAMPLER_FN}"
-            )
-        return fn
 
     @model_validator(mode="after")
     def validate_sampler_interactions(self) -> "SamplingConfig":
