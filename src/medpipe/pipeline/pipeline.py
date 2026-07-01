@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, Type, overload
 from warnings import warn
 
+import joblib
 import numpy as np
 import pandas as pd
 import sklearn
@@ -935,6 +936,24 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
                     self.recalibrator[outcome].fit(raw_outputs, y_recal[:, i])
 
         self.test_models(X_test, y_test)
+
+    def save(self) -> None:
+        """
+        Saves the pipeline as {project_name}_{version}.joblib.
+
+        Returns
+        -------
+        None
+            Nothing is returned.
+
+        """
+        top_level = self.medpipe_config.top_level
+
+        save_name = f"{top_level.meta.project_name}_{self.version}.joblib"
+        save_dir = Path(self.medpipe_config.top_level.paths.model_dir)
+        save_dir = save_dir.expanduser().resolve()
+
+        joblib.dump(self, save_dir / save_name)
 
     def test_models(self, X: npt.NDArray, y: Labels) -> None:
         """
