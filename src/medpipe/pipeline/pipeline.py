@@ -164,7 +164,6 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
         self.predictor = {}
         self.recalibrator = {}
         self.predictor_train_outputs = {}  # Store training outputs
-        self.recalibrator_train_outputs = {}  # Store training outputs
         self.folds = {}  # Store fold name and fold index
 
         for outcome in self.outcomes:
@@ -184,7 +183,9 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
                     self.recalibrator_method,
                     **self.medpipe_config.hyperparameters.hyperparameters.recalibrator.model_dump(),
                 )
-                self.recalibrator_train_outputs[outcome] = {}
+
+            # Initialise folds
+            self.folds[outcome] = {}
 
     def _set_preprocessing_steps(self) -> Pipeline | None:
         """
@@ -586,17 +587,14 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
             outcome, X_train, y_train.ravel(), cv_generator, groups
         )
 
-        # Get recalibrator metrics and save predictor fold information
-        recalibrator_metrics = self._fit_fold_recalibrator(
-            outcome, cv_results, X_train, groups, X_recal, y_recal
-        )
+        # Save the fold outputs for the predictor
+        self._save_fold_outputs(outcome, cv_results, X_train, groups)
 
-        # Final fit for the recalibrator
-        raw_outputs = self.predictor[outcome].predict_proba(X_recal)
-        self.recalibrator[outcome].fit(raw_outputs[:, 1], y_recal)
+        if self.recalibrator and self.recalibrator_method:
+            # Final fit for the recalibrator
+            raw_outputs = self.predictor[outcome].predict_proba(X_recal)
+            self.recalibrator[outcome].fit(raw_outputs[:, 1], y_recal)
 
-        # Update and return cv_results with recalibrator_metrics
-        cv_results.update(recalibrator_metrics)
         return cv_results
 
     def _cross_validate_and_fit(
@@ -645,17 +643,15 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
 
         return cv_results
 
-    def _fit_fold_recalibrator(
+    def _save_fold_outputs(
         self,
         outcome: str,
         cv_results: dict[str, Any],
         X_train: npt.NDArray,
         groups: npt.NDArray | None,
-        X_recal: npt.NDArray | None,
-        y_recal: Labels | None,
-    ) -> dict[str, npt.NDArray]:
+    ) -> None:
         """
-        Save fold outputs from predictor and fit the recalibrators.
+        Save fold outputs from predictor.
 
         Parameters
         ----------
@@ -667,23 +663,13 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
             Training data.
         groups : npt.NDArray | None, default: None
             Groups for the GroupKFold cross-validation.
-        X_recal : npt.NDArray | None, default: None
-            Recalibration data, or None if no recalibrator.
-        y_recal : Labels | None, default: None
-            Recalibration labels, or None if no recalibrator.
 
         Returns
         -------
-        recalibrator_metrics : dict[str, npt.NDArray]
-            Recalibrator metrics for each fold or empty dictionary.
+        None
+            Nothing is returned.
 
         """
-        n_splits = self.medpipe_config.workflow.validation.cross_validation.n_splits
-
-        # Prepare for saving recalibrator metrics
-        recalibrator_metrics = {}
-        metrics_matrix = np.zeros((len(self.metrics), n_splits))
-
         for fold_idx, (estimator, test_idx) in enumerate(
             zip(cv_results["estimator"], cv_results["indices"]["test"])
         ):
@@ -697,29 +683,6 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
             # Update dictionaries
             self.folds[outcome].update({fold_name: fold_idx})
             self.predictor_train_outputs[outcome].update({fold_name: raw_outputs})
-
-            if self.recalibrator:
-                # Fit recalibrator based on prediction on the X_recal dataset
-                raw_outputs = estimator.predict_proba(X_recal)
-                self.recalibrator[outcome].fit(raw_outputs[:, 1], y_recal)
-                recalibrator_outputs = self.recalibrator[outcome].predict(
-                    raw_outputs[:, 1]
-                )
-                self.recalibrator_train_outputs[outcome].update(
-                    {fold_name: recalibrator_outputs}
-                )
-
-                if y_recal is not None:
-                    metrics_matrix[:, fold_idx] = compute_metrics(
-                        self.metrics, y_recal, recalibrator_outputs
-                    )
-
-        if not (metrics_matrix == False).all():
-            # If the metrics matrix was filled
-            for i in range(len(self.metrics)):
-                recalibrator_metrics["recal_" + self.metrics[i]] = metrics_matrix[i, :]
-
-        return recalibrator_metrics
 
     def _print_fold_metrics(self, cv_results: dict[str, Any], outcome: str) -> None:
         """
@@ -740,11 +703,7 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
         """
         print(f"Outcome: {outcome}")
 
-        test_fold_results = self._extract_fold_results(cv_results, "test")
-
-        recal_fold_results = None
-        if self.recalibrator:  # Get only if recalibrator is specified
-            recal_fold_results = self._extract_fold_results(cv_results, "recal")
+        test_fold_results = self._extract_fold_results(cv_results)
 
         for fold_name, fold_idx in self.folds[outcome].items():
             print(f"  Fold: {fold_name}")
@@ -753,29 +712,14 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
                     np.array([test_fold_results[i, fold_idx]]), [self.metrics[i]]
                 )
 
-            # Run loop a second time to get recalibration afterwards
-            if recal_fold_results is not None:
-                print(f"  Recalibrated:")
-                for i in range(len(self.metrics)):
-                    print_metrics(
-                        np.array([recal_fold_results[i, fold_idx]]), [self.metrics[i]]
-                    )
-
-    def _extract_fold_results(
-        self, cv_results: dict[str, Any], result_type: Literal["test", "recal"]
-    ) -> npt.NDArray:
+    def _extract_fold_results(self, cv_results: dict[str, Any]) -> npt.NDArray:
         """
         Extract fold results from the cross-validation results.
-
-        Choose which of the predictor (test) or recalibrator (recal)
-        results to extract.
 
         Parameters
         ----------
         cv_results : dict[str, Any]
             Cross-validation results for predictor and recalibrator.
-        result_type : {"test", "recal"}
-            Result type to extract.
 
         Returns
         -------
@@ -783,7 +727,7 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
             Results using the metrics list indexing.
 
         """
-        prefix = "test_" if result_type == "test" else "recal_"
+        prefix = "test_"
         n_splits = self.medpipe_config.workflow.validation.cross_validation.n_splits
 
         results = np.zeros((len(self.metrics), n_splits))  # Store results
