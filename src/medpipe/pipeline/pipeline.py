@@ -26,7 +26,7 @@ from sklearn.utils.validation import check_is_fitted
 from medpipe._types import Data, FullProba, Labels, PosProba, PredData
 from medpipe.data.utils import extract_labels, split_data
 from medpipe.metrics.core import build_scorers, compute_metrics, print_metrics
-from medpipe.models.core import create_estimator, get_positive_proba, test_model
+from medpipe.models.core import create_estimator, get_positive_proba
 from medpipe.utils.config import MedpipeConfig
 from medpipe.utils.io import load_data, read_toml_configuration
 from medpipe.utils.logger import print_message
@@ -745,6 +745,41 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
 
         return results
 
+    def _print_test_metrics(
+        self,
+        results: npt.NDArray,
+        outcome: str,
+        recal_results: npt.NDArray | None = None,
+    ) -> None:
+        """
+        Prints final test metrics to the terminal.
+
+        Parameters
+        ----------
+        results : npt.NDArray
+            Test results for predictor.
+        outcome : str
+            Outcome to predict.
+        recal_results : npt.NDArray | None, default: None
+            Recalibration results or None.
+
+        Returns
+        -------
+        None
+            Nothing is returned.
+
+        """
+        print(f"Outcome: {outcome}")
+
+        for i in range(len(self.metrics)):
+            print_metrics(np.array([results[i]]), [self.metrics[i]])
+
+            # Run loop a second time to get recalibration afterwards
+            if recal_results is not None:
+                print(f"  Recalibrated:")
+                for i in range(len(self.metrics)):
+                    print_metrics(np.array([results[i]]), [self.metrics[i]])
+
     def transform(self, X: pd.DataFrame | npt.NDArray) -> None:
         """
         Transforms input data based on preprocessor fitted operations.
@@ -880,8 +915,6 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
 
         for i, outcome in enumerate(self.outcomes):
             # Perform cross-validationd for each outcome and fit model
-            self.folds[outcome] = {}  # Create empty dict for folds
-
             if self.medpipe_config.top_level.meta.run_mode != "fast":
                 cv_results = self._cv_fit(
                     X_train,
