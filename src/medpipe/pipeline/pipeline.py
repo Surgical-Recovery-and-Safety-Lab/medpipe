@@ -374,6 +374,7 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
             _, _, X_recal, y_recal = split_data(
                 features, labels, **recal_split_config.model_dump()
             )
+            y_recal = y_recal.astype(int)  # Convert to ints
 
         # Drop group columns
         X_train, X_test, X_recal, groups = self._drop_group_columns(
@@ -382,9 +383,9 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
 
         return (
             X_train,
-            y_train,
+            y_train.astype(int),
             X_test,
-            y_test,
+            y_test.astype(int),
             X_recal,
             y_recal,
             groups,
