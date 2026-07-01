@@ -7,13 +7,7 @@ submodules:
 """
 
 from . import core, plots
-from .core import (
-    compute_all_CI,
-    compute_pred_metrics,
-    compute_score_metrics,
-    print_metrics,
-    print_metrics_CI,
-)
+from .core import compute_metrics, print_metrics
 from .plots import (
     plot_metrics_CI,
     plot_prediction_distribution,

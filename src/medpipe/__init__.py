@@ -9,18 +9,14 @@ submodules:
 - utils: contains utility functions
 """
 
-from .data import db, extract_data_from_db, extract_labels, preprocessing
+from .data import extract_labels
 from .metrics import (
-    compute_all_CI,
-    compute_pred_metrics,
-    compute_score_metrics,
     plot_metrics_CI,
     plot_prediction_distribution,
     plot_reliability_diagrams,
     print_metrics,
-    print_metrics_CI,
 )
-from .models import get_full_proba, get_positive_proba, load_pipeline, save_pipeline
+from .models import load_pipeline, save_pipeline
 from .pipeline.pipeline import MedpipePipeline
 from .utils import (
     exception_handler,
@@ -37,19 +33,12 @@ __all__ = [
     "print_message",
     "read_toml_configuration",
     "setup_logger",
-    "get_full_proba",
-    "get_positive_proba",
     "load_pipeline",
     "save_pipeline",
-    "compute_all_CI",
-    "compute_pred_metrics",
-    "compute_score_metrics",
     "plot_metrics_CI",
     "plot_prediction_distribution",
     "plot_reliability_diagrams",
     "print_metrics",
-    "print_metrics_CI",
-    "extract_data_from_db",
     "extract_labels",
 ]
 __version__ = "v0.3.0"

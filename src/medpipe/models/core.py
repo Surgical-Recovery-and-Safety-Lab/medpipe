@@ -5,11 +5,8 @@ This module provides functions to core functions for models and pipelines.
 
 Functions:
 - create_model: Creates an AI model.
-- test_model: Tests a model on some test data.
 - save_pipeline: Saves a pipeline with joblib.
 - load_pipeline: Loads a pipeline with joblib.
-- get_positive_proba: Returns just the positive label probabilities of the each class.
-- get_full_proba: Returns probabilities for both labels.
 """
 
 from __future__ import annotations
@@ -18,18 +15,15 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Type
 
 import joblib
-import numpy as np
+import ngboost
 import sklearn
 
-from medpipe._types import FullProba, Labels, Model, PosProba
-from medpipe.metrics.core import compute_pred_metrics, compute_score_metrics
-from medpipe.utils.exceptions import array_check, file_checks
+from medpipe._types import Model
+from medpipe.utils.exceptions import file_checks
 
 SCRIPT_NAME = "models/core"
 
 if TYPE_CHECKING:
-
-    import numpy.typing as npt
 
     from medpipe.pipeline.pipeline import MedpipePipeline
 
@@ -97,64 +91,13 @@ def _check_model_type(model_type: str) -> Type:
     if hasattr(sklearn.isotonic, model_type):
         return getattr(sklearn.isotonic, model_type)
 
+    if hasattr(ngboost, model_type):
+        return getattr(ngboost, model_type)
+
     raise ValueError(
-        f"{model_type} is not found in sklearn.ensemble, sklearn.linear_model, or "
-        "sklearn.isotonic, please check that the operation matches"
+        f"{model_type} is not found in sklearn.ensemble, sklearn.linear_model, "
+        "sklearn.isotonic, or ngboost, please check that the operation matches"
     )
-
-
-def test_model(
-    y_test: Labels, y_pred: Labels, y_pred_proba: FullProba
-) -> dict[str, list[float]]:
-    """
-    Computes different metrics to test the model.
-
-    Parameters
-    ----------
-    y_test : Labels
-        Ground truth test labels of shape (n_samples, n_classes).
-    y_pred : Labels
-        Predicted labels of shape (n_samples, n_classes).
-    y_pred_proba : FullProba
-        Predicted probabilities of shape (n_samples, 2).
-
-    Returns
-    -------
-    metric_dict : dict[str, list[float]]
-        Dictionary of the model performance for one fold.
-        Keys are the metric name and values are the metric value.
-        The test metrics used are:
-         - accuracy
-         - f1
-         - precision
-         - recall
-         - log_loss
-         - roc (Receiver Operator Characteristic)
-         - auroc (Area Under Receiver Operator Characteristic)
-         - prc (Precision-Recall Curve)
-         - ap (Average Precision)
-
-    Raises
-    ------
-    TypeError
-        If X_test or y_test are not an array-like.
-    ValueError
-        If X_test and y_test do not have the same dimensions.
-
-    """
-    # Check that inputs are correct
-    array_check(y_pred)
-    array_check(y_pred_proba)
-
-    metric_dict = compute_pred_metrics(
-        ["accuracy", "f1", "recall", "precision"], y_test, y_pred
-    )
-    metric_dict.update(
-        compute_score_metrics(
-            ["roc", "auroc", "prc", "ap", "log_loss"], y_test, y_pred_proba
-        )
-    )
-    return metric_dict
 
 
 def save_pipeline(pipeline: MedpipePipeline, save_file: str | Path) -> None:
@@ -222,92 +165,3 @@ def load_pipeline(load_file: str | Path) -> MedpipePipeline:
         pipeline = joblib.load(f)
 
     return pipeline
-
-
-def get_positive_proba(probabilities: FullProba | list[npt.NDArray]) -> PosProba:
-    """
-    Returns just the positive label probabilities of the each class.
-
-    Parameters
-    ----------
-    probabilities : FullProba | list[npt.NDArray]
-        Full probabilities for each class.
-
-    Returns
-    -------
-    pos_proba : PosProba
-        Probabilities of the positive labels for each class.
-
-    Raises
-    ------
-    ValueError
-        If the probabilities are not dimensionally homogenous.
-
-    """
-    if isinstance(probabilities, np.ndarray):
-        # Using slicing is faster than expand_dims for specific column extraction
-        if len(probabilities.shape) != 2 or probabilities.shape[1] != 2:
-            raise ValueError(
-                "Input probabilities should have shape (n_samples, 2), "
-                f"but got {probabilities.shape}"
-            )
-
-        return (
-            probabilities[:, 1:2, :]
-            if probabilities.ndim == 3
-            else probabilities[:, 1:2]
-        )
-
-    # List of 2D arrays (standard sklearn multi-output format)
-    try:
-        # Vectorized approach
-        stacked = np.asarray(probabilities)
-        return stacked[:, :, 1].T
-    except ValueError:
-        raise
-
-
-def get_full_proba(pos_proba: PosProba) -> FullProba:
-    """
-    Returns probabilities for both labels.
-
-    Parameters
-    ----------
-    pos_proba : PosProba
-        Probabilities of the positive labels of shape (n_samples, 1) or
-        (n_samples,)
-
-    Returns
-    -------
-    probabilities : FullProba
-        Full probabilities of shape (n_samples, 2).
-
-    Raises
-    ------
-    TypeError
-        If pos_proba is not a np.ndarray.
-
-    """
-    if not isinstance(pos_proba, np.ndarray):
-        raise TypeError(
-            f"Input probabilities should be a np.ndarray, but got {type(pos_proba)}"
-        )
-    if len(pos_proba.shape) >= 2 and pos_proba.shape[1] != 1:
-        raise ValueError(
-            "Input probabilities should have shape (n_samples,) or "
-            f"(n_samples, 1), but got {pos_proba.shape}"
-        )
-    # Calculate negative probabilities for all samples/classes at once
-    neg_proba = 1.0 - pos_proba
-
-    # Stack them into a 3D structure: (2, n_samples, n_classes)
-    # The first slice [0] is negative, the second [1] is positive
-    stacked = np.stack([neg_proba, pos_proba], axis=0)
-
-    # Restructure to the expected output format
-    if len(pos_proba.shape) == 1:
-        # Probabilities were extracted from a list
-        return stacked.T  # Return (n_samples, 2)
-
-    # return (n_samples, 2)
-    return stacked.squeeze().T
