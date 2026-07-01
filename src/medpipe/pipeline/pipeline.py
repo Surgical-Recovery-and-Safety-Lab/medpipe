@@ -934,9 +934,11 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
                     raw_outputs = self.predictor[outcome].predict_proba(X_recal)
                     self.recalibrator[outcome].fit(raw_outputs, y_recal[:, i])
 
-    def test_model(self, X: Data, y: Labels, model: str, label: str) -> None:
+        self.test_models(X_test, y_test)
+
+    def test_models(self, X: npt.NDArray, y: Labels) -> None:
         """
-        Tests the predictor or calibrator model on the provided dataset.
+        Tests the predictor or recalibrator models on the provided dataset.
 
         Parameters
         ----------
@@ -944,58 +946,6 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
             Training data of shape (n_samples, n_features).
         y : Labels
             Prediction labels of shape (n_samples,).
-        model : {"predictor", "calibrator"}
-            Model to test.
-        label : str
-            Label associated with the model to use.
-
-        Returns
-        -------
-        None
-            Nothing is returned.
-
-        Raises
-        ------
-        ValueError
-            If model is not "predictor" or "calibrator".
-
-        """
-        # Map model to message
-        messages = {
-            "predictor": "Uncalibrated metrics",
-            "calibrator": "Calibrated metrics",
-        }
-
-        if model not in messages:
-            raise ValueError(
-                f"Model should be predictor or calibrator, but got {model}"
-            )
-
-        # Get the positive class probabilities (PosProba)
-        probabilities = self.predict_proba(X, outcomes=label, model_type=model)
-
-        # Get positive probabilities and predictions by thresholding
-        prob_arr = get_positive_proba(probabilities).squeeze()
-        predictions = (prob_arr >= 0.5).astype(int)
-
-        # Compute test metrics
-        metric_dict = test_model(
-            y,
-            predictions,
-            probabilities,
-        )
-
-        print_message(messages[model], self.logger, SCRIPT_NAME)
-        print_metrics(metric_dict, [label], self.logger)
-
-    def run(self, X: pd.DataFrame) -> None:
-        """
-        Run pipeline with input data.
-
-        Parameters
-        ----------
-        X : pd.DataFrame
-            Training data of shape (n_samples, n_features).
 
         Returns
         -------
@@ -1003,213 +953,20 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
             Nothing is returned.
 
         """
-        # Preprocessing Data
-        data = (
-            self.transform(X) if self.preprocessor.operations else self.fit_transform(X)
-        )
+        print("Final test results")
+        for i, outcome in enumerate(self.outcomes):
+            raw_outputs = self.predictor[outcome].predict_proba(X)
+            results = compute_metrics(self.metrics, y[:, i].ravel(), raw_outputs[:, 1])
 
-        # Safe Config Access
-        cv_cfg = self.preprocessor_config.get("cv_variables", {})
-        split_cfg = self.preprocessor_config.get("split_variables", {})
-
-        cv_group_name = cv_cfg.get("group_name")
-        cv_drop = cv_cfg.get("drop", False)
-        split_group_name = split_cfg.get("group_name")
-        split_drop = split_cfg.get("drop", False)
-
-        X_full, y_full = extract_labels(data, self.outcomes)
-        cv_groups_full = data[cv_group_name].to_numpy() if cv_group_name else None
-
-        # Setup Calibration Set
-        X_cal_set, y_cal_set = np.array([]), np.array([])
-        if self.calibrator_type:
-            split_groups = (
-                data[split_group_name].to_numpy() if split_group_name else np.array([])
-            )
-            t_idx, c_idx = get_validation_idx(
-                np.arange(len(y_full)), groups=split_groups
-            )
-
-            X_cal_set = X_full.iloc[c_idx]
-            y_cal_set = y_full[c_idx]
-
-            # If calibration data needs the split group dropped
-            if split_drop and split_group_name:
-                X_cal_set = X_cal_set.drop(columns=[split_group_name])
-
-            if cv_drop and cv_group_name and split_group_name != cv_group_name:
-                X_cal_set = X_cal_set.drop(columns=[cv_group_name])
-
-            # Restrict training/CV to the remaining data
-            X_work, y_work = X_full.iloc[t_idx], y_full[t_idx]
-            cv_groups = cv_groups_full[t_idx] if cv_groups_full is not None else None
-        else:
-            X_work, y_work, cv_groups = X_full, y_full, cv_groups_full
-
-        # Drop splitting column if it's not the same as the CV column
-        if split_drop and split_group_name and split_group_name != cv_group_name:
-            X_work = X_work.drop(columns=[split_group_name], errors="ignore")
-
-        # Cross-Validation Loop
-        if cv_cfg["n_splits"] > 0:
-            kfold_it = train_test_it(**cv_cfg)
-            n_folds = kfold_it.get_n_splits(X_work, y_work[:, 0], groups=cv_groups)
-
-            for i, (train_idx, test_idx) in enumerate(
-                kfold_it.split(X_work, y_work[:, 0], groups=cv_groups)
-            ):
-                # Determine fold key (Group ID or index)
-                fold_key = cv_groups[test_idx[0]] if cv_groups is not None else i
-                fold_groups = (
-                    cv_groups[train_idx] if cv_groups is not None else np.array([])
+            recal_results = None
+            if self.recalibrator:
+                recal_results = compute_metrics(
+                    self.metrics,
+                    y.ravel(),
+                    self.recalibrator[outcome].predict(raw_outputs[:, 1]),
                 )
 
-                # Prepare X_fold (keeping or dropping CV group based on config)
-                X_fold = (
-                    X_work.drop(columns=[cv_group_name])
-                    if (cv_groups is not None and cv_drop)
-                    else X_work
-                )
-                X_fold = convert_data(X_fold)
-
-                X_train_f = get_data_from_idx(X_fold, train_idx)
-                X_test_f = get_data_from_idx(X_fold, test_idx)
-                y_train_f, y_test_f = y_work[train_idx], y_work[test_idx]
-
-                for j, label in enumerate(self.outcomes):
-                    # Sample and Weight for specific label
-                    X_tr_label, y_tr_label, _ = self._sample_data(
-                        X_train_f, y_train_f[:, j : j + 1], fold_groups
-                    )
-                    weights = self._weight_data(y_tr_label)
-
-                    print_message(
-                        f"Label: {label} | {fold_key} | Fold {i+1}/{n_folds}",
-                        self.logger,
-                        SCRIPT_NAME,
-                    )
-
-                    # Execute training and evaluation
-                    self._fit_and_evaluate(
-                        X_tr_label,
-                        y_tr_label,
-                        X_test_f,
-                        y_test_f[:, j],
-                        label,
-                        fold_key,
-                        X_cal=X_cal_set,
-                        y_cal=y_cal_set[:, j] if self.calibrator_type else np.array([]),
-                        weights=weights,
-                    )
-
-        # Final Model Training
-        print_message(
-            "Final training on all non-calibration data", self.logger, SCRIPT_NAME
-        )
-        X_final = (
-            X_work.drop(columns=[cv_group_name])
-            if (cv_groups is not None and cv_drop)
-            else X_work
-        )
-
-        for k, label in enumerate(self.outcomes):
-            X_tr_final, y_tr_final, _ = self._sample_data(
-                X_final, y_work[:, k : k + 1], cv_groups
-            )
-            weights = self._weight_data(y_tr_final)
-            print_message(
-                f"Train set size: {len(X_tr_final):,}", self.logger, SCRIPT_NAME
-            )
-            print_message(
-                f"Calibration set size: {len(X_cal_set):,}", self.logger, SCRIPT_NAME
-            )
-            self.fit_model(X_tr_final, y_tr_final, "predictor", label, weights)
-
-            if self.calibrator_type:
-                self.fit_model(
-                    self._get_calibrator_data(X_cal_set, label),
-                    y_cal_set[:, k],
-                    "calibrator",
-                    label,
-                )
-
-    def _fit_and_evaluate(
-        self,
-        X_train: PredData,
-        y_train: Labels,
-        X_test: Data,
-        y_test: Labels,
-        label: str,
-        fold_key: Any,
-        X_cal: PosProba = np.array([]),
-        y_cal: Labels = np.array([]),
-        weights: npt.NDArray = np.array([]),
-    ) -> None:
-        """
-        Helper function to handle the Train -> Test -> Store lifecycle for a single label.
-
-        Parameters
-        ----------
-        X_train : PredData
-            Train data of shape (n_samples, n_features) for the predictor.
-        y_train : Labels
-            Train labels of shape (n_samples,) for the predictor.
-        X_test : Data
-            Test data of shape (n_test_samples, n_features).
-        y_test : Labels
-            Test labels of shape (n_test_samples,).
-        label: str
-            Label associated with the model to train.
-        fold_key : Any
-            Key representing the current fold.
-        X_cal : PosProba, default: np.array([])
-            Calibration data of shape (n_samples,) for the calibrator.
-        y_cal : Labels, default: np.array([])
-            Calibration labels of shape (n_samples,) for the calibrator.
-        weights : npt.NDArray, default: np.array([])
-            Weights to address class imbalance.
-
-        """
-        print_message(f"Train set size: {len(X_train):,}", self.logger, SCRIPT_NAME)
-        print_message(f"Calibration set size: {len(X_cal):,}", self.logger, SCRIPT_NAME)
-        print_message(f"Test set size: {len(X_test):,}", self.logger, SCRIPT_NAME)
-        # Fit predictor on train set
-        self.fit_model(X_train, y_train, "predictor", label, weights)
-
-        # Fit calibrator on validation set
-        if self.calibrator_type:
-            self.fit_model(
-                self._get_calibrator_data(X_cal, label),
-                y_cal,
-                "calibrator",
-                label,
-            )
-
-        # Evaluation
-        modes = ["predictor"]
-        if self.calibrator_type:
-            modes.append("calibrator")
-
-        for mode in modes:
-            # Use optimized test_model (performs a single inference pass)
-            self.test_model(X_test, y_test, mode, label)
-
-            probas = get_positive_proba(
-                self.predict_proba(X_test, label, model_type=mode)
-            )
-
-            # Store results in the dictionaries initialized in __init__
-            storage = (
-                self.calibrator_train_outputs
-                if mode == "calibrator"
-                else self.predictor_train_outputs
-            )
-            storage[label][fold_key] = probas
-
-        # Reset model state (quietly) to clear weights/fit data for the next fold
-        self.predictor[label]._set_model(quiet=True)
-        if self.calibrator_type:
-            self.calibrator[label]._set_model(quiet=True)
+            self._print_test_metrics(results, outcome, recal_results)
 
     def predict_proba(
         self,
