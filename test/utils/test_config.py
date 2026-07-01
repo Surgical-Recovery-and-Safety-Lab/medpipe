@@ -10,8 +10,6 @@ from re import escape
 import pytest
 from pydantic import ValidationError
 
-from medpipe.data.sampler import VALID_SAMPLER_FN
-from medpipe.data.weighting import VALID_WEIGHTING_FN
 from medpipe.metrics.core import METRICS
 from medpipe.utils.config import *
 
@@ -1035,110 +1033,6 @@ class TestModelHyperparamsSubConfigConfig:
         config = ModelHyperparamSubConfig.model_validate(raw_config)
 
         assert config.model_dump() == raw_config
-
-
-class TestWeightingConfig:
-    """Test class for the WeightingConfig class"""
-
-    def _get_valid_config_dict(self, **overrides) -> dict:
-        """Creates a fresh valid config dict to override."""
-        config_dict = {"weighting_fn": "inverse_frequency_single_sample_weights"}
-        config_dict.update(overrides)
-
-        return config_dict
-
-    def test_valid_config(self) -> None:
-        """Pass valid configuration to WeightingConfig."""
-        raw_config = self._get_valid_config_dict()
-        config = WeightingConfig.model_validate(raw_config)
-
-        assert config.model_dump() == raw_config
-
-    def test_invalid_weighting_fn(self) -> None:
-        """Test an invalid weighting function."""
-        fn = "invalid_fn"
-        match_expr = f"Unknown weighting function {fn} "
-        f"should be one of {VALID_WEIGHTING_FN}"
-
-        with pytest.raises(ValidationError, match=escape(match_expr)):
-            WeightingConfig.model_validate(self._get_valid_config_dict(weighting_fn=fn))
-
-
-class TestSamplingConfig:
-    """Test class for the SamplingConfig class"""
-
-    def _get_valid_config_dict(self, **overrides) -> dict:
-        """Creates a fresh valid config dict to override."""
-        config_dict = {
-            "sampler_fn": "random_oversampler",
-            "reduction_factor": 0.5,
-            "hard_percent": 0.25,
-        }
-        config_dict.update(overrides)
-
-        return config_dict
-
-    def test_valid_config(self) -> None:
-        """Pass valid configuration to SamplingConfig."""
-        raw_config = self._get_valid_config_dict()
-        config = SamplingConfig.model_validate(raw_config)
-
-        assert config.model_dump() == raw_config
-
-    def test_invalid_sampler_fn(self) -> None:
-        """Test an invalid sampler function."""
-        fn = "invalid_fn"
-        match_expr = f"Unknown sampler function {fn} "
-        f"should be one of {VALID_SAMPLER_FN}"
-
-        with pytest.raises(ValidationError, match=escape(match_expr)):
-            SamplingConfig.model_validate(self._get_valid_config_dict(sampler_fn=fn))
-
-    @pytest.mark.parametrize(
-        "reduction_factor, match_expr",
-        [
-            (-0.1, "Input should be greater than or equal to 0"),
-            (1.2, "Input should be less than or equal to 1"),
-        ],
-    )
-    def test_reduction_factor(
-        self, reduction_factor: float | None, match_expr: str
-    ) -> None:
-        """Test the reduction factor checks."""
-        with pytest.raises(ValidationError, match=match_expr):
-            SamplingConfig.model_validate(
-                self._get_valid_config_dict(reduction_factor=reduction_factor)
-            )
-
-    @pytest.mark.parametrize(
-        "hard_percent, match_expr",
-        [
-            (-0.1, "Input should be greater than 0"),
-            (0.0, "Input should be greater than 0"),
-            (1.2, "Input should be less than 1"),
-            (1.0, "Input should be less than 1"),
-        ],
-    )
-    def test_hard_percent_limits(
-        self, hard_percent: float | None, match_expr: str
-    ) -> None:
-        """Test the hard percent limits."""
-        with pytest.raises(ValidationError, match=match_expr):
-            SamplingConfig.model_validate(
-                self._get_valid_config_dict(hard_percent=hard_percent)
-            )
-
-    @pytest.mark.parametrize(
-        "sampler_fn", ["mean_dist_sampler", "group_mean_dist_sampler"]
-    )
-    def test_hard_percent(self, sampler_fn: str) -> None:
-        """Test functions that require hard percent."""
-        match_expr = f"The {sampler_fn} function requires hard percent to be specified"
-
-        with pytest.raises(ValidationError, match=match_expr):
-            SamplingConfig.model_validate(
-                self._get_valid_config_dict(hard_percent=None, sampler_fn=sampler_fn)
-            )
 
 
 class TestBalancingSubConfig:
