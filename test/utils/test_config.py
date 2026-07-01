@@ -185,9 +185,15 @@ class TestDataConfig:
 
         return config_dict
 
-    def test_valid_config(self, tmp_path: Path) -> None:
+    @pytest.mark.parametrize(
+        "path",
+        ["path/to/data.csv", "path/to/data.parquet"],
+    )
+    def test_valid_config(self, tmp_path: Path, path: str) -> None:
         """Pass valid configuration to DataConfig."""
-        raw_config = self._get_valid_config_dict(tmp_path)
+        raw_config = self._get_valid_config_dict(
+            tmp_path, **{"path": str(tmp_path / path)}
+        )
         config = DataConfig.model_validate(raw_config)
 
         assert config.model_dump() == raw_config
@@ -196,7 +202,7 @@ class TestDataConfig:
         "path, match_expr",
         [
             ("path/", "path should be a file, but got no suffix"),
-            ("path.db", "path should be a .csv file, but got suffix .db"),
+            ("path.db", "path should be a .csv or .parquet file, but got suffix .db"),
         ],
     )
     def test_validate_path(self, tmp_path: Path, path: str, match_expr: str) -> None:
