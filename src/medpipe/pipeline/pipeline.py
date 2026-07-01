@@ -501,7 +501,6 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
             X_recal_array = (
                 X_recal.to_numpy() if isinstance(X_recal, pd.DataFrame) else X_recal
             )
-            X_recal_array = X_recal_array.astype(np.float32)
 
         # Convert to numpy if needed
         X_train_array = (
@@ -509,9 +508,18 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
         )
         X_test_array = X_test.to_numpy() if isinstance(X_test, pd.DataFrame) else X_test
 
+        # Try and convert to float
+        try:
+            X_train_array = X_train_array.astype(np.float32)
+            X_test_array = X_test_array.astype(np.float32)
+            if X_recal_array:
+                X_recal_array = X_recal_array.astype(np.float32)
+        except ValueError:
+            pass
+
         return (
-            X_train_array.astype(np.float32),
-            X_test_array.astype(np.float32),
+            X_train_array,
+            X_test_array,
             X_recal_array,
         )
 
