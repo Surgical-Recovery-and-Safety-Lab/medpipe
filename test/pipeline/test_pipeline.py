@@ -688,7 +688,6 @@ class TestCvFit:
 
         metrics = mp_pipeline.medpipe_config.workflow.evaluation.metrics.metrics
         for metric in metrics:
-            assert "recal_" + metric in cv_results.keys()
             assert "test_" + metric in cv_results.keys()
 
     def test_pipeline_cv_fit_stratified_cv(
@@ -716,7 +715,6 @@ class TestCvFit:
 
         metrics = mp_pipeline.medpipe_config.workflow.evaluation.metrics.metrics
         for metric in metrics:
-            assert "recal_" + metric in cv_results.keys()
             assert "test_" + metric in cv_results.keys()
 
 
@@ -764,17 +762,17 @@ class TestCrossValidateAndFit:
         check_is_fitted(mp_pipeline.predictor[outcome])
 
 
-class TestFitFoldRecalibrator:
-    """Test class for the _fit_fold_recalibrator function of the
+class TestSaveFoldOutputs:
+    """Test class for the _save_fold_outputs function of the
     MedpipePipeline class."""
 
-    def test_pipeline_fit_fold_recalibrator_success(
+    def test_pipeline_save_fold_outputs_success(
         self,
         mp_pipeline: MedpipePipeline,
         cv_data_prep: DataPrep,
     ) -> None:
         """Test successful function call."""
-        X_train, y_train, X_recal, y_recal, groups, cv_generator = cv_data_prep
+        X_train, y_train, _, _, groups, cv_generator = cv_data_prep
         outcome = "MORTALITY_30D"
         mp_pipeline.folds[outcome] = {}  # Patch because done in run function
 
@@ -782,39 +780,23 @@ class TestFitFoldRecalibrator:
             outcome, X_train, y_train.ravel(), cv_generator, groups
         )
 
-        recalibrator_metrics = mp_pipeline._fit_fold_recalibrator(
-            outcome, cv_results, X_train, groups, X_recal, y_recal
-        )
+        mp_pipeline._save_fold_outputs(outcome, cv_results, X_train, groups)
 
         # Check that fold predictions have been saved
         assert groups is not None
         assert outcome in mp_pipeline.predictor_train_outputs.keys()
-        assert outcome in mp_pipeline.recalibrator_train_outputs.keys()
 
         for group in groups:
             assert group in mp_pipeline.predictor_train_outputs[outcome]
-            assert group in mp_pipeline.recalibrator_train_outputs[outcome]
             assert group in mp_pipeline.folds[outcome]
 
-        check_is_fitted(mp_pipeline.recalibrator[outcome])
-        assert recalibrator_metrics  # Make sure not an empty dict
-
-        n_splits = (
-            mp_pipeline.medpipe_config.workflow.validation.cross_validation.n_splits
-        )
-        metrics = mp_pipeline.medpipe_config.workflow.evaluation.metrics.metrics
-        for metric in metrics:
-            assert "recal_" + metric in recalibrator_metrics.keys()
-            assert isinstance(recalibrator_metrics["recal_" + metric], np.ndarray)
-            assert len(recalibrator_metrics["recal_" + metric]) == n_splits
-
-    def test_pipeline_fit_fold_recalibrator_stratified_cv(
+    def test_pipeline_save_fold_outputs_stratified_cv(
         self,
         mp_pipeline: MedpipePipeline,
         cv_data_prep: DataPrep,
     ) -> None:
         """Test successful function call."""
-        X_train, y_train, X_recal, y_recal, groups, cv_generator = cv_data_prep
+        X_train, y_train, _, _, groups, cv_generator = cv_data_prep
         outcome = "MORTALITY_30D"
         mp_pipeline.folds[outcome] = {}  # Patch because done in run function
 
@@ -829,31 +811,16 @@ class TestFitFoldRecalibrator:
             outcome, X_train, y_train.ravel(), cv_generator, groups
         )
 
-        recalibrator_metrics = mp_pipeline._fit_fold_recalibrator(
-            outcome, cv_results, X_train, groups, X_recal, y_recal
-        )
+        mp_pipeline._save_fold_outputs(outcome, cv_results, X_train, groups)
 
         # Check that fold predictions have been saved
         assert outcome in mp_pipeline.predictor_train_outputs.keys()
-        assert outcome in mp_pipeline.recalibrator_train_outputs.keys()
 
         for i in range(
             mp_pipeline.medpipe_config.workflow.validation.cross_validation.n_splits
         ):
             assert i in mp_pipeline.predictor_train_outputs[outcome]
-            assert i in mp_pipeline.recalibrator_train_outputs[outcome]
             assert i in mp_pipeline.folds[outcome]
-
-        check_is_fitted(mp_pipeline.recalibrator[outcome])
-        assert recalibrator_metrics  # Make sure not an empty dict
-
-        n_splits = (
-            mp_pipeline.medpipe_config.workflow.validation.cross_validation.n_splits
-        )
-        metrics = mp_pipeline.medpipe_config.workflow.evaluation.metrics.metrics
-        for metric in metrics:
-            assert "recal_" + metric in recalibrator_metrics.keys()
-            assert len(recalibrator_metrics["recal_" + metric]) == n_splits
 
 
 class TestPrintFoldMetrics:
@@ -879,11 +846,8 @@ class TestPrintFoldMetrics:
         msg = (
             "Outcome: MORTALITY_30D\n"
             "  Fold: Auckland\nAUROC: 0.940\nICI: 0.010\n"
-            "  Recalibrated:\nAUROC: 0.990\nICI: 0.010\n"
             "  Fold: Christchurch\nAUROC: 0.990\nICI: 0.022\n"
-            "  Recalibrated:\nAUROC: 0.930\nICI: 0.010\n"
             "  Fold: Wellington\nAUROC: 0.952\nICI: 0.001\n"
-            "  Recalibrated:\nAUROC: 0.920\nICI: 0.000\n"
         )
         assert msg in captured.out
 
@@ -917,16 +881,14 @@ class TestExtractFoldResults:
     """Test class for the _extract_fold_results function of the
     MedpipePipeline class."""
 
-    @pytest.mark.parametrize("result_type", ["test", "recal"])
     def test_pipeline_extract_fold_results_success(
         self,
         mp_pipeline: MedpipePipeline,
         mock_cv_results: dict[str, npt.NDArray],
-        result_type: Literal["test", "recal"],
     ) -> None:
         """Test successful function call."""
         mp_pipeline.metrics = ["auroc", "ici"]
-        results = mp_pipeline._extract_fold_results(mock_cv_results, result_type)
+        results = mp_pipeline._extract_fold_results(mock_cv_results)
 
         assert results.shape == (2, 3)
 
@@ -934,6 +896,17 @@ class TestExtractFoldResults:
 class TestRun:
     """Test class for the run function of the MedpipePipeline class."""
 
-    def test_pipeline_run(self, mp_pipeline: MedpipePipeline) -> None:
+    def test_pipeline_run_success(self, mp_pipeline: MedpipePipeline) -> None:
         """Test successful function call."""
+        mp_pipeline.run()
+
+    def test_pipeline_run_no_preprocessing(self, mp_pipeline: MedpipePipeline) -> None:
+        """Test successful function call with no preprocessing."""
+        mp_pipeline.preprocessor = None
+        mp_pipeline.run()
+
+    def test_pipeline_run_no_recalibration(self, mp_pipeline: MedpipePipeline) -> None:
+        """Test successful function call with no preprocessing."""
+        mp_pipeline.recalibrator_method = None
+        mp_pipeline.recalibrator = {}
         mp_pipeline.run()
