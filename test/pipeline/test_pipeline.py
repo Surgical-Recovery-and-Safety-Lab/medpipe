@@ -455,6 +455,37 @@ class TestDropGroupColumns:
         assert groups is not None
         assert len(groups) == len(X_train)
 
+    def test_pipeline_drop_group_columns_no_cv(
+        self,
+        mp_pipeline: MedpipePipeline,
+        mock_data: MockData,
+    ) -> None:
+        """Test case when no cross-validation parameters are provided."""
+        # Get mock data and drop columns
+        X_train, X_test, X_recal = mock_data
+        mp_pipeline.medpipe_config.workflow.validation.cross_validation = None
+        X_train, X_test, X_recal, groups = mp_pipeline._drop_group_columns(
+            X_train, X_test, X_recal
+        )
+
+        # Create the column list to check
+        column_list = [
+            "SEX",
+            "AGE",
+            "PRIOR_CANCER",
+            "ADMISSION_ACUITY",
+            "ADMISSION_SOURCE",
+            "CATEGORY_LEVEL_1",
+            "OP_SEVERITY",
+            "DHB_NAME",  # Not dropped
+        ]
+        # Check everything is correct
+        assert (X_train.columns == column_list).all()
+        assert (X_test.columns == column_list).all()
+        assert X_recal is not None
+        assert (X_recal.columns == column_list).all()
+        assert groups is None
+
     def test_pipeline_drop_group_columns_no_recal(
         self,
         mp_pipeline: MedpipePipeline,
@@ -913,4 +944,5 @@ class TestRun:
     def test_pipeline_run_no_cv(self, mp_pipeline: MedpipePipeline) -> None:
         """Test successful function call with no cross-validation."""
         mp_pipeline.medpipe_config.top_level.meta.run_mode = "fast"
+        mp_pipeline.medpipe_config.workflow.validation.cross_validation = None
         mp_pipeline.run()
