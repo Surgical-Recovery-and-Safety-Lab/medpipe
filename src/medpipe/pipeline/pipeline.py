@@ -1010,10 +1010,10 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
         self,
         X: Data,
         outcomes: str | list[str] = "all",
-        model_type: str | list[str] = "predictor",
+        estimator_type: Literal["predictor", "recalibrator"] | list[str] = "predictor",
     ) -> FullProba:
         """
-        Predicts probabilities from predictor or calibrator based on input data.
+        Predicts probabilities from predictor or recalibrator based on input data.
 
         Parameters
         ----------
@@ -1022,7 +1022,8 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
         outcomes : str | list[str], default: "all"
             Label or list of labels associated with the model to use.
             If all, all models are used.
-        model_type : str | list[str], default: "predictor"
+        estimator_type : Literal["predictor", "recalibrator"] | list[str],
+            default: "predictor"
             Model type or list of model types to use.
 
         Returns
@@ -1032,218 +1033,62 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
 
         Raises
         ------
+        TypeError
+            If outcomes is not a string or list of strings.
         ValueError
             If the label list and the model type list are not the same length.
 
         """
-        X_clean = self._prepare_inference_data(X)
-        target_labels = (
-            self.outcomes
-            if outcomes == "all"
-            else ([outcomes] if isinstance(outcomes, str) else outcomes)
-        )
-        model_types = [model_type] if isinstance(model_type, str) else model_type
-
-        # Check same length
-        if len(model_types) != len(target_labels):
-            raise ValueError("Label list and model types should be the same length")
-
-        results = [
-            self._inference_wrapper(
-                X_clean, target_labels[i], "predict_proba", model_types[i]
+        # Safety checks
+        if outcomes == "all":  # Get all outcomes
+            outcomes = self.outcomes
+        if isinstance(outcomes, str):
+            outcomes = [outcomes]  # Convert to list
+        if not isinstance(outcomes, list):
+            expr = (
+                "Input outcomes should be a string, 'all', or a list of strings, "
+                f"but got {type(outcomes)}"
             )
-            for i in range(len(target_labels))
-        ]
+            raise TypeError(expr)
 
-        # If single label, return just the array; if multiple, return the stacked array
-        return results[0] if len(target_labels) == 1 else np.asarray(results)
-
-    def predict(
-        self,
-        X: Data,
-        outcomes: str | list[str] = "all",
-        model_type: str | list[str] = "predictor",
-    ) -> Labels:
-        """
-        Predicts labels from predictor or calibrator based on input data.
-
-        Parameters
-        ----------
-        X : Data
-            Data to use of shape (n_samples, n_features) or (n_samples,).
-        outcomes : str | list[str], default: "all"
-            Label or list of labels associated with the model to use.
-            If all, all models are used.
-        model_type : str | list[str], default: "predictor"
-            Model type or list of model types to use.
-
-        Returns
-        -------
-        labels : Labels
-            Predicted labels of shape (n_samples,).
-
-        Raises
-        ------
-        ValueError
-            If the label list and the model type list are not the same length.
-
-        """
-        probabilities = self.predict_proba(X, outcomes, model_type)
-        pos_proba = get_positive_proba(probabilities)
-
-        return np.array(pos_proba > 0.5, dtype=np.int32)
-
-    def _inference_wrapper(
-        self, X: Data, label: str, prediction_type: str, model_category: str
-    ) -> Labels | FullProba:
-        """
-        Unified wrapper for predictor and calibrator inference.
-
-        Parameters
-        ----------
-        X : PredData
-            Data for predictor classes on of shape (n_samples, n_features).
-        label : str
-            Label associated with the model to use.
-        prediction_type : {"predict", "predict_proba"}
-            Prediction function to use.
-
-        Returns
-        -------
-        estimates : Labels | FullProba
-            Labels or probabilities estimated from model based on prediction_type.
-
-        Raises
-        ------
-        AttributeError
-            If the model does not have a predict or predict_proba method
-
-        """
-        # Select the model dictionary (predictor or calibrator)
-        model_dict = getattr(self, model_category)
-        model = model_dict[label]
-
-        # Get data for calibrators
-        if model_category == "calibrator":
-            X = self._get_calibrator_data(X, label)
-
-        # Get "predict" or "predict_proba" method
-        try:
-            inference_method = getattr(model, prediction_type)
-        except AttributeError:
-            raise ValueError(
-                f"Model category '{model_category}' does not support '{prediction_type}'"
+        if estimator_type == "predictor" or estimator_type == "recalibrator":
+            # Create a list with exact same estimator type
+            estimator_type = [estimator_type] * len(outcomes)  # type: ignore
+        elif not isinstance(estimator_type, list):
+            expr = (
+                "Input estimator_type should be a 'predictor', 'recalibrator' "
+                f"or list of strings, but got {type(estimator_type)}"
             )
+            raise TypeError(expr)
 
-        return inference_method(X)
+        if len(outcomes) != len(estimator_type):
+            expr = (
+                "Inputs outcomes and estimator_type should be the same length, "
+                f"but got {len(outcomes)} and {len(estimator_type)}"
+            )
+            raise ValueError(expr)
 
-    def _prepare_inference_data(self, X: Data) -> Data:
-        """
-        Ensure group columns are removed before passing to models.
+        # Process data if needed
+        if self.preprocessor and check_is_fitted(self.preprocessor):
+            X_processed = self.preprocessor.transform(X)
+        else:
+            X_processed = X
 
-        Parameters
-        ----------
-        X : Data
-            Input data of shape (n_samples, n_features + 1) or (n_samples,).
+        for i, outcome in enumerate(outcomes):
+            check_is_fitted(self.predictor[outcome])
+            outputs = self.predictor[outcome].predict_proba(X)
 
-        Returns
-        -------
-        X_clean : Data
-            Cleaned data of shape (n_samples, n_feautres) or (n_samples,).
+            if estimator_type[i] == "recalibrator":
+                if self.recalibrator:
+                    check_is_fitted(self.recalibrator[outcome])
+                    outputs = self.recalibrator[outcome].predict_proba(X)
+                else:
+                    raise ValueError("No recalibrator present in pipeline")
 
-        """
-        group_col = self.preprocessor_config.get("split_variables", {}).get(
-            "group_name"
-        )
-        cv_cfg = self.preprocessor_config.get("cv_variables", {})
-        cv_drop = cv_cfg.get("drop", False)
-
-        if isinstance(X, pd.DataFrame) and group_col in X.columns and cv_drop:
-            return X.drop(columns=[group_col])
-        return X
-
-    def _sample_data(
-        self, X: PredData, y: Labels, groups: npt.NDArray | None
-    ) -> tuple[PredData, Labels, npt.NDArray]:
-        """
-        Samples the data based on configuration.
-
-        Parameters
-        ----------
-        X : PredData
-            Data to sample of shape (n_samples, n_features).
-        y : Labels
-            Labels to sample of shape (n_samples,).
-        groups : npt.NDArray | None
-            Groups of the examples of shape (n_samples,) or None.
-
-        Returns
-        -------
-        X_sampled : pd.DataFrame
-            Sampled data of shape (n_sampled_samples, n_features).
-        y_sampled : Labels
-            Sampled labels of shape (n_sampled_samples,).
-        groups_sampled : pd.Series
-            Groups of the examples of shape (n_sampled_samples,) or empty
-
-        """
-        sampler_fn = self.predictor_config["sampler"]["sampler_fn"]
-        if groups is None:
-            groups = np.array([])
-
-        if sampler_fn:
-            return data_sampler(X, y, groups=groups, **self.predictor_config["sampler"])
-
-        return X, y, groups
-
-    def _weight_data(self, y: Labels) -> npt.NDArray:
-        """
-        Gets the weights for the data based on configuration.
-
-        If no weighting function is provided in the configuration, the function
-        returns the sample weights equal to 1 by default.
-
-        Parameters
-        ----------
-        y : Labels
-            Labels of shape (n_samples, self.n_labels) needed for creation of weights.
-
-        Returns
-        -------
-        weights : npt.NDArray
-            Sample or class weights based on labels.
-            Sample weights are of shape (n_samples,).
-            Class weights are of shape (1).
-
-        """
-        weighting_fn = self.predictor_config["weighting"]["weighting_fn"]
-
-        if weighting_fn:
-            return getattr(weight, weighting_fn)(y)
-
-        return np.ones(y.shape[0])
-
-    def _get_calibrator_data(self, X: PredData, label: str) -> PosProba:
-        """
-        Get the calibrator data based on the calibrator type.
-
-        Parameters
-        ----------
-        X : PredData
-            Data of shape (n_samples, n_features) to transform for calibrator.
-        label : str
-            Label associated with the model to use.
-
-        Returns
-        -------
-        calibrator_data : npt.NDArray
-            Data of shape (n_samples,) or (n_samples, 2) for calibrator model
-            based on its type.
-
-        """
-        calibrator_data = get_positive_proba(
-            self.predict_proba(X, label, model_type="predictor")
-        )
-
-        # Flatten to avoid (n_samples, 1) vs (n_samples,) inconsistencies
-        return calibrator_data.ravel()
+            elif estimator_type:
+                expr = (
+                    "Expecting predictor or recalibrator as estimator_type,  "
+                    f"but got {estimator_type[i]}"
+                )
+                raise ValueError(expr)
+        return np.array([])
