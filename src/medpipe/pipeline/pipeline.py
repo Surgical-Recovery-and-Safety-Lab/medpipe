@@ -469,22 +469,22 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
         return X_train, X_test, X_recal, groups
 
     def _prepare_features(
-        self, X_train: pd.DataFrame, X_test: pd.DataFrame, X_recal: pd.DataFrame | None
-    ) -> tuple[npt.NDArray, npt.NDArray, npt.NDArray | None]:
+        self, X_train: pd.DataFrame, X_recal: pd.DataFrame | None
+    ) -> tuple[npt.NDArray, npt.NDArray | None]:
         """
-        Prepares features of the different data sets.
+        Prepares features of the train and recalibration data sets.
 
         Parameters
         ----------
-        X_train, X_test : pd.DataFrame
-            Train and test data.
+        X_train : pd.DataFrame
+            Train data.
         X_recal : pd.DataFrame | None
             Recalibration data if needed in the pipeline, None otherwise.
 
         Returns
         -------
-        X_train_array, X_test_array : npt.NDArray
-            Processed train and test data.
+        X_train_array : npt.NDArray
+            Processed train data.
         X_recal_array : npt.NDArray | None
             Processed recalibration data or None.
 
@@ -494,7 +494,6 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
         if self.preprocessor:
             # Fit preprocessor on X_train than transform datasets
             X_train = self.preprocessor.fit_transform(X_train)
-            X_test = self.preprocessor.transform(X_test)
 
             if X_recal is not None:
                 X_recal = self.preprocessor.transform(X_recal)
@@ -509,22 +508,16 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
         X_train_array = (
             X_train.to_numpy() if isinstance(X_train, pd.DataFrame) else X_train
         )
-        X_test_array = X_test.to_numpy() if isinstance(X_test, pd.DataFrame) else X_test
 
         # Try and convert to float
         try:
             X_train_array = X_train_array.astype(np.float32)
-            X_test_array = X_test_array.astype(np.float32)
             if X_recal_array:
                 X_recal_array = X_recal_array.astype(np.float32)
         except ValueError:
             pass
 
-        return (
-            X_train_array,
-            X_test_array,
-            X_recal_array,
-        )
+        return (X_train_array, X_recal_array)
 
     def _get_cv_generator(self) -> StratifiedKFold | GroupKFold:
         """
