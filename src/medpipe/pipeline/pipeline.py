@@ -1032,15 +1032,21 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
         X = self.transform(X) if self.preprocessor else X
 
         for i, outcome in enumerate(self.outcomes):
-            raw_outputs = self.predictor[outcome].predict_proba(X)
-            results = compute_metrics(self.metrics, y[:, i].ravel(), raw_outputs[:, 1])
-
             recal_results = None
+
+            if hasattr(self.predictor[outcome], "predict_proba"):
+                raw_outputs = self.predictor[outcome].predict_proba(X)
+                raw_outputs = raw_outputs[:, 1]
+                results = compute_metrics(self.metrics, y[:, i].ravel(), raw_outputs)
+            else:
+                raw_outputs = self.predictor[outcome].predict(X)
+                results = compute_metrics(self.metrics, y[:, i].ravel(), raw_outputs)
+
             if self.recalibrator:
                 recal_results = compute_metrics(
                     self.metrics,
                     y.ravel(),
-                    self.recalibrator[outcome].predict(raw_outputs[:, 1]),
+                    self.recalibrator[outcome].predict(raw_outputs),
                 )
 
             self._print_test_metrics(results, outcome, recal_results)
