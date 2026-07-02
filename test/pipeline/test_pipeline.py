@@ -939,6 +939,25 @@ class TestRun:
         """Test successful function call."""
         mp_pipeline.run()
 
+    def test_pipeline_run_success_with_data(
+        self, mp_pipeline: MedpipePipeline, mock_data: MockData
+    ) -> None:
+        """Test successful function call with data."""
+        data = pd.concat(mock_data)
+        y = [0, 0, 1, 0, 1, 0, 0, 0, 0, 1, 0, 0, 1]
+        data["MORTALITY_30D"] = y
+
+        mp_pipeline.run(data)
+
+    @pytest.mark.parametrize("data", [3.12, 42, "llama", {}, [], ()])
+    def test_pipeline_run_incorrect_data(
+        self, mp_pipeline: MedpipePipeline, data: Any
+    ) -> None:
+        """Test case when incorrect data type is passed."""
+        match_expr = f"Input data should be a pd.DataFrame, but got {type(data)}"
+        with pytest.raises(TypeError, match=match_expr):
+            mp_pipeline.run(data)
+
     def test_pipeline_run_no_preprocessing(self, mp_pipeline: MedpipePipeline) -> None:
         """Test successful function call with no preprocessing."""
         mp_pipeline.preprocessor = None
