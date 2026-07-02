@@ -950,14 +950,16 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
 
         joblib.dump(self, save_dir / save_name)
 
-    def test_models(self, X: npt.NDArray, y: Labels) -> None:
+    def test_models(self, X: PredData, y: Labels) -> None:
         """
         Tests the predictor or recalibrator models on the provided dataset.
+
+        X is transformed if there is a preprocessor object.
 
         Parameters
         ----------
         X : Data
-            Training data of shape (n_samples, n_features).
+            Test data of shape (n_samples, n_features).
         y : Labels
             Prediction labels of shape (n_samples,).
 
@@ -967,7 +969,8 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
             Nothing is returned.
 
         """
-        print("Final test results")
+        X = self.transform(X) if self.preprocessor else X
+
         for i, outcome in enumerate(self.outcomes):
             raw_outputs = self.predictor[outcome].predict_proba(X)
             results = compute_metrics(self.metrics, y[:, i].ravel(), raw_outputs[:, 1])
