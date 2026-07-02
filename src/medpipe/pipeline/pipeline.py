@@ -84,6 +84,8 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
         Transforms input data based on preprocessor fitted operations.
     fit(X, y, X_recal, y_recal)
         Fit the MedpipePipeline estimator and recalibrator.
+    get_data_sets(data)
+        Splits data into train, test, and recalibration sets.
     run(data)
         Run pipeline with input data.
     save()
@@ -293,112 +295,6 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
             preprocess = self.medpipe_config.workflow.preprocessing.preprocess
             return preprocess if preprocess else False
         return False
-
-    def _get_data_sets(self, data: pd.DataFrame) -> tuple[
-        pd.DataFrame,
-        Labels,
-        pd.DataFrame,
-        Labels,
-        pd.DataFrame | None,
-        Labels | None,
-        npt.NDArray | None,
-    ]:
-        """
-        Splits data into train, test, and recalibration sets.
-
-        Only the columns containing the predictors and the features
-        are extracted and split.
-        Returns in order X_train, y_train, X_test, y_test, X_recal,
-        y_recal, group_column.
-        If no recalibration is required, X_recal and y_recal are None.
-        The group_column is the data column of the train set based on
-        cross-validationd parameters.
-
-        Parameters
-        ----------
-        data : pd.DataFrame
-            Data to split.
-
-        Returns
-        -------
-        X_train, X_test : pd.DataFrame
-            Train and test data.
-        y_train, y_test : Labels
-            Train and test labels.
-        X_recal : pd.DataFrame | None
-            Recalibration data if needed in the pipeline, None otherwise.
-        y_recal : Labels | None
-            Recalibration labels if needed in the pipeline, None otherwise.
-        groups : npt.NDArray | None
-            Train set group column for cross-validationd, None if not
-            specified.
-
-        Raises
-        ------
-        TypeError
-            If data is not a pd.DataFrame.
-        ValueError
-            If some predictors or outcomes are not in the data.
-
-        """
-        # Extract labels from the data
-        if not isinstance(data, pd.DataFrame):
-            raise TypeError(f"data should be a pd.DataFrame, but got {type(data)}")
-
-        # Extract validation configurations
-        validation_config = self.medpipe_config.workflow.validation
-        test_split_config = validation_config.test_split
-        cross_val_config = validation_config.cross_validation
-
-        # Create list of columns to extract from the data
-        column_list = self.outcomes + self.medpipe_config.data.predictors
-        if test_split_config.strategy == "group" and test_split_config.group_column:
-            column_list.append(test_split_config.group_column)
-        if cross_val_config:
-            if cross_val_config.strategy == "group" and cross_val_config.group_column:
-                column_list.append(cross_val_config.group_column)
-
-        try:
-            pipeline_data = pd.DataFrame(data[column_list])
-        except KeyError:
-            raise ValueError("Some outcomes or predictors are not in the data")
-
-        features, labels = extract_labels(pipeline_data, self.outcomes)
-
-        # Set to default value None
-        X_recal = None
-        y_recal = None
-        groups = None
-
-        # Split test set
-        X_train, y_train, X_test, y_test = split_data(
-            features, labels, **test_split_config.model_dump()
-        )
-
-        if validation_config.recalibration_split:
-            recal_split_config = validation_config.recalibration_split
-
-            _, _, X_recal, y_recal = split_data(
-                features, labels, **recal_split_config.model_dump()
-            )
-            y_recal = y_recal.astype(int)  # Convert to ints
-
-        # Drop group columns
-        X_train, X_test, X_recal, groups = self._drop_group_columns(
-            X_train, X_test, X_recal
-        )
-
-        X_train, X_test, X_recal = self._convert_dtypes(X_train, X_test, X_recal)
-
-        return (
-            X_train,
-            y_train.astype(int),
-            X_test,
-            y_test.astype(int),
-            X_recal,
-            y_recal,
-            groups,
-        )
 
     def _drop_group_columns(
         self, X_train: pd.DataFrame, X_test: pd.DataFrame, X_recal: pd.DataFrame | None
@@ -930,6 +826,112 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
                 raw_outputs = self.predictor[outcome].predict_proba(X_recal)
                 self.recalibrator[outcome].fit(raw_outputs[:, 1], y_recal[:, i])
 
+    def get_data_sets(self, data: pd.DataFrame) -> tuple[
+        pd.DataFrame,
+        Labels,
+        pd.DataFrame,
+        Labels,
+        pd.DataFrame | None,
+        Labels | None,
+        npt.NDArray | None,
+    ]:
+        """
+        Splits data into train, test, and recalibration sets.
+
+        Only the columns containing the predictors and the features
+        are extracted and split.
+        Returns in order X_train, y_train, X_test, y_test, X_recal,
+        y_recal, group_column.
+        If no recalibration is required, X_recal and y_recal are None.
+        The group_column is the data column of the train set based on
+        cross-validation parameters.
+
+        Parameters
+        ----------
+        data : pd.DataFrame
+            Data to split.
+
+        Returns
+        -------
+        X_train, X_test : pd.DataFrame
+            Train and test data.
+        y_train, y_test : Labels
+            Train and test labels.
+        X_recal : pd.DataFrame | None
+            Recalibration data if needed in the pipeline, None otherwise.
+        y_recal : Labels | None
+            Recalibration labels if needed in the pipeline, None otherwise.
+        groups : npt.NDArray | None
+            Train set group column for cross-validation, None if not
+            specified.
+
+        Raises
+        ------
+        TypeError
+            If data is not a pd.DataFrame.
+        ValueError
+            If some predictors or outcomes are not in the data.
+
+        """
+        # Extract labels from the data
+        if not isinstance(data, pd.DataFrame):
+            raise TypeError(f"data should be a pd.DataFrame, but got {type(data)}")
+
+        # Extract validation configurations
+        validation_config = self.medpipe_config.workflow.validation
+        test_split_config = validation_config.test_split
+        cross_val_config = validation_config.cross_validation
+
+        # Create list of columns to extract from the data
+        column_list = self.outcomes + self.medpipe_config.data.predictors
+        if test_split_config.strategy == "group" and test_split_config.group_column:
+            column_list.append(test_split_config.group_column)
+        if cross_val_config:
+            if cross_val_config.strategy == "group" and cross_val_config.group_column:
+                column_list.append(cross_val_config.group_column)
+
+        try:
+            pipeline_data = pd.DataFrame(data[column_list])
+        except KeyError:
+            raise ValueError("Some outcomes or predictors are not in the data")
+
+        features, labels = extract_labels(pipeline_data, self.outcomes)
+
+        # Set to default value None
+        X_recal = None
+        y_recal = None
+        groups = None
+
+        # Split test set
+        X_train, y_train, X_test, y_test = split_data(
+            features, labels, **test_split_config.model_dump()
+        )
+
+        if validation_config.recalibration_split:
+            recal_split_config = validation_config.recalibration_split
+
+            _, _, X_recal, y_recal = split_data(
+                features, labels, **recal_split_config.model_dump()
+            )
+            y_recal = y_recal.astype(int)  # Convert to ints
+
+        # Drop group columns
+        X_train, X_test, X_recal, groups = self._drop_group_columns(
+            X_train, X_test, X_recal
+        )
+
+        X_train, X_test, X_recal = self._convert_dtypes(X_train, X_test, X_recal)
+
+        return (
+            X_train,
+            y_train.astype(int),
+            X_test,
+            y_test.astype(int),
+            X_recal,
+            y_recal,
+            groups,
+        )
+
     def run(self, data: pd.DataFrame | None = None) -> None:
         """
         Run the entire pipeline from preprocessing to plotting.
@@ -960,8 +962,8 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
             raise TypeError(expr)
 
         # Get different split data sets
-        X_train, y_train, X_test, y_test, X_recal, y_recal, groups = (
-            self._get_data_sets(data)
+        X_train, y_train, X_test, y_test, X_recal, y_recal, groups = self.get_data_sets(
+            data
         )
 
         if self.medpipe_config.top_level.meta.run_mode != "fast":
@@ -972,7 +974,7 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
             cv_generator = self._get_cv_generator()
 
             for i, outcome in enumerate(self.outcomes):
-                # Perform cross-validationd for each outcome and fit model
+                # Perform cross-validation for each outcome and fit model
                 cv_results = self._cv_fit(
                     X_train,
                     y_train[:, i],
