@@ -901,3 +901,8 @@ class TestRun:
         mp_pipeline.recalibrator_method = None
         mp_pipeline.recalibrator = {}
         mp_pipeline.run()
+
+    def test_pipeline_run_no_cv(self, mp_pipeline: MedpipePipeline) -> None:
+        """Test successful function call with no cross-validation."""
+        mp_pipeline.medpipe_config.top_level.meta.run_mode = "fast"
+        mp_pipeline.run()
