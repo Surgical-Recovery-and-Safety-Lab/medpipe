@@ -78,18 +78,20 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
 
     Methods
     -------
+    fit_transfrom(X)
+        Fits the preprocessor operations and transforms the input data.
     transform(X)
         Transforms input data based on preprocessor fitted operations.
-    fit_model(X, y, model, **kwargs)
-        Fits the predictor or recalibrator model on the provided dataset.
-    test_model(X, y, model, outcomes, key=None)
-        Tests the predictor or recalibrator model on the provided dataset.
-    run(X)
+    fit(X, y, X_recal, y_recal)
+        Fit the MedpipePipeline estimator and recalibrator.
+    run(data)
         Run pipeline with input data.
+    save()
+        Saves the pipeline as {project_name}_{version}.joblib.
+    test_models(X, y, model, outcomes, key=None)
+        Tests the predictor or recalibrator model on the provided dataset.
     predict_proba(X)
         Predicts probabilities from predictor or recalibrator based on input data.
-    predict(X)
-        Predicts labels from predictor or recalibrator based on input data.
     """
 
     @overload
