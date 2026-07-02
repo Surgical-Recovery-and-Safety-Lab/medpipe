@@ -1184,38 +1184,27 @@ class TestMedpipeConfig:
             "specified when a recalibration method is used"
         )
 
-        invalid_workflow_dict = {
-            "preprocessing": None,
-            "validation": {
-                "cross_validation": {
-                    "strategy": "random",
-                    "n_splits": 5,
-                    "shuffle": True,
-                    "random_state": 42,
-                    "group_column": None,
-                },
-                "test_split": {
-                    "strategy": "random",
-                    "test_size": 0.1,
-                    "group_column": None,
-                    "values": None,
-                },
-            },
-            "evaluation": {
-                "metrics": {"metrics": ["roc_auc", "ici"]},
-                "fairness": {
-                    "strata": ["AGE", "SEX"],
-                    "groups": {"AGE": [[18, 50], [51, 120]]},
-                },
-            },
-        }
+        config = self._get_valid_config_dict(tmp_path)
+        config["workflow"]["validation"]["recalibration_split"] = None
 
         with pytest.raises(ValueError, match=match_expr):
-            MedpipeConfig.model_validate(
-                self._get_valid_config_dict(
-                    tmp_path, **{"workflow": invalid_workflow_dict}
-                )
-            )
+            MedpipeConfig.model_validate(config)
+
+    @pytest.mark.parametrize("run_mode", ["audit", "cv"])
+    def test_cross_validation_run_mode(
+        self, tmp_path: Path, run_mode: Literal["audit", "cv"]
+    ) -> None:
+        """Test case when run_mode and cross_validation mismatch."""
+        match_expr = (
+            "Cross-validation parameters must be specified "
+            "when run_mode is not 'fast'"
+        )
+        config = self._get_valid_config_dict(tmp_path)
+        config["top_level"]["meta"]["run_mode"] = run_mode
+        config["workflow"]["validation"]["cross_validation"] = None
+
+        with pytest.raises(ValueError, match=match_expr):
+            MedpipeConfig.model_validate(config)
 
 
 # ==============================================================================
