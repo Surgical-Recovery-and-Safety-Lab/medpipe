@@ -349,6 +349,7 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
         cross_val_config = validation_config.cross_validation
 
         # Create list of columns to extract from the data
+        assert cross_val_config
         column_list = self.outcomes + self.medpipe_config.data.predictors
         if test_split_config.strategy == "group" and test_split_config.group_column:
             column_list.append(test_split_config.group_column)
@@ -424,6 +425,7 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
         test_split_config = validation_config.test_split
         cross_val_config = validation_config.cross_validation
 
+        assert cross_val_config
         cross_val_grp_col = cross_val_config.group_column
         test_split_grp_col = test_split_config.group_column
         groups = None
@@ -530,6 +532,7 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
 
         """
         cv_config = self.medpipe_config.workflow.validation.cross_validation
+        assert cv_config
         kwargs = cv_config.model_dump()  # Keyword args for cv generators
 
         # Get strategy and remove group_column for keyword args
@@ -732,6 +735,7 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
 
         """
         prefix = "test_"
+        assert self.medpipe_config.workflow.validation.cross_validation
         n_splits = self.medpipe_config.workflow.validation.cross_validation.n_splits
 
         results = np.zeros((len(self.metrics), n_splits))  # Store results

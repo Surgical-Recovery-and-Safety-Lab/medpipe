@@ -367,6 +367,7 @@ class TestGetDataSets:
             assert len(X_recal) == len(y_recal)
 
         # Check group_column and X_train
+        assert mp_pipeline.medpipe_config.workflow.validation.cross_validation
         if mp_pipeline.medpipe_config.workflow.validation.cross_validation.group_column:
             assert groups is not None
             assert len(groups) == len(X_train)
@@ -392,6 +393,7 @@ class TestGetDataSets:
         mock_data = load_data(mp_pipeline.medpipe_config.data.path)
 
         validation_config = mp_pipeline.medpipe_config.workflow.validation
+        assert validation_config.cross_validation
         validation_config.cross_validation.group_column = None
 
         _, _, _, _, _, _, groups = mp_pipeline._get_data_sets(mock_data)
@@ -488,6 +490,7 @@ class TestDropGroupColumns:
         # Get mock data and drop columns
         X_train, X_test, X_recal = mock_data
 
+        assert mp_pipeline.medpipe_config.workflow.validation.cross_validation
         mp_pipeline.medpipe_config.workflow.validation.cross_validation.strategy = (
             "random"  # Set cross-validation strategy to random to have no groups
         )
@@ -554,6 +557,7 @@ class TestDropGroupColumns:
         # Get mock data and drop columns
         X_train, X_test, X_recal = mock_data
 
+        assert mp_pipeline.medpipe_config.workflow.validation.cross_validation
         mp_pipeline.medpipe_config.workflow.validation.test_split.strategy = (
             "random"  # Set test split strategy to random to have no groups
         )
@@ -645,6 +649,7 @@ class TestGetCvGenerator:
     ) -> None:
         """Test successful function call."""
         cv_config = mp_pipeline.medpipe_config.workflow.validation.cross_validation
+        assert cv_config
         cv_config.strategy = strategy  # Test both strategies
         cv_generator = mp_pipeline._get_cv_generator()
 
@@ -692,6 +697,7 @@ class TestCvFit:
         mp_pipeline.folds[outcome] = {}  # Patch because done in run function
 
         # Change cross-validation generator
+        assert mp_pipeline.medpipe_config.workflow.validation.cross_validation
         mp_pipeline.medpipe_config.workflow.validation.cross_validation.strategy = (
             "random"
         )
@@ -740,6 +746,7 @@ class TestCrossValidateAndFit:
         mp_pipeline.folds[outcome] = {}  # Patch because done in run function
 
         # Change cross-validation generator
+        assert mp_pipeline.medpipe_config.workflow.validation.cross_validation
         mp_pipeline.medpipe_config.workflow.validation.cross_validation.strategy = (
             "random"
         )
@@ -792,6 +799,7 @@ class TestSaveFoldOutputs:
         mp_pipeline.folds[outcome] = {}  # Patch because done in run function
 
         # Change cross-validation generator
+        assert mp_pipeline.medpipe_config.workflow.validation.cross_validation
         mp_pipeline.medpipe_config.workflow.validation.cross_validation.strategy = (
             "random"
         )
