@@ -391,10 +391,20 @@ class MedpipeConfig(BaseModel):
         """Check recalibration split is specified with recalibration method."""
         if self.top_level.recalibration:  # Recalibration is present
             if not self.workflow.validation.recalibration_split:
-                raise ValueError(
-                    "Recalibration validation split must be "
-                    "specified when a recalibration method is used"
-                )
+                expr = "Recalibration validation split must be "
+                "specified when a recalibration method is used"
+                raise ValueError(expr)
+        return self
+
+    @model_validator(mode="after")
+    def validate_cross_validation(self) -> "MedpipeConfig":
+        """Check that a cross-validation config is passed with correct
+        run modes."""
+        if self.top_level.meta.run_mode != "fast":
+            if self.workflow.validation.cross_validation is None:
+                expr = "Cross-validation parameters must be specified "
+                "when run_mode is not 'fast'"
+                raise ValueError(expr)
         return self
 
 
