@@ -388,6 +388,8 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
             X_train, X_test, X_recal
         )
 
+        X_train, X_test, X_recal = self._convert_dtypes(X_train, X_test, X_recal)
+
         return (
             X_train,
             y_train.astype(int),
