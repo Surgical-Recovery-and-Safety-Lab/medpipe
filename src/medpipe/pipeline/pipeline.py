@@ -477,6 +477,38 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
 
         return X_train, X_test, X_recal, groups
 
+    def _convert_dtypes(
+        self, X_train: pd.DataFrame, X_test: pd.DataFrame, X_recal: pd.DataFrame | None
+    ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame | None]:
+        """
+        Converts data types to category to avoid errors when
+        cross-validate is called.
+
+        Parameters
+        ----------
+        X_train, X_test : pd.DataFrame
+            Train and test data.
+        X_recal : pd.DataFrame | None
+            Recalibration data if needed in the pipeline, None otherwise.
+
+        Returns
+        -------
+        X_train, X_test : pd.DataFrame
+            Train and test data with converted dtypes.
+        X_recal : pd.DataFrame | None
+            Recalibration data with converted dtypes
+            if needed in the pipeline, None otherwise.
+
+        """
+        obj_cols = X_train.select_dtypes(include=["object"]).columns
+        for col in obj_cols:  # All sets should have same columns
+            X_train[col] = X_train[col].astype("category")
+            X_test[col] = X_test[col].astype("category")
+            if X_recal is not None:
+                X_recal[col] = X_recal[col].astype("category")
+
+        return X_train, X_test, X_recal
+
     def _prepare_features(
         self, X_train: pd.DataFrame, X_recal: pd.DataFrame | None
     ) -> tuple[npt.NDArray, npt.NDArray | None]:
