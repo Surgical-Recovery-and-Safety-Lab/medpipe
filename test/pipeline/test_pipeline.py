@@ -150,7 +150,7 @@ def cv_data_prep(mp_pipeline: MedpipePipeline, mock_data: MockData) -> DataPrep:
     X_train, X_test, X_recal, groups = mp_pipeline._drop_group_columns(
         X_train, X_test, X_recal
     )
-    X_train, _, X_recal = mp_pipeline._prepare_features(X_train, X_test, X_recal)
+    X_train, X_recal = mp_pipeline._prepare_features(X_train, X_recal)
     # Create cross-validation generator
     cv_generator = mp_pipeline._get_cv_generator()
 
@@ -593,14 +593,11 @@ class TestPrepareFeatures:
         mock_data: MockData,
     ) -> None:
         """Test successful function call."""
-        X_train, X_test, X_recal = mock_data
+        X_train, _, X_recal = mock_data
 
-        X_train, X_test, X_recal = mp_pipeline._prepare_features(
-            X_train, X_test, X_recal
-        )
+        X_train, X_recal = mp_pipeline._prepare_features(X_train, X_recal)
 
         assert isinstance(X_train, np.ndarray)
-        assert isinstance(X_test, np.ndarray)
         assert isinstance(X_recal, np.ndarray)
 
         if mp_pipeline.preprocessor:
@@ -612,15 +609,12 @@ class TestPrepareFeatures:
         mock_data: MockData,
     ) -> None:
         """Test case when X_recal is None."""
-        X_train, X_test, X_recal = mock_data
+        X_train, _, X_recal = mock_data
         X_recal = None
 
-        X_train, X_test, X_recal = mp_pipeline._prepare_features(
-            X_train, X_test, X_recal
-        )
+        X_train, X_recal = mp_pipeline._prepare_features(X_train, X_recal)
 
         assert isinstance(X_train, np.ndarray)
-        assert isinstance(X_test, np.ndarray)
         assert X_recal is None
 
         if mp_pipeline.preprocessor:
@@ -632,15 +626,12 @@ class TestPrepareFeatures:
         mock_data: MockData,
     ) -> None:
         """Test case when there is no preprocessor."""
-        X_train, X_test, X_recal = mock_data
+        X_train, _, X_recal = mock_data
         mp_pipeline.preprocessor = None  # Set preprocessor to None
 
-        X_train, X_test, X_recal = mp_pipeline._prepare_features(
-            X_train, X_test, X_recal
-        )
+        X_train, X_recal = mp_pipeline._prepare_features(X_train, X_recal)
 
         assert isinstance(X_train, np.ndarray)
-        assert isinstance(X_test, np.ndarray)
         assert isinstance(X_recal, np.ndarray)
 
 
