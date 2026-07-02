@@ -225,7 +225,7 @@ class CrossValConfig(BaseModel):
 
 class ValidationSubConfig(BaseModel):
     test_split: SplitTestConfig
-    cross_validation: CrossValConfig
+    cross_validation: CrossValConfig | None = None
     recalibration_split: SplitRecalibrationConfig | None = None
 
     model_config = {"extra": "forbid"}
