@@ -911,7 +911,7 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
 
         Parameters
         ----------
-        data : PredData | None, default: None
+        data : pd.DataFrame | None, default: None
             Data to fit on of shape (n_samples, n_features) or None.
 
         Returns
@@ -919,9 +919,18 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
         None
             Nothing is returned.
 
+        Raises
+        ------
+        TypeError
+            If data is not a pd.DataFrame.
+
         """
         if data is None:
             data = load_data(self.medpipe_config.data.path)
+
+        if not isinstance(data, pd.DataFrame):
+            expr = f"Input data should be a pd.DataFrame, but got {type(data)}"
+            raise TypeError(expr)
 
         # Get different split data sets
         X_train, y_train, X_test, y_test, X_recal, y_recal, groups = (
