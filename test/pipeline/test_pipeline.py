@@ -17,7 +17,7 @@ from sklearn.compose import ColumnTransformer
 from sklearn.model_selection import GroupKFold, StratifiedKFold
 from sklearn.pipeline import Pipeline
 
-from medpipe._types import Labels
+from medpipe._types import Labels, PredData
 from medpipe.pipeline.pipeline import MedpipePipeline
 from medpipe.utils.config import PreprocessOperationConfig
 from medpipe.utils.io import load_data, read_toml_configuration
@@ -28,11 +28,11 @@ from medpipe.utils.io import load_data, read_toml_configuration
 
 MockData: TypeAlias = tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]
 DataPrep: TypeAlias = tuple[
-    npt.NDArray,
+    PredData,
     Labels,
-    npt.NDArray | None,
+    PredData | None,
     Labels | None,
-    npt.NDArray | None,
+    PredData | None,
     StratifiedKFold | GroupKFold,
 ]
 
@@ -673,10 +673,8 @@ class TestPrepareFeatures:
         X_train, _, X_recal = mock_data
         mp_pipeline.preprocessor = None  # Set preprocessor to None
 
-        X_train, X_recal = mp_pipeline._prepare_features(X_train, X_recal)
-
-        assert isinstance(X_train, np.ndarray)
-        assert isinstance(X_recal, np.ndarray)
+        with pytest.raises(ValueError, match="No preprocessor was found"):
+            X_train, X_recal = mp_pipeline._prepare_features(X_train, X_recal)
 
 
 class TestGetCvGenerator:
