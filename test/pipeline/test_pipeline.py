@@ -420,6 +420,15 @@ class TestGetDataSets:
         with pytest.raises(TypeError, match=match_expr):
             mp_pipeline._get_data_sets(data)
 
+    def test_pipeline_get_data_sets_missing_column(
+        self, mp_pipeline: MedpipePipeline, mock_data: MockData
+    ) -> None:
+        """Test case when columns are not in data."""
+        with pytest.raises(
+            ValueError, match="Some outcomes or predictors are not in the data"
+        ):
+            mp_pipeline._get_data_sets(pd.concat(mock_data))
+
 
 class TestDropGroupColumns:
     """Test class for the _drop_group_columns function of the
