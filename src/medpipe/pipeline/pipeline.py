@@ -908,14 +908,14 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
             self._get_data_sets(data)
         )
 
-        X_train, X_test, X_recal = self._prepare_features(X_train, X_test, X_recal)
+        if self.medpipe_config.top_level.meta.run_mode != "fast":
+            X_train, X_recal = self._prepare_features(X_train, X_recal)
 
-        # Create cross-validation generator
-        cv_generator = self._get_cv_generator()
+            # Create cross-validation generator
+            cv_generator = self._get_cv_generator()
 
-        for i, outcome in enumerate(self.outcomes):
-            # Perform cross-validationd for each outcome and fit model
-            if self.medpipe_config.top_level.meta.run_mode != "fast":
+            for i, outcome in enumerate(self.outcomes):
+                # Perform cross-validationd for each outcome and fit model
                 cv_results = self._cv_fit(
                     X_train,
                     y_train[:, i],
@@ -927,12 +927,8 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
                 )
 
                 self._print_fold_metrics(cv_results, outcome)
-            else:
-                self.predictor[outcome].fit(X_train, y_train[:, i])
-
-                if self.recalibrator and y_recal is not None:
-                    raw_outputs = self.predictor[outcome].predict_proba(X_recal)
-                    self.recalibrator[outcome].fit(raw_outputs, y_recal[:, i])
+        else:
+            self.fit(X_train, y_train, X_recal, y_recal)
 
         self.test_models(X_test, y_test)
 
