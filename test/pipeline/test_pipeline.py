@@ -339,15 +339,15 @@ class TestHasPreprocessor:
 
 
 class TestGetDataSets:
-    """Test class for the _get_data_sets function of the
+    """Test class for the get_data_sets function of the
     MedpipePipeline class."""
 
-    def test_pipeline_get_data_sets_success(self, mp_pipeline: MedpipePipeline) -> None:
+    def test_pipelineget_data_sets_success(self, mp_pipeline: MedpipePipeline) -> None:
         """Test successful function call."""
         mock_data = load_data(mp_pipeline.medpipe_config.data.path)
 
         X_train, y_train, X_test, y_test, X_recal, y_recal, groups = (
-            mp_pipeline._get_data_sets(mock_data)
+            mp_pipeline.get_data_sets(mock_data)
         )
 
         # Create the column list to check
@@ -372,21 +372,19 @@ class TestGetDataSets:
             assert groups is not None
             assert len(groups) == len(X_train)
 
-    def test_pipeline_get_data_sets_no_recal(
-        self, mp_pipeline: MedpipePipeline
-    ) -> None:
+    def test_pipelineget_data_sets_no_recal(self, mp_pipeline: MedpipePipeline) -> None:
         """Test case when there is no recalibration."""
         mock_data = load_data(mp_pipeline.medpipe_config.data.path)
 
         validation_config = mp_pipeline.medpipe_config.workflow.validation
         validation_config.recalibration_split = None
 
-        _, _, _, _, X_recal, y_recal, _ = mp_pipeline._get_data_sets(mock_data)
+        _, _, _, _, X_recal, y_recal, _ = mp_pipeline.get_data_sets(mock_data)
 
         assert X_recal is None
         assert y_recal is None
 
-    def test_pipeline_get_data_sets_no_groups(
+    def test_pipelineget_data_sets_no_groups(
         self, mp_pipeline: MedpipePipeline
     ) -> None:
         """Test case when there are no cross-validation groups."""
@@ -396,7 +394,7 @@ class TestGetDataSets:
         assert validation_config.cross_validation
         validation_config.cross_validation.group_column = None
 
-        _, _, _, _, _, _, groups = mp_pipeline._get_data_sets(mock_data)
+        _, _, _, _, _, _, groups = mp_pipeline.get_data_sets(mock_data)
 
         assert groups is None
 
@@ -412,22 +410,22 @@ class TestGetDataSets:
             np.array([]),
         ],
     )
-    def test_pipeline_get_data_sets_invalid_data(
+    def test_pipelineget_data_sets_invalid_data(
         self, mp_pipeline: MedpipePipeline, data: Any
     ) -> None:
         """Test case when the data is not pd.DataFrame."""
         match_expr = f"data should be a pd.DataFrame, but got {type(data)}"
         with pytest.raises(TypeError, match=match_expr):
-            mp_pipeline._get_data_sets(data)
+            mp_pipeline.get_data_sets(data)
 
-    def test_pipeline_get_data_sets_missing_column(
+    def test_pipelineget_data_sets_missing_column(
         self, mp_pipeline: MedpipePipeline, mock_data: MockData
     ) -> None:
         """Test case when columns are not in data."""
         with pytest.raises(
             ValueError, match="Some outcomes or predictors are not in the data"
         ):
-            mp_pipeline._get_data_sets(pd.concat(mock_data))
+            mp_pipeline.get_data_sets(pd.concat(mock_data))
 
 
 class TestDropGroupColumns:
