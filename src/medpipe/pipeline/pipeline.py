@@ -513,7 +513,7 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
 
     def _prepare_features(
         self, X_train: pd.DataFrame, X_recal: pd.DataFrame | None
-    ) -> tuple[npt.NDArray, npt.NDArray | None]:
+    ) -> tuple[PredData, PredData | None]:
         """
         Prepares features of the train and recalibration data sets.
 
@@ -526,9 +526,9 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
 
         Returns
         -------
-        X_train_array : npt.NDArray
+        X_train : PredData
             Processed train data.
-        X_recal_array : npt.NDArray | None
+        X_recal : PredData | None
             Processed recalibration data or None.
 
         Raises
@@ -575,12 +575,12 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
 
     def _cv_fit(
         self,
-        X_train: npt.NDArray,
+        X_train: PredData,
         y_train: Labels,
         outcome: str,
         cv_generator: StratifiedKFold | GroupKFold,
         groups: npt.NDArray | None = None,
-        X_recal: npt.NDArray | None = None,
+        X_recal: PredData | None = None,
         y_recal: Labels | None = None,
     ) -> dict[str, Any]:
         """
@@ -588,7 +588,7 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
 
         Parameters
         ----------
-        X_train : npt.NDArray
+        X_train : PredData
             Training data.
         y_train : Labels
             Training labels.
@@ -598,7 +598,7 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
             Cross-validation generator.
         groups : npt.NDArray | None, default: None
             Groups for the GroupKFold cross-validation.
-        X_recal : npt.NDArray | None, default: None
+        X_recal : PredData | None, default: None
             Recalibration data, or None if no recalibrator.
         y_recal : Labels | None, default: None
             Recalibration labels, or None if no recalibrator.
@@ -636,7 +636,7 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
     def _cross_validate_and_fit(
         self,
         outcome: str,
-        X_train: npt.NDArray,
+        X_train: PredData,
         y_train: Labels,
         cv_generator: StratifiedKFold | GroupKFold,
         groups: npt.NDArray | None,
@@ -646,7 +646,7 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
 
         Parameters
         ----------
-        X_train : npt.NDArray
+        X_train : PredData
             Training data.
         y_train : Labels
             Training labels.
@@ -683,7 +683,7 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
         self,
         outcome: str,
         cv_results: dict[str, Any],
-        X_train: npt.NDArray,
+        X_train: PredData,
         groups: npt.NDArray | None,
     ) -> None:
         """
@@ -695,7 +695,7 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
             Outcome to predict.
         cv_results : dict[str, Any]
             Cross-validation results for predictor and recalibrator.
-        X_train : npt.NDArray
+        X_train : PredData
             Training data.
         groups : npt.NDArray | None, default: None
             Groups for the GroupKFold cross-validation.
@@ -1016,7 +1016,7 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
 
         Parameters
         ----------
-        X : Data
+        X : pd.DataFrame
             Test data of shape (n_samples, n_features).
         y : Labels
             Prediction labels of shape (n_samples,).
