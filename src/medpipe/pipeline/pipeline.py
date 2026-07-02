@@ -879,17 +879,18 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
         else:
             X_train = X
 
-        for outcome in self.outcomes:
-            self.predictor[outcome].fit(X_train, y)
+        for i, outcome in enumerate(self.outcomes):
+            self.predictor[outcome].fit(X_train, y[:, i])
 
             if self.recalibrator:
                 # Fit the recalibrators if specified
-                if X_cal is None or y_cal is None:
+                if X_recal is None or y_recal is None:
                     raise ValueError(
                         f"Cannot fit {outcome} recalibrator without recalibration data"
                     )
-                raw_outputs = self.predictor[outcome].predict_proba(X_cal)
-                self.recalibrator[outcome].fit(raw_outputs, y_cal)
+                X_recal = self.transform(X_recal) if self.preprocessor else X_recal
+                raw_outputs = self.predictor[outcome].predict_proba(X_recal)
+                self.recalibrator[outcome].fit(raw_outputs[:, 1], y_recal[:, i])
 
     def run(self) -> None:
         """
