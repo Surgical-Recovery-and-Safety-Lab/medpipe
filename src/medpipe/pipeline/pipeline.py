@@ -930,6 +930,7 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
         else:
             self.fit(X_train, y_train, X_recal, y_recal)
 
+        print("Final test results")
         self.test_models(X_test, y_test)
 
     def save(self) -> None:
