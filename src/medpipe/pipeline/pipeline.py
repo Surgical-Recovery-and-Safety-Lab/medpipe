@@ -710,7 +710,12 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
             zip(cv_results["estimator"], cv_results["indices"]["test"])
         ):
             # Iterate to get the training predictions for the predictor
-            raw_outputs = estimator.predict_proba(X_train[test_idx])
+            fold_test_data = (
+                X_train[test_idx]
+                if isinstance(X_train, np.ndarray)
+                else X_train.iloc[test_idx]
+            )
+            raw_outputs = estimator.predict_proba(fold_test_data)
             fold_name = fold_idx
 
             if groups is not None:
@@ -960,7 +965,8 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
         )
 
         if self.medpipe_config.top_level.meta.run_mode != "fast":
-            X_train, X_recal = self._prepare_features(X_train, X_recal)
+            if self.preprocessor:
+                X_train, X_recal = self._prepare_features(X_train, X_recal)
 
             # Create cross-validation generator
             cv_generator = self._get_cv_generator()
