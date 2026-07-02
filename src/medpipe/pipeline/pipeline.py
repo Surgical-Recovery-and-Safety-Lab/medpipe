@@ -903,9 +903,16 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
                 raw_outputs = self.predictor[outcome].predict_proba(X_recal)
                 self.recalibrator[outcome].fit(raw_outputs[:, 1], y_recal[:, i])
 
-    def run(self) -> None:
+    def run(self, data: pd.DataFrame | None = None) -> None:
         """
         Run the entire pipeline from preprocessing to plotting.
+
+        If data is None, the data path from the configuration is used.
+
+        Parameters
+        ----------
+        data : PredData | None, default: None
+            Data to fit on of shape (n_samples, n_features) or None.
 
         Returns
         -------
@@ -913,7 +920,8 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
             Nothing is returned.
 
         """
-        data = load_data(self.medpipe_config.data.path)
+        if data is None:
+            data = load_data(self.medpipe_config.data.path)
 
         # Get different split data sets
         X_train, y_train, X_test, y_test, X_recal, y_recal, groups = (
