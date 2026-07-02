@@ -27,7 +27,7 @@ from sklearn.metrics import (
     roc_auc_score,
 )
 
-from medpipe._types import FullProba, Labels, PosProba
+from medpipe._types import Labels
 from medpipe.utils.exceptions import array_dim_check
 
 if TYPE_CHECKING:
@@ -38,7 +38,7 @@ SCRIPT_NAME = "metrics/core"
 
 def ici_score(
     y: Labels,
-    y_pred: FullProba | PosProba,
+    y_pred: npt.NDArray,
 ) -> float:
     """
     Computes the integrated calibration index using a spline-based
@@ -48,9 +48,9 @@ def ici_score(
     ----------
     y : Labels
         Ground truth labels.
-    y_pred : FullProba | PosProba
-        Predictions from the model. Can be just the positive label
-        probabilities.
+    y_pred : npt.NDArray
+        Predictions from the model of shape
+        (n_samples,) or (n_samples, 2).
 
     Returns
     -------
@@ -153,7 +153,7 @@ def build_scorers(metrics: list[str] | npt.NDArray) -> dict[str, Callable]:
 
 
 def compute_metrics(
-    metrics: list[str] | npt.NDArray, y: Labels, y_pred: FullProba | PosProba
+    metrics: list[str] | npt.NDArray, y: Labels, y_pred: npt.NDArray
 ) -> npt.NDArray:
     """
     Computes metrics based on predicted data.
@@ -166,8 +166,9 @@ def compute_metrics(
         List of metrics to use.
     y : Labels
         Ground truth labels.
-    y_pred : FullProba | PosProba
-        Predictions from the model.
+    y_pred : npt.NDArray
+        Predictions from the model of shape
+        (n_samples,) or (n_samples, 2)
 
     Returns
     -------

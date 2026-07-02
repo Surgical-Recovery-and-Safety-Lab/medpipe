@@ -11,7 +11,6 @@ submodules:
 
 from .data import extract_labels
 from .metrics import (
-    plot_metrics_CI,
     plot_prediction_distribution,
     plot_reliability_diagrams,
     print_metrics,
@@ -35,7 +34,6 @@ __all__ = [
     "setup_logger",
     "load_pipeline",
     "save_pipeline",
-    "plot_metrics_CI",
     "plot_prediction_distribution",
     "plot_reliability_diagrams",
     "print_metrics",

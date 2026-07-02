@@ -8,9 +8,10 @@ from re import escape
 from typing import Any
 
 import numpy as np
+import numpy.typing as npt
 import pytest
 
-from medpipe._types import FullProba, Labels
+from medpipe._types import Labels
 from medpipe.metrics.core import (
     METRICS,
     build_scorers,
@@ -21,7 +22,7 @@ from medpipe.metrics.core import (
 
 
 @pytest.fixture
-def mock_data() -> tuple[Labels, FullProba]:
+def mock_data() -> tuple[Labels, npt.NDArray]:
     """Generate some mock labels and predictions for tests."""
     rng = np.random.default_rng(seed=42)
     n_samples = 100
@@ -36,14 +37,14 @@ def mock_data() -> tuple[Labels, FullProba]:
 class TestIciScore:
     """Test class for the ici_score function."""
 
-    def test_ici_score_success(self, mock_data: tuple[Labels, FullProba]) -> None:
+    def test_ici_score_success(self, mock_data: tuple[Labels, npt.NDArray]) -> None:
         """Test successful function call."""
         y, y_pred = mock_data
         ici = ici_score(y, y_pred)
 
         assert isinstance(ici, float)
 
-    def test_ici_score_pos_proba(self, mock_data: tuple[Labels, FullProba]) -> None:
+    def test_ici_score_pos_proba(self, mock_data: tuple[Labels, npt.NDArray]) -> None:
         """Test successful function call with positive class probabilities only."""
         y, y_pred = mock_data  # Unpack mock data
         y_pred = y_pred[:, 1]
@@ -96,7 +97,9 @@ class TestBuildScorers:
 class TestComputeMetrics:
     """Test class for the compute_metrics function."""
 
-    def test_compute_metrics_success(self, mock_data: tuple[Labels, FullProba]) -> None:
+    def test_compute_metrics_success(
+        self, mock_data: tuple[Labels, npt.NDArray]
+    ) -> None:
         """Test successful function call."""
         y, y_pred = mock_data  # Unpack mock data
         scores = compute_metrics(METRICS, y, y_pred)
@@ -105,7 +108,7 @@ class TestComputeMetrics:
         assert len(scores) == len(METRICS)
 
     def test_compute_metrics_success_pos_proba(
-        self, mock_data: tuple[Labels, FullProba]
+        self, mock_data: tuple[Labels, npt.NDArray]
     ) -> None:
         """Test successful function call."""
         y, y_pred = mock_data  # Unpack mock data

@@ -18,17 +18,18 @@ import joblib
 import ngboost
 import sklearn
 
-from medpipe._types import Model
 from medpipe.utils.exceptions import file_checks
 
 SCRIPT_NAME = "models/core"
 
 if TYPE_CHECKING:
 
+    from sklearn.base import BaseEstimator
+
     from medpipe.pipeline.pipeline import MedpipePipeline
 
 
-def create_estimator(model_type: str, **hyperparameters) -> Model:
+def create_estimator(model_type: str, **hyperparameters) -> BaseEstimator:
     """
     Creates an AI model based on the input model type.
 
@@ -41,8 +42,8 @@ def create_estimator(model_type: str, **hyperparameters) -> Model:
 
     Returns
     -------
-    model : Model
-        Created model.
+    estimator : Model
+        Created estimator.
 
     Raises
     ------

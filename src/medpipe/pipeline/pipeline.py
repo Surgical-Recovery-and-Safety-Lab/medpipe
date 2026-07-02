@@ -24,7 +24,7 @@ from sklearn.model_selection import GroupKFold, StratifiedKFold, cross_validate
 from sklearn.pipeline import Pipeline
 from sklearn.utils.validation import check_is_fitted
 
-from medpipe._types import Data, FullProba, Labels, PredData
+from medpipe._types import Labels, PredData
 from medpipe.data.utils import extract_labels, split_data
 from medpipe.metrics.core import build_scorers, compute_metrics, print_metrics
 from medpipe.models.core import create_estimator
@@ -1008,10 +1008,10 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
 
     def predict_proba(
         self,
-        X: Data,
+        X: PredData,
         outcomes: str | list[str] = "all",
         estimator_type: Literal["predictor", "recalibrator"] | list[str] = "predictor",
-    ) -> FullProba:
+    ) -> npt.NDArray:
         """
         Predicts probabilities from predictor or recalibrator based on input data.
 

@@ -4,7 +4,6 @@ Plot functions module.
 This module provides functions to plot results.
 
 Functions:
-- plot_metrics_CI: Plots the metrics with confidence intrevals for each fold.
 - plot_prediction_distribution: Plots the prediction probabilities.
 - plot_reliability_diagrams: Plots the reliability diagrams.
 """
@@ -20,127 +19,11 @@ from matplotlib.figure import Figure
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from sklearn.calibration import calibration_curve
 
-from medpipe._types import CIDict, Labels
+from medpipe._types import Labels
 from medpipe.utils.exceptions import file_checks
 
 if TYPE_CHECKING:
     import numpy.typing as npt
-
-
-def plot_metrics_CI(
-    ci_dict: CIDict,
-    label_list: list[str],
-    save_path: str = "",
-    extension: str = ".png",
-    show_fig: bool = True,
-    **kwargs: Any,
-) -> None:
-    """
-    Plots the metrics with confidence intrevals for each fold.
-
-    Parameters
-    ----------
-    ci_dict : CIDict
-        Dictionary containing the metric value and confidence intervals.
-        The keys are the name of the metrics and the values are a list of tuple
-        with first element the metric value, second the lower bound, and third
-        the upper bound. One list elements per model. One list elements per model
-    label_list : list[str]
-        List of labels for the legend.
-    save_path : str, default: []
-        Path to the save file.
-    extension : str, default: ".png"
-        Extension to save figure in.
-    show_fig : bool, default: True
-        Flag to show the figure.
-    **kwargs : Any
-        Extra arguments for the figure or axes objects.
-
-    Returns
-    -------
-    None
-        Nothing is returned.
-
-    """
-    # Split arguments based on where they should be sent
-    ax_kwargs = {key: value for key, value in kwargs.items() if key in dir(Axes)}
-    fig_kwargs = {key: value for key, value in kwargs.items() if key in dir(Figure)}
-
-    # Set up some variables
-    colours = [
-        "#2D90D8",
-        "#33367A",
-        "#96690E",
-        "#CDB4DB",
-        "#F2CC8F",
-    ]
-    y_labels = {
-        "auroc": "AUROC",
-        "ap": "AUPRC",
-        "log_loss": "Log loss",
-        "accuracy": "Accuracy",
-        "recall": "Recall",
-        "precision": "Precision",
-        "f1": "F1",
-    }
-    bar_width = 0.3
-    x = np.arange(len(label_list)) * bar_width
-
-    # Loop through each metric
-    for key, values in ci_dict.items():
-        # Set up the figure and axis
-        fig, ax = plt.subplots(**fig_kwargs)  # One figure per metric
-
-        for j in range(len(values[0])):
-            value = values[0][j]
-            lower_b = values[1][j]
-
-            ax.bar(
-                x[j],
-                value,
-                width=bar_width,
-                color=colours[j],
-                edgecolor=(0, 0, 0, 1),
-                label=label_list[j],
-            )
-
-            ax.errorbar(
-                x[j],
-                value,
-                yerr=value - lower_b,
-                fmt="none",
-                color="black",
-                capsize=5,
-            )
-
-        # Customize the chart
-        ax.set_ylabel(y_labels[key], fontweight="bold")
-        if key != "log_loss":
-            ax.set_ylim([0, 1.05])
-        ax.spines["top"].set_visible(False)
-        ax.spines["right"].set_visible(False)
-
-        # Remove x ticks
-        ax.set_xticks([])
-        ax.set_xticklabels([])
-
-        # Place legend for the figure
-        fig.legend(loc="center right", title="Models")
-
-        # Set ax_kwargs to override if needed
-        for key, val in ax_kwargs.items():
-            getattr(ax, key)(val)
-
-        plt.tight_layout()
-        fig.subplots_adjust(right=0.7, bottom=0.14)
-        if save_path:
-            save_file = save_path + key + extension
-            file_checks(save_file, extension=extension, exists=False)
-            plt.savefig(save_file)
-        if show_fig:
-            plt.show()
-
-        plt.close()
 
 
 def plot_prediction_distribution(
