@@ -531,36 +531,24 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
         X_recal_array : npt.NDArray | None
             Processed recalibration data or None.
 
+        Raises
+        ------
+        ValueError
+            If the preprocessor does not exist.
+
         """
-        X_recal_array = None
+        try:
+            assert self.preprocessor
+        except AssertionError:
+            raise ValueError("No preprocessor was found")
 
-        if self.preprocessor:
-            # Fit preprocessor on X_train than transform datasets
-            X_train = self.preprocessor.fit_transform(X_train)
-
-            if X_recal is not None:
-                X_recal = self.preprocessor.transform(X_recal)
+        # Fit preprocessor on X_train than transform datasets
+        X_train = self.preprocessor.fit_transform(X_train)
 
         if X_recal is not None:
-            # Convert pd.DataFrame to np.array
-            X_recal_array = (
-                X_recal.to_numpy() if isinstance(X_recal, pd.DataFrame) else X_recal
-            )
+            X_recal = self.preprocessor.transform(X_recal)
 
-        # Convert to numpy if needed
-        X_train_array = (
-            X_train.to_numpy() if isinstance(X_train, pd.DataFrame) else X_train
-        )
-
-        # Try and convert to float
-        try:
-            X_train_array = X_train_array.astype(np.float32)
-            if X_recal_array:
-                X_recal_array = X_recal_array.astype(np.float32)
-        except ValueError:
-            pass
-
-        return (X_train_array, X_recal_array)
+        return (X_train, X_recal)
 
     def _get_cv_generator(self) -> StratifiedKFold | GroupKFold:
         """
