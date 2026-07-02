@@ -837,13 +837,14 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
         self,
         X: PredData,
         y: Labels,
-        X_cal: FullProba | None = None,
-        y_cal: Labels | None = None,
+        X_recal: PredData | None = None,
+        y_recal: Labels | None = None,
     ) -> None:
         """
         Fit the MedpipePipeline estimators.
 
         X is transformed if there is a preprocessor object.
+        X_recal is first passed through the predictor object.
 
         Parameters
         ----------
@@ -851,10 +852,12 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
             Data to fit on of shape (n_samples, n_features).
         y : Labels
             Ground truth labels of shape (n_samples,).
-        X_cal : FullProba | None
-            Recalibration data to train the recalibrator of shape (n_samples, 2) or None.
-        y_cal : Labels | None
-            Ground truth labels for the recalibration data of shape (n_samples,).
+        X_recal : PredData | None
+            Data to train the recalibrator
+            of shape (n_samples, n_features) or None.
+        y_recal : Labels | None
+            Ground truth labels for the recalibration data
+            of shape (n_samples,).
 
         Returns
         -------
