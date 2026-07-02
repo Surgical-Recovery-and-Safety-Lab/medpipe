@@ -24,10 +24,10 @@ from sklearn.model_selection import GroupKFold, StratifiedKFold, cross_validate
 from sklearn.pipeline import Pipeline
 from sklearn.utils.validation import check_is_fitted
 
-from medpipe._types import Data, FullProba, Labels, PosProba, PredData
+from medpipe._types import Data, FullProba, Labels, PredData
 from medpipe.data.utils import extract_labels, split_data
 from medpipe.metrics.core import build_scorers, compute_metrics, print_metrics
-from medpipe.models.core import create_estimator, get_positive_proba
+from medpipe.models.core import create_estimator
 from medpipe.utils.config import MedpipeConfig
 from medpipe.utils.io import load_data, read_toml_configuration
 from medpipe.utils.logger import print_message
