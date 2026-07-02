@@ -776,7 +776,7 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
                 for i in range(len(self.metrics)):
                     print_metrics(np.array([results[i]]), [self.metrics[i]])
 
-    def transform(self, X: pd.DataFrame | npt.NDArray) -> None:
+    def transform(self, X: pd.DataFrame | npt.NDArray) -> pd.DataFrame | npt.NDArray:
         """
         Transforms input data based on preprocessor fitted operations.
 
@@ -798,9 +798,10 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
 
         """
         if self.preprocessor:
-            self.preprocessor.fit(X)
+            return self.preprocessor.transform(X)
         else:
             warn("No preprocessor object created so data not transformed")
+        return X
 
     def fit_transform(
         self, X: pd.DataFrame | npt.NDArray
