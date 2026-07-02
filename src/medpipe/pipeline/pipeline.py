@@ -122,10 +122,12 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
             Nothing is returned.
 
         """
-        if isinstance(config, (str, Path)):
-            self.medpipe_config = read_toml_configuration(config)
-        elif isinstance(config, MedpipeConfig):
-            self.medpipe_config = config
+        self.config = config
+
+        if isinstance(self.config, (str, Path)):
+            self.medpipe_config = read_toml_configuration(self.config)
+        elif isinstance(self.config, MedpipeConfig):
+            self.medpipe_config = self.config
         else:
             raise ValueError(
                 "A configuration file or a MedpipeConfig must be specified."
