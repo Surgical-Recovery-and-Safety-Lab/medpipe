@@ -928,6 +928,117 @@ class TestExtractFoldResults:
         assert results.shape == (2, 3)
 
 
+class TestValidatePredictInputs:
+    """Test class for the _validate_predict_inputs function of
+    the MedpipePipeline class."""
+
+    @pytest.mark.parametrize(
+        "outcomes, estimator_type",
+        [
+            ("MORTALITY_30D", "predictor"),
+            (["ANY_COMP"], "recalibrator"),
+            ("all", "predictor"),
+            (["ANY_COMP", "MORTALITY_30D"], ["predictor", "recalibrator"]),
+            (["ANY_COMP", "MORTALITY_30D"], "predictor"),
+        ],
+    )
+    def test_pipeline_validate_predict_inputs_success(
+        self,
+        mp_pipeline: MedpipePipeline,
+        outcomes: str | list[str],
+        estimator_type: Literal["predictor", "recalibrator"] | list[str],
+    ) -> None:
+        """Test successful function call."""
+        valid_outcomes, estimators = mp_pipeline._validate_predict_inputs(
+            outcomes, estimator_type
+        )
+
+        assert isinstance(valid_outcomes, list)
+        assert isinstance(estimators, list)
+        assert len(valid_outcomes) == len(estimators)
+
+    @pytest.mark.parametrize(
+        "outcomes, estimator_type",
+        [
+            ("MORTALITY_30D", "predictor"),
+            ("ANY_COMP", "recalibrator"),
+            (["ANY_COMP", "MORTALITY_30D"], "predictor"),
+            (["ANY_COMP", "MORTALITY_30D"], "recalibrator"),
+        ],
+    )
+    def test_pipeline_validate_predict_estimator_type_list_check(
+        self,
+        mp_pipeline: MedpipePipeline,
+        outcomes: str | list[str],
+        estimator_type: Literal["predictor", "recalibrator"],
+    ) -> None:
+        """Test contents of estimators when a string is passed."""
+        _, estimators = mp_pipeline._validate_predict_inputs(outcomes, estimator_type)
+
+        for est_type in estimators:
+            assert est_type == estimator_type
+
+    def test_pipeline_validate_predict_inputs_outcomes_all_check(
+        self,
+        mp_pipeline: MedpipePipeline,
+    ) -> None:
+        """Test contents of valid_outcomes when outcomes is all."""
+        valid_outcomes, _ = mp_pipeline._validate_predict_inputs("all", "predictor")
+
+        assert valid_outcomes == mp_pipeline.outcomes
+
+    @pytest.mark.parametrize(
+        "outcomes",
+        [(3.12, 42, (), {})],
+    )
+    def test_pipeline_validate_predict_inputs_incorrect_outcomes(
+        self, mp_pipeline: MedpipePipeline, outcomes: Any
+    ) -> None:
+        """Test case when outcomes is invalid."""
+        match_expr = (
+            "Input outcomes should be a string, 'all', or a list of strings, "
+            f"but got {type(outcomes)}"
+        )
+        with pytest.raises(TypeError, match=match_expr):
+            mp_pipeline._validate_predict_inputs(outcomes, "predictor")
+
+    @pytest.mark.parametrize(
+        "estimator_type",
+        [(3.12, 42, (), {}, "llama")],
+    )
+    def test_pipeline_validate_predict_inputs_incorrect_estimator_types(
+        self, mp_pipeline: MedpipePipeline, estimator_type: Any
+    ) -> None:
+        """Test case when estimator_types is invalid."""
+        match_expr = (
+            "Input estimator_type should be a 'predictor', 'recalibrator' "
+            f"or list of strings, but got {type(estimator_type)}"
+        )
+        with pytest.raises(TypeError, match=match_expr):
+            mp_pipeline._validate_predict_inputs("all", estimator_type)
+
+    @pytest.mark.parametrize(
+        "outcomes, estimator_type",
+        [
+            (["MORTALITY_30D", "ANY_COMP"], ["predictor"]),
+            (["ANY_COMP"], ["recalibrator", "recalibrator"]),
+        ],
+    )
+    def test_pipeline_validate_predict_inputs_mismatch_len(
+        self,
+        mp_pipeline: MedpipePipeline,
+        outcomes: str | list[str],
+        estimator_type: Literal["predictor", "recalibrator"] | list[str],
+    ) -> None:
+        """Test case when outcomes and estimator_type length mismatch."""
+        match_expr = (
+            "Inputs outcomes and estimator_type should be the same length, "
+            f"but got {len(outcomes)} and {len(estimator_type)}"
+        )
+        with pytest.raises(ValueError, match=match_expr):
+            mp_pipeline._validate_predict_inputs(outcomes, estimator_type)
+
+
 class TestRun:
     """Test class for the run function of the MedpipePipeline class."""
 
