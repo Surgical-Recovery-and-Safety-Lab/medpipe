@@ -710,6 +710,73 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
                 for i in range(len(self.metrics)):
                     print_metrics(np.array([results[i]]), [self.metrics[i]])
 
+    def _validate_predict_inputs(
+        self,
+        outcomes: str | list[str],
+        estimator_type: Literal["predictor", "recalibrator"] | list[str],
+    ) -> tuple[list[str], list[str]]:
+        """
+        Validate the inputs to the predict and predict_proba functions.
+
+        Parameters
+        ----------
+        outcomes : str | list[str]
+            Label or list of labels associated with the model to use.
+            If all, all models are used.
+        estimator_type : Literal["predictor", "recalibrator"] | list[str],
+            Estimator type or list of estimator types to use.
+
+        Returns
+        -------
+        valid_outcomes : list[str]
+            Validated outcomes.
+        estimators : list[str]
+            Validated estimator types.
+
+        Raises
+        ------
+        TypeError
+            If outcomes is not a string, list of strings, or 'all'.
+            If estimator_types is not 'predictor', 'recalibrator',
+            or a list of strings.
+        ValueError
+            If outcomes and estimators are not the same length.
+
+        """
+        # Safety checks
+        if outcomes == "all":  # Get all outcomes
+            outcomes = self.outcomes
+        if isinstance(outcomes, str):
+            outcomes = [outcomes]  # Convert to list
+        if not isinstance(outcomes, list):
+            expr = (
+                "Input outcomes should be a string, 'all', or a list of strings, "
+                f"but got {type(outcomes)}"
+            )
+            raise TypeError(expr)
+
+        if estimator_type == "predictor" or estimator_type == "recalibrator":
+            # Create a list with exact same estimator type
+            estimators = [estimator_type] * len(outcomes)  # type: ignore
+        elif not isinstance(estimator_type, list):
+            expr = (
+                "Input estimator_type should be a 'predictor', 'recalibrator' "
+                f"or list of strings, but got {type(estimator_type)}"
+            )
+            raise TypeError(expr)
+        else:
+            # If already a list
+            estimators: list[str] = estimator_type
+
+        if len(outcomes) != len(estimators):
+            expr = (
+                "Inputs outcomes and estimator_type should be the same length, "
+                f"but got {len(outcomes)} and {len(estimator_type)}"
+            )
+            raise ValueError(expr)
+
+        return (outcomes, estimators)
+
     def transform(self, X: pd.DataFrame | npt.NDArray) -> pd.DataFrame | npt.NDArray:
         """
         Transforms input data based on preprocessor fitted operations.
