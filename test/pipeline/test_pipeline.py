@@ -14,6 +14,7 @@ import pandas as pd
 import pytest
 from sklearn.base import check_is_fitted
 from sklearn.compose import ColumnTransformer
+from sklearn.isotonic import IsotonicRegression
 from sklearn.model_selection import GroupKFold, StratifiedKFold
 from sklearn.pipeline import Pipeline
 
@@ -1081,3 +1082,131 @@ class TestRun:
         mp_pipeline.medpipe_config.top_level.meta.run_mode = "fast"
         mp_pipeline.medpipe_config.workflow.validation.cross_validation = None
         mp_pipeline.run()
+
+
+class TestPredictProba:
+    """Test class for the predict_proba function of
+    the MedpipePipeline class."""
+
+    def test_pipeline_predict_proba_success(
+        self, mp_pipeline: MedpipePipeline, mock_data: MockData
+    ) -> None:
+        """Test successful function call."""
+        X_train, X_test, _, _ = mp_pipeline._drop_group_columns(*mock_data)
+        y_train = np.array([[1, 1, 1, 1, 0, 0, 0]]).T
+        mp_pipeline.recalibrator = {}
+        mp_pipeline.fit(X_train, y_train)  # Fit the MedpipePipeline
+        outputs = mp_pipeline.predict_proba(X_test)
+
+        assert isinstance(outputs, list)
+
+        for output in outputs:
+            assert isinstance(output, np.ndarray)
+            assert output.shape == (len(X_test), 2)
+
+    def test_pipeline_predict_proba_success_with_recal(
+        self, mp_pipeline: MedpipePipeline, mock_data: MockData
+    ) -> None:
+        """Test successful function call with recalibrator data."""
+        X_train, X_test, X_recal, _ = mp_pipeline._drop_group_columns(*mock_data)
+        y_train = np.array([[1, 1, 1, 1, 0, 0, 0]]).T
+        y_recal = np.array([[1, 0, 0]]).T
+
+        mp_pipeline.fit(X_train, y_train, X_recal, y_recal)  # Fit the MedpipePipeline
+        outputs = mp_pipeline.predict_proba(X_test, "all", "recalibrator")
+
+        assert isinstance(outputs, list)
+
+        for output in outputs:
+            assert isinstance(output, np.ndarray)
+            assert output.shape == (len(X_test), 2)
+
+    def test_pipeline_predict_proba_with_no_recal_but_data(
+        self, mp_pipeline: MedpipePipeline, mock_data: MockData
+    ) -> None:
+        """Test case when not recalibrator but recalibrator is called."""
+        X_train, X_test, X_recal, _ = mp_pipeline._drop_group_columns(*mock_data)
+        mp_pipeline.recalibrator = {}
+        y_train = np.array([[1, 1, 1, 1, 0, 0, 0]]).T
+        y_recal = np.array([[1, 0, 0]]).T
+
+        mp_pipeline.fit(X_train, y_train, X_recal, y_recal)  # Fit the MedpipePipeline
+        with pytest.raises(ValueError, match="No recalibrator present in pipeline"):
+            mp_pipeline.predict_proba(
+                X_test, outcomes="all", estimator_type="recalibrator"
+            )
+
+    def test_pipeline_predict_proba_not_implemented(
+        self, mp_pipeline: MedpipePipeline
+    ) -> None:
+        """Test case when predict_proba is not implemented."""
+        X_train = np.array([[0.8, 0.9, 0.7, 0.4, 0.1, 0.02, 0.3]]).T
+        y_train = np.array([[1, 1, 1, 1, 0, 0, 0]]).T
+
+        mp_pipeline.preprocessor = None
+        mp_pipeline.recalibrator = {}
+
+        for outcome in mp_pipeline.predictor.keys():
+            mp_pipeline.predictor[outcome] = IsotonicRegression()
+
+        mp_pipeline.fit(X_train, y_train)  # Fit the MedpipePipeline
+
+        match_expr = (
+            "Predictor of type IsotonicRegression does not implement "
+            "the predict_proba method"
+        )
+        with pytest.raises(NotImplementedError, match=match_expr):
+            mp_pipeline.predict_proba(
+                X_train, outcomes="all", estimator_type="recalibrator"
+            )
+
+
+class TestPredict:
+    """Test class for the predict function of
+    the MedpipePipeline class."""
+
+    def test_pipeline_predict_success(
+        self, mp_pipeline: MedpipePipeline, mock_data: MockData
+    ) -> None:
+        """Test successful function call."""
+        X_train, X_test, _, _ = mp_pipeline._drop_group_columns(*mock_data)
+        y_train = np.array([[1, 1, 1, 1, 0, 0, 0]]).T
+        mp_pipeline.recalibrator = {}
+        mp_pipeline.fit(X_train, y_train)  # Fit the MedpipePipeline
+        outputs = mp_pipeline.predict(X_test)
+
+        assert isinstance(outputs, list)
+
+        for output in outputs:
+            assert isinstance(output, np.ndarray)
+            assert len(output) == len(X_test)
+
+    def test_pipeline_predict_success_with_recal(
+        self, mp_pipeline: MedpipePipeline, mock_data: MockData
+    ) -> None:
+        """Test successful function call with recalibrator data."""
+        X_train, X_test, X_recal, _ = mp_pipeline._drop_group_columns(*mock_data)
+        y_train = np.array([[1, 1, 1, 1, 0, 0, 0]]).T
+        y_recal = np.array([[1, 0, 0]]).T
+
+        mp_pipeline.fit(X_train, y_train, X_recal, y_recal)  # Fit the MedpipePipeline
+        outputs = mp_pipeline.predict(X_test, "all", "recalibrator")
+
+        assert isinstance(outputs, list)
+
+        for output in outputs:
+            assert isinstance(output, np.ndarray)
+            assert len(output) == len(X_test)
+
+    def test_pipeline_predict_with_no_recal_but_data(
+        self, mp_pipeline: MedpipePipeline, mock_data: MockData
+    ) -> None:
+        """Test case when not recalibrator but recalibrator is called."""
+        X_train, X_test, X_recal, _ = mp_pipeline._drop_group_columns(*mock_data)
+        mp_pipeline.recalibrator = {}
+        y_train = np.array([[1, 1, 1, 1, 0, 0, 0]]).T
+        y_recal = np.array([[1, 0, 0]]).T
+
+        mp_pipeline.fit(X_train, y_train, X_recal, y_recal)  # Fit the MedpipePipeline
+        with pytest.raises(ValueError, match="No recalibrator present in pipeline"):
+            mp_pipeline.predict(X_test, outcomes="all", estimator_type="recalibrator")
