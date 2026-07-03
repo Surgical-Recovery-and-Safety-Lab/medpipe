@@ -1123,14 +1123,17 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
         X: PredData,
         outcomes: str | list[str] = "all",
         estimator_type: Literal["predictor", "recalibrator"] | list[str] = "predictor",
-    ) -> npt.NDArray:
+    ) -> list[npt.NDArray]:
         """
         Predicts probabilities from predictor or recalibrator based on input data.
 
+        The function checks if a predict_proba method exist for each model.
+        The function preprocesses X if a preprocessor exists.
+
         Parameters
         ----------
-        X : Data
-            Data to use of shape (n_samples, n_features) or (n_samples,).
+        X : PredData
+            Data to use of shape (n_samples, n_features).
         outcomes : str | list[str], default: "all"
             Label or list of labels associated with the model to use.
             If all, all models are used.
@@ -1140,67 +1143,109 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
 
         Returns
         -------
-        probabilities : FullProba
-            Full predicted probabilities of shape (n_samples, 2).
+        probabilities : list[npt.NDArray]
+            List of probabilities of shape (n_samples, 2).
 
         Raises
         ------
-        TypeError
-            If outcomes is not a string or list of strings.
+        NotImplementedError
+            If no predict_proba method exists.
         ValueError
-            If the label list and the model type list are not the same length.
+            If no recalibrator is present with a recalibrator estimator.
 
         """
-        # Safety checks
-        if outcomes == "all":  # Get all outcomes
-            outcomes = self.outcomes
-        if isinstance(outcomes, str):
-            outcomes = [outcomes]  # Convert to list
-        if not isinstance(outcomes, list):
-            expr = (
-                "Input outcomes should be a string, 'all', or a list of strings, "
-                f"but got {type(outcomes)}"
-            )
-            raise TypeError(expr)
-
-        if estimator_type == "predictor" or estimator_type == "recalibrator":
-            # Create a list with exact same estimator type
-            estimator_type = [estimator_type] * len(outcomes)  # type: ignore
-        elif not isinstance(estimator_type, list):
-            expr = (
-                "Input estimator_type should be a 'predictor', 'recalibrator' "
-                f"or list of strings, but got {type(estimator_type)}"
-            )
-            raise TypeError(expr)
-
-        if len(outcomes) != len(estimator_type):
-            expr = (
-                "Inputs outcomes and estimator_type should be the same length, "
-                f"but got {len(outcomes)} and {len(estimator_type)}"
-            )
-            raise ValueError(expr)
-
+        valid_outcomes, estimators = self._validate_predict_inputs(
+            outcomes, estimator_type
+        )
         # Process data if needed
-        if self.preprocessor and check_is_fitted(self.preprocessor):
+        if self.preprocessor:
+            check_is_fitted(self.preprocessor)
             X_processed = self.preprocessor.transform(X)
         else:
             X_processed = X
 
-        for i, outcome in enumerate(outcomes):
-            check_is_fitted(self.predictor[outcome])
-            outputs = self.predictor[outcome].predict_proba(X)
+        probabilities = []
+        for i, outcome in enumerate(valid_outcomes):
+            predictor = self.predictor[outcome]
+            check_is_fitted(predictor)
+            if not hasattr(predictor, "predict_proba"):
+                expr = (
+                    f"Predictor of type {type(predictor).__name__} does not implement "
+                    "the predict_proba method"
+                )
+                raise NotImplementedError(expr)
+            outputs = predictor.predict_proba(X_processed)
+            probabilities.append(outputs)
 
-            if estimator_type[i] == "recalibrator":
+            if estimators[i] == "recalibrator":
                 if self.recalibrator:
-                    check_is_fitted(self.recalibrator[outcome])
-                    outputs = self.recalibrator[outcome].predict_proba(X)
+                    recalibrator = self.recalibrator[outcome]
+                    check_is_fitted(recalibrator)
+                    pos_proba = recalibrator.predict(outputs[:, 1])
+                    probabilities[i] = np.array([1 - pos_proba, pos_proba]).T
+
                 else:
                     raise ValueError("No recalibrator present in pipeline")
 
-            elif estimator_type:
-                expr = (
-                    "Expecting predictor or recalibrator as estimator_type,  "
-                    f"but got {estimator_type[i]}"
-                )
-                raise ValueError(expr)
-        return np.array([])
+        return probabilities
+
+    def predict(
+        self,
+        X: PredData,
+        outcomes: str | list[str] = "all",
+        estimator_type: Literal["predictor", "recalibrator"] | list[str] = "predictor",
+    ) -> list[npt.NDArray]:
+        """
+        Predicts outputs from predictor or recalibrator based on input data.
+
+        The function preprocesses X if a preprocessor exists.
+
+        Parameters
+        ----------
+        X : PredData
+            Data to use of shape (n_samples, n_features).
+        outcomes : str | list[str], default: "all"
+            Label or list of labels associated with the model to use.
+            If all, all models are used.
+        estimator_type : Literal["predictor", "recalibrator"] | list[str],
+            default: "predictor"
+            Model type or list of model types to use.
+
+        Returns
+        -------
+        outputs : list[npt.NDArray]
+            List of outputs of shape (n_samples,).
+
+        Raises
+        ------
+        ValueError
+            If no recalibrator is present with a recalibrator estimator.
+
+        """
+        valid_outcomes, estimators = self._validate_predict_inputs(
+            outcomes, estimator_type
+        )
+        # Process data if needed
+        if self.preprocessor:
+            check_is_fitted(self.preprocessor)
+            X_processed = self.preprocessor.transform(X)
+        else:
+            X_processed = X
+
+        outputs = []
+        for i, outcome in enumerate(valid_outcomes):
+            predictor = self.predictor[outcome]
+            check_is_fitted(predictor)
+            raw_outputs = predictor.predict(X_processed)
+            outputs.append(raw_outputs)
+
+            if estimators[i] == "recalibrator":
+                if self.recalibrator:
+                    recalibrator = self.recalibrator[outcome]
+                    check_is_fitted(recalibrator)
+                    outputs[i] = recalibrator.predict(raw_outputs)
+
+                else:
+                    raise ValueError("No recalibrator present in pipeline")
+
+        return outputs
