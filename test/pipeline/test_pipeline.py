@@ -12,6 +12,7 @@ import numpy as np
 import numpy.typing as npt
 import pandas as pd
 import pytest
+from pytest import MonkeyPatch
 from sklearn.base import check_is_fitted
 from sklearn.compose import ColumnTransformer
 from sklearn.isotonic import IsotonicRegression
@@ -168,6 +169,39 @@ def mock_cv_results() -> dict[str, npt.NDArray]:
         "recal_ici": np.array([0.01, 0.01, 0.00]),
     }
     return cv_results
+
+
+def _mp_pipeline(
+    monkeypatch: MonkeyPatch,
+    example_config_dir: Path,
+    top_level_config: str,
+    version: list[str],
+) -> MedpipePipeline:
+    """
+    Creates a mp_pipeline with specific version numbers.
+
+    Parameters
+    ----------
+    monkeypatch : MonkeyPatch
+        Patch for the parse_version_number function.
+    example_config_dir : Path
+        Path to the example configuration directory.
+    top_level_config : str
+        Name of the top-level file to load.
+    version : list[str]
+        List of version numbers to load subconfigurations.
+
+    Returns
+    -------
+    mp_pipeline : MedpipePipeline
+        MedpipePipeline object.
+
+    """
+    monkeypatch.setattr(  # Patch to get the desired version number
+        "medpipe.utils.io.parse_version_number", lambda v_list: version
+    )
+    config = read_toml_configuration(example_config_dir / top_level_config)
+    return MedpipePipeline(config, logger=None)
 
 
 # ==============================================================================
@@ -1043,9 +1077,24 @@ class TestValidatePredictInputs:
 class TestRun:
     """Test class for the run function of the MedpipePipeline class."""
 
-    def test_pipeline_run_success(self, mp_pipeline: MedpipePipeline) -> None:
+    @pytest.mark.parametrize(
+        "version, top_level_config",
+        [
+            ([0, 0, 0], "HGBc_no_recal_config.toml"),
+            ([0, 1, 1], "HGBc_config.toml"),
+            ([1, 2, 2], "HGBc_config.toml"),
+        ],
+    )
+    def test_pipeline_run_success(
+        self,
+        monkeypatch: MonkeyPatch,
+        example_config_dir: Path,
+        version: list[str],
+        top_level_config: str,
+    ) -> None:
         """Test successful function call."""
-        mp_pipeline.run()
+        pipe = _mp_pipeline(monkeypatch, example_config_dir, top_level_config, version)
+        pipe.run()
 
     def test_pipeline_run_success_with_data(
         self, mp_pipeline: MedpipePipeline, mock_data: MockData
