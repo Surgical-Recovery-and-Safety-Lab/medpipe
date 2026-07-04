@@ -1042,6 +1042,7 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
 
             for i, outcome in enumerate(self.outcomes):
                 # Perform cross-validation for each outcome and fit model
+                recal_labels = y_recal[:, i] if y_recal is not None else None
                 cv_results = self._cv_fit(
                     X_train,
                     y_train[:, i],
@@ -1049,7 +1050,7 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
                     cv_generator,
                     groups=groups,
                     X_recal=X_recal,
-                    y_recal=y_recal[:, i],  # type: ignore
+                    y_recal=recal_labels,
                 )
 
                 self._print_fold_metrics(cv_results, outcome)
