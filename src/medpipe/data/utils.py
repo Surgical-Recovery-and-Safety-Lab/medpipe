@@ -7,6 +7,7 @@ Functions:
 - get_split_idx: Returns the indices for the data splits.
 - split_data: Split data into train and test or train and recalibration sets.
 - extract_labels: Extracts prediction labels from data.
+- convert_to_categoricals: Converts data types to category in a pd.DataFrame.
 """
 
 from __future__ import annotations
@@ -228,8 +229,8 @@ def extract_labels(
 
 def convert_to_categoricals(X: pd.DataFrame) -> pd.DataFrame:
     """
-    Converts data types to category to avoid errors when
-    cross-validate is called.
+    Converts data types to category in a pd.DataFrame
+    to avoid errors when cross-validate is called.
 
     Parameters
     ----------
