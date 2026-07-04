@@ -224,3 +224,33 @@ def extract_labels(
     y = data[labels].to_numpy()
 
     return X, y
+
+
+def convert_to_categoricals(X: pd.DataFrame) -> pd.DataFrame:
+    """
+    Converts data types to category to avoid errors when
+    cross-validate is called.
+
+    Parameters
+    ----------
+    X : pd.DataFrame
+        Data to convert.
+
+    Returns
+    -------
+    X_converted  : pd.DataFrame
+        Data with converted dtypes.
+
+    Raises
+    ------
+    TypeError
+        If X is not a pd.DataFrame.
+
+    """
+    if not isinstance(X, pd.DataFrame):
+        raise TypeError(f"Input X should be a pd.DataFrame, but got {type(X)}")
+    obj_cols = X.select_dtypes(include=["object"]).columns
+    for col in obj_cols:
+        X[col] = X[col].astype("category")
+
+    return X
