@@ -14,7 +14,12 @@ import pytest
 from pandas.testing import assert_frame_equal
 
 from medpipe._types import Labels
-from medpipe.data.utils import extract_labels, get_split_idx, split_data
+from medpipe.data.utils import (
+    convert_to_categoricals,
+    extract_labels,
+    get_split_idx,
+    split_data,
+)
 
 
 class TestExtractLabels:
@@ -296,3 +301,36 @@ class TestSplitData:
             ValueError, match="strategy should be random or group, but got invalid"
         ):
             split_data(pd.DataFrame({}), np.array([]), "invalid")  # type: ignore
+
+
+class TestConvertToCategoricals:
+    """Test class for the convert_to_categoricals function."""
+
+    @pytest.mark.parametrize(
+        "X, dtypes",
+        [
+            ({"col1": ["a", "b"]}, [pd.CategoricalDtype()]),
+            ({"col1": [1, 2]}, [pd.Int64Dtype()]),
+            (
+                {"col1": [1, 2], "col2": ["1", "2"]},
+                [pd.Int64Dtype(), pd.CategoricalDtype()],
+            ),
+        ],
+    )
+    def test_convert_to_categoricals_success(
+        self,
+        X: dict[str, list[int | str]],
+        dtypes: list[pd.CategoricalDtype | pd.Int64Dtype],
+    ) -> None:
+        """Test successful function call."""
+        df = convert_to_categoricals(pd.DataFrame(X))
+
+        for i, key in enumerate(X.keys()):
+            assert df[key].dtype.type == dtypes[i].type
+
+    @pytest.mark.parametrize("X", [3.14, 42, "llama", [], (), {}])
+    def test_convert_to_categoricals_incorrect_type(self, X: Any) -> None:
+        """Test case when X is not a pd.DataFrame."""
+        match_expr = f"Input X should be a pd.DataFrame, but got {type(X)}"
+        with pytest.raises(TypeError, match=match_expr):
+            convert_to_categoricals(X)
