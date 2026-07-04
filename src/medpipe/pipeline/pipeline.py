@@ -847,9 +847,12 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
                 X_train = self.fit_transform(X)
         else:
             X_train = X
+            if isinstance(X_train, pd.DataFrame):
+                X_train = convert_to_categoricals(X_train)
 
         for i, outcome in enumerate(self.outcomes):
-            self.predictor[outcome].fit(X_train, y[:, i])
+            labels = y[:, i] if len(y.shape) == 2 else y
+            self.predictor[outcome].fit(X_train, labels)
 
             if self.recalibrator:
                 # Fit the recalibrators if specified
