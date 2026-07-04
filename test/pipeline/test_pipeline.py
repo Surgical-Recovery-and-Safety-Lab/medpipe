@@ -1137,14 +1137,32 @@ class TestPredictProba:
     """Test class for the predict_proba function of
     the MedpipePipeline class."""
 
+    @pytest.mark.parametrize(
+        "version, top_level_config",
+        [
+            ([0, 1, 1], "HGBc_config.toml"),
+            ([1, 2, 2], "HGBc_config.toml"),
+        ],
+    )
     def test_pipeline_predict_proba_success(
-        self, mp_pipeline: MedpipePipeline, mock_data: MockData
+        self,
+        monkeypatch: MonkeyPatch,
+        mock_data: MockData,
+        example_config_dir: Path,
+        version: list[str],
+        top_level_config: str,
     ) -> None:
         """Test successful function call."""
-        X_train, X_test, _, _ = mp_pipeline._drop_group_columns(*mock_data)
-        y_train = np.array([[1, 1, 1, 1, 0, 0, 0]]).T
-        mp_pipeline.recalibrator = {}
-        mp_pipeline.fit(X_train, y_train)  # Fit the MedpipePipeline
+        mp_pipeline = _mp_pipeline(
+            monkeypatch, example_config_dir, top_level_config, version
+        )
+        X_train, X_test, X_recal, _ = mp_pipeline._drop_group_columns(*mock_data)
+        y_train: npt.NDArray = np.zeros((len(X_train), mp_pipeline.n_outcomes))
+        y_train[1, :] = 1  # Make at least one example positive
+        y_recal: npt.NDArray = np.zeros((3, mp_pipeline.n_outcomes))
+        y_recal[0, :] = 1
+
+        mp_pipeline.fit(X_train, y_train, X_recal, y_recal)  # Fit the MedpipePipeline
         outputs = mp_pipeline.predict_proba(X_test)
 
         assert isinstance(outputs, list)
@@ -1214,14 +1232,32 @@ class TestPredict:
     """Test class for the predict function of
     the MedpipePipeline class."""
 
+    @pytest.mark.parametrize(
+        "version, top_level_config",
+        [
+            ([0, 1, 1], "HGBc_config.toml"),
+            ([1, 2, 2], "HGBc_config.toml"),
+        ],
+    )
     def test_pipeline_predict_success(
-        self, mp_pipeline: MedpipePipeline, mock_data: MockData
+        self,
+        monkeypatch: MonkeyPatch,
+        mock_data: MockData,
+        example_config_dir: Path,
+        version: list[str],
+        top_level_config: str,
     ) -> None:
         """Test successful function call."""
-        X_train, X_test, _, _ = mp_pipeline._drop_group_columns(*mock_data)
-        y_train = np.array([[1, 1, 1, 1, 0, 0, 0]]).T
-        mp_pipeline.recalibrator = {}
-        mp_pipeline.fit(X_train, y_train)  # Fit the MedpipePipeline
+        mp_pipeline = _mp_pipeline(
+            monkeypatch, example_config_dir, top_level_config, version
+        )
+        X_train, X_test, X_recal, _ = mp_pipeline._drop_group_columns(*mock_data)
+        y_train: npt.NDArray = np.zeros((len(X_train), mp_pipeline.n_outcomes))
+        y_train[1, :] = 1  # Make at least one example positive
+        y_recal: npt.NDArray = np.zeros((3, mp_pipeline.n_outcomes))
+        y_recal[0, :] = 1
+
+        mp_pipeline.fit(X_train, y_train, X_recal, y_recal)  # Fit the MedpipePipeline
         outputs = mp_pipeline.predict(X_test)
 
         assert isinstance(outputs, list)
