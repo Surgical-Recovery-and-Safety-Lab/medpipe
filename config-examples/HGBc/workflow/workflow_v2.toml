@@ -14,7 +14,11 @@ operations = [
 [validation]
 [validation.test_split]  # Test / train splitting variables
 strategy = "random"  # Can be random, group or none
-test_size = 0.2  # Size of the test set if not using group
+test_size = 0.1  # Size of the test set if not using group
+
+[validation.recalibration_split]  # Recalibration data splitting variables
+strategy = "random"  # Can be random, group, or none
+recalibration_size = 0.1
 
 [validation.cross_validation]  # Cross-validation variables
 strategy = "random"  # Can be random, group, or none
