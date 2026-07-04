@@ -25,7 +25,7 @@ from sklearn.pipeline import Pipeline
 from sklearn.utils.validation import check_is_fitted
 
 from medpipe._types import Labels, PredData
-from medpipe.data.utils import extract_labels, split_data
+from medpipe.data.utils import convert_to_categoricals, extract_labels, split_data
 from medpipe.metrics.core import build_scorers, compute_metrics, print_metrics
 from medpipe.models.core import create_estimator
 from medpipe.utils.config import MedpipeConfig
@@ -955,7 +955,10 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
             X_train, X_test, X_recal
         )
 
-        X_train, X_test, X_recal = self._convert_dtypes(X_train, X_test, X_recal)
+        X_train = convert_to_categoricals(X_train)
+        X_test = convert_to_categoricals(X_test)
+        if X_recal is not None:
+            X_recal = convert_to_categoricals(X_recal)
 
         return (
             X_train,
