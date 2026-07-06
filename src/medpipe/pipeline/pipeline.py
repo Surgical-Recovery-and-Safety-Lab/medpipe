@@ -299,8 +299,8 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
     def _drop_group_columns(
         self,
         X_train: pd.DataFrame,
-        X_test: pd.DataFrame | None,
-        X_recal: pd.DataFrame | None,
+        X_test: pd.DataFrame | None = None,
+        X_recal: pd.DataFrame | None = None,
     ) -> tuple[
         pd.DataFrame, pd.DataFrame | None, pd.DataFrame | None, npt.NDArray | None
     ]:
@@ -311,7 +311,7 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
         ----------
         X_train : pd.DataFrame
             Train data.
-        X_recal : pd.DataFrame | None
+        X_recal, X_test : pd.DataFrame | None, default: None
             Recalibration and test data if needed, None otherwise.
 
         Returns
