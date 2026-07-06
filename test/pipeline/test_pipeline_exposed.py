@@ -112,6 +112,72 @@ class TestFitTransform:
         assert_frame_equal(X_unprocessed, X_test)
 
 
+class TestFit:
+    """Test class for the fit function of the MedpipePipeline class."""
+
+    @pytest.mark.parametrize(
+        "version, top_level_config",
+        [
+            (["0", "0", "0"], "HGBc_no_recal_config.toml"),
+            (["0", "2", "2"], "HGBc_no_recal_config.toml"),
+        ],
+    )
+    def test_pipeline_fit_success_no_recal(
+        self,
+        monkeypatch: MonkeyPatch,
+        example_config_dir: Path,
+        mock_data: MockData,
+        mock_labels: MockLabels,
+        version: list[str],
+        top_level_config: str,
+    ) -> None:
+        """Test successful function call without recalibration."""
+        X_train, _, _ = mock_data
+        y_train, _, _ = mock_labels
+        pipe = _mp_pipeline(monkeypatch, example_config_dir, top_level_config, version)
+        pipe.fit(X_train, y_train)
+
+    @pytest.mark.parametrize(
+        "version, top_level_config",
+        [
+            (["0", "2", "1"], "HGBc_config.toml"),
+            (["0", "2", "2"], "HGBc_config.toml"),
+        ],
+    )
+    def test_pipeline_fit_success_with_recal(
+        self,
+        monkeypatch: MonkeyPatch,
+        example_config_dir: Path,
+        mock_data: MockData,
+        mock_labels: MockLabels,
+        version: list[str],
+        top_level_config: str,
+    ) -> None:
+        """Test successful function call with recalibration."""
+        X_train, X_recal, _ = mock_data
+        y_train, y_recal, _ = mock_labels
+        pipe = _mp_pipeline(monkeypatch, example_config_dir, top_level_config, version)
+        pipe.fit(X_train, y_train, X_recal, y_recal)
+
+    @pytest.mark.parametrize("X", [3.14, 42, "llama", [], {}, ()])
+    def test_pipeline_fit_incorrect_X(
+        self, X: Any, mp_pipeline: MedpipePipeline
+    ) -> None:
+        """Test case when X is of incorrect type."""
+        match_expr = f"Input X should be pd.DataFrame, but got {type(X)}"
+        with pytest.raises(TypeError, match=match_expr):
+            mp_pipeline.fit(X, np.array([]))
+
+    @pytest.mark.parametrize("X_recal", [3.14, 42, "llama", [], {}, ()])
+    def test_pipeline_fit_incorrect_X_recal(
+        self, X_recal: Any, mp_pipeline: MedpipePipeline
+    ) -> None:
+        """Test case when X_recal is of incorrect type."""
+        match_expr = f"Input X_recal should be pd.DataFrame, but got {type(X_recal)}"
+        with pytest.raises(TypeError, match=match_expr):
+            mp_pipeline.fit(pd.DataFrame({}), np.array([]), X_recal, np.array([]))
+
+
 class TestRun:
     """Test class for the run function of the MedpipePipeline class."""
 
@@ -178,8 +244,8 @@ class TestPredictProba:
     @pytest.mark.parametrize(
         "version, top_level_config",
         [
-            ([0, 1, 1], "HGBc_config.toml"),
-            ([1, 2, 2], "HGBc_config.toml"),
+            (["0", "1", "1"], "HGBc_config.toml"),
+            (["1", "2", "2"], "HGBc_config.toml"),
         ],
     )
     def test_pipeline_predict_proba_success(
@@ -272,8 +338,8 @@ class TestPredict:
     @pytest.mark.parametrize(
         "version, top_level_config",
         [
-            ([0, 1, 1], "HGBc_config.toml"),
-            ([1, 2, 2], "HGBc_config.toml"),
+            (["0", "1", "1"], "HGBc_config.toml"),
+            (["1", "2", "2"], "HGBc_config.toml"),
         ],
     )
     def test_pipeline_predict_success(
