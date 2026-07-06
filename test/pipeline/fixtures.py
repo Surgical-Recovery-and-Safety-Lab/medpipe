@@ -24,6 +24,7 @@ from medpipe.utils.io import read_toml_configuration
 # ==============================================================================
 
 MockData: TypeAlias = tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]
+MockLabels: TypeAlias = tuple[npt.NDArray, npt.NDArray, npt.NDArray]
 DataPrep: TypeAlias = tuple[
     PredData,
     Labels,
@@ -134,6 +135,22 @@ def mock_data() -> MockData:
         }
     )
     return (X_train, X_test, X_recal)
+
+
+@pytest.fixture
+def mock_labels(mp_pipeline: MedpipePipeline, mock_data: MockData) -> MockLabels:
+    """Generate some mock data for the some tests."""
+    X_train, X_test, X_recal = mock_data
+    y_train: npt.NDArray = np.zeros((len(X_train), mp_pipeline.n_outcomes))
+    y_test: npt.NDArray = np.zeros((len(X_test), mp_pipeline.n_outcomes))
+    y_recal: npt.NDArray = np.zeros((len(X_recal), mp_pipeline.n_outcomes))
+
+    # Make at least one example positive
+    y_test[0, :] = 1
+    y_train[0, :] = 1
+    y_recal[0, :] = 1
+
+    return (y_train, y_test, y_recal)
 
 
 @pytest.fixture
