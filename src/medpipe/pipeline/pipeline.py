@@ -822,24 +822,25 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
 
     def fit(
         self,
-        X: PredData,
+        X: pd.DataFrame,
         y: Labels,
-        X_recal: PredData | None = None,
+        X_recal: pd.DataFrame | None = None,
         y_recal: Labels | None = None,
     ) -> None:
         """
         Fit the MedpipePipeline estimators.
 
-        X is transformed if there is a preprocessor object.
+        X and X_recal are transformed if there is a
+        preprocessor object.
         X_recal is first passed through the predictor object.
 
         Parameters
         ----------
-        X : PredData
+        X : pd.DataFrame
             Data to fit on of shape (n_samples, n_features).
         y : Labels
             Ground truth labels of shape (n_samples,).
-        X_recal : PredData | None
+        X_recal : pd.DataFrame | None
             Data to train the recalibrator
             of shape (n_samples, n_features) or None.
         y_recal : Labels | None
@@ -853,20 +854,34 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
 
         Raises
         ------
+        TypeError
+            If X is not a pd.DataFrame.
+            If X_recal is not a pd.DataFrame or None.
         ValueError
             If no recalibration data is specified with a recalibrator.
 
         """
+        if not isinstance(X, pd.DataFrame):
+            expr = f"Input X should be pd.DataFrame, but got {type(X)}"
+            raise TypeError(expr)
+        if X_recal is not None and not isinstance(X_recal, pd.DataFrame):
+            expr = f"Input X_recal should be pd.DataFrame, but got {type(X_recal)}"
+            raise TypeError(expr)
+
+        X_train = X
         if self.preprocessor:
             try:  # Transform or fit and transform training data
                 check_is_fitted(self.preprocessor)
                 X_train = self.transform(X)
             except NotFittedError:
                 X_train = self.fit_transform(X)
-        else:
-            X_train = X
-            if isinstance(X_train, pd.DataFrame):
-                X_train = convert_to_categoricals(X_train)
+
+        if isinstance(X_train, pd.DataFrame):
+            X_train, _, X_recal, _ = self._drop_group_columns(X_train, None, X_recal)
+            X_train = convert_to_categoricals(X_train)
+
+            if X_recal is not None:
+                X_recal = convert_to_categoricals(X_recal)
 
         for i, outcome in enumerate(self.outcomes):
             if len(y.shape) == 2 and y.shape[1] > 1:
@@ -881,8 +896,13 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
                     raise ValueError(
                         f"Cannot fit {outcome} recalibrator without recalibration data"
                     )
-                X_recal = self.transform(X_recal) if self.preprocessor else X_recal
-                raw_outputs = self.predictor[outcome].predict_proba(X_recal)
+
+                X_recal_preprocessed = (
+                    self.transform(X_recal) if self.preprocessor else X_recal
+                )
+                raw_outputs = self.predictor[outcome].predict_proba(
+                    X_recal_preprocessed
+                )
                 self.recalibrator[outcome].fit(raw_outputs[:, 1], y_recal[:, i])
 
     def get_data_sets(self, data: pd.DataFrame) -> tuple[
