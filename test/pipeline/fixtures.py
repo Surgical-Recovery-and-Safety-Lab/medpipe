@@ -213,4 +213,5 @@ def _mp_pipeline(
         "medpipe.utils.io.parse_version_number", lambda v_list: version
     )
     config = read_toml_configuration(example_config_dir / top_level_config)
+    config.top_level.meta.version = "v" + ".".join(version)
     return MedpipePipeline(config, logger=None)
