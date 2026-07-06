@@ -13,9 +13,11 @@ import pandas as pd
 import pytest
 from fixtures import (
     MockData,
+    MockLabels,
     _mp_pipeline,
     example_config_dir,
     mock_data,
+    mock_labels,
     mp_pipeline,
     shield_local_filesystem,
 )
@@ -208,12 +210,11 @@ class TestPredictProba:
             assert output.shape == (len(X_test), 2)
 
     def test_pipeline_predict_proba_success_with_recal(
-        self, mp_pipeline: MedpipePipeline, mock_data: MockData
+        self, mp_pipeline: MedpipePipeline, mock_data: MockData, mock_labels: MockLabels
     ) -> None:
         """Test successful function call with recalibrator data."""
         X_train, X_test, X_recal, _ = mp_pipeline._drop_group_columns(*mock_data)
-        y_train = np.array([[1, 1, 1, 1, 0, 0, 0]]).T
-        y_recal = np.array([[1, 0, 0]]).T
+        y_train, y_recal, _ = mock_labels
 
         mp_pipeline.fit(X_train, y_train, X_recal, y_recal)  # Fit the MedpipePipeline
         outputs = mp_pipeline.predict_proba(X_test, "all", "recalibrator")
@@ -225,13 +226,12 @@ class TestPredictProba:
             assert output.shape == (len(X_test), 2)
 
     def test_pipeline_predict_proba_with_no_recal_but_data(
-        self, mp_pipeline: MedpipePipeline, mock_data: MockData
+        self, mp_pipeline: MedpipePipeline, mock_data: MockData, mock_labels: MockLabels
     ) -> None:
         """Test case when not recalibrator but recalibrator is called."""
         X_train, X_test, X_recal, _ = mp_pipeline._drop_group_columns(*mock_data)
+        y_train, y_recal, _ = mock_labels
         mp_pipeline.recalibrator = {}
-        y_train = np.array([[1, 1, 1, 1, 0, 0, 0]]).T
-        y_recal = np.array([[1, 0, 0]]).T
 
         mp_pipeline.fit(X_train, y_train, X_recal, y_recal)  # Fit the MedpipePipeline
         with pytest.raises(ValueError, match="No recalibrator present in pipeline"):
@@ -303,12 +303,11 @@ class TestPredict:
             assert len(output) == len(X_test)
 
     def test_pipeline_predict_success_with_recal(
-        self, mp_pipeline: MedpipePipeline, mock_data: MockData
+        self, mp_pipeline: MedpipePipeline, mock_data: MockData, mock_labels: MockLabels
     ) -> None:
         """Test successful function call with recalibrator data."""
         X_train, X_test, X_recal, _ = mp_pipeline._drop_group_columns(*mock_data)
-        y_train = np.array([[1, 1, 1, 1, 0, 0, 0]]).T
-        y_recal = np.array([[1, 0, 0]]).T
+        y_train, y_recal, _ = mock_labels
 
         mp_pipeline.fit(X_train, y_train, X_recal, y_recal)  # Fit the MedpipePipeline
         outputs = mp_pipeline.predict(X_test, "all", "recalibrator")
