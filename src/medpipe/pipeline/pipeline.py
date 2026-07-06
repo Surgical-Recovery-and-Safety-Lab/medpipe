@@ -769,8 +769,8 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
         if self.preprocessor:
             check_is_fitted(self.preprocessor)
             return self.preprocessor.transform(X)
-        else:
-            warn("No preprocessor object created so data not transformed")
+
+        warn("No preprocessor object created so data not transformed")
         return X
 
     def fit_transform(
@@ -799,9 +799,9 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
         """
         if self.preprocessor:
             return self.preprocessor.fit_transform(X)
-        else:
-            warn("No preprocessor object created so data not transformed")
-            return X
+
+        warn("No preprocessor object created so data not transformed")
+        return X
 
     def fit(
         self,
