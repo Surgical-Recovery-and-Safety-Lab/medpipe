@@ -297,24 +297,29 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
         return False
 
     def _drop_group_columns(
-        self, X_train: pd.DataFrame, X_test: pd.DataFrame, X_recal: pd.DataFrame | None
-    ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame | None, npt.NDArray | None]:
+        self,
+        X_train: pd.DataFrame,
+        X_test: pd.DataFrame | None,
+        X_recal: pd.DataFrame | None,
+    ) -> tuple[
+        pd.DataFrame, pd.DataFrame | None, pd.DataFrame | None, npt.NDArray | None
+    ]:
         """
         Drops the different group columns if needed.
 
         Parameters
         ----------
-        X_train, X_test : pd.DataFrame
-            Train and test data.
+        X_train : pd.DataFrame
+            Train data.
         X_recal : pd.DataFrame | None
-            Recalibration data if needed in the pipeline, None otherwise.
+            Recalibration and test data if needed, None otherwise.
 
         Returns
         -------
-        X_train_dropped, X_test_dropped : pd.DataFrame
-            Train and test data without the group columns.
-        X_recal_dropped : pd.DataFrame | None
-            Recalibration data without the group columns or None.
+        X_train_dropped : pd.DataFrame
+            Train data without the group columns.
+        X_recal_dropped, X_test_dropped : pd.DataFrame | None
+            Recalibration and test data without the group columns or None.
         groups : npt.NDArray | None
             Train set group column for cross-validation, None if not
             specified.
@@ -336,7 +341,11 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
                 # If a cross-validation group column is specified drop it
                 groups = X_train[cross_val_grp_col].to_numpy()
                 X_train = X_train.drop(cross_val_grp_col, axis=1)
-                X_test = X_test.drop(cross_val_grp_col, axis=1)
+                X_test = (
+                    X_test.drop(cross_val_grp_col, axis=1)
+                    if X_test is not None
+                    else X_test
+                )
                 X_recal = (
                     X_recal.drop(cross_val_grp_col, axis=1)
                     if X_recal is not None
@@ -350,7 +359,11 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
             ):
                 # If cross-validation and test group columns are different
                 X_train = X_train.drop(test_split_grp_col, axis=1)
-                X_test = X_test.drop(test_split_grp_col, axis=1)
+                X_test = (
+                    X_test.drop(test_split_grp_col, axis=1)
+                    if X_test is not None
+                    else X_test
+                )
                 X_recal = (
                     X_recal.drop(test_split_grp_col, axis=1)
                     if X_recal is not None
@@ -366,7 +379,11 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
         if test_split_config.strategy == "group" and test_split_grp_col:
             # If a test split group column is specified drop it
             X_train = X_train.drop(test_split_grp_col, axis=1)
-            X_test = X_test.drop(test_split_grp_col, axis=1)
+            X_test = (
+                X_test.drop(test_split_grp_col, axis=1)
+                if X_test is not None
+                else X_test
+            )
             X_recal = (
                 X_recal.drop(test_split_grp_col, axis=1)
                 if X_recal is not None
@@ -961,6 +978,8 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
         X_train, X_test, X_recal, groups = self._drop_group_columns(
             X_train, X_test, X_recal
         )
+
+        assert X_test is not None  # Add check just in case
 
         X_train = convert_to_categoricals(X_train)
         X_test = convert_to_categoricals(X_test)
