@@ -19,14 +19,57 @@ from fixtures import (
     mp_pipeline,
     shield_local_filesystem,
 )
+from pandas.testing import assert_frame_equal
 from pytest import MonkeyPatch
 from sklearn.isotonic import IsotonicRegression
+from sklearn.pipeline import NotFittedError
 
 from medpipe.pipeline.pipeline import MedpipePipeline
 
 # ==============================================================================
 # Test classes for exposed functions
 # ==============================================================================
+
+
+class TestTransform:
+    """Test class for the transform function of the MedpipePipeline class."""
+
+    def test_pipeline_transform_success(
+        self, mp_pipeline: MedpipePipeline, mock_data: MockData
+    ) -> None:
+        """Test successful function call."""
+        X_train, X_test, _ = mock_data
+        mp_pipeline.fit_transform(X_train)  # Fit the preprocessor
+        X_transformed = mp_pipeline.transform(X_test)
+
+        assert X_transformed.shape == X_test.shape
+        assert isinstance(X_transformed, np.ndarray)
+
+    def test_pipeline_transform_not_fitted(self, mp_pipeline: MedpipePipeline) -> None:
+        """Test case when preprocessor has not been fitted."""
+        with pytest.raises(NotFittedError):
+            mp_pipeline.transform(pd.DataFrame({}))
+
+    def test_pipeline_transform_warning(
+        self, mp_pipeline: MedpipePipeline, mock_data: MockData
+    ) -> None:
+        """Test case when function raises a UserWarning."""
+        _, X_test, _ = mock_data
+        mp_pipeline.preprocessor = None  # Set preprocessor to None
+        match_expr = "No preprocessor object created so data not transformed"
+        with pytest.warns(UserWarning, match=match_expr):
+            mp_pipeline.transform(X_test)
+
+    @pytest.mark.filterwarnings("ignore")
+    def test_pipeline_transform_no_transformation(
+        self, mp_pipeline: MedpipePipeline, mock_data: MockData
+    ) -> None:
+        """Test case when data has not been transformed."""
+        _, X_test, _ = mock_data
+        mp_pipeline.preprocessor = None  # Set preprocessor to None
+        X_unprocessed = mp_pipeline.transform(X_test)
+
+        assert_frame_equal(X_unprocessed, X_test)
 
 
 class TestRun:
