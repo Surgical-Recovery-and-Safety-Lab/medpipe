@@ -317,6 +317,7 @@ class TestDropGroupColumns:
         ]
         # Check everything is correct
         assert (X_train.columns == column_list).all()
+        assert X_test is not None
         assert (X_test.columns == column_list).all()
         assert X_recal is not None
         assert (X_recal.columns == column_list).all()
@@ -349,6 +350,7 @@ class TestDropGroupColumns:
         ]
         # Check everything is correct
         assert (X_train.columns == column_list).all()
+        assert X_test is not None
         assert (X_test.columns == column_list).all()
         assert X_recal is not None
         assert (X_recal.columns == column_list).all()
@@ -378,7 +380,33 @@ class TestDropGroupColumns:
         ]
         assert X_recal is None
         assert (X_train.columns == column_list).all()
+        assert X_test is not None
         assert (X_test.columns == column_list).all()
+
+    def test_pipeline_drop_group_columns_no_test(
+        self,
+        mp_pipeline: MedpipePipeline,
+        mock_data: MockData,
+    ) -> None:
+        """Test case when X_test is None."""
+        # Get mock data and drop columns
+        X_train, _, _ = mock_data
+        X_train, X_test, X_recal, _ = mp_pipeline._drop_group_columns(
+            X_train, None, None
+        )
+
+        column_list = [
+            "SEX",
+            "AGE",
+            "PRIOR_CANCER",
+            "ADMISSION_ACUITY",
+            "ADMISSION_SOURCE",
+            "CATEGORY_LEVEL_1",
+            "OP_SEVERITY",
+        ]
+        assert (X_train.columns == column_list).all()
+        assert X_test is None
+        assert X_recal is None
 
     def test_pipeline_drop_group_columns_no_cv_groups(
         self,
@@ -410,6 +438,7 @@ class TestDropGroupColumns:
 
         assert groups is None
         assert (X_train.columns == column_list).all()
+        assert X_test is not None
         assert (X_test.columns == column_list).all()
         assert X_recal is not None
         assert (X_recal.columns == column_list).all()
@@ -443,6 +472,7 @@ class TestDropGroupColumns:
 
         assert groups is not None
         assert (X_train.columns == column_list).all()
+        assert X_test is not None
         assert (X_test.columns == column_list).all()
         assert X_recal is not None
         assert (X_recal.columns == column_list).all()
@@ -481,6 +511,7 @@ class TestDropGroupColumns:
 
         assert groups is None
         assert (X_train.columns == column_list).all()
+        assert X_test is not None
         assert (X_test.columns == column_list).all()
         assert X_recal is not None
         assert (X_recal.columns == column_list).all()

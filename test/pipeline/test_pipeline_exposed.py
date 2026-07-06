@@ -186,6 +186,7 @@ class TestPredictProba:
         self,
         monkeypatch: MonkeyPatch,
         mock_data: MockData,
+        mock_labels: MockLabels,
         example_config_dir: Path,
         version: list[str],
         top_level_config: str,
@@ -195,11 +196,9 @@ class TestPredictProba:
             monkeypatch, example_config_dir, top_level_config, version
         )
         X_train, X_test, X_recal, _ = mp_pipeline._drop_group_columns(*mock_data)
-        y_train: npt.NDArray = np.zeros((len(X_train), mp_pipeline.n_outcomes))
-        y_train[1, :] = 1  # Make at least one example positive
-        y_recal: npt.NDArray = np.zeros((3, mp_pipeline.n_outcomes))
-        y_recal[0, :] = 1
+        y_train, _, y_recal = mock_labels
 
+        assert X_test is not None
         mp_pipeline.fit(X_train, y_train, X_recal, y_recal)  # Fit the MedpipePipeline
         outputs = mp_pipeline.predict_proba(X_test)
 
@@ -214,8 +213,9 @@ class TestPredictProba:
     ) -> None:
         """Test successful function call with recalibrator data."""
         X_train, X_test, X_recal, _ = mp_pipeline._drop_group_columns(*mock_data)
-        y_train, y_recal, _ = mock_labels
+        y_train, _, y_recal = mock_labels
 
+        assert X_test is not None
         mp_pipeline.fit(X_train, y_train, X_recal, y_recal)  # Fit the MedpipePipeline
         outputs = mp_pipeline.predict_proba(X_test, "all", "recalibrator")
 
@@ -230,9 +230,10 @@ class TestPredictProba:
     ) -> None:
         """Test case when not recalibrator but recalibrator is called."""
         X_train, X_test, X_recal, _ = mp_pipeline._drop_group_columns(*mock_data)
-        y_train, y_recal, _ = mock_labels
-        mp_pipeline.recalibrator = {}
+        y_train, _, y_recal = mock_labels
+        assert X_test is not None
 
+        mp_pipeline.recalibrator = {}
         mp_pipeline.fit(X_train, y_train, X_recal, y_recal)  # Fit the MedpipePipeline
         with pytest.raises(ValueError, match="No recalibrator present in pipeline"):
             mp_pipeline.predict_proba(
@@ -293,6 +294,7 @@ class TestPredict:
         y_recal: npt.NDArray = np.zeros((3, mp_pipeline.n_outcomes))
         y_recal[0, :] = 1
 
+        assert X_test is not None
         mp_pipeline.fit(X_train, y_train, X_recal, y_recal)  # Fit the MedpipePipeline
         outputs = mp_pipeline.predict(X_test)
 
@@ -307,8 +309,9 @@ class TestPredict:
     ) -> None:
         """Test successful function call with recalibrator data."""
         X_train, X_test, X_recal, _ = mp_pipeline._drop_group_columns(*mock_data)
-        y_train, y_recal, _ = mock_labels
+        y_train, _, y_recal = mock_labels
 
+        assert X_test is not None
         mp_pipeline.fit(X_train, y_train, X_recal, y_recal)  # Fit the MedpipePipeline
         outputs = mp_pipeline.predict(X_test, "all", "recalibrator")
 
@@ -323,6 +326,8 @@ class TestPredict:
     ) -> None:
         """Test case when not recalibrator but recalibrator is called."""
         X_train, X_test, X_recal, _ = mp_pipeline._drop_group_columns(*mock_data)
+        assert X_test is not None
+
         mp_pipeline.recalibrator = {}
         y_train = np.array([[1, 1, 1, 1, 0, 0, 0]]).T
         y_recal = np.array([[1, 0, 0]]).T
