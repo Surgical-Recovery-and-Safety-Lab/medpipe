@@ -15,7 +15,7 @@ import pytest
 from pytest import MonkeyPatch
 from sklearn.model_selection import GroupKFold, StratifiedKFold
 
-from medpipe._types import Labels, PredData
+from medpipe._types import Labels, TransformedData
 from medpipe.pipeline.pipeline import MedpipePipeline
 from medpipe.utils.io import read_toml_configuration
 
@@ -26,9 +26,9 @@ from medpipe.utils.io import read_toml_configuration
 MockData: TypeAlias = tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]
 MockLabels: TypeAlias = tuple[npt.NDArray, npt.NDArray, npt.NDArray]
 DataPrep: TypeAlias = tuple[
-    PredData,
+    TransformedData,
     Labels,
-    PredData | None,
+    TransformedData | None,
     Labels | None,
     npt.NDArray | None,
     StratifiedKFold | GroupKFold,
