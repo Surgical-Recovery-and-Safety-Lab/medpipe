@@ -662,7 +662,7 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
         return results
 
     def _prepare_data(
-        self, X: pd.DataFrame, X_recal: pd.DataFrame | None
+        self, X: pd.DataFrame, X_recal: pd.DataFrame | None = None
     ) -> tuple[TransformedData, TransformedData | None]:
         """
         Prepares data for the functions outside the cross-validate loop.
@@ -675,7 +675,7 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
         ----------
         X : pd.DataFrame
             Main data to use of shape (n_samples, n_features).
-        X_recal : pd.DataFrame | None
+        X_recal : pd.DataFrame | None, default: None
             Data for the recalibrator of shape
             (n_samples, n_features) or None.
 
