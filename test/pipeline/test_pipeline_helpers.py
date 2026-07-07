@@ -204,7 +204,7 @@ class TestGetDataSets:
     """Test class for the get_data_sets function of the
     MedpipePipeline class."""
 
-    def test_pipelineget_data_sets_success(self, mp_pipeline: MedpipePipeline) -> None:
+    def test_pipeline_get_data_sets_success(self, mp_pipeline: MedpipePipeline) -> None:
         """Test successful function call."""
         mock_data = load_data(mp_pipeline.medpipe_config.data.path)
 
@@ -234,7 +234,9 @@ class TestGetDataSets:
             assert groups is not None
             assert len(groups) == len(X_train)
 
-    def test_pipelineget_data_sets_no_recal(self, mp_pipeline: MedpipePipeline) -> None:
+    def test_pipeline_get_data_sets_no_recal(
+        self, mp_pipeline: MedpipePipeline
+    ) -> None:
         """Test case when there is no recalibration."""
         mock_data = load_data(mp_pipeline.medpipe_config.data.path)
 
@@ -246,7 +248,7 @@ class TestGetDataSets:
         assert X_recal is None
         assert y_recal is None
 
-    def test_pipelineget_data_sets_no_groups(
+    def test_pipeline_get_data_sets_no_groups(
         self, mp_pipeline: MedpipePipeline
     ) -> None:
         """Test case when there are no cross-validation groups."""
@@ -272,7 +274,7 @@ class TestGetDataSets:
             np.array([]),
         ],
     )
-    def test_pipelineget_data_sets_invalid_data(
+    def test_pipeline_get_data_sets_invalid_data(
         self, mp_pipeline: MedpipePipeline, data: Any
     ) -> None:
         """Test case when the data is not pd.DataFrame."""
@@ -280,7 +282,7 @@ class TestGetDataSets:
         with pytest.raises(TypeError, match=match_expr):
             mp_pipeline.get_data_sets(data)
 
-    def test_pipelineget_data_sets_missing_column(
+    def test_pipeline_get_data_sets_missing_column(
         self, mp_pipeline: MedpipePipeline, mock_data: MockData
     ) -> None:
         """Test case when columns are not in data."""
