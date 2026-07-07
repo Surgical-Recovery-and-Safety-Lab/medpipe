@@ -912,34 +912,11 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
 
         Raises
         ------
-        TypeError
-            If X is not a pd.DataFrame.
-            If X_recal is not a pd.DataFrame or None.
         ValueError
             If no recalibration data is specified with a recalibrator.
 
         """
-        if not isinstance(X, pd.DataFrame):
-            expr = f"Input X should be pd.DataFrame, but got {type(X)}"
-            raise TypeError(expr)
-        if X_recal is not None and not isinstance(X_recal, pd.DataFrame):
-            expr = f"Input X_recal should be pd.DataFrame, but got {type(X_recal)}"
-            raise TypeError(expr)
-
-        X_train = X
-        if self.preprocessor:
-            try:  # Transform or fit and transform training data
-                check_is_fitted(self.preprocessor)
-                X_train = self.transform(X)
-            except NotFittedError:
-                X_train = self.fit_transform(X)
-
-        if isinstance(X_train, pd.DataFrame):
-            X_train, _, X_recal, _ = self._drop_group_columns(X_train, None, X_recal)
-            X_train = convert_to_categoricals(X_train)
-
-            if X_recal is not None:
-                X_recal = convert_to_categoricals(X_recal)
+        X_train, X_recal = self._prepare_data(X, X_recal)
 
         for i, outcome in enumerate(self.outcomes):
             if len(y.shape) == 2 and y.shape[1] > 1:
@@ -1175,17 +1152,19 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
             Nothing is returned.
 
         """
-        X = self.transform(X) if self.preprocessor else X
+        if not isinstance(X, pd.DataFrame):
+            raise TypeError(f"Input X should be a pd.DataFrame, but got {type(X)}")
+        X_processed, _ = self._prepare_data(X, None)
 
         for i, outcome in enumerate(self.outcomes):
             recal_results = None
 
             if hasattr(self.predictor[outcome], "predict_proba"):
-                raw_outputs = self.predictor[outcome].predict_proba(X)
+                raw_outputs = self.predictor[outcome].predict_proba(X_processed)
                 raw_outputs = raw_outputs[:, 1]
                 results = compute_metrics(self.metrics, y[:, i].ravel(), raw_outputs)
             else:
-                raw_outputs = self.predictor[outcome].predict(X)
+                raw_outputs = self.predictor[outcome].predict(X_processed)
                 results = compute_metrics(self.metrics, y[:, i].ravel(), raw_outputs)
 
             if self.recalibrator:
@@ -1237,11 +1216,7 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
             outcomes, estimator_type
         )
         # Process data if needed
-        if self.preprocessor:
-            check_is_fitted(self.preprocessor)
-            X_processed = self.preprocessor.transform(X)
-        else:
-            X_processed = X
+        X_processed, _ = self._prepare_data(X, None)
 
         probabilities = []
         for i, outcome in enumerate(valid_outcomes):
@@ -1304,12 +1279,7 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
         valid_outcomes, estimators = self._validate_predict_inputs(
             outcomes, estimator_type
         )
-        # Process data if needed
-        if self.preprocessor:
-            check_is_fitted(self.preprocessor)
-            X_processed = self.preprocessor.transform(X)
-        else:
-            X_processed = X
+        X_processed, _ = self._prepare_data(X, None)
 
         outputs = []
         for i, outcome in enumerate(valid_outcomes):
