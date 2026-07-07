@@ -16,6 +16,7 @@ import joblib
 import numpy as np
 import pandas as pd
 import sklearn
+from scipy.sparse import csr_array, csr_matrix
 from sklearn.base import BaseEstimator, ClassifierMixin
 from sklearn.compose import ColumnTransformer
 from sklearn.exceptions import NotFittedError
@@ -593,7 +594,7 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
             # Iterate to get the training predictions for the predictor
             fold_test_data = (
                 X_train[test_idx]
-                if isinstance(X_train, np.ndarray)
+                if isinstance(X_train, (np.ndarray, csr_matrix, csr_array))
                 else X_train.iloc[test_idx]
             )
             raw_outputs = estimator.predict_proba(fold_test_data)
