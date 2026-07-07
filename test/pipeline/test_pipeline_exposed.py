@@ -24,7 +24,7 @@ from fixtures import (
 from pandas.testing import assert_frame_equal
 from pytest import MonkeyPatch
 from sklearn.base import check_is_fitted
-from sklearn.isotonic import IsotonicRegression
+from sklearn.linear_model import LinearRegression
 from sklearn.pipeline import NotFittedError
 
 from medpipe.pipeline.pipeline import MedpipePipeline
@@ -307,27 +307,27 @@ class TestPredictProba:
             )
 
     def test_pipeline_predict_proba_not_implemented(
-        self, mp_pipeline: MedpipePipeline
+        self,
+        mp_pipeline: MedpipePipeline,
+        mock_data: MockData,
+        mock_labels: MockLabels,
     ) -> None:
         """Test case when predict_proba is not implemented."""
-        X_train = np.array([[0.8, 0.9, 0.7, 0.4, 0.1, 0.02, 0.3]]).T
-        y_train = np.array([[1, 1, 1, 1, 0, 0, 0]]).T
+        X_train, _, X_recal = mock_data
+        y_train, _, y_recal = mock_labels
 
-        mp_pipeline.preprocessor = None
-        mp_pipeline.recalibrator = {}
-
-        for outcome in mp_pipeline.predictor.keys():
-            mp_pipeline.predictor[outcome] = IsotonicRegression()
-
-        mp_pipeline.fit(X_train, y_train)  # Fit the MedpipePipeline
+        # Make edits to data and pipeline to pass tests
+        X_train = X_train.drop("DHB_NAME", axis=1)
+        mp_pipeline.predictor["MORTALITY_30D"] = LinearRegression()
+        mp_pipeline.fit(X_train, y_train, X_recal, y_recal)  # Fit the MedpipePipeline
 
         match_expr = (
-            "Predictor of type IsotonicRegression does not implement "
+            "Predictor of type LinearRegression does not implement "
             "the predict_proba method"
         )
         with pytest.raises(NotImplementedError, match=match_expr):
             mp_pipeline.predict_proba(
-                X_train, outcomes="all", estimator_type="recalibrator"
+                X_recal, outcomes="all", estimator_type="predictor"
             )
 
 
