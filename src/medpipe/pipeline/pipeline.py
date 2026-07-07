@@ -681,9 +681,9 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
 
         Returns
         -------
-        X_processed : pd.DataFrame | npt.NDArray
+        X_processed : TransformedData | npt.NDArray
             Main processed data of shape (n_samples, n_features).
-        X_recal_processed : pd.DataFrame | npt.NDarray | None
+        X_recal_processed : TransformedData | None
             Processed data for the recalibrator of shape
             (n_samples, n_features) or None.
 
