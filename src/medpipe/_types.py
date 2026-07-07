@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, Annotated, Literal, TypeAlias
 import numpy as np
 import numpy.typing as npt
 import pandas as pd
+from scipy.sparse import csr_array, csr_matrix
 
 if TYPE_CHECKING:
     from medpipe.utils.config import (
@@ -30,7 +31,7 @@ if TYPE_CHECKING:
 SingleClassLabels: TypeAlias = Annotated[npt.NDArray[np.integer], Literal["N"]]
 MultiClassLabels: TypeAlias = Annotated[npt.NDArray[np.integer], Literal["N", "C"]]
 Labels: TypeAlias = SingleClassLabels | MultiClassLabels
-PredData: TypeAlias = pd.DataFrame | npt.NDArray  # Predictor class data
+TransformedData: TypeAlias = pd.DataFrame | npt.NDArray | csr_matrix | csr_array
 
 # Define a generic config type as a union
 Config: TypeAlias = (

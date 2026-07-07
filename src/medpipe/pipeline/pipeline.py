@@ -16,7 +16,6 @@ import joblib
 import numpy as np
 import pandas as pd
 import sklearn
-from scipy.sparse import csr_array, csr_matrix
 from sklearn.base import BaseEstimator, ClassifierMixin
 from sklearn.compose import ColumnTransformer
 from sklearn.exceptions import NotFittedError
@@ -24,7 +23,7 @@ from sklearn.model_selection import GroupKFold, StratifiedKFold, cross_validate
 from sklearn.pipeline import Pipeline
 from sklearn.utils.validation import check_is_fitted
 
-from medpipe._types import Labels, PredData
+from medpipe._types import Labels, TransformedData
 from medpipe.data.utils import convert_to_categoricals, extract_labels, split_data
 from medpipe.metrics.core import build_scorers, compute_metrics, print_metrics
 from medpipe.models.core import create_estimator
@@ -394,7 +393,7 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
 
     def _prepare_features(
         self, X_train: pd.DataFrame, X_recal: pd.DataFrame | None
-    ) -> tuple[PredData, PredData | None]:
+    ) -> tuple[TransformedData, TransformedData | None]:
         """
         Prepares features of the train and recalibration data sets.
 
@@ -407,9 +406,9 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
 
         Returns
         -------
-        X_train : PredData
+        X_train : TransformedData
             Processed train data.
-        X_recal : PredData | None
+        X_recal : TransformedData | None
             Processed recalibration data or None.
 
         Raises
@@ -456,12 +455,12 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
 
     def _cv_fit(
         self,
-        X_train: PredData,
+        X_train: TransformedData,
         y_train: Labels,
         outcome: str,
         cv_generator: StratifiedKFold | GroupKFold,
         groups: npt.NDArray | None = None,
-        X_recal: PredData | None = None,
+        X_recal: TransformedData | None = None,
         y_recal: Labels | None = None,
     ) -> dict[str, Any]:
         """
@@ -469,7 +468,7 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
 
         Parameters
         ----------
-        X_train : PredData
+        X_train : TransformedData
             Training data.
         y_train : Labels
             Training labels.
@@ -479,7 +478,7 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
             Cross-validation generator.
         groups : npt.NDArray | None, default: None
             Groups for the GroupKFold cross-validation.
-        X_recal : PredData | None, default: None
+        X_recal : TransformedData | None, default: None
             Recalibration data, or None if no recalibrator.
         y_recal : Labels | None, default: None
             Recalibration labels, or None if no recalibrator.
@@ -517,7 +516,7 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
     def _cross_validate_and_fit(
         self,
         outcome: str,
-        X_train: PredData,
+        X_train: TransformedData,
         y_train: Labels,
         cv_generator: StratifiedKFold | GroupKFold,
         groups: npt.NDArray | None,
@@ -527,7 +526,7 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
 
         Parameters
         ----------
-        X_train : PredData
+        X_train : TransformedData
             Training data.
         y_train : Labels
             Training labels.
@@ -564,7 +563,7 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
         self,
         outcome: str,
         cv_results: dict[str, Any],
-        X_train: PredData,
+        X_train: TransformedData,
         groups: npt.NDArray | None,
     ) -> None:
         """
@@ -576,7 +575,7 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
             Outcome to predict.
         cv_results : dict[str, Any]
             Cross-validation results for predictor and recalibrator.
-        X_train : PredData
+        X_train : TransformedData
             Training data.
         groups : npt.NDArray | None, default: None
             Groups for the GroupKFold cross-validation.
@@ -821,7 +820,7 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
 
         return (outcomes, estimators)
 
-    def transform(self, X: pd.DataFrame | npt.NDArray) -> pd.DataFrame | npt.NDArray:
+    def transform(self, X: pd.DataFrame | npt.NDArray) -> TransformedData:
         """
         Transforms input data based on preprocessor fitted operations.
 
@@ -849,9 +848,7 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
         warn("No preprocessor object created so data not transformed")
         return X
 
-    def fit_transform(
-        self, X: pd.DataFrame | npt.NDArray
-    ) -> pd.DataFrame | npt.NDArray | csr_matrix | csr_array:
+    def fit_transform(self, X: pd.DataFrame | npt.NDArray) -> TransformedData:
         """
         Fits the preprocessor operations and transforms the input data.
 
@@ -1157,7 +1154,7 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
 
         joblib.dump(self, save_dir / save_name)
 
-    def test_models(self, X: PredData, y: Labels) -> None:
+    def test_models(self, X: pd.DataFrame, y: Labels) -> None:
         """
         Tests the predictor or recalibrator models on the provided dataset.
 
@@ -1200,7 +1197,7 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
 
     def predict_proba(
         self,
-        X: PredData,
+        X: pd.DataFrame,
         outcomes: str | list[str] = "all",
         estimator_type: Literal["predictor", "recalibrator"] | list[str] = "predictor",
     ) -> list[npt.NDArray]:
@@ -1212,7 +1209,7 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
 
         Parameters
         ----------
-        X : PredData
+        X : pd.DataFrame
             Data to use of shape (n_samples, n_features).
         outcomes : str | list[str], default: "all"
             Label or list of labels associated with the model to use.
@@ -1271,7 +1268,7 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
 
     def predict(
         self,
-        X: PredData,
+        X: pd.DataFrame,
         outcomes: str | list[str] = "all",
         estimator_type: Literal["predictor", "recalibrator"] | list[str] = "predictor",
     ) -> list[npt.NDArray]:
@@ -1282,7 +1279,7 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
 
         Parameters
         ----------
-        X : PredData
+        X : pd.DataFrame
             Data to use of shape (n_samples, n_features).
         outcomes : str | list[str], default: "all"
             Label or list of labels associated with the model to use.
