@@ -324,6 +324,35 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
             specified.
 
         """
+
+        @overload
+        def _drop_column(X: pd.DataFrame, col: str | None) -> pd.DataFrame: ...
+
+        @overload
+        def _drop_column(X: None, col: str | None) -> None: ...
+
+        def _drop_column(
+            X: pd.DataFrame | None, col: str | None
+        ) -> pd.DataFrame | None:
+            """
+            Drop the column in data if they exist.
+
+            Parameters
+            ----------
+            X : pd.DataFrame | None
+                Data to drop the column in or None.
+            col : str | None
+                Name of the column to drop or None
+
+            Returns
+            -------
+            X_dropped : pd.DataFrame | None
+                Data with dropped column if it was present.
+
+            """
+            X_dropped = X.drop(col, axis=1, errors="ignore") if X is not None else X
+            return X_dropped
+
         # Extract validation configurations
         validation_config = self.medpipe_config.workflow.validation
         test_split_config = validation_config.test_split
@@ -332,63 +361,35 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
         test_split_grp_col = test_split_config.group_column
         groups = None
 
-        try:
-            assert cross_val_config
-            cross_val_grp_col = cross_val_config.group_column
+        cross_val_grp_col = cross_val_config.group_column if cross_val_config else None
+        cross_val_strat = cross_val_config.strategy if cross_val_config else None
 
-            if cross_val_config.strategy == "group" and cross_val_grp_col:
-                # If a cross-validation group column is specified drop it
+        if cross_val_strat == "group" and cross_val_grp_col:
+            # If a cross-validation group column is specified drop it
+            if cross_val_grp_col in X_train.columns:
                 groups = X_train[cross_val_grp_col].to_numpy()
-                X_train = X_train.drop(cross_val_grp_col, axis=1)
-                X_test = (
-                    X_test.drop(cross_val_grp_col, axis=1)
-                    if X_test is not None
-                    else X_test
-                )
-                X_recal = (
-                    X_recal.drop(cross_val_grp_col, axis=1)
-                    if X_recal is not None
-                    else X_recal
-                )
+            X_train = _drop_column(X_train, cross_val_grp_col)
+            X_test = _drop_column(X_test, cross_val_grp_col)
+            X_recal = _drop_column(X_recal, cross_val_grp_col)
 
-            if (
-                cross_val_config.strategy == "group"
-                and test_split_config.strategy == "group"
-                and cross_val_grp_col != test_split_grp_col
-            ):
-                # If cross-validation and test group columns are different
-                X_train = X_train.drop(test_split_grp_col, axis=1)
-                X_test = (
-                    X_test.drop(test_split_grp_col, axis=1)
-                    if X_test is not None
-                    else X_test
-                )
-                X_recal = (
-                    X_recal.drop(test_split_grp_col, axis=1)
-                    if X_recal is not None
-                    else X_recal
-                )
+        if (
+            cross_val_strat == "group"
+            and test_split_config.strategy == "group"
+            and cross_val_grp_col != test_split_grp_col
+        ):
+            # If cross-validation and test group columns are different
+            X_train = _drop_column(X_train, test_split_grp_col)
+            X_test = _drop_column(X_test, test_split_grp_col)
+            X_recal = _drop_column(X_recal, test_split_grp_col)
 
-                # No need to check test_split_grp_col so exit early
-                return X_train, X_test, X_recal, groups
-
-        except AssertionError:
-            pass
+            # No need to check test_split_grp_col so exit early
+            return X_train, X_test, X_recal, groups
 
         if test_split_config.strategy == "group" and test_split_grp_col:
             # If a test split group column is specified drop it
-            X_train = X_train.drop(test_split_grp_col, axis=1)
-            X_test = (
-                X_test.drop(test_split_grp_col, axis=1)
-                if X_test is not None
-                else X_test
-            )
-            X_recal = (
-                X_recal.drop(test_split_grp_col, axis=1)
-                if X_recal is not None
-                else X_recal
-            )
-
+            X_train = _drop_column(X_train, test_split_grp_col)
+            X_test = _drop_column(X_test, test_split_grp_col)
+            X_recal = _drop_column(X_recal, test_split_grp_col)
         return X_train, X_test, X_recal, groups
 
     def _prepare_features(
