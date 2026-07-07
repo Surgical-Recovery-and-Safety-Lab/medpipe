@@ -693,7 +693,7 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
             if recal_results is not None:
                 print(f"  Recalibrated:")
                 for i in range(len(self.metrics)):
-                    print_metrics(np.array([results[i]]), [self.metrics[i]])
+                    print_metrics(np.array([recal_results[i]]), [self.metrics[i]])
 
     def _validate_predict_inputs(
         self,
