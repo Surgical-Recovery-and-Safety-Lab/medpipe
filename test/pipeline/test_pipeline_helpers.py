@@ -26,6 +26,7 @@ from sklearn.compose import ColumnTransformer
 from sklearn.model_selection import GroupKFold, StratifiedKFold
 from sklearn.pipeline import Pipeline
 
+from medpipe.metrics.core import METRIC_MAPPING
 from medpipe.pipeline.pipeline import MedpipePipeline
 from medpipe.utils.config import PreprocessOperationConfig
 from medpipe.utils.io import load_data, read_toml_configuration
@@ -818,6 +819,40 @@ class TestExtractFoldResults:
         results = mp_pipeline._extract_fold_results(mock_cv_results)
 
         assert results.shape == (2, 3)
+
+
+class TestPrintTestMetrics:
+    """Test class for the _print_test_metrics function of
+    the MedpipePipeline class."""
+
+    @pytest.mark.parametrize(
+        "metrics, results, recal_results, count",
+        [
+            (["log_loss"], np.array([0.5]), np.array([0.8]), 1),
+            (["log_loss"], np.array([0.5]), None, 0),
+            (["log_loss", "accuracy"], np.array([0.5, 0.6]), np.array([0.8, 0.7]), 2),
+        ],
+    )
+    def test_print_test_metrics_success(
+        self,
+        capsys,
+        mp_pipeline: MedpipePipeline,
+        metrics: list[str],
+        results: npt.NDArray,
+        recal_results: npt.NDArray | None,
+        count: int,
+    ) -> None:
+        """Test successful function call."""
+        msg = "Outcome: MORTALITY_30D\n"
+
+        mp_pipeline.metrics = metrics
+        mp_pipeline._print_test_metrics(results, "MORTALITY_30D", recal_results)
+
+        captured = capsys.readouterr()
+        printed = captured.out
+
+        assert msg in printed
+        assert printed.count("  Recalibrated:") == count
 
 
 class TestValidatePredictInputs:
