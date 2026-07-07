@@ -660,6 +660,65 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
 
         return results
 
+    def _prepare_data(
+        self, X: pd.DataFrame, X_recal: pd.DataFrame | None
+    ) -> tuple[TransformedData, TransformedData | None]:
+        """
+        Prepares data for the functions outside the cross-validate loop.
+
+        If a preprocessor object exists, the data is preprocessed
+        otherwise, data types are converted to categoricals and
+        unused columns are dropped.
+
+        Parameters
+        ----------
+        X : pd.DataFrame
+            Main data to use of shape (n_samples, n_features).
+        X_recal : pd.DataFrame | None
+            Data for the recalibrator of shape
+            (n_samples, n_features) or None.
+
+        Returns
+        -------
+        X_processed : pd.DataFrame | npt.NDArray
+            Main processed data of shape (n_samples, n_features).
+        X_recal_processed : pd.DataFrame | npt.NDarray | None
+            Processed data for the recalibrator of shape
+            (n_samples, n_features) or None.
+
+        Raises
+        ------
+        TypeError
+            If X is not a pd.DataFrame.
+            If X_recal is not a pd.DataFrame or None.
+
+        """
+        if not isinstance(X, pd.DataFrame):
+            expr = f"Input X should be pd.DataFrame, but got {type(X)}"
+            raise TypeError(expr)
+        if X_recal is not None and not isinstance(X_recal, pd.DataFrame):
+            expr = f"Input X_recal should be pd.DataFrame, but got {type(X_recal)}"
+            raise TypeError(expr)
+
+        X_processed = X
+        if self.preprocessor:
+            try:  # Transform or fit and transform training data
+                check_is_fitted(self.preprocessor)
+                X_processed = self.transform(X)
+            except NotFittedError:
+                X_processed = self.fit_transform(X)
+
+        if isinstance(X_processed, pd.DataFrame):
+            X_processed, _, X_recal, _ = self._drop_group_columns(
+                X_processed, None, X_recal
+            )
+            X_processed = convert_to_categoricals(X_processed)
+
+            if X_recal is not None:
+                X_recal = convert_to_categoricals(X_recal)
+
+        return X_processed, X_recal
+
     def _print_test_metrics(
         self,
         results: npt.NDArray,
