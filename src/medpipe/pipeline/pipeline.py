@@ -888,7 +888,8 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
                 labels = y[:, i]
             else:
                 labels = y.squeeze()
-            self.predictor[outcome].fit(X_train, labels)
+            predictor = self.predictor[outcome]
+            predictor.fit(X_train, labels)
 
             if self.recalibrator:
                 # Fit the recalibrators if specified
@@ -900,10 +901,12 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
                 X_recal_preprocessed = (
                     self.transform(X_recal) if self.preprocessor else X_recal
                 )
-                raw_outputs = self.predictor[outcome].predict_proba(
-                    X_recal_preprocessed
-                )
-                self.recalibrator[outcome].fit(raw_outputs[:, 1], y_recal[:, i])
+                if hasattr(predictor, "predict_proba"):
+                    raw_outputs = predictor.predict_proba(X_recal_preprocessed)
+                    raw_outputs = raw_outputs[:, 1]  # Only take positive class
+                else:
+                    raw_outputs = predictor.predict(X_recal_preprocessed)
+                self.recalibrator[outcome].fit(raw_outputs, y_recal[:, i])
 
     def get_data_sets(self, data: pd.DataFrame) -> tuple[
         pd.DataFrame,
