@@ -1170,7 +1170,7 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
         Raises
         ------
         NotImplementedError
-            If no predict_proba method exists.
+            If no predict_proba method exists in predictor.
         ValueError
             If no recalibrator is present with a recalibrator estimator.
 
