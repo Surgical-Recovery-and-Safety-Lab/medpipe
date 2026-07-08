@@ -89,7 +89,7 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
         Run pipeline with input data.
     save()
         Saves the pipeline as {project_name}_{version}.joblib.
-    test_models(X, y, model, outcomes, key=None)
+    test_models(X, y)
         Tests the predictor or recalibrator model on the provided dataset.
     predict_proba(X)
         Predicts probabilities from predictor or recalibrator based on input data.
