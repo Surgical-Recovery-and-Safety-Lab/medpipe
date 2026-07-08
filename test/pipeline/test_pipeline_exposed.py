@@ -219,6 +219,20 @@ class TestRun:
         mp_pipeline.run()
 
 
+class TestTestModels:
+    """Test class for the test_models function of
+    the MedpipePipeline class."""
+
+    def test_pipeline_test_models_success(
+        self, mp_pipeline: MedpipePipeline, mock_data: MockData, mock_labels: MockLabels
+    ) -> None:
+        """Test successful function call."""
+        X_train, X_test, X_recal = mock_data
+        y_train, y_test, y_recal = mock_labels
+        mp_pipeline.fit(X_train, y_train, X_recal, y_recal)
+        mp_pipeline.test_models(X_test, y_test)
+
+
 class TestPredictProba:
     """Test class for the predict_proba function of
     the MedpipePipeline class."""
