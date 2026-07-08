@@ -159,24 +159,6 @@ class TestFit:
         pipe = _mp_pipeline(monkeypatch, example_config_dir, top_level_config, version)
         pipe.fit(X_train, y_train, X_recal, y_recal)
 
-    @pytest.mark.parametrize("X", [3.14, 42, "llama", [], {}, ()])
-    def test_pipeline_fit_incorrect_X(
-        self, X: Any, mp_pipeline: MedpipePipeline
-    ) -> None:
-        """Test case when X is of incorrect type."""
-        match_expr = f"Input X should be pd.DataFrame, but got {type(X)}"
-        with pytest.raises(TypeError, match=match_expr):
-            mp_pipeline.fit(X, np.array([]))
-
-    @pytest.mark.parametrize("X_recal", [3.14, 42, "llama", [], {}, ()])
-    def test_pipeline_fit_incorrect_X_recal(
-        self, X_recal: Any, mp_pipeline: MedpipePipeline
-    ) -> None:
-        """Test case when X_recal is of incorrect type."""
-        match_expr = f"Input X_recal should be pd.DataFrame, but got {type(X_recal)}"
-        with pytest.raises(TypeError, match=match_expr):
-            mp_pipeline.fit(pd.DataFrame({}), np.array([]), X_recal, np.array([]))
-
 
 class TestRun:
     """Test class for the run function of the MedpipePipeline class."""

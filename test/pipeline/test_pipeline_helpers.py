@@ -26,7 +26,7 @@ from sklearn.compose import ColumnTransformer
 from sklearn.model_selection import GroupKFold, StratifiedKFold
 from sklearn.pipeline import Pipeline
 
-from medpipe.metrics.core import METRIC_MAPPING
+from medpipe._types import TransformedData
 from medpipe.pipeline.pipeline import MedpipePipeline
 from medpipe.utils.config import PreprocessOperationConfig
 from medpipe.utils.io import load_data, read_toml_configuration
@@ -821,6 +821,80 @@ class TestExtractFoldResults:
         results = mp_pipeline._extract_fold_results(mock_cv_results)
 
         assert results.shape == (2, 3)
+
+
+class TestPrepareData:
+    """Test class for the _prepare_data function of
+    the MedpipePipeline class."""
+
+    def test_pipeline_prepare_data_success_with_fit(
+        self, mp_pipeline: MedpipePipeline, mock_data: MockData
+    ) -> None:
+        """Test successful function call is True."""
+        X_train, _, X_recal = mock_data
+
+        X_train, X_recal = mp_pipeline._prepare_data(X_train, X_recal, fit=True)
+
+        assert mp_pipeline.preprocessor is not None
+        check_is_fitted(mp_pipeline.preprocessor)
+        assert isinstance(X_train, np.ndarray)
+        assert isinstance(X_recal, np.ndarray)
+
+    def test_pipeline_prepare_data_success_no_fit(
+        self, mp_pipeline: MedpipePipeline, mock_data: MockData
+    ) -> None:
+        """Test successful function call when fit is False."""
+        X_train, _, X_recal = mock_data
+
+        _ = mp_pipeline.fit_transform(
+            X_train.drop(["DHB_NAME", "OP_YEAR"], axis=1)
+        )  # Fit before calling _prepare_data
+        X_train, X_recal = mp_pipeline._prepare_data(X_train, X_recal, fit=False)
+
+        assert isinstance(X_train, np.ndarray)
+        assert isinstance(X_recal, np.ndarray)
+
+    @pytest.mark.parametrize("X_recal, call_count", [(None, 1), (pd.DataFrame({}), 2)])
+    def test_pipeline_prepare_data_success_no_preprocess(
+        self,
+        mocker,
+        mp_pipeline: MedpipePipeline,
+        mock_data: MockData,
+        X_recal: TransformedData | None,
+        call_count: int,
+    ) -> None:
+        """Test successful function call with no preprocessing."""
+        if X_recal is not None:
+            X_train, _, X_recal = mock_data
+        else:
+            X_train, _, _ = mock_data
+
+        # Patch functions
+        convert_patch = mocker.patch(
+            "medpipe.pipeline.pipeline.convert_to_categoricals"
+        )
+
+        mp_pipeline.preprocessor = None
+        _, _ = mp_pipeline._prepare_data(X_train, X_recal)
+        assert convert_patch.call_count == call_count
+
+    @pytest.mark.parametrize("X", [3.14, 42, "llama", [], {}, ()])
+    def test_pipeline_prepare_data_incorrect_X(
+        self, X: Any, mp_pipeline: MedpipePipeline
+    ) -> None:
+        """Test case when X is of incorrect type."""
+        match_expr = f"Input X should be pd.DataFrame, but got {type(X)}"
+        with pytest.raises(TypeError, match=match_expr):
+            mp_pipeline._prepare_data(X, pd.DataFrame({}))
+
+    @pytest.mark.parametrize("X_recal", [3.14, 42, "llama", [], {}, ()])
+    def test_pipeline_prepare_data_incorrect_X_recal(
+        self, X_recal: Any, mp_pipeline: MedpipePipeline
+    ) -> None:
+        """Test case when X_recal is of incorrect type."""
+        match_expr = f"Input X_recal should be pd.DataFrame, but got {type(X_recal)}"
+        with pytest.raises(TypeError, match=match_expr):
+            mp_pipeline._prepare_data(pd.DataFrame({}), X_recal)
 
 
 class TestPrintTestMetrics:
