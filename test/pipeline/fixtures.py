@@ -96,7 +96,7 @@ def mock_data() -> MockData:
                 "Plastics",
             ],
             "OP_SEVERITY": [1, 3, 2, 1, 1, 2, 4],
-            "OP_YEAR": [2022, 2021, 2023, 2022, 2021, 2022, 2023],
+            "OP_YEAR": [2022, 2021, 2020, 2022, 2021, 2022, 2020],
             "DHB_NAME": [
                 "Auckland",
                 "Christchurch",
