@@ -10,12 +10,13 @@ Functions:
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.axes._axes import Axes
 from matplotlib.figure import Figure
+from ml_insights import SplineCalib
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from sklearn.calibration import calibration_curve
 
@@ -24,6 +25,8 @@ from medpipe.utils.exceptions import file_checks
 
 if TYPE_CHECKING:
     import numpy.typing as npt
+
+COLOURS = ["#2D90D8", "#33367A", "#96690E", "#CDB4DB", "#F2CC8F"]
 
 
 def plot_prediction_distribution(
@@ -279,6 +282,67 @@ def plot_reliability_diagrams(
         plt.show()
 
     plt.close()
+
+
+def _get_calibration_data(
+    y_test: Labels,
+    probas: npt.NDArray,
+    strategy: Literal["quantile", "spline"],
+    grid: npt.NDArray | None = None,
+    **calibration_kwargs,
+) -> tuple[npt.NDArray, npt.NDArray]:
+    """
+    Gets the calibration data based on the strategy.
+
+    Parameters
+    ----------
+    y_test : Labels
+        Ground truth labels of shape (n_samples,).
+    probas : npt.NDArray
+        Predicted probabilities of the positive class
+        of shape (n_samples,).
+    strategy : Literal["quantile", "spline"]
+        Strategy to use for the calibration curve.
+    grid : npt.NDArray | None, default: None
+        Grid used for predictions with spline strategy.
+    calibration_kwargs
+        Keyword arguments for the calibration function.
+
+    Returns
+    -------
+    prob_true : npt.NDArray
+        Expected calibration points.
+    prob_pred : npt.NDArray
+        Actual calibration points.
+
+    Raises
+    ------
+    ValueError
+        If grid is None with spline strategy.
+        If strategy is not quantile or spline.
+
+    """
+    if strategy == "quantile":
+        prob_true, prob_pred = calibration_curve(
+            y_test,
+            probas,
+            **calibration_kwargs,
+        )
+
+    elif strategy == "spline":
+        if grid is None:
+            raise ValueError("Input grid should not be None with spline strategy")
+        spline = SplineCalib()
+        spline.fit(probas, y_test)
+
+        prob_true = grid
+        prob_pred = spline.predict(grid)
+        assert prob_pred is not None  # Avoids type error
+
+    else:
+        raise ValueError(f"Unknown strategy {strategy}, should be quantile or spline")
+
+    return prob_true, prob_pred
 
 
 def _plot_calibration(
