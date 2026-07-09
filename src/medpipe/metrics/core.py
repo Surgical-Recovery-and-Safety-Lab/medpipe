@@ -6,9 +6,9 @@ This module provides functions to compute and print metrics.
 Functions:
 - ici_score: Computes the integrated calibration index using a
     spline-based calibration curve.
-- print_metrics: prints the numerical metrics.
 - build_scorers: Build the dictionary of scorers for cross-validation.
 - compute_metrics: Computes metrics based on predicted data.
+- print_metrics: prints the numerical metrics.
 """
 
 from __future__ import annotations
@@ -168,7 +168,7 @@ def compute_metrics(
         Ground truth labels.
     y_pred : npt.NDArray
         Predictions from the model of shape
-        (n_samples,) or (n_samples, 2)
+        (n_samples,) or (n_samples, 2).
 
     Returns
     -------
