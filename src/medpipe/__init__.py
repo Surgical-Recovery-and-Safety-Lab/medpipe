@@ -11,7 +11,7 @@ submodules:
 
 from .data import extract_labels
 from .metrics import (
-    plot_prediction_distribution,
+    plot_probability_distribution,
     plot_reliability_diagrams,
     print_metrics,
 )
