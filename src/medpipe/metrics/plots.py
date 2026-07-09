@@ -351,6 +351,7 @@ def _plot_calibration(
     prob_true: npt.NDArray,
     lower: npt.NDArray,
     upper: npt.NDArray,
+    strategy: Literal["quantile", "spline"],
     colour: str,
     label: str | None = None,
 ):
@@ -369,6 +370,8 @@ def _plot_calibration(
         Lower bounds of the confidence interval.
     upper : npt.NDArray
         Upper bounds of the confidence interval.
+    strategy : Literal["quantile", "spline"]
+        Strategy to use to select the marker for plotting.
     colour : str
         Colour to plot in.
     label : str or None, default: None
@@ -380,10 +383,15 @@ def _plot_calibration(
         Nothing is returned.
 
     """
+    if strategy == "quantile":
+        marker = "."
+    elif strategy == "spline":
+        marker = "-"
+
     ax.plot(
         prob_pred,
         prob_true,
-        marker=".",
+        marker=marker,
         color=colour,
         label=label,
     )
