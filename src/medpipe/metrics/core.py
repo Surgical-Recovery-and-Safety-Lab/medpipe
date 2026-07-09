@@ -281,3 +281,52 @@ def print_metrics(
             raise ValueError(expr)
 
         print(f"{METRIC_MAPPING[metric][3]}: {results[i]:.3f}")
+
+
+def compute_strata_metrics(
+    metrics: list[str],
+    strata_idx: list[npt.NDArray],
+    y: Labels,
+    y_pred: npt.NDArray,
+):
+    """
+    Computes metrics for the different strata.
+
+    Scores for each strata are ordered as the strata_idx.
+    Scores are located at the same index as in the metrics array.
+
+    Parameters
+    ----------
+    metrics : list[str]
+        List of metrics to use.
+    strata_idx : list[npt.NDArray]
+        List of indices for each strata.
+    y : Labels
+        Ground truth labels.
+    y_pred : npt.NDArray
+        Predictions from the model of shape
+        (n_samples,) or (n_samples, 2).
+
+    Returns
+    -------
+    scores : list[npt.NDArray]
+        List of score arrays of shape (n_metrics,)
+        for each strata.
+
+    Raises
+    ------
+    TypeError
+        If strata_idx is not a list[np.ndarray] of integers.
+
+    """
+    if not isinstance(strata_idx, list) and not isinstance(strata_idx[0], np.ndarray):
+        raise TypeError("Input strata_idx should be a list[np.ndarray]")
+
+    if not isinstance(strata_idx[0][0], int):
+        raise TypeError("Input strata_idx should be a list[np.ndarray] of integers")
+
+    scores = []
+    for idx in strata_idx:
+        scores.append(compute_metrics(metrics, y[idx], y_pred[idx]))
+
+    return scores
