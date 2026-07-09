@@ -23,6 +23,8 @@ from sklearn.calibration import calibration_curve
 from medpipe._types import Labels
 from medpipe.utils.exceptions import file_checks
 
+from .core import METRIC_MAPPING
+
 if TYPE_CHECKING:
     import numpy.typing as npt
 
@@ -153,7 +155,7 @@ def plot_reliability_diagrams(
         Predicted probabilities of shape (n_samples, 2) or
         positive class probabilities of shape (n_samples,).
     label : str, default: ""
-        List of labels for the legend.
+        Label for the legend.
     strategy : Literal["quantile", "spline"]
         Strategy to use for the calibration curve.
     n_bootstraps : int, default: 200
@@ -288,6 +290,180 @@ def plot_reliability_diagrams(
     if save_path:
         save_file = save_path + extension
         file_checks(save_file, extension=extension, exists=False)
+        plt.savefig(save_file)
+    if show_fig:
+        plt.show()
+
+    plt.close()
+
+
+def plot_strata_heatmap(
+    outcomes: list[str],
+    metric: str,
+    stratas: list[str],
+    scores: npt.NDArray,
+    strata_scores: list[npt.NDArray],
+    save_path: str = "",
+    extension: str = ".png",
+    show_fig: bool = True,
+    **kwargs,
+):
+    """
+    Plots the strata delta scores in a heatmap.
+
+    The heatmap colours express the difference, the
+    actual score is displayed in the square.
+
+    Parameters
+    ----------
+    outcomes : list[str]
+        List of outcomes.
+    metric : str
+        Metric name being plotted.
+    stratas : list[str]
+        List of the stratas.
+    scores : npt.NDArray
+        Metric scores for the original models.
+    strata_scores : list[np.NDArray]
+        Metric score for each outcome and
+        each strata.
+    save_path : str, default: []
+        Path to the save file.
+    extension : str, default: ".png"
+        Extension to save figure in.
+    show_fig : bool, default: True
+        Flag to show the figure.
+    **kwargs
+        Extra arguments for the figure or axes objects.
+
+    Returns
+    -------
+    None
+        Nothing is returned.
+
+    Raises
+    ------
+    ValueError
+        If stratas and strata_scores are not the same length.
+        If outcomes and strata_scores[0] are not the same length.
+        If scores and strata_scores[0] are not the same length.
+
+    """
+    if len(stratas) != len(strata_scores):
+        expr = (
+            "Inputs stratas and strata_scores should be the same length "
+            f"but got {len(stratas)} and {len(strata_scores)}"
+        )
+        raise ValueError(expr)
+    if len(outcomes) != len(strata_scores[0]):
+        expr = (
+            "Inputs outcomes and strata_scores should be the same length "
+            f"but got {len(outcomes)} and {len(strata_scores[0])}"
+        )
+        raise ValueError(expr)
+    if len(scores) != len(strata_scores[0]):
+        expr = (
+            "Inputs scores and strata_scores should be the same length "
+            f"but got {len(scores)} and {len(strata_scores[0])}"
+        )
+        raise ValueError(expr)
+
+    # Split arguments based on where they should be sent
+    ax_kwargs = {key: value for key, value in kwargs.items() if key in dir(Axes)}
+    fig_kwargs = {key: value for key, value in kwargs.items() if key in dir(Figure)}
+
+    # Get title
+    title = ""
+    if "set_title" in kwargs.keys():
+        title = kwargs["set_title"]
+        ax_kwargs.pop("set_title")
+
+    # Set figure properties
+    fig, ax = plt.subplots(**fig_kwargs)
+
+    # Set title
+    if metric == "ici":
+        ax.set_title(title + METRIC_MAPPING[metric][-1] + " (%)", fontweight="bold")
+    else:
+        ax.set_title(title + METRIC_MAPPING[metric][-1], fontweight="bold")
+
+    # Create matrix with original scores as first row
+    strata_matrix = np.vstack((scores, np.array(strata_scores)))
+    plot_data = strata_matrix - scores
+    text_data = strata_matrix
+
+    n_strata, n_outcomes = strata_matrix.shape
+
+    # Set a maximum value for colour scale
+    max_val = 0.1
+    percent = ""
+
+    if metric == "ici":  # Set a maximum value for ICI colour scale
+        plot_data *= 100
+        text_data *= 100
+        max_val = 0.5
+        percent = " (%)"
+
+    # Display heatmap
+    im = ax.imshow(plot_data, cmap="cividis", aspect="equal", vmax=max_val)
+
+    # Set colorbar and ticks
+    fig.colorbar(
+        im,
+        ax=ax,
+        cmap="cividis",
+        shrink=0.8,
+        extend="max",
+        label=rf"|$\Delta$ {METRIC_MAPPING[metric][-1]}|" + percent,
+    )
+    ax.set_yticks(
+        np.arange(n_strata),
+        labels=stratas,
+    )
+
+    ax.set_xticks(
+        np.arange(n_outcomes),
+        labels=outcomes,
+        rotation=-30,
+        rotation_mode="anchor",
+        ha="left",
+    )
+    ax.set_ylabel("Strata", fontweight="bold")
+    ax.set_xlabel("Outcomes", fontweight="bold")
+
+    # Add text to each square
+    for i in range(n_outcomes):
+        for j in range(n_strata):
+            colour = "w"
+            if np.abs(plot_data[j, i]) >= 0.8 * max_val:
+                colour = "k"
+            ax.text(
+                i,
+                j,
+                np.round(text_data[j, i], 2),
+                ha="center",
+                va="center",
+                color=colour,
+                fontsize=6,
+                fontweight="bold",
+            )
+
+    ax.spines[:].set_visible(False)
+
+    # Set white space between squares
+    ax.set_yticks(np.arange(n_strata + 1) - 0.5, minor=True)
+    ax.set_xticks(np.arange(n_outcomes + 1) - 0.5, minor=True)
+    ax.grid(which="minor", color="w", linestyle="-", linewidth=1)
+    ax.tick_params(which="minor", bottom=False, left=False)
+
+    plt.tight_layout()
+
+    # Set ax_kwargs to override if needed
+    for key, val in ax_kwargs.items():
+        getattr(ax, key)(val)
+
+    if save_path:
+        save_file = save_path + metric + extension
         plt.savefig(save_file)
     if show_fig:
         plt.show()
