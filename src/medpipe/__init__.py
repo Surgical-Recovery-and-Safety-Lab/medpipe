@@ -12,7 +12,7 @@ submodules:
 from .data import extract_labels
 from .metrics import (
     plot_probability_distribution,
-    plot_reliability_diagrams,
+    plot_reliability_diagram,
     print_metrics,
 )
 from .models import load_pipeline, save_pipeline

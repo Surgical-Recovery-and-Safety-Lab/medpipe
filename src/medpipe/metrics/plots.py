@@ -127,7 +127,7 @@ def plot_probability_distribution(
     plt.close()
 
 
-def plot_reliability_diagrams(
+def plot_reliability_diagram(
     y_test: Labels,
     probas: npt.NDArray,
     label: str = "",
