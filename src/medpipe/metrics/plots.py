@@ -119,9 +119,9 @@ def plot_prediction_distribution(
 
 def plot_reliability_diagrams(
     y_test: Labels,
-    proba_list: list[npt.NDArray],
-    label_list: list[str] = [],
-    distribution: bool = False,
+    probas: npt.NDArray,
+    label: str = "",
+    strategy: Literal["quantile", "spline"] = "spline",
     n_bootstraps: int = 200,
     save_path: str = "",
     extension: str = ".png",
@@ -140,13 +140,14 @@ def plot_reliability_diagrams(
     Parameters
     ----------
     y_test : Labels
-        Ground truth labels of shape (n_samples, n_classes).
-    proba_list : list[npt.NDArray]
-        List of predicted probabilities.
-    label_list : list[str], default: []
+        Ground truth labels of shape (n_samples,).
+    probas : npt.NDArray
+        Predicted probabilities of shape (n_samples, 2) or
+        positive class probabilities of shape (n_samples,).
+    label : str, default: ""
         List of labels for the legend.
-    distribution : bool, default: False
-        Flag to plot the probability distribution as well.
+    strategy : Literal["quantile", "spline"]
+        Strategy to use for the calibration curve.
     n_bootstraps : int, default: 200
         Number of iteration for the bootstrap.
     save_path : str, default: []
@@ -166,106 +167,108 @@ def plot_reliability_diagrams(
         Nothing is returned.
 
     """
-    colours = ["#2D90D8", "#33367A", "#96690E", "#CDB4DB", "#F2CC8F"]
-
     # Split arguments based on where they should be sent
     ax_kwargs = {key: value for key, value in kwargs.items() if key in dir(Axes)}
     fig_kwargs = {key: value for key, value in kwargs.items() if key in dir(Figure)}
 
     # Set figure properties
     fig, ax = plt.subplots(**fig_kwargs)
-
-    # Plot perfect calibration
-    ax.plot(
-        np.linspace(0, 1, 100),
-        np.linspace(0, 1, 100),
-        "k--",
-        label="Perfectly calibrated",
-    )
-
-    for i in range(len(proba_list)):
-        prob_true, prob_pred = calibration_curve(
-            y_test,
-            proba_list[i],
-            **calibration_kwargs,
-        )
-
-        boots = []
-        for _ in range(n_bootstraps):
-            idx = np.random.choice(len(y_test), len(y_test), replace=True)
-            prob_true_boot, prob_pred_boot = calibration_curve(
-                y_test[idx],
-                proba_list[i][idx],
-                **calibration_kwargs,
-            )
-            boots.append(np.interp(prob_pred, prob_pred_boot, prob_true_boot))
-
-        lower = np.percentile(boots, 2.5, axis=0)
-        upper = np.percentile(boots, 97.5, axis=0)
-
-        _plot_calibration(
-            ax, prob_pred, prob_true, lower, upper, colours[i], label_list[i]
-        )
-
-        if max(prob_pred) < 0.4:
-            # Add inset if calibration curve does not cover enough of the graph
-            # Remove spines for aesthetics
-            plt.gca().spines["top"].set_visible(False)
-            plt.gca().spines["right"].set_visible(False)
-
-            if i == 0:
-                # Create inset only in first loop iteration
-                ax_ins = ax.inset_axes(
-                    [0.5, 0.1, 0.5, 0.5],
-                    yticklabels=[],
-                )
-                # Connect the inset to the zoomed area in the main plot
-                ax.indicate_inset_zoom(ax_ins, edgecolor="black")
-
-                ax_ins.plot(  # Reference line
-                    np.linspace(0, max(prob_pred), 100),
-                    np.linspace(0, max(prob_pred), 100),
-                    "k--",
-                )
-
-            # Plot inset
-            _plot_calibration(ax_ins, prob_pred, prob_true, lower, upper, colours[i])
+    grid_resolution = 100  # Number of points to plot with
+    grid = np.linspace(0, 1, grid_resolution)
 
     # Remove spines for aesthetics
     plt.gca().spines["top"].set_visible(False)
     plt.gca().spines["right"].set_visible(False)
 
-    if distribution:
-        # Create new plot for distribution
-        divider = make_axes_locatable(ax)
-        ax_dist = divider.append_axes("bottom", 0.5, pad=0.1, sharex=ax)
+    # Plot perfect calibration line
+    ax.plot(
+        np.linspace(0, 1, grid_resolution),
+        np.linspace(0, 1, grid_resolution),
+        "k--",
+        label="Perfectly calibrated",
+    )
 
-        bins = np.linspace(0, 1, 21)
+    if probas.ndim == 2:
+        probas = probas[:, 1]  # Get only positive class
 
-        ax_dist.hist(
-            proba_list,
-            stacked=True,
-            color=colours[: len(proba_list)],
-            edgecolor="black",
-            bins=bins,
-            label=label_list,
+    prob_true, prob_pred = _get_calibration_data(
+        y_test, probas, strategy, grid=grid, **calibration_kwargs
+    )
+
+    boots = []
+    rng = np.random.default_rng()  # Set a default random number generator
+
+    for _ in range(n_bootstraps):
+        idx = rng.choice(len(y_test), len(y_test), replace=True)
+        prob_true_boot, prob_pred_boot = _get_calibration_data(
+            y_test[idx], probas[idx], strategy, grid=grid, **calibration_kwargs
         )
-        ax_dist.set_yscale("log")
-        ax_dist.set_xlabel("Predicted probabilities", fontweight="bold")
+        boots.append(np.interp(prob_pred, prob_pred_boot, prob_true_boot))
+
+    lower = np.percentile(boots, 2.5, axis=0)
+    upper = np.percentile(boots, 97.5, axis=0)
+
+    _plot_calibration(
+        ax, prob_pred, prob_true, lower, upper, strategy, COLOURS[0], label
+    )
+
+    if max(prob_pred) < 0.4:
+        # Add inset if calibration curve does not cover enough of the graph
+        # Remove spines for aesthetics
+        plt.gca().spines["top"].set_visible(False)
+        plt.gca().spines["right"].set_visible(False)
+
+        # Create inset
+        ax_ins = ax.inset_axes(
+            [0.5, 0.1, 0.5, 0.5],
+            yticklabels=[],
+        )
+        # Connect the inset to the zoomed area in the main plot
+        ax.indicate_inset_zoom(ax_ins, edgecolor="black")
+
+        ax_ins.plot(  # Reference line
+            np.linspace(0, max(prob_pred), 100),
+            np.linspace(0, max(prob_pred), 100),
+            "k--",
+        )
+
+        # Plot inset
+        _plot_calibration(
+            ax_ins, prob_pred, prob_true, lower, upper, strategy, COLOURS[0]
+        )
+
+    # Remove spines for aesthetics
+    plt.gca().spines["top"].set_visible(False)
+    plt.gca().spines["right"].set_visible(False)
+
+    # Create new plot for distribution
+    divider = make_axes_locatable(ax)
+    ax_dist = divider.append_axes("bottom", 0.5, pad=0.1, sharex=ax)
+
+    bins = np.linspace(0, 1, 21)
+
+    ax_dist.hist(
+        probas,
+        color=COLOURS[0],
+        edgecolor="black",
+        bins=bins,
+        label=label,
+    )
+    ax_dist.set_yscale("log")
+    ax_dist.set_xlabel("Predicted probabilities", fontweight="bold")
 
     # Set title and labels
     title = kwargs["set_title"] if "set_title" in kwargs.keys() else ""
     ax.set_title(title, fontweight="bold")
     if "set_title" in kwargs.keys():
         ax_kwargs.pop("set_title")
-    ax.set_xlabel("Predicted probabilities", fontweight="bold")
     ax.set_ylabel("Observed proportion", fontweight="bold")
 
     # Set ax_kwargs to override if needed
     for key, val in ax_kwargs.items():
         getattr(ax, key)(val)
 
-    ax.legend(loc="upper right", bbox_to_anchor=(1.6, 0.9), title="Models")
+    ax.legend(loc="upper right", bbox_to_anchor=(1.6, 0.9), frameon=False)
     plt.tight_layout()
 
     # Remove spines for aesthetics for distribution
