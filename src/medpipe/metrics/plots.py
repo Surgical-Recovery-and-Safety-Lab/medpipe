@@ -131,7 +131,7 @@ def plot_reliability_diagrams(
     y_test: Labels,
     probas: npt.NDArray,
     label: str = "",
-    strategy: Literal["quantile", "spline"] = "spline",
+    strategy: Literal["uniform", "quantile", "spline"] = "spline",
     n_bootstraps: int = 200,
     save_path: str = "",
     extension: str = ".png",
@@ -156,7 +156,7 @@ def plot_reliability_diagrams(
         positive class probabilities of shape (n_samples,).
     label : str, default: ""
         Label for the legend.
-    strategy : Literal["quantile", "spline"]
+    strategy : Literal["uniform", "quantile", "spline"]
         Strategy to use for the calibration curve.
     n_bootstraps : int, default: 200
         Number of iteration for the bootstrap.
@@ -488,7 +488,7 @@ def _get_calibration_data(
     probas : npt.NDArray
         Predicted probabilities of the positive class
         of shape (n_samples,).
-    strategy : Literal["quantile", "spline"]
+    strategy : Literal["uniform", "quantile", "spline"]
         Strategy to use for the calibration curve.
     grid : npt.NDArray | None, default: None
         Grid used for predictions with spline strategy.
@@ -509,7 +509,7 @@ def _get_calibration_data(
         If strategy is not quantile or spline.
 
     """
-    if strategy == "quantile":
+    if strategy == "quantile" or strategy == "uniform":
         prob_true, prob_pred = calibration_curve(
             y_test,
             probas,
@@ -520,7 +520,7 @@ def _get_calibration_data(
         if grid is None:
             raise ValueError("Input grid should not be None with spline strategy")
         spline = SplineCalib()
-        spline.fit(probas, y_test)
+        spline.fit(probas, y_test.squeeze())
 
         prob_true = grid
         prob_pred = spline.predict(grid)
@@ -538,7 +538,7 @@ def _plot_calibration(
     prob_true: npt.NDArray,
     lower: npt.NDArray,
     upper: npt.NDArray,
-    strategy: Literal["quantile", "spline"],
+    strategy: Literal["uniform", "quantile", "spline"],
     colour: str,
     label: str | None = None,
 ):
@@ -557,7 +557,7 @@ def _plot_calibration(
         Lower bounds of the confidence interval.
     upper : npt.NDArray
         Upper bounds of the confidence interval.
-    strategy : Literal["quantile", "spline"]
+    strategy : Literal["uniform", "quantile", "spline"]
         Strategy to use to select the marker for plotting.
     colour : str
         Colour to plot in.
@@ -570,10 +570,10 @@ def _plot_calibration(
         Nothing is returned.
 
     """
-    if strategy == "quantile":
+    if strategy == "quantile" or strategy == "uniform":
         marker = "."
     elif strategy == "spline":
-        marker = "-"
+        marker = ""
 
     ax.plot(
         prob_pred,
