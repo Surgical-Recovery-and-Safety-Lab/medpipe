@@ -29,9 +29,9 @@ if TYPE_CHECKING:
 COLOURS = ["#2D90D8", "#33367A", "#96690E", "#CDB4DB", "#F2CC8F"]
 
 
-def plot_prediction_distribution(
-    dist_list: list[npt.NDArray],
-    label_list: list[str] = [],
+def plot_probability_distribution(
+    probas: npt.NDArray,
+    label: str = "",
     n_bins: int = 10,
     save_path: str = "",
     extension: str = ".png",
@@ -39,14 +39,18 @@ def plot_prediction_distribution(
     **kwargs: Any,
 ):
     """
-    Plots the prediction probabilities.
+    Plots the predicted probability distribution as a histogram.
+
+    By default, the yscale is log, but can be overwritten by
+    specifying it as a keyword argument.
 
     Parameters
     ----------
-    dist_list : list[npt.NDArray]
-        List of the predicted probability distributions.
-    label_list : list[str]
-        List of labels for the legend.
+    probas : npt.NDArray
+        Predicted probabilities of shape (n_samples, 2) or
+        the positive class of shape (n_samples,).
+    label : str
+         Label for the legend.
     n_bins : int, default: 10
         Number of bins for the histogram.
     save_path : str, default: []
@@ -64,14 +68,11 @@ def plot_prediction_distribution(
         Nothing is returned.
 
     """
-    title = kwargs["set_title"] if "set_title" in kwargs.keys() else ""
-
     # Split arguments based on where they should be sent
     ax_kwargs = {key: value for key, value in kwargs.items() if key in dir(Axes)}
     fig_kwargs = {key: value for key, value in kwargs.items() if key in dir(Figure)}
 
     # Set up variables
-    colour_list = ["#2D90D8", "#33367A", "#96690E", "#CDB4DB", "#F2CC8F"]
     bins = np.linspace(0, 1, n_bins + 1)
 
     # Set figure and axes properties
@@ -82,30 +83,37 @@ def plot_prediction_distribution(
     ax.set_ylabel("Count", fontweight="bold")
     ax.set_yscale("log")
 
-    # Set ax_kwargs to override if needed
-    for key, val in ax_kwargs.items():
-        getattr(ax, key)(val)
+    if probas.ndim == 2:
+        probas = probas[:, 1]
 
     ax.hist(
-        dist_list,
-        color=colour_list[: len(dist_list)],
+        probas,
+        color=COLOURS[0],
         stacked=True,
         edgecolor="black",
         bins=bins,
-        label=label_list,
+        label=label,
     )
     # Remove spines for aesthetics
     plt.gca().spines["top"].set_visible(False)
     plt.gca().spines["right"].set_visible(False)
 
-    # Add legend
-    ax.legend(loc="upper right", bbox_to_anchor=(1.45, 0.9), title="Models")
-    ax.set_title(title)
+    # Add legend and title
+    ax.legend(loc="upper right", bbox_to_anchor=(1.45, 0.9), frameon=False)
+    title = kwargs["set_title"] if "set_title" in kwargs.keys() else ""
+    ax.set_title(title, fontweight="bold")
+
     ax.set_xlim([-0.05, 1.05])  # Set x limits
 
     # Adjust layout
     plt.tight_layout()
     fig.subplots_adjust(right=0.7, bottom=0.14)
+
+    # Set ax_kwargs to override if needed
+    if "set_title" in kwargs.keys():
+        ax_kwargs.pop("set_title")
+    for key, val in ax_kwargs.items():
+        getattr(ax, key)(val)
 
     if save_path:
         save_file = save_path + extension
