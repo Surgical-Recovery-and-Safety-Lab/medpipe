@@ -310,6 +310,10 @@ class TestConvertDtypes:
                 {"col1": [1, 2], "col2": ["1", "2"]},
                 [pd.Int64Dtype(), pd.Int64Dtype()],
             ),
+            (
+                {"col1": pd.to_timedelta(["1 days", "2 days"]), "col2": ["1", "2"]},
+                [pd.Int64Dtype(), pd.Int64Dtype()],
+            ),
         ],
     )
     def test_convert_dtypes_success(
