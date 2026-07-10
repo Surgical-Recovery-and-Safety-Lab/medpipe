@@ -24,7 +24,7 @@ from sklearn.pipeline import Pipeline
 from sklearn.utils.validation import check_is_fitted
 
 from medpipe._types import Labels, TransformedData
-from medpipe.data.utils import convert_to_categoricals, extract_labels, split_data
+from medpipe.data.utils import convert_dtypes, extract_labels, split_data
 from medpipe.metrics.core import build_scorers, compute_metrics, print_metrics
 from medpipe.models.core import create_estimator
 from medpipe.utils.config import MedpipeConfig
@@ -728,10 +728,10 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
 
         # Convert data types if no preprocessor
         elif isinstance(X_processed, pd.DataFrame):
-            X_processed = convert_to_categoricals(X_processed)
+            X_processed = convert_dtypes(X_processed)
 
             if X_recal_processed is not None:
-                X_recal_processed = convert_to_categoricals(X_recal_processed)
+                X_recal_processed = convert_dtypes(X_recal_processed)
 
         return X_processed, X_recal_processed
 
@@ -1051,10 +1051,10 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
 
         assert X_test is not None  # Add check just in case
 
-        X_train = convert_to_categoricals(X_train)
-        X_test = convert_to_categoricals(X_test)
+        X_train = convert_dtypes(X_train)
+        X_test = convert_dtypes(X_test)
         if X_recal is not None:
-            X_recal = convert_to_categoricals(X_recal)
+            X_recal = convert_dtypes(X_recal)
 
         return (
             X_train,

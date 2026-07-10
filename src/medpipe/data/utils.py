@@ -7,7 +7,7 @@ Functions:
 - get_split_idx: Returns the indices for the data splits.
 - split_data: Split data into train and test or train and recalibration sets.
 - extract_labels: Extracts prediction labels from data.
-- convert_to_categoricals: Converts data types to category in a pd.DataFrame.
+- convert_dtypes: Converts data types to category in a pd.DataFrame.
 """
 
 from __future__ import annotations
@@ -227,10 +227,14 @@ def extract_labels(
     return X, y
 
 
-def convert_to_categoricals(X: pd.DataFrame) -> pd.DataFrame:
+def convert_dtypes(X: pd.DataFrame) -> pd.DataFrame:
     """
-    Converts data types to category in a pd.DataFrame
+    Converts data object types to category in a pd.DataFrame
     to avoid errors when cross-validate is called.
+
+    Data is checked to see if it can be converted to numeric
+    before converting to categorical. Timedeltas are converted
+    to days.
 
     Parameters
     ----------
@@ -252,6 +256,9 @@ def convert_to_categoricals(X: pd.DataFrame) -> pd.DataFrame:
         raise TypeError(f"Input X should be a pd.DataFrame, but got {type(X)}")
     obj_cols = X.select_dtypes(include=["object"]).columns
     for col in obj_cols:
-        X[col] = X[col].astype("category")
+        try:
+            X[col] = pd.to_numeric(X[col])
+        except ValueError:
+            X[col] = X[col].astype("category")
 
     return X
