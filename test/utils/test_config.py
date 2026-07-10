@@ -1035,40 +1035,6 @@ class TestModelHyperparamsSubConfigConfig:
         assert config.model_dump() == raw_config
 
 
-class TestBalancingSubConfig:
-    """Test class for the BalancingSubConfig class"""
-
-    def _get_valid_config_dict(self, **overrides) -> dict:
-        """Creates a fresh valid config dict to override."""
-        config_dict = {
-            "weighting": {
-                "weighting_fn": "inverse_frequency_single_sample_weights",
-            },
-            "sampling": {
-                "sampler_fn": "random_oversampler",
-                "reduction_factor": 0.5,
-                "hard_percent": None,
-            },
-        }
-        config_dict.update(overrides)
-
-        return config_dict
-
-    def test_valid_config(self) -> None:
-        """Pass valid configuration to BalancingSubConfig."""
-        raw_config = self._get_valid_config_dict()
-        config = BalancingSubConfig.model_validate(raw_config)
-
-        assert config.model_dump() == raw_config
-
-    def test_valid_config_None(self) -> None:
-        """Test case when configuration is empty dictionary."""
-        config = BalancingSubConfig.model_validate({})
-
-        for value in config.model_dump().values():
-            assert value == None
-
-
 class TestHyperparameterConfig:
     """Test class for the HyperparameterConfig class"""
 
@@ -1078,16 +1044,6 @@ class TestHyperparameterConfig:
             "hyperparameters": {
                 "predictor": {"learning_rate": 0.1},
                 "recalibrator": {"out_of_bounds": "clip"},
-            },
-            "balancing": {
-                "weighting": {
-                    "weighting_fn": "inverse_frequency_single_sample_weights",
-                },
-                "sampling": {
-                    "sampler_fn": "random_oversampler",
-                    "reduction_factor": 0.5,
-                    "hard_percent": None,
-                },
             },
         }
         config_dict.update(overrides)
@@ -1159,7 +1115,6 @@ class TestMedpipeConfig:
                 },
             },
             "hyperparameters": {
-                "balancing": None,
                 "hyperparameters": {
                     "predictor": {"learning_rate": 0.1},
                     "recalibrator": {"out_of_bounds": "clip"},

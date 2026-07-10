@@ -342,38 +342,10 @@ class ModelHyperparamSubConfig(BaseModel):
     model_config = {"extra": "forbid"}
 
 
-class WeightingConfig(BaseModel):
-    weighting_fn: str
-    model_config = {"extra": "forbid"}
-
-
-class SamplingConfig(BaseModel):
-    sampler_fn: str
-    reduction_factor: float = Field(default=0.5, ge=0.0, le=1.0)
-    hard_percent: float | None = Field(default=None, gt=0.0, lt=1.0)
-    model_config = {"extra": "forbid"}
-
-    @model_validator(mode="after")
-    def validate_sampler_interactions(self) -> "SamplingConfig":
-        mean_sampler_fn = ["mean_dist_sampler", "group_mean_dist_sampler"]
-        if self.sampler_fn in mean_sampler_fn and not self.hard_percent:
-            raise ValueError(
-                f"The {self.sampler_fn} function requires hard percent to be specified"
-            )
-        return self
-
-
-class BalancingSubConfig(BaseModel):
-    weighting: WeightingConfig | None = None
-    sampling: SamplingConfig | None = None
-    model_config = {"extra": "forbid"}
-
-
 class HyperparameterConfig(BaseModel):
     """The master schema for the hyperparameter subconfiguration file."""
 
     hyperparameters: ModelHyperparamSubConfig
-    balancing: BalancingSubConfig | None = None
     model_config = {"extra": "forbid"}
 
 

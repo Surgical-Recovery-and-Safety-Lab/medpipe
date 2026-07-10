@@ -119,7 +119,7 @@ class TestFit:
         "version, top_level_config",
         [
             (["0", "0", "0"], "HGBc_no_recal_config.toml"),
-            (["0", "2", "2"], "HGBc_no_recal_config.toml"),
+            (["0", "2", "0"], "HGBc_no_recal_config.toml"),
         ],
     )
     def test_pipeline_fit_success_no_recal(
@@ -141,7 +141,7 @@ class TestFit:
         "version, top_level_config",
         [
             (["0", "2", "1"], "HGBc_config.toml"),
-            (["0", "2", "2"], "HGBc_config.toml"),
+            (["0", "2", "0"], "HGBc_config.toml"),
         ],
     )
     def test_pipeline_fit_success_with_recal(
@@ -168,7 +168,7 @@ class TestRun:
         [
             (["0", "0", "0"], "HGBc_no_recal_config.toml"),
             (["0", "1", "1"], "HGBc_config.toml"),
-            (["1", "2", "2"], "HGBc_config.toml"),
+            (["1", "2", "0"], "HGBc_config.toml"),
         ],
     )
     def test_pipeline_run_success(
@@ -241,7 +241,7 @@ class TestPredictProba:
         "version, top_level_config",
         [
             (["0", "1", "1"], "HGBc_config.toml"),
-            (["1", "2", "2"], "HGBc_config.toml"),
+            (["1", "2", "0"], "HGBc_config.toml"),
         ],
     )
     def test_pipeline_predict_proba_success(
@@ -335,7 +335,7 @@ class TestPredict:
         "version, top_level_config",
         [
             (["0", "1", "1"], "HGBc_config.toml"),
-            (["1", "2", "2"], "HGBc_config.toml"),
+            (["1", "2", "0"], "HGBc_config.toml"),
         ],
     )
     def test_pipeline_predict_success(

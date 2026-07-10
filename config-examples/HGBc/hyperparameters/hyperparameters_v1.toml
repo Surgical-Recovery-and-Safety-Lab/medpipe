@@ -7,12 +7,3 @@ max_features = 0.2
 
 [hyperparameters.recalibrator]
 out_of_bounds = "clip"
-
-[balancing]
-[balancing.weighting]
-weighting_fn = "inverse_frequency_single_sample_weights"
-
-[balancing.sampling]
-sampler_fn = "random_oversampler"
-reduction_factor = 0.5
-hard_percent = 0.25
