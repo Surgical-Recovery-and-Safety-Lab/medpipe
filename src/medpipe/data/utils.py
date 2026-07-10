@@ -229,12 +229,13 @@ def extract_labels(
 
 def convert_dtypes(X: pd.DataFrame) -> pd.DataFrame:
     """
-    Converts data object types to category in a pd.DataFrame
-    to avoid errors when cross-validate is called.
+    Convert data types to avoid errors when calling other
+    functions.
 
-    Data is checked to see if it can be converted to numeric
-    before converting to categorical. Timedeltas are converted
-    to days.
+    Object categories are converted to categoricals. Data is
+    checked to see if it can be converted to numeric before
+    converting to categorical.
+    Timedeltas are converted to days.
 
     Parameters
     ----------
@@ -255,10 +256,14 @@ def convert_dtypes(X: pd.DataFrame) -> pd.DataFrame:
     if not isinstance(X, pd.DataFrame):
         raise TypeError(f"Input X should be a pd.DataFrame, but got {type(X)}")
     obj_cols = X.select_dtypes(include=["object"]).columns
+    timedelta_cols = X.select_dtypes(include=["timedelta64"]).columns
     for col in obj_cols:
         try:
             X[col] = pd.to_numeric(X[col])
         except ValueError:
             X[col] = X[col].astype("category")
+
+    for col in timedelta_cols:
+        X[col] = X[col].dt.days  # Convert timedelta to days
 
     return X
