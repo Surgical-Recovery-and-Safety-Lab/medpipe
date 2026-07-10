@@ -870,9 +870,7 @@ class TestPrepareData:
             X_train, _, _ = mock_data
 
         # Patch functions
-        convert_patch = mocker.patch(
-            "medpipe.pipeline.pipeline.convert_to_categoricals"
-        )
+        convert_patch = mocker.patch("medpipe.pipeline.pipeline.convert_dtypes")
 
         mp_pipeline.preprocessor = None
         _, _ = mp_pipeline._prepare_data(X_train, X_recal)
