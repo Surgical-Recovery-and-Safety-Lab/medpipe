@@ -288,7 +288,7 @@ def compute_strata_metrics(
     strata_idx: list[npt.NDArray],
     y: Labels,
     y_pred: npt.NDArray,
-):
+) -> list[npt.NDArray]:
     """
     Computes metrics for the different strata.
 
