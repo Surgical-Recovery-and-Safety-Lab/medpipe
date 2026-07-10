@@ -474,7 +474,7 @@ def plot_strata_heatmap(
 def _get_calibration_data(
     y_test: Labels,
     probas: npt.NDArray,
-    strategy: Literal["quantile", "spline"],
+    strategy: Literal["uniform", "quantile", "spline"],
     grid: npt.NDArray | None = None,
     **calibration_kwargs,
 ) -> tuple[npt.NDArray, npt.NDArray]:
