@@ -432,6 +432,13 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
         if X_recal is not None:
             X_recal = self.preprocessor.transform(X_recal)
 
+        try:  # Try to convert to float
+            X_train = X_train.astype(np.float32)
+            if X_recal is not None:
+                X_recal = X_recal.astype(np.float32)
+        except ValueError:
+            pass
+
         return (X_train, X_recal)
 
     def _get_cv_generator(self) -> StratifiedKFold | GroupKFold:
