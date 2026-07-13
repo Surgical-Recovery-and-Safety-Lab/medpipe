@@ -24,7 +24,9 @@ from sklearn.metrics import (
     get_scorer,
     log_loss,
     make_scorer,
+    mean_absolute_error,
     roc_auc_score,
+    root_mean_squared_error,
 )
 
 from medpipe._types import Labels
@@ -101,6 +103,8 @@ METRIC_MAPPING = {  #  metric name, scorer, function to use, print name
         "AUROC",
     ),
     "ici": ("ici", ici_score, "predict_proba", "ICI"),
+    "rmse": ("root_mean_squared_error", root_mean_squared_error, ("predict"), "RMSE"),
+    "mae": ("mean_absolute_error", mean_absolute_error, ("predict"), "MAE"),
 }
 
 METRICS = [key for key in METRIC_MAPPING.keys()]
