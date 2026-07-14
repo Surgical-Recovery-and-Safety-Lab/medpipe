@@ -16,6 +16,7 @@ from medpipe.metrics.core import (
     METRICS,
     build_scorers,
     compute_metrics,
+    compute_strata_metrics,
     ici_score,
     print_metrics,
 )
@@ -208,3 +209,84 @@ class TestPrintMetrics:
         )
         with pytest.raises(TypeError, match=match_expr):
             print_metrics(np.array([0]), metrics)
+
+
+class TestComputeStrataMetrics:
+
+    @pytest.mark.parametrize(
+        "strata_idx",
+        [
+            [np.array([0, 10, 20, 30, 40, 50])],
+            [np.array([1, 4, 2, 5, 3]), np.array([6, 7, 9, 99, 39])],
+        ],
+    )
+    def test_compute_strata_metrics_success(
+        self, mock_data: tuple[Labels, npt.NDArray], strata_idx: list[npt.NDArray]
+    ) -> None:
+        """Test successful function call."""
+        y, y_pred = mock_data  # Unpack mock data
+        scores = compute_strata_metrics(METRICS, strata_idx, y, y_pred)
+
+        assert isinstance(scores, list)
+        for i in range(len(strata_idx)):
+            assert len(scores[i]) == len(METRICS)
+
+    @pytest.mark.parametrize(
+        "strata_idx",
+        [
+            {},
+            3.14,
+            42,
+            "llama",
+            (),
+        ],
+    )
+    def test_compute_strata_metrics_invalid_strata_idx_type(
+        self, mock_data: tuple[Labels, npt.NDArray], strata_idx: list[npt.NDArray]
+    ) -> None:
+        """Test case when strata_idx is invalid type."""
+        y, y_pred = mock_data  # Unpack mock data
+        match_expr = f"Input strata_idx must be a list, got {type(strata_idx).__name__}"
+        with pytest.raises(TypeError, match=match_expr):
+            compute_strata_metrics(METRICS, strata_idx, y, y_pred)
+
+    @pytest.mark.parametrize(
+        "strata_idx, idx",
+        [
+            ([{}], 0),
+            ([np.array([42], dtype=np.int8), 3.14], 1),
+            ([42], 0),
+            (["llama"], 0),
+            ([()], 0),
+        ],
+    )
+    def test_compute_strata_metrics_invalid_strata_idx_ele_type(
+        self,
+        mock_data: tuple[Labels, npt.NDArray],
+        strata_idx: list[npt.NDArray],
+        idx: int,
+    ) -> None:
+        """Test case when strata_idx is invalid type."""
+        y, y_pred = mock_data  # Unpack mock data
+        match_expr = f"Element at index {idx} must be a np.ndarray, got {type(strata_idx[idx]).__name__}"
+        with pytest.raises(TypeError, match=match_expr):
+            compute_strata_metrics(METRICS, strata_idx, y, y_pred)
+
+    @pytest.mark.parametrize(
+        "strata_idx, idx",
+        [
+            ([np.array([3.14]), np.array([1], dtype=np.int8)], 0),
+            ([np.array([0], dtype=np.int8), np.array([3.14])], 1),
+        ],
+    )
+    def test_compute_strata_metrics_invalid_strata_idx_not_ints(
+        self,
+        mock_data: tuple[Labels, npt.NDArray],
+        strata_idx: list[npt.NDArray],
+        idx: int,
+    ) -> None:
+        """Test case when strata_idx is invalid type."""
+        y, y_pred = mock_data  # Unpack mock data
+        match_expr = f"Array at index {idx} must contain integers, got dtype '{strata_idx[idx].dtype}'"
+        with pytest.raises(TypeError, match=match_expr):
+            compute_strata_metrics(METRICS, strata_idx, y, y_pred)
