@@ -323,11 +323,23 @@ def compute_strata_metrics(
         If strata_idx is not a list[np.ndarray] of integers.
 
     """
-    if not isinstance(strata_idx, list) and not isinstance(strata_idx[0], np.ndarray):
-        raise TypeError("Input strata_idx should be a list[np.ndarray]")
+    if not isinstance(strata_idx, list):
+        raise TypeError(
+            f"Input strata_idx must be a list, got {type(strata_idx).__name__}"
+        )
 
-    if not isinstance(strata_idx[0][0], int):
-        raise TypeError("Input strata_idx should be a list[np.ndarray] of integers")
+    for idx, arr in enumerate(strata_idx):
+        # Verify it's a numpy array
+        if not isinstance(arr, np.ndarray):
+            raise TypeError(
+                f"Element at index {idx} must be a np.ndarray, got {type(arr).__name__}"
+            )
+
+        # Verify the array contains integers using its data type kind
+        if arr.dtype.kind not in ("i", "u"):
+            raise TypeError(
+                f"Array at index {idx} must contain integers, got dtype '{arr.dtype}'"
+            )
 
     scores = []
     for idx in strata_idx:
