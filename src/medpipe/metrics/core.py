@@ -103,8 +103,13 @@ METRIC_MAPPING = {  #  metric name, scorer, function to use, print name
         "AUROC",
     ),
     "ici": ("ici", ici_score, "predict_proba", "ICI"),
-    "rmse": ("root_mean_squared_error", root_mean_squared_error, ("predict"), "RMSE"),
-    "mae": ("mean_absolute_error", mean_absolute_error, ("predict"), "MAE"),
+    "rmse": (
+        "neg_root_mean_squared_error",
+        root_mean_squared_error,
+        ("predict"),
+        "RMSE",
+    ),
+    "mae": ("neg_mean_absolute_error", mean_absolute_error, ("predict"), "MAE"),
 }
 
 METRICS = [key for key in METRIC_MAPPING.keys()]
