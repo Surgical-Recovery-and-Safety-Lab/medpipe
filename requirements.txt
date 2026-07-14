@@ -4,6 +4,7 @@ matplotlib>=3.10.8
 numpy>=2.4.2
 pandas>=2.3.3
 pytest>=9.0.1
+pytest-mock>=3.15.1
 scikit_learn==1.8.0
 scipy>=1.17.0
 pyarrow>=23.0.1
@@ -11,4 +12,3 @@ pydantic>=2.13.4
 ml_insights>=1.1.0
 ngboost>=0.5.10
 pytest-mock>=3.15.1
-pytest>=9.0.1
