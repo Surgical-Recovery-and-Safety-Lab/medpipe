@@ -30,6 +30,10 @@ random_state = 42
 [evaluation.metrics]
 metrics = ["roc_auc", "log_loss"]
 
+[evaluation.calibration]
+strategy = "quantile"
+n_bootstraps = 2
+
 [evaluation.fairness]
 strata = ["SEX", "AGE"]
 groups = { "AGE" = [[18, 50], [51, 120]] }
