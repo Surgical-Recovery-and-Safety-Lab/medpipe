@@ -290,6 +290,12 @@ class MetricsConfig(BaseModel):
         return self
 
 
+class CalibrationConfig(BaseModel):
+    strategy: Literal["uniform", "quantile", "spline"] = Field(default="uniform")
+    n_bootstraps: int = Field(default=200, ge=0)
+    model_config = {"extra": "forbid"}
+
+
 class FairnessConfig(BaseModel):
     strata: list[str]
     groups: dict[str, list[list[int | float | str]]] | None = None
@@ -309,6 +315,7 @@ class FairnessConfig(BaseModel):
 
 class EvaluationSubConfig(BaseModel):
     metrics: MetricsConfig
+    calibration: CalibrationConfig
     fairness: FairnessConfig | None = None
     model_config = {"extra": "forbid"}
 

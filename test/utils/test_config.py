@@ -841,6 +841,25 @@ class TestMetricsConfig:
             )
 
 
+class TestCalibrationConfig:
+    """Test class for the CalibrationConfig class"""
+
+    def _get_valid_config_dict(self, **overrides) -> dict:
+        """Creates a fresh valid config dict to override."""
+        config_dict = {"strategy": "uniform", "n_bootstraps": 200}
+        config_dict.update(overrides)
+
+        return config_dict
+
+    @pytest.mark.parametrize("strategy", ["uniform", "quantile", "spline"])
+    def test_valid_config(self, strategy: str) -> None:
+        """Pass valid configuration to CalibrationConfig."""
+        raw_config = self._get_valid_config_dict(strategy=strategy)
+        config = CalibrationConfig.model_validate(raw_config)
+
+        assert config.model_dump() == raw_config
+
+
 class TestFairnessConfig:
     """Test class for the FairnessConfig class"""
 
@@ -885,6 +904,7 @@ class TestEvaluationSubConfig:
         """Creates a fresh valid config dict to override."""
         config_dict = {
             "metrics": {"metrics": ["roc_auc", "ici"]},
+            "calibration": {"strategy": "uniform", "n_bootstraps": 200},
             "fairness": {
                 "strata": ["AGE", "SEX"],
                 "groups": {"AGE": [[18, 50], [51, 120]]},
@@ -945,6 +965,7 @@ class TestWorkflowConfig:
             },
             "evaluation": {
                 "metrics": {"metrics": ["roc_auc", "ici"]},
+                "calibration": {"strategy": "uniform", "n_bootstraps": 200},
                 "fairness": {
                     "strata": ["AGE", "SEX"],
                     "groups": {"AGE": [[18, 50], [51, 120]]},
@@ -1108,6 +1129,10 @@ class TestMedpipeConfig:
                 },
                 "evaluation": {
                     "metrics": {"metrics": ["roc_auc", "ici"]},
+                    "calibration": {
+                        "strategy": "uniform",
+                        "n_bootstraps": 200,
+                    },
                     "fairness": {
                         "strata": ["AGE", "SEX"],
                         "groups": {"AGE": [[18, 50], [51, 120]]},
