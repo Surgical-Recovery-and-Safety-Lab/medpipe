@@ -420,7 +420,7 @@ def plot_strata_heatmap(
     )
     ax.set_yticks(
         np.arange(n_strata),
-        labels=stratas,
+        labels=["All strata"] + stratas,
     )
 
     ax.set_xticks(
