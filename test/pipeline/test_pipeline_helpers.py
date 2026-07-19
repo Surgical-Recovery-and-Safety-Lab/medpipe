@@ -895,6 +895,58 @@ class TestPrepareData:
             mp_pipeline._prepare_data(pd.DataFrame({}), X_recal)
 
 
+class TestGetStrataIdx:
+    """Test class for the _get_strata_idx funciton of
+    the MedpipePipeline class."""
+
+    def test_pipeline_get_strata_idx_sex(
+        self, mp_pipeline: MedpipePipeline, mock_data: MockData
+    ) -> None:
+        """Test case when sex strata is specified."""
+
+        X_train, X_test, X_recal = mock_data
+        data = pd.concat((X_train, X_test, X_recal))
+
+        # Only test SEX at this stage
+        assert mp_pipeline.medpipe_config.workflow.evaluation.fairness
+        mp_pipeline.medpipe_config.workflow.evaluation.fairness.strata = ["SEX"]
+
+        strata, strata_idx = mp_pipeline._get_strata_idx(data, X_train)
+
+        assert strata == ["F", "M"]
+        np.testing.assert_array_equal(strata_idx[0], np.array([0, 3, 6]))
+        np.testing.assert_array_equal(strata_idx[1], np.array([1, 2, 4, 5]))
+
+    def test_pipeline_get_strata_idx_age(
+        self, mp_pipeline: MedpipePipeline, mock_data: MockData
+    ) -> None:
+        """Test case when age strata is specified."""
+
+        X_train, X_test, X_recal = mock_data
+        data = pd.concat((X_train, X_test, X_recal))
+
+        # Only test SEX at this stage
+        assert mp_pipeline.medpipe_config.workflow.evaluation.fairness
+        mp_pipeline.medpipe_config.workflow.evaluation.fairness.strata = ["AGE"]
+
+        strata, strata_idx = mp_pipeline._get_strata_idx(data, X_train)
+
+        assert strata == ["18 -- 50", "51 -- 120"]
+        np.testing.assert_array_equal(strata_idx[0], np.array([0, 1, 3, 4, 5]))
+        np.testing.assert_array_equal(strata_idx[1], np.array([2, 6]))
+
+    def test_pipeline_get_strata_idx_invalid_column(
+        self, mp_pipeline: MedpipePipeline
+    ) -> None:
+        """Test case when invalid column is specified."""
+        assert mp_pipeline.medpipe_config.workflow.evaluation.fairness
+        mp_pipeline.medpipe_config.workflow.evaluation.fairness.strata = ["invalid"]
+
+        match_expr = "Strata column 'invalid' not found in data."
+        with pytest.raises(ValueError, match=match_expr):
+            mp_pipeline._get_strata_idx(pd.DataFrame([]), pd.DataFrame([]))
+
+
 class TestPrintTestMetrics:
     """Test class for the _print_test_metrics function of
     the MedpipePipeline class."""
