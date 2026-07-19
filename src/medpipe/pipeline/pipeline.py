@@ -742,6 +742,77 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
 
         return X_processed, X_recal_processed
 
+    def _get_strata_idx(
+        self, data: pd.DataFrame, idx_data: pd.DataFrame
+    ) -> tuple[list[str], list[npt.NDArray]]:
+        """
+        Extracts the indices of the different strata from input data.
+
+        Requires the presence of the fairness configuration parameters.
+
+        Parameters
+        ----------
+        data : pd.DataFrame
+            Original data containing the strata columns.
+        idx_data : pd.DataFrame
+            Subset of data for which to find the indices for.
+
+        Returns
+        -------
+        strata : list[str]
+            List of strata names.
+        strata_idx : list[npt.NDArray]
+            List of the indices for each strata.
+
+        Raises
+        ------
+        AssertionError
+            If the fairness parameters are not provided in medpipe_config.
+        ValueError
+            If a strata column is not in data.
+
+        """
+        # Check that fairness data is provided
+        fairness_config = self.medpipe_config.workflow.evaluation.fairness
+        assert fairness_config
+
+        columns = fairness_config.strata
+        groups = fairness_config.groups
+        assert columns
+        assert groups
+
+        strata = []  # Empty list to hold all strata
+        strata_idx = []  # Empty list to hold strata indices
+
+        for col in columns:
+            if col not in data.columns:
+                raise ValueError(f"Strata column '{col}' not found in data.")
+
+            # Case 1: Custom range limits provided (e.g., age groups)
+            if col in groups and groups[col]:
+                for limits in groups[col]:
+                    lower, upper = limits
+                    # Find matching rows within the inclusive range
+                    mask = (idx_data[col] >= lower) & (idx_data[col] <= upper)
+                    indices = np.where(mask)[0]
+
+                    strata.append(f"{lower} -- {upper}")
+                    strata_idx.append(indices)
+
+            # Case 2: Standard categorical column (e.g., gender)
+            else:
+                # Get unique values present in the original data to keep consistent mapping
+                unique_values = data[col].dropna().unique()
+
+                for value in unique_values:
+                    mask = idx_data[col] == value
+                    indices = np.where(mask)[0]
+
+                    strata.append(value)
+                    strata_idx.append(indices)
+
+        return strata, strata_idx
+
     def _print_test_metrics(
         self,
         results: npt.NDArray,
