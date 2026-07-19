@@ -4,8 +4,10 @@ Plot functions module.
 This module provides functions to plot results.
 
 Functions:
-- plot_prediction_distribution: Plots the prediction probabilities.
-- plot_reliability_diagrams: Plots the reliability diagrams.
+- plot_probability_distribution: Plots the prediction probabilities
+    as a histogram.
+- plot_reliability_diagram: Plots the reliability diagram.
+- plot_strata_heatmap: Plots the strata delta scores in a heatmap.
 """
 
 from __future__ import annotations
