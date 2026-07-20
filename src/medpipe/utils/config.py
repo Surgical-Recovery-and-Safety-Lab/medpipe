@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import tomllib
 from pathlib import Path
-from typing import Any, Dict, Literal, TypeAlias
+from typing import Literal, TypeAlias
 from warnings import warn
 
 from pydantic import BaseModel, Field, field_validator, model_validator
@@ -160,13 +160,6 @@ class PreprocessingConfig(BaseModel):
         if self.preprocess and not self.operations:
             raise ValueError("Operations must be specified if preprocess is True")
         return self
-
-
-class SamplingConfig(BaseModel):
-
-    strategy: str | None = None
-    random_state: int | None = None
-    model_config = {"extra": "allow"}
 
 
 class SplitTestConfig(BaseModel):
@@ -331,7 +324,6 @@ class WorkflowConfig(BaseModel):
     """The master schema for the workflow subconfiguration file."""
 
     preprocessing: PreprocessingConfig | None = None
-    sampling: SamplingConfig | None = None
     validation: ValidationSubConfig
     evaluation: EvaluationSubConfig
 
