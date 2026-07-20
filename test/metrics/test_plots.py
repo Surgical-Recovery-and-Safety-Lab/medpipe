@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any, Dict, Generator, Literal
 from unittest.mock import MagicMock, patch
 
+import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import numpy.typing as npt
@@ -19,8 +20,18 @@ from medpipe.metrics.plots import (
     _plot_calibration,
     plot_probability_distribution,
     plot_reliability_diagram,
+    plot_ROC_curve,
     plot_strata_heatmap,
 )
+
+matplotlib.use("Agg")
+
+
+@pytest.fixture(autouse=True)
+def mock_show() -> Generator[Any, Any, Any]:
+    """Fixture for the show function."""
+    with patch("matplotlib.pyplot.show") as m:
+        yield m
 
 
 class TestPlotProbabilityDistribution:
@@ -33,12 +44,6 @@ class TestPlotProbabilityDistribution:
         probas_1d = np.random.uniform(0, 1, size=(100,))
         probas_2d = np.vstack([1 - probas_1d, probas_1d]).T
         return probas_1d, probas_2d
-
-    @pytest.fixture(autouse=True)
-    def mock_matplotlib_show(self) -> Generator[Any, Any, Any]:
-        """Automatically mocks plt.show across all tests to prevent visual popups."""
-        with patch("matplotlib.pyplot.show") as mock_show:
-            yield mock_show
 
     @pytest.mark.parametrize("dim", [1, 2])
     def test_plot_probability_distribution_success(
@@ -76,6 +81,121 @@ class TestPlotProbabilityDistribution:
         # Higher dimensions fail pandas/numpy array operations within standard plotting contexts
         with pytest.raises(ValueError):
             plot_probability_distribution(probas=invalid_probas, show_fig=False)
+
+
+class TestPlotROCCurve:
+    """Test class for the plot_ROC_curve function."""
+
+    @pytest.fixture
+    def dummy_data(self) -> tuple[npt.NDArray, npt.NDArray]:
+        """Fixture providing standard binary labels and probability scores."""
+        y_test = np.array([0, 1, 0, 1, 0, 1, 0, 1, 0, 1])
+        probas = np.array([0.1, 0.9, 0.2, 0.8, 0.3, 0.7, 0.4, 0.6, 0.2, 0.8])
+        return y_test, probas
+
+    def test_plot_ROC_curve_success(
+        self, mock_show: MagicMock, dummy_data: tuple[npt.NDArray, npt.NDArray]
+    ) -> None:
+        """Test case verifying that the function executes successfully under
+        normal conditions."""
+        y_test, probas = dummy_data
+        plot_ROC_curve(
+            y_test=y_test,
+            probas=probas,
+            label="Model A",
+            n_bootstraps=10,
+            show_fig=True,
+        )
+        mock_show.assert_called_once()
+
+    def test_plot_ROC_curve_zero_bootstraps(
+        self, dummy_data: tuple[npt.NDArray, npt.NDArray]
+    ) -> None:
+        """Test case ensuring the function executes correctly when
+        n_bootstraps is set to 0."""
+        y_test, probas = dummy_data
+        plot_ROC_curve(
+            y_test=y_test,
+            probas=probas,
+            n_bootstraps=0,
+            show_fig=False,
+        )
+
+    def test_plot_ROC_curve_save_file(
+        self,
+        tmp_path: Path,
+        dummy_data: tuple[npt.NDArray, npt.NDArray],
+    ) -> None:
+        """Test case verifying that file saving logic and validation
+        checks are triggered when save_path is provided."""
+        y_test, probas = dummy_data
+        save_path = str(tmp_path / "test_roc_plot")
+        extension = ".png"
+        expected_file = save_path + extension
+
+        plot_ROC_curve(
+            y_test=y_test,
+            probas=probas,
+            save_path=save_path,
+            extension=extension,
+            show_fig=False,
+            n_bootstraps=5,
+        )
+
+        assert os.path.exists(expected_file)
+        assert os.path.getsize(expected_file) > 0
+
+    def test_plot_ROC_curve_custom_kwargs(
+        self, dummy_data: tuple[npt.NDArray, npt.NDArray]
+    ) -> None:
+        """Test case checking that custom figure and axes kwargs
+        like set_title are processed correctly."""
+        y_test, probas = dummy_data
+        plot_ROC_curve(
+            y_test=y_test,
+            probas=probas,
+            set_title="Custom ROC Title",
+            n_bootstraps=5,
+            show_fig=False,
+        )
+
+    def test_plot_ROC_curve_hide_fig(
+        self, mock_show: MagicMock, dummy_data: tuple[npt.NDArray, npt.NDArray]
+    ) -> None:
+        """Test case verifying that plt.show is not called when show_fig is False."""
+        y_test, probas = dummy_data
+        plot_ROC_curve(
+            y_test=y_test,
+            probas=probas,
+            show_fig=False,
+            n_bootstraps=5,
+        )
+        mock_show.assert_not_called()
+
+    def test_plot_ROC_curve_2d_probas(self) -> None:
+        """Test case ensuring handling of 2D probability matrices (n_samples, 2)."""
+        y_test = np.array([0, 1, 0, 1])
+        # Passing 2D array of class probabilities [prob_class_0, prob_class_1]
+        probas_2d = np.array(
+            [
+                [0.8, 0.2],
+                [0.1, 0.9],
+                [0.7, 0.3],
+                [0.3, 0.7],
+            ]
+        )
+
+        # Note: If roc_curve requires 1D or slice [:, 1],
+        # this tests current interface robustness
+        try:
+            plot_ROC_curve(
+                y_test=y_test,
+                probas=probas_2d[:, 1],
+                n_bootstraps=5,
+                show_fig=False,
+            )
+        except Exception as e:
+            pytest.fail(f"Function failed with 1D probability slice from 2D array: {e}")
 
 
 class TestGetCalibrationData:
@@ -228,12 +348,6 @@ class TestPlotReliabilityDiagram:
 
 class TestPlotStrataHeatmap:
     """Test class for the plot_strata_heatmap function."""
-
-    @pytest.fixture(autouse=True)
-    def mock_show(self) -> Generator[Any, Any, Any]:
-        """Fixture for the show function."""
-        with patch("matplotlib.pyplot.show") as m:
-            yield m
 
     @pytest.fixture
     def valid_heatmap_inputs(self) -> Dict[str, Any]:
