@@ -5,6 +5,8 @@ This module provides data sampling functions.
 
 Functions:
 - sample_data: Samples the data using the specified strategy.
+- sample_group_data: Sample the data based on the groups and
+    configuration strategy.
 """
 
 from __future__ import annotations
