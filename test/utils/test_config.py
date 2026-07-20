@@ -318,6 +318,35 @@ class TestPreprocessingConfig:
         )
 
 
+class TestSamplingConfig:
+    """Test class for the SamplingConfig class"""
+
+    def _get_valid_config_dict(self, **overrides) -> dict:
+        """Creates a fresh valid config dict to override."""
+        config_dict = {
+            "strategy": "RandomUnderSampler",
+            "random_state": 42,
+        }
+
+        config_dict.update(overrides)
+
+        return config_dict
+
+    def test_valid_config(self) -> None:
+        """Pass valid configuration to SamplingConfig."""
+        raw_config = self._get_valid_config_dict()
+        config = SamplingConfig.model_validate(raw_config)
+
+        assert config.model_dump() == raw_config
+
+    def test_valid_config_None(self) -> None:
+        """Test case when configuration is empty dictionary."""
+        config = SamplingConfig.model_validate({})
+
+        for value in config.model_dump().values():
+            assert value == None
+
+
 class TestSplitTestConfig:
     """Test class for the SplitTestConfig class"""
 
@@ -942,6 +971,7 @@ class TestWorkflowConfig:
                     },
                 ],
             },
+            "sampling": {"strategy": "SMOTE", "random_state": 42},
             "validation": {
                 "test_split": {
                     "strategy": "group",
@@ -1106,6 +1136,7 @@ class TestMedpipeConfig:
             },
             "workflow": {
                 "preprocessing": None,
+                "sampling": None,
                 "validation": {
                     "cross_validation": {
                         "strategy": "random",
