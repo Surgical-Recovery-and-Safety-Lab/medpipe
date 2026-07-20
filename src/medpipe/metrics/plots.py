@@ -208,17 +208,20 @@ def plot_reliability_diagram(
     )
 
     boots = []
+    lower = np.array([])
+    upper = np.array([])
     rng = np.random.default_rng()  # Set a default random number generator
 
-    for _ in range(n_bootstraps):
-        idx = rng.choice(len(y_test), len(y_test), replace=True)
-        prob_true_boot, prob_pred_boot = _get_calibration_data(
-            y_test[idx], probas[idx], strategy, grid=grid, **calibration_kwargs
-        )
-        boots.append(np.interp(prob_pred, prob_pred_boot, prob_true_boot))
+    if n_bootstraps > 0:
+        for _ in range(n_bootstraps):
+            idx = rng.choice(len(y_test), len(y_test), replace=True)
+            prob_true_boot, prob_pred_boot = _get_calibration_data(
+                y_test[idx], probas[idx], strategy, grid=grid, **calibration_kwargs
+            )
+            boots.append(np.interp(prob_pred, prob_pred_boot, prob_true_boot))
 
-    lower = np.percentile(boots, 2.5, axis=0)
-    upper = np.percentile(boots, 97.5, axis=0)
+        lower = np.percentile(boots, 2.5, axis=0)
+        upper = np.percentile(boots, 97.5, axis=0)
 
     _plot_calibration(
         ax, prob_pred, prob_true, lower, upper, strategy, COLOURS[0], label
@@ -584,11 +587,13 @@ def _plot_calibration(
         color=colour,
         label=label,
     )
-    ax.fill_between(
-        prob_pred,
-        lower,
-        upper,
-        color=colour,
-        alpha=0.5,
-        label=f"{label} 95% CI",
-    )
+
+    if len(lower) != 0 and len(upper) != 0:
+        ax.fill_between(
+            prob_pred,
+            lower,
+            upper,
+            color=colour,
+            alpha=0.5,
+            label=f"{label} 95% CI",
+        )
