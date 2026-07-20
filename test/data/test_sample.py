@@ -5,6 +5,7 @@ Test functions for the data.sample module
 """
 
 from typing import Type
+from unittest.mock import patch
 
 import numpy as np
 import numpy.typing as npt
@@ -13,7 +14,7 @@ import pytest
 from imblearn.over_sampling import SMOTE, RandomOverSampler
 from imblearn.under_sampling import RandomUnderSampler
 
-from medpipe.data.sample import _check_strategy, sample_data
+from medpipe.data.sample import _check_strategy, sample_data, sample_group_data
 from medpipe.utils.config import SamplingConfig
 
 
@@ -92,3 +93,81 @@ class TestCheckStrategy:
         )
         with pytest.raises(ValueError, match=match_expr):
             _check_strategy("invalid")
+
+
+class TestSampleGroupData:
+    """Test class for the sample_group_data function."""
+
+    @pytest.fixture
+    def sample_inputs(self) -> tuple[pd.DataFrame, npt.NDArray, list[npt.NDArray]]:
+        """Provides sample DataFrame, labels, and group index splits."""
+        X = pd.DataFrame({"feat1": [1, 2, 3, 4], "feat2": [10, 20, 30, 40]})
+        y = np.array([0, 1, 0, 1])
+        # Two groups: Group 0 -> indices [0, 1], Group 1 -> indices [2, 3]
+        group_idx = [np.array([0, 1]), np.array([2, 3])]
+        return X, y, group_idx
+
+    def test_sample_group_data_success(
+        self, sample_inputs: tuple[pd.DataFrame, npt.NDArray, list[npt.NDArray]]
+    ) -> None:
+        """Tests successful resampling across each group using a valid configuration."""
+        X, y, group_idx = sample_inputs
+        config = SamplingConfig(strategy="RandomOverSampler", random_state=42)
+
+        # Mock sample_data to return predictable outputs per group call
+        mock_returns = [
+            (X.iloc[[0, 1]], np.array([0, 1])),
+            (X.iloc[[2, 3]], np.array([0, 1])),
+        ]
+
+        with patch(
+            "medpipe.data.sample.sample_data", side_effect=mock_returns
+        ) as mock_sample:
+            X_resampled, y_resampled = sample_group_data(X, y, group_idx, config)
+
+            # Check that sample_data was called once for each group
+            assert mock_sample.call_count == 2
+
+            # Verify output data structure concatenation
+            assert isinstance(X_resampled, pd.DataFrame)
+            assert isinstance(y_resampled, np.ndarray)
+            assert len(X_resampled) == 4
+            assert len(y_resampled) == 4
+
+    def test_sample_group_data_none_config(
+        self, sample_inputs: tuple[pd.DataFrame, npt.NDArray, list[npt.NDArray]]
+    ) -> None:
+        """Tests function behaviour when config is None,
+        ensuring it passes None downstream."""
+        X, y, group_idx = sample_inputs
+
+        mock_returns = [
+            (X.iloc[[0, 1]], y[[0, 1]]),
+            (X.iloc[[2, 3]], y[[2, 3]]),
+        ]
+
+        with patch(
+            "medpipe.data.sample.sample_data", side_effect=mock_returns
+        ) as mock_sample:
+            X_resampled, y_resampled = sample_group_data(X, y, group_idx, config=None)
+
+            # Verify None config was passed to sample_data
+            for call in mock_sample.call_args_list:
+                assert call.args[2] is None
+
+            pd.testing.assert_frame_equal(X_resampled, X)
+            np.testing.assert_array_equal(y_resampled, y)
+
+    def test_sample_group_data_propagates_downstream_errors(
+        self, sample_inputs: tuple[pd.DataFrame, npt.NDArray, list[npt.NDArray]]
+    ) -> None:
+        """Tests that exceptions raised by sample_data propagate upwards."""
+        X, y, group_idx = sample_inputs
+        config = SamplingConfig(strategy="invalid_strategy")  # type: ignore[arg-type]
+
+        with patch(
+            "medpipe.data.sample.sample_data",
+            side_effect=ValueError("Invalid strategy"),
+        ):
+            with pytest.raises(ValueError, match="Invalid strategy"):
+                sample_group_data(X, y, group_idx, config)
