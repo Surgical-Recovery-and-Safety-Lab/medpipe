@@ -6,6 +6,7 @@ This module provides functions to plot results.
 Functions:
 - plot_probability_distribution: Plots the prediction probabilities
     as a histogram.
+- plot_ROC_curve: Plots the ROC curve.
 - plot_reliability_diagram: Plots the reliability diagram.
 - plot_strata_heatmap: Plots the strata delta scores in a heatmap.
 """
@@ -21,6 +22,7 @@ from matplotlib.figure import Figure
 from ml_insights import SplineCalib
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from sklearn.calibration import calibration_curve
+from sklearn.metrics import roc_curve
 
 from medpipe._types import Labels
 from medpipe.utils.exceptions import file_checks
@@ -41,7 +43,7 @@ def plot_probability_distribution(
     extension: str = ".png",
     show_fig: bool = True,
     **kwargs: Any,
-):
+) -> None:
     """
     Plots the predicted probability distribution as a histogram.
 
@@ -129,6 +131,131 @@ def plot_probability_distribution(
     plt.close()
 
 
+def plot_ROC_curve(
+    y_test: Labels,
+    probas: npt.NDArray,
+    label: str = "",
+    n_bootstraps: int = 1000,
+    save_path: str = "",
+    extension: str = ".png",
+    show_fig: bool = True,
+    **kwargs,
+) -> None:
+    """
+    Plots the ROC curve for the given probabilities.
+
+    The 95% confidence interval is calculated using the bootstrap method for
+    the calibration curve.
+
+    Parameters
+    ----------
+    y_test : Labels
+        Ground truth labels of shape (n_samples,).
+    probas : npt.NDArray
+        Predicted probabilities of shape (n_samples, 2) or
+        positive class probabilities of shape (n_samples,).
+    label : str, default: ""
+        Label for the legend.
+    strategy : Literal["uniform", "quantile", "spline"]
+        Strategy to use for the calibration curve.
+    n_bootstraps : int, default: 1000
+        Number of iteration for the bootstrap.
+    save_path : str, default: []
+        Path to the save file.
+    extension : str, default: ".png"
+        Extension to save figure in.
+    show_fig : bool, default: True
+        Flag to show the figure.
+    **kwargs : Any
+        Extra arguments for the figure or axes objects.
+
+    Returns
+    -------
+    None
+        Nothing is returned.
+
+    """
+    # Split arguments based on where they should be sent
+    ax_kwargs = {key: value for key, value in kwargs.items() if key in dir(Axes)}
+    fig_kwargs = {key: value for key, value in kwargs.items() if key in dir(Figure)}
+
+    # Set figure properties
+    fig, ax = plt.subplots(**fig_kwargs)
+
+    # Remove spines for aesthetics
+    plt.gca().spines["top"].set_visible(False)
+    plt.gca().spines["right"].set_visible(False)
+
+    # Plot perfect calibration
+    ax.plot(
+        np.linspace(0, 1, 100),
+        np.linspace(0, 1, 100),
+        "k--",
+        label="Chance level",
+    )
+
+    fpr, tpr, _ = roc_curve(y_test, probas)
+
+    boots = []
+    lower = np.array([])
+    upper = np.array([])
+
+    ax.plot(
+        fpr,
+        tpr,
+        color=COLOURS[0],
+        label=label,
+    )
+
+    if n_bootstraps > 0:
+        for _ in range(n_bootstraps):
+            idx = np.random.choice(len(y_test), len(y_test), replace=True)
+            fpr_boot, tpr_boot, _ = roc_curve(y_test[idx], probas[idx])
+            boots.append(np.interp(fpr, fpr_boot, tpr_boot))
+
+        lower = np.percentile(boots, 2.5, axis=0)
+        upper = np.percentile(boots, 97.5, axis=0)
+
+        ax.fill_between(
+            fpr,
+            lower,
+            upper,
+            color=COLOURS[0],
+            alpha=0.5,
+            label=f"{label} 95% CI",
+        )
+
+    # Remove spines for aesthetics for distribution
+    plt.gca().spines["top"].set_visible(False)
+    plt.gca().spines["right"].set_visible(False)
+
+    ax.set_xlabel("FPR", fontweight="bold", fontsize=15)
+    ax.set_ylabel("TPR", fontweight="bold", fontsize=15)
+
+    # Set title and labels
+    title = kwargs["set_title"] if "set_title" in kwargs.keys() else ""
+    ax.set_title(title, fontweight="bold")
+    if "set_title" in kwargs.keys():
+        ax_kwargs.pop("set_title")
+
+    # Set ax_kwargs to override if needed
+    for key, val in ax_kwargs.items():
+        getattr(ax, key)(val)
+
+    ax.legend(loc="upper right", bbox_to_anchor=(1.6, 0.9), frameon=False)
+
+    fig.subplots_adjust(right=0.66, bottom=0.14)
+
+    if save_path:
+        save_file = save_path + extension
+        file_checks(save_file, extension=extension, exists=False)
+        plt.savefig(save_file)
+    if show_fig:
+        plt.show()
+
+    plt.close()
+
+
 def plot_reliability_diagram(
     y_test: Labels,
     probas: npt.NDArray,
@@ -140,7 +267,7 @@ def plot_reliability_diagram(
     show_fig: bool = True,
     calibration_kwargs: dict[str, Any] = {},
     **kwargs: Any,
-):
+) -> None:
     """
     Plots the reliability diagrams for the given probabilities.
 
@@ -312,7 +439,7 @@ def plot_strata_heatmap(
     extension: str = ".png",
     show_fig: bool = True,
     **kwargs,
-):
+) -> None:
     """
     Plots the strata delta scores in a heatmap.
 
@@ -546,7 +673,7 @@ def _plot_calibration(
     strategy: Literal["uniform", "quantile", "spline"],
     colour: str,
     label: str | None = None,
-):
+) -> None:
     """
     Helper function to plot the calibration and 95% CI on a Axes object.
 
