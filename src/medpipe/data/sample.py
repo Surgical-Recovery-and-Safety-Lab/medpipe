@@ -12,12 +12,13 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Type
 
 import imblearn
+import numpy as np
+import pandas as pd
 
 from medpipe.utils.config import SamplingConfig
 
 if TYPE_CHECKING:
     import numpy.typing as npt
-    import pandas as pd
 
 
 def sample_data(
@@ -60,6 +61,48 @@ def sample_data(
     # Resample both matrices simultaneously
     X_resampled, y_resampled = sampler.fit_resample(X, y)
     return X_resampled, y_resampled
+
+
+def sample_group_data(
+    X: pd.DataFrame,
+    y: npt.NDArray,
+    group_idx: list[npt.NDArray],
+    config: SamplingConfig | None,
+) -> tuple[pd.DataFrame, npt.NDArray]:
+    """
+    Sample the data based on the groups and configuration strategy.
+
+    Each group will be balanced.
+    Available strategies are found in imblearn.over_sampling
+    and imblearn.under_sampling modules.
+
+    Parameters
+    ----------
+    X : pd.DataFrame
+        Data to resample.
+    y : npt.NDArray
+        Labels to resample.
+    group_idx : list[npt.NDArray]
+        List of group indices.
+    config : SamplingConfig | None
+        Configuration to read parameters from or None.
+
+    Returns
+    -------
+    X_resampled : pd.DataFrame
+        Resampled data or X if sampling configuration is None.
+    y_resampled : npt.NDArray
+        Resampled labels or y if sampling configuration is None.
+
+    """
+    X_resampled = []
+    y_resampled = []
+    for idx in group_idx:
+        X_tmp, y_tmp = sample_data(X.iloc[idx], y[idx], config)
+        X_resampled.append(X_tmp)
+        y_resampled.append(y_tmp)
+
+    return pd.concat(X_resampled), np.concatenate(y_resampled)
 
 
 def _check_strategy(strategy: str) -> Type:
