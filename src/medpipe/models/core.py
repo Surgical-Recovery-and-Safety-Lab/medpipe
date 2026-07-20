@@ -117,17 +117,6 @@ def save_pipeline(pipeline: MedpipePipeline, save_file: str | Path) -> None:
     None
         Nothing is returned.
 
-    Raises
-    ------
-    TypeError
-        If save_file is not a str.
-    FileNotFoundError
-        If save_file does not exist.
-    IsADirectoryError
-        If save_file is a directory.
-    ValueError
-        If save_file extension is not extension.
-
     """
     file_checks(save_file, ".joblib", exists=False)
     with open(save_file, "wb") as f:
@@ -147,17 +136,6 @@ def load_pipeline(load_file: str | Path) -> MedpipePipeline:
     -------
     pipeline : Pipeline
         Loaded pipeline.
-
-    Raises
-    ------
-    TypeError
-        If load_file is not a str.
-    FileNotFoundError
-        If load_file does not exist.
-    IsADirectoryError
-        If load_file is a directory.
-    ValueError
-        If load_file extension is not .joblib file.
 
     """
     file_checks(load_file, ".joblib")
