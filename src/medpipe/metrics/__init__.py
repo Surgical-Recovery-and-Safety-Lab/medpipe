@@ -8,4 +8,9 @@ submodules:
 
 from . import core, plots
 from .core import compute_metrics, print_metrics
-from .plots import plot_probability_distribution, plot_reliability_diagram
+from .plots import (
+    plot_probability_distribution,
+    plot_reliability_diagram,
+    plot_ROC_curve,
+    plot_strata_heatmap,
+)

@@ -13,6 +13,8 @@ from .data import extract_labels
 from .metrics import (
     plot_probability_distribution,
     plot_reliability_diagram,
+    plot_ROC_curve,
+    plot_strata_heatmap,
     print_metrics,
 )
 from .models import load_pipeline, save_pipeline
@@ -34,8 +36,10 @@ __all__ = [
     "setup_logger",
     "load_pipeline",
     "save_pipeline",
-    "plot_prediction_distribution",
-    "plot_reliability_diagrams",
+    "plot_probability_distribution",
+    "plot_reliability_diagram",
+    "plot_ROC_curve",
+    "plot_strata_heatmap",
     "print_metrics",
     "extract_labels",
 ]

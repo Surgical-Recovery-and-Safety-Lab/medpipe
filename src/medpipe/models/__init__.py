@@ -6,4 +6,4 @@ submodules:
 """
 
 from . import core
-from .core import load_pipeline, save_pipeline
+from .core import create_estimator, load_pipeline, save_pipeline
