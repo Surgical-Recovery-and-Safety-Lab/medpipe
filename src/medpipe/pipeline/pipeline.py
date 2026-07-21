@@ -863,7 +863,10 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
 
         for i, outcome in enumerate(self.outcomes):
             # Plots for each outcome
-            raw_predictions = self.predict_proba(X, outcome, "predictor")[0]
+            if self.recalibrator_method is not None:
+                raw_predictions = self.predict_proba(X, outcome, "recalibrator")[0]
+            else:
+                raw_predictions = self.predict_proba(X, outcome, "predictor")[0]
             plot_probability_distribution(
                 raw_predictions,
                 label="Distribution",
@@ -893,9 +896,14 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
 
             for j, idx in enumerate(strata_idx):
                 # Get scores for different strata
-                strata_predictions = self.predict_proba(
-                    X.iloc[idx], outcome, "predictor"
-                )[0]
+                if self.recalibrator_method is not None:
+                    strata_predictions = self.predict_proba(
+                        X.iloc[idx], outcome, "recalibrator"
+                    )[0]
+                else:
+                    strata_predictions = self.predict_proba(
+                        X.iloc[idx], outcome, "predictor"
+                    )[0]
                 strata_scores[j, i, :] = compute_metrics(
                     self.metrics, y[idx, i], strata_predictions
                 )
