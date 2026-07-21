@@ -355,43 +355,34 @@ class TestPlotStrataHeatmap:
         return {
             "outcomes": ["OutA", "OutB"],
             "metric": "auroc",
-            "stratas": ["StratA", "StratB"],
+            "strata": ["StratA", "StratB"],
             "scores": np.array([0.8, 0.7]),
-            "strata_scores": [np.array([0.78, 0.69]), np.array([0.82, 0.71])],
+            "strata_scores": np.array([np.array([0.78, 0.69]), np.array([0.82, 0.71])]),
         }
 
     def test_plot_strata_heatmap_success(
         self, tmp_path: Path, valid_heatmap_inputs: Dict[str, Any]
     ) -> None:
-        base_path = os.path.join(tmp_path, "heatmap_")
+        base_path = os.path.join(tmp_path, "heatmap_auroc")
         # Custom logic inside saves using: save_path + metric + extension
-        expected_file = base_path + "auroc.png"
+        expected_file = base_path + ".png"
 
         plot_strata_heatmap(**valid_heatmap_inputs, save_path=base_path, show_fig=False)
         assert os.path.exists(expected_file)
-
-    def test_plot_strata_heatmap_strata_dimension_mismatch(
-        self, valid_heatmap_inputs: Dict[str, Any]
-    ) -> None:
-        inputs = valid_heatmap_inputs.copy()
-        inputs["stratas"] = ["SingleStrat"]  # 1 element vs 2 matrix arrays
-
-        with pytest.raises(
-            ValueError,
-            match="Inputs stratas and strata_scores should be the same length",
-        ):
-            plot_strata_heatmap(**inputs, show_fig=False)
 
     def test_plot_strata_heatmap_mismatched_strata_length(
         self, valid_heatmap_inputs: Dict[str, Any]
     ) -> None:
         """Validates check: len(stratas) == len(strata_scores)"""
         inputs = valid_heatmap_inputs.copy()
-        inputs["stratas"] = ["OnlyOneStratum"]  # Length 1 vs 2 row vectors
+        inputs["strata"] = ["OnlyOneStratum"]  # Length 1 vs 2 row vectors
 
         with pytest.raises(
             ValueError,
-            match="Inputs stratas and strata_scores should be the same length",
+            match=(
+                "Inputs strata and strata_scores should be the same length "
+                f"but got 1 and 2"
+            ),
         ):
             plot_strata_heatmap(**inputs, show_fig=False)
 
