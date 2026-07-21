@@ -17,7 +17,10 @@ from typing import TYPE_CHECKING, Type
 import joblib
 import ngboost
 import sklearn
+from sklearn.base import is_regressor
+from sklearn.compose import TransformedTargetRegressor
 
+from medpipe.data.transformers import BoundedLogitTransformer
 from medpipe.utils.exceptions import file_checks
 
 SCRIPT_NAME = "models/core"
@@ -55,9 +58,17 @@ def create_estimator(model_type: str, **hyperparameters) -> BaseEstimator:
     if type(model_type) is not str:
         raise TypeError(f"{model_type} should be a string")
 
-    estimator = _check_model_type(model_type)
+    estimator_cls = _check_model_type(model_type)  # Estimator class
+    estimator = estimator_cls(**hyperparameters)
 
-    return estimator(**hyperparameters)
+    if is_regressor(estimator) or isinstance(estimator, ngboost.NGBRegressor):
+        return TransformedTargetRegressor(
+            regressor=estimator,
+            transformer=BoundedLogitTransformer(),
+            check_inverse=False,  # Avoid error because of clipping
+        )
+
+    return estimator
 
 
 def _check_model_type(model_type: str) -> Type:
