@@ -5,6 +5,8 @@ Test functions for the models.core module
 """
 
 from pathlib import Path
+from typing import Any, Generator
+from unittest.mock import MagicMock, patch
 
 import ngboost
 import pytest
@@ -21,6 +23,17 @@ from medpipe.models.core import (
 
 
 @pytest.fixture
+def shield_local_filesystem() -> Generator[Any, Any, Any]:
+    """Automatically prevent any test in this file from creating folders on disk."""
+    with (
+        patch("pathlib.Path.mkdir") as mock_path_mkdir,
+        patch("os.makedirs") as mock_os_makedirs,
+    ):
+        # Relinquish control back to the test runner loop
+        yield mock_path_mkdir, mock_os_makedirs
+
+
+@pytest.fixture
 def example_config_dir() -> Path:
     """Provide the location of the example configuration files."""
     base_dir = Path(__file__).parent.parent.parent
@@ -29,7 +42,9 @@ def example_config_dir() -> Path:
 
 
 @pytest.fixture
-def mp_pipeline(example_config_dir: Path) -> MedpipePipeline:
+def mp_pipeline(
+    example_config_dir: Path, shield_local_filesystem: Generator[Any, Any, Any]
+) -> MedpipePipeline:
     """Create a Medpipe Pipeline for tests."""
     return MedpipePipeline(example_config_dir / "HGBc_config.toml", logger=None)
 
