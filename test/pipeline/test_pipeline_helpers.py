@@ -6,6 +6,7 @@ Pipeline class helper functions test suites.
 
 from pathlib import Path
 from typing import Any, Literal
+from unittest.mock import MagicMock, call, patch
 
 import numpy as np
 import numpy.typing as npt
@@ -14,10 +15,12 @@ import pytest
 from fixtures import (
     DataPrep,
     MockData,
+    MockLabels,
     cv_data_prep,
     example_config_dir,
     mock_cv_results,
     mock_data,
+    mock_labels,
     mp_pipeline,
     shield_local_filesystem,
 )
@@ -896,7 +899,7 @@ class TestPrepareData:
 
 
 class TestGetStrataIdx:
-    """Test class for the _get_strata_idx funciton of
+    """Test class for the _get_strata_idx function of
     the MedpipePipeline class."""
 
     def test_pipeline_get_strata_idx_sex(
@@ -931,7 +934,7 @@ class TestGetStrataIdx:
 
         strata, strata_idx = mp_pipeline._get_strata_idx(data, X_train)
 
-        assert strata == ["18 -- 50", "51 -- 120"]
+        assert strata == ["18 — 50", "51 — 120"]
         np.testing.assert_array_equal(strata_idx[0], np.array([0, 1, 3, 4, 5]))
         np.testing.assert_array_equal(strata_idx[1], np.array([2, 6]))
 
@@ -945,6 +948,96 @@ class TestGetStrataIdx:
         match_expr = "Strata column 'invalid' not found in data."
         with pytest.raises(ValueError, match=match_expr):
             mp_pipeline._get_strata_idx(pd.DataFrame([]), pd.DataFrame([]))
+
+
+class TestClassifierPlots:
+    """Test class for the _classifier_plots function of
+    the MedpipePipeline class."""
+
+    @pytest.fixture
+    def dummy_inputs(
+        self,
+        mock_data: MockData,
+        mock_labels: MockLabels,
+    ) -> tuple[pd.DataFrame, npt.NDArray, list[str], list[npt.NDArray]]:
+        """Fixture providing dummy input data structures matching 1 outcome and 2 strata."""
+        X, _, _ = mock_data
+        y, _, _ = mock_labels
+        strata = ["F", "M"]
+        strata_idx = [np.array([0, 3, 6]), np.array([1, 2, 4, 5])]
+        return X, y, strata, strata_idx
+
+    @patch("medpipe.pipeline.pipeline.plot_strata_heatmap")
+    @patch("medpipe.pipeline.pipeline.compute_metrics")
+    @patch("medpipe.pipeline.pipeline.plot_reliability_diagram")
+    @patch("medpipe.pipeline.pipeline.plot_ROC_curve")
+    @patch("medpipe.pipeline.pipeline.plot_probability_distribution")
+    def test_classifier_plots_success(
+        self,
+        mock_plot_probability_distribution: MagicMock,
+        mock_plot_ROC_curve: MagicMock,
+        mock_plot_reliability_diagram: MagicMock,
+        mock_compute_metrics: MagicMock,
+        mock_plot_strata_heatmap: MagicMock,
+        mp_pipeline: MagicMock,
+        dummy_inputs: tuple[pd.DataFrame, np.ndarray, list[str], list[np.ndarray]],
+    ) -> None:
+        """Test case verifying that all plotting functions and metrics
+        are called with expected parameters."""
+        X, y, strata, strata_idx = dummy_inputs
+        mp_pipeline.fit(X, y, X, y)
+
+        mock_compute_metrics.return_value = np.array([0.8, 0.7])
+
+        # Execute method under test
+        mp_pipeline._classifier_plots(X, y, strata, strata_idx)
+        # 1 outcome -> each individual plot function called once
+        assert mock_plot_probability_distribution.call_count == len(
+            mp_pipeline.outcomes
+        )
+        assert mock_plot_ROC_curve.call_count == len(mp_pipeline.outcomes)
+        assert mock_plot_reliability_diagram.call_count == len(mp_pipeline.outcomes)
+
+        # 1 outcome * (1 main compute + 2 strata computes) = 3 total metric calls
+        expected_metric_calls = len(mp_pipeline.outcomes) * (1 + len(strata))
+        assert mock_compute_metrics.call_count == expected_metric_calls
+
+        # Heatmap function invoked once per configured metric
+        assert mock_plot_strata_heatmap.call_count == len(mp_pipeline.metrics)
+
+    @patch("medpipe.pipeline.pipeline.plot_strata_heatmap")
+    @patch("medpipe.pipeline.pipeline.compute_metrics")
+    @patch("medpipe.pipeline.pipeline.plot_reliability_diagram")
+    @patch("medpipe.pipeline.pipeline.plot_ROC_curve")
+    @patch("medpipe.pipeline.pipeline.plot_probability_distribution")
+    def test_classifier_plots_calibration_config_kwargs(
+        self,
+        mock_plot_probability_distribution: MagicMock,
+        mock_plot_ROC_curve: MagicMock,
+        mock_plot_reliability_diagram: MagicMock,
+        mock_compute_metrics: MagicMock,
+        mock_plot_strata_heatmap: MagicMock,
+        mp_pipeline: MagicMock,
+        dummy_inputs: tuple[pd.DataFrame, np.ndarray, list[str], list[np.ndarray]],
+    ) -> None:
+        """Test case verifying that calibration configuration kwargs
+        are extracted from config and passed to plot_reliability_diagram."""
+        X, y, strata, strata_idx = dummy_inputs
+
+        mp_pipeline.fit(X, y, X, y)
+        mock_compute_metrics.return_value = np.array([0.8, 0.7])
+
+        # Execute method under test
+        mp_pipeline._classifier_plots(X, y, strata, strata_idx)
+
+        # Ensure configuration calibration kwargs
+        # ('strategy': 'spline', 'n_bootstraps': 2) were passed
+        calib_kwargs = (
+            mp_pipeline.medpipe_config.workflow.evaluation.calibration.model_dump()
+        )
+        _, kwargs = mock_plot_reliability_diagram.call_args
+        for key, val in calib_kwargs.items():
+            assert kwargs[key] == val
 
 
 class TestPrintTestMetrics:
