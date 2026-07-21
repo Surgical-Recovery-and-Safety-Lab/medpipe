@@ -476,7 +476,7 @@ def plot_strata_heatmap(
     """
     if len(strata) != strata_scores.shape[0]:
         expr = (
-            "Inputs stratas and strata_scores should be the same length "
+            "Inputs strata and strata_scores should be the same length "
             f"but got {len(strata)} and {strata_scores.shape[0]}"
         )
         raise ValueError(expr)
