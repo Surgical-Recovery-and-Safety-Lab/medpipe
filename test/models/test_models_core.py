@@ -6,7 +6,7 @@ Test functions for the models.core module
 
 from pathlib import Path
 from typing import Any, Generator
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import ngboost
 import pytest
@@ -52,8 +52,9 @@ def mp_pipeline(
 class TestCreateEstimator:
     """Test class for the create_estimator function."""
 
-    def test_create_estimator_success(self) -> None:
-        """Tests successful instantiation of a valid model with hyperparameters."""
+    def test_create_estimator_classifier_success(self) -> None:
+        """Tests successful instantiation of a valid classifier
+        with hyperparameters."""
         estimator = create_estimator(
             "RandomForestClassifier", n_estimators=10, random_state=42
         )
@@ -61,6 +62,15 @@ class TestCreateEstimator:
         assert isinstance(estimator, sklearn.ensemble.RandomForestClassifier)
         assert estimator.n_estimators == 10
         assert estimator.random_state == 42
+
+    @pytest.mark.parametrize(
+        "model_type", ["NGBRegressor", "HistGradientBoostingRegressor"]
+    )
+    def test_create_estimator_regressor_success(self, model_type: str) -> None:
+        """Tests successful instantiation of a valid regressor with hyperparameters."""
+        estimator = create_estimator(model_type)
+
+        assert isinstance(estimator, sklearn.compose.TransformedTargetRegressor)
 
     def test_create_estimator_type_error_for_non_string_model_type(self) -> None:
         """Tests that a TypeError is raised when model_type is not a string."""
