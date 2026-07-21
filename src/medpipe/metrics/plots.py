@@ -432,9 +432,9 @@ def plot_reliability_diagram(
 def plot_strata_heatmap(
     outcomes: list[str],
     metric: str,
-    stratas: list[str],
+    strata: list[str],
     scores: npt.NDArray,
-    strata_scores: list[npt.NDArray],
+    strata_scores: npt.NDArray,
     save_path: str = "",
     extension: str = ".png",
     show_fig: bool = True,
@@ -452,14 +452,14 @@ def plot_strata_heatmap(
         List of outcomes.
     metric : str
         Metric name being plotted.
-    stratas : list[str]
-        List of the stratas.
+    strata : list[str]
+        List of the strata.
     scores : npt.NDArray
         Metric scores for the original models.
-    strata_scores : list[np.NDArray]
+    strata_scores : npt.NDArray
         Metric score for each outcome and
-        each strata.
-    save_path : str, default: []
+        each strata of shape (n_strata, n_outcomes).
+    save_path : str, default: ""
         Path to the save file.
     extension : str, default: ".png"
         Extension to save figure in.
@@ -476,27 +476,27 @@ def plot_strata_heatmap(
     Raises
     ------
     ValueError
-        If stratas and strata_scores are not the same length.
+        If strata and strata_scores are not the same length.
         If outcomes and strata_scores[0] are not the same length.
         If scores and strata_scores[0] are not the same length.
 
     """
-    if len(stratas) != len(strata_scores):
+    if len(strata) != strata_scores.shape[0]:
         expr = (
             "Inputs stratas and strata_scores should be the same length "
-            f"but got {len(stratas)} and {len(strata_scores)}"
+            f"but got {len(strata)} and {strata_scores.shape[0]}"
         )
         raise ValueError(expr)
-    if len(outcomes) != len(strata_scores[0]):
+    if len(outcomes) != strata_scores.shape[1]:
         expr = (
             "Inputs outcomes and strata_scores should be the same length "
-            f"but got {len(outcomes)} and {len(strata_scores[0])}"
+            f"but got {len(outcomes)} and {strata_scores.shape[1]}"
         )
         raise ValueError(expr)
-    if len(scores) != len(strata_scores[0]):
+    if len(scores) != strata_scores.shape[1]:
         expr = (
             "Inputs scores and strata_scores should be the same length "
-            f"but got {len(scores)} and {len(strata_scores[0])}"
+            f"but got {len(scores)} and {strata_scores.shape[1]}"
         )
         raise ValueError(expr)
 
@@ -550,7 +550,7 @@ def plot_strata_heatmap(
     )
     ax.set_yticks(
         np.arange(n_strata),
-        labels=["All strata"] + stratas,
+        labels=["All strata"] + strata,
     )
 
     ax.set_xticks(
@@ -595,7 +595,7 @@ def plot_strata_heatmap(
         getattr(ax, key)(val)
 
     if save_path:
-        save_file = save_path + metric + extension
+        save_file = save_path + extension
         plt.savefig(save_file)
     if show_fig:
         plt.show()
