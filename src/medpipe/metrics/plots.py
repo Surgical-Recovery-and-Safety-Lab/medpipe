@@ -47,9 +47,6 @@ def plot_probability_distribution(
     """
     Plots the predicted probability distribution as a histogram.
 
-    By default, the yscale is log, but can be overwritten by
-    specifying it as a keyword argument.
-
     Parameters
     ----------
     probas : npt.NDArray
@@ -87,7 +84,6 @@ def plot_probability_distribution(
     # Set labels and scale
     ax.set_xlabel("Predicted probabilities", fontweight="bold")
     ax.set_ylabel("Count", fontweight="bold")
-    ax.set_yscale("log")
 
     if probas.ndim == 2:
         probas = probas[:, 1]
@@ -273,8 +269,6 @@ def plot_reliability_diagram(
 
     The 95% confidence interval is calculated using the bootstrap method for
     the calibration curve.
-    The probability distribution can also be plotted under the calibration
-    curve.
 
     Parameters
     ----------
@@ -396,7 +390,6 @@ def plot_reliability_diagram(
         bins=bins,
         label=label,
     )
-    ax_dist.set_yscale("log")
     ax_dist.set_xlabel("Predicted probabilities", fontweight="bold")
 
     # Set title and labels
