@@ -17,7 +17,7 @@ import numpy as np
 import pandas as pd
 import sklearn
 from scipy.sparse import csr_array, csr_matrix
-from sklearn.base import BaseEstimator, ClassifierMixin
+from sklearn.base import BaseEstimator, ClassifierMixin, is_classifier
 from sklearn.compose import ColumnTransformer
 from sklearn.model_selection import GroupKFold, StratifiedKFold, cross_validate
 from sklearn.pipeline import Pipeline
@@ -25,7 +25,18 @@ from sklearn.utils.validation import check_is_fitted
 
 from medpipe._types import Labels, TransformedData
 from medpipe.data.utils import convert_dtypes, extract_labels, split_data
-from medpipe.metrics.core import build_scorers, compute_metrics, print_metrics
+from medpipe.metrics.core import (
+    METRIC_MAPPING,
+    build_scorers,
+    compute_metrics,
+    print_metrics,
+)
+from medpipe.metrics.plots import (
+    plot_probability_distribution,
+    plot_reliability_diagram,
+    plot_ROC_curve,
+    plot_strata_heatmap,
+)
 from medpipe.models.core import create_estimator
 from medpipe.utils.config import MedpipeConfig
 from medpipe.utils.io import load_data, read_toml_configuration
@@ -796,7 +807,7 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
                     mask = (idx_data[col] >= lower) & (idx_data[col] <= upper)
                     indices = np.where(mask)[0]
 
-                    strata.append(f"{lower} -- {upper}")
+                    strata.append(f"{lower} — {upper}")
                     strata_idx.append(indices)
 
             # Case 2: Standard categorical column (e.g., gender)
@@ -812,6 +823,95 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
                     strata_idx.append(indices)
 
         return strata, strata_idx
+
+    def _classifier_plots(
+        self,
+        X: pd.DataFrame,
+        y: Labels,
+        strata: list[str],
+        strata_idx: list[npt.NDArray],
+    ) -> None:
+        """Plot key figures for a classifier.
+
+        Parameters
+        ----------
+        X : pd.DataFrame
+            Data to use for plotting.
+        y : Labels
+            Labels associated with the data.
+        strata : list[str]
+            List of strata names.
+        strata_idx : list[npt.NDArray]
+            List of the indices for each strata.
+
+        Returns
+        _______
+        None
+            Nothing is returned.
+
+        """
+        save_path = self.medpipe_config.top_level.paths.figure_dir  # Save path
+        version = self.medpipe_config.top_level.meta.version
+
+        calibration_config = self.medpipe_config.workflow.evaluation.calibration
+        calibration_kwargs = (
+            calibration_config.model_dump() if calibration_config is not None else {}
+        )
+
+        scores = np.zeros((self.n_outcomes, len(self.metrics)))
+        strata_scores = np.zeros((len(strata), self.n_outcomes, len(self.metrics)))
+
+        for i, outcome in enumerate(self.outcomes):
+            # Plots for each outcome
+            raw_predictions = self.predict_proba(X, outcome, "predictor")[0]
+            plot_probability_distribution(
+                raw_predictions,
+                label="Distribution",
+                show_fig=False,
+                dpi=300,
+                set_title=f"{outcome} predicted distribution",
+                save_path=save_path + f"{outcome}_distribution_{version}",
+            )
+            plot_ROC_curve(
+                y[:, i],
+                raw_predictions[:, i],
+                label="ROC",
+                show_fig=False,
+                dpi=300,
+                set_title=f"{outcome} ROC curve",
+                save_path=save_path + f"{outcome}_ROC_curve_{version}",
+            )
+            plot_reliability_diagram(
+                y[:, i],
+                raw_predictions,
+                **calibration_kwargs,
+                show_fig=False,
+                dpi=300,
+                save_path=save_path + f"{outcome}_calibration_{version}",
+            )
+            scores[i, :] = compute_metrics(self.metrics, y[:, i], raw_predictions)
+
+            for j, idx in enumerate(strata_idx):
+                # Get scores for different strata
+                strata_predictions = self.predict_proba(
+                    X.iloc[idx], outcome, "predictor"
+                )[0]
+                strata_scores[j, i, :] = compute_metrics(
+                    self.metrics, y[idx, i], strata_predictions
+                )
+
+        for i, metric in enumerate(self.metrics):
+            plot_strata_heatmap(
+                self.outcomes,
+                metric,
+                strata,
+                scores[:, i],
+                strata_scores[:, :, i],
+                show_fig=False,
+                dpi=300,
+                set_title=f"{METRIC_MAPPING[metric][-1]} fairness heatmap",
+                save_path=save_path + f"{metric}_fairness_{version}",
+            )
 
     def _print_test_metrics(
         self,
@@ -1178,7 +1278,8 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
             data
         )
 
-        if self.medpipe_config.top_level.meta.run_mode != "fast":
+        run_mode = self.medpipe_config.top_level.meta.run_mode
+        if run_mode != "fast":
             if self.preprocessor:
                 X_train, X_recal = self._prepare_features(X_train, X_recal)
             # Create cross-validation generator
@@ -1203,6 +1304,11 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
 
         print("Final test results")
         self.test_models(X_test, y_test)
+
+        if run_mode == "audit" and is_classifier(self.predictor[self.outcomes[0]]):
+            # Only run if the predictors are classifiers and run mode is audit
+            strata_idx = self._get_strata_idx(data, X_test)
+            self._classifier_plots(X_test, y_test, *strata_idx)
 
     def save(self) -> None:
         """
