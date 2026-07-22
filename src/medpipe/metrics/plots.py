@@ -514,7 +514,7 @@ def plot_strata_heatmap(
 
     # Create matrix with original scores as first row
     strata_matrix = np.vstack((scores, np.array(strata_scores)))
-    plot_data = strata_matrix - scores
+    plot_data = np.abs(strata_matrix - scores)
     text_data = strata_matrix
 
     n_strata, n_outcomes = strata_matrix.shape
