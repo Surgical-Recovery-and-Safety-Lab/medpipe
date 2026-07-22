@@ -1186,15 +1186,23 @@ class TestMedpipeConfig:
         with pytest.raises(ValueError, match=match_expr):
             MedpipeConfig.model_validate(config)
 
-    @pytest.mark.parametrize("params", ["calibration", "fairness"])
-    def test_audit_evaluation(self, tmp_path: Path, params: str) -> None:
+    @pytest.mark.parametrize(
+        "run_mode,params",
+        [
+            ("audit", "calibration"),
+            ("audit", "fairness"),
+            ("eval", "calibration"),
+            ("eval", "fairness"),
+        ],
+    )
+    def test_evaluation(self, tmp_path: Path, run_mode: str, params: str) -> None:
         """Test case when run_mode and evaluation mismatch."""
         match_expr = (
             f"Evaluation {params} parameters must be specified "
-            "when run_mode is 'audit'"
+            "when run_mode is 'audit' or 'eval'"
         )
         config = self._get_valid_config_dict(tmp_path)
-        config["top_level"]["meta"]["run_mode"] = "audit"
+        config["top_level"]["meta"]["run_mode"] = run_mode
         config["workflow"]["evaluation"][params] = None
 
         with pytest.raises(ValueError, match=match_expr):
