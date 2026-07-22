@@ -1186,6 +1186,20 @@ class TestMedpipeConfig:
         with pytest.raises(ValueError, match=match_expr):
             MedpipeConfig.model_validate(config)
 
+    @pytest.mark.parametrize("params", ["calibration", "fairness"])
+    def test_audit_evaluation(self, tmp_path: Path, params: str) -> None:
+        """Test case when run_mode and evaluation mismatch."""
+        match_expr = (
+            f"Evaluation {params} parameters must be specified "
+            "when run_mode is 'audit'"
+        )
+        config = self._get_valid_config_dict(tmp_path)
+        config["top_level"]["meta"]["run_mode"] = "audit"
+        config["workflow"]["evaluation"][params] = None
+
+        with pytest.raises(ValueError, match=match_expr):
+            MedpipeConfig.model_validate(config)
+
 
 # ==============================================================================
 # CONFIGURATION FUNCTION TESTS

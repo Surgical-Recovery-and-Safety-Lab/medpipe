@@ -315,7 +315,7 @@ class FairnessConfig(BaseModel):
 
 class EvaluationSubConfig(BaseModel):
     metrics: MetricsConfig
-    calibration: CalibrationConfig
+    calibration: CalibrationConfig | None = None
     fairness: FairnessConfig | None = None
     model_config = {"extra": "forbid"}
 
@@ -386,6 +386,24 @@ class MedpipeConfig(BaseModel):
                 expr = (
                     "Cross-validation parameters must be specified "
                     "when run_mode is not 'fast'"
+                )
+                raise ValueError(expr)
+        return self
+
+    @model_validator(mode="after")
+    def validate_audit_evaluation(self) -> "MedpipeConfig":
+        """Check that audit run mode has correct evaluation."""
+        if self.top_level.meta.run_mode == "audit":
+            if self.workflow.evaluation.calibration is None:
+                expr = (
+                    "Evaluation calibration parameters must be specified "
+                    "when run_mode is 'audit'"
+                )
+                raise ValueError(expr)
+            if self.workflow.evaluation.fairness is None:
+                expr = (
+                    "Evaluation fairness parameters must be specified "
+                    "when run_mode is 'audit'"
                 )
                 raise ValueError(expr)
         return self
