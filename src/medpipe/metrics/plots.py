@@ -190,6 +190,9 @@ def plot_ROC_curve(
         label="Chance level",
     )
 
+    if probas.ndim == 2:
+        probas = probas[:, 1]
+
     fpr, tpr, _ = roc_curve(y_test, probas)
 
     boots = []
