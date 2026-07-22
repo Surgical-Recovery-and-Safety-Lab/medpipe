@@ -5,8 +5,8 @@ Pipeline class exposed functions test suites.
 """
 
 from pathlib import Path
-from typing import Any
-from unittest.mock import MagicMock, patch
+from typing import Any, Literal
+from unittest.mock import patch
 
 import numpy as np
 import numpy.typing as npt
@@ -220,22 +220,23 @@ class TestRun:
         mp_pipeline.run()
 
     @pytest.mark.parametrize(
-        "version, top_level_config",
+        "run_mode, version, top_level_config",
         [
-            (["0", "0", "0"], "HGBc_no_recal_config.toml"),
-            (["0", "1", "1"], "HGBc_config.toml"),
+            ("audit", ["0", "0", "0"], "HGBc_no_recal_config.toml"),
+            ("eval", ["0", "1", "1"], "HGBc_config.toml"),
         ],
     )
-    def test_pipeline_run_audit(
+    def test_pipeline_run_plots(
         self,
         monkeypatch: MonkeyPatch,
         example_config_dir: Path,
+        run_mode: Literal["audit", "eval"],
         version: list[str],
         top_level_config: str,
     ) -> None:
-        """Test successful function call in audit mode."""
+        """Test to ensure _classifier_plots is called in audit and eval mode."""
         pipe = _mp_pipeline(monkeypatch, example_config_dir, top_level_config, version)
-        pipe.medpipe_config.top_level.meta.run_mode = "audit"
+        pipe.medpipe_config.top_level.meta.run_mode = run_mode
 
         # Patch _classifier_plots specifically on the mp_pipeline object
         with patch.object(pipe, "_classifier_plots") as mock_plots:
