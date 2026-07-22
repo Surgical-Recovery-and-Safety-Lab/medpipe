@@ -19,12 +19,15 @@ import numpy as np
 from ml_insights import SplineCalib
 from sklearn.metrics import (
     accuracy_score,
+    average_precision_score,
     brier_score_loss,
     f1_score,
     get_scorer,
     log_loss,
     make_scorer,
     mean_absolute_error,
+    precision_score,
+    recall_score,
     roc_auc_score,
     root_mean_squared_error,
 )
@@ -82,6 +85,8 @@ def ici_score(
 # Define metric registery
 METRIC_MAPPING = {  #  metric name, scorer, function to use, print name
     "accuracy": ("accuracy", accuracy_score, "predict", "Accuracy"),
+    "precision": ("precision", precision_score, "predict", "Precision"),
+    "recall": ("recall", recall_score, "predict", "Recall"),
     "log_loss": ("neg_log_loss", log_loss, "predict_proba", "Log loss"),
     "brier_score": (
         "neg_brier_score",
@@ -95,6 +100,12 @@ METRIC_MAPPING = {  #  metric name, scorer, function to use, print name
         roc_auc_score,
         ("decision_function", "predict_proba"),
         "AUROC",
+    ),
+    "ap": (
+        "average_precision",
+        average_precision_score,
+        ("decision_function", "predict_proba"),
+        "AP",
     ),
     "auroc": (
         "roc_auc",
