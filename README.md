@@ -15,7 +15,7 @@
 5. [Examples](#examples)
 
 ## Overview
-The **medpipe** package is a layer to help create AI models for clinical applications from tabular data. It covers data loading and preprocessing, model creation and training, recalibration, and visualisation. 
+The **medpipe** package is a layer to help create AI models (classifiers and regressors) for clinical applications from tabular data. It covers data loading and preprocessing, model creation and training, recalibration, and visualisation. 
 ___
 ## Installation
 
@@ -32,7 +32,7 @@ $ pip install .
 ```
 **NOTE**: It is recommended to use a virtual environment (venv) to install this package. 
 
-Ensure that the installation was succesfull and that all tests pass by running the following command in the medpipe directory:
+Ensure that the installation was successful and that all tests pass by running the following command in the medpipe directory:
 ```
 $ pytest 
 ```
@@ -41,91 +41,74 @@ ___
 ## Usage
 This package was tested on a Linux distribution (Ubuntu 24.04) with Python v3.12.3. The [sckit-learn](https://scikit-learn.org/stable/index.html) was used as the base of most of the code. 
 
-A Pipeline contains the preprocessing operations, a model for each prediction label, and a recalibration model (if specified) for each label. Thus, with only a few lines of code, several models can be created from the same data and fitted. 
+A MedpipePipeline contains the preprocessing operations, a model for each prediction outcome, and a recalibration model (if specified) for each outcome. Thus, with only a few lines of code, several models can be created and fitted using the same data. 
 
 ### Preprocessing operations
-Currently four preprocessing operations are available:
-* **standarise**, this operation standardises the input features by removing the mean and scaling to unit variance;
-* **ordinal encoding**, this operation converts non-numerical categorical input features into ordinal ones;
-* **power transform**, this operation applies a power transform to make the data more Gaussian-like;
-* **binning**, this operation converts a continuous input feature into bins and caps the value. 
+Preprocessing operations are chained and applied sequentially. Available operations are listed in the [sklearn.preprocessing](https://scikit-learn.org/stable/api/sklearn.preprocessing.html) and [sklearn.impute](https://scikit-learn.org/stable/api/sklearn.impute.html) modules.
 
 ### Models
-There is only one classifier available at the moment: the histogram boosted gradient classifier. 
+Any model from the [sklearn.ensemble](https://scikit-learn.org/stable/api/sklearn.ensemble.html), [sklearn.linear_model](https://scikit-learn.org/stable/api/sklearn.linear_model.html), and [sklearn.isotonic](https://scikit-learn.org/stable/api/sklearn.isotonic.html) modules are available. Additionally, models from the [ngboost](https://stanfordmlgroup.github.io/ngboost/intro) package can be used.
 
-**NOTE:** Adding a new model only requires editing the **create_model** function in *models/core*. To work, it must have a fit and predict method. 
+**NOTE:** The package can handle binary classifiers and regressors. However, handling of regressors is not as developed yet.
 
 ### Recalibration
-Two recalibration models are available: logistic regression, and isotonic regression. 
+Two recalibration models are available: logistic regression (Platt scaling), and isotonic regression. 
 
 ### Metrics
-The available metrics are divided into the score metrics and prediction metrics. The list of available metrics is the following:
+The list of available metrics is the following:
 
-| Metric | Type | Description |
-| :--- | :--- | :--- |
-| Accuracy | Prediction | Proportion of all classifications that were correct. |
-| Recall | Prediction | Proportion of all actual positives that were classified correctly (true positive rate). |
-| Precision | Prediction | Proportion of all the  positive classifications that are actually positive. |
-| F1 score | Prediction | Harmonic mean of precision and recall. |
-| AUROC | Score | Area under the ROC curve. |
-| AP | Score | Area under the precision-recall curve. |
-| Log loss | Score | Logarithmic loss. |
+| Metric | Description |
+| :--- | :--- |
+| Accuracy | Proportion of all classifications that were correct. |
+| Recall | Proportion of all actual positives that were classified correctly (true positive rate). |
+| Precision | Proportion of all the  positive classifications that are actually positive. |
+| F1 score | Harmonic mean of precision and recall. |
+| AUROC | Area under the ROC curve. |
+| AP | Area under the precision-recall curve. |
+| Log loss | Logarithmic loss. |
+| Brier score | Brier score loss. |
+| ICI | Integrated calibration index. |
+| RMSE | Root mean squared error. |
+| MAE| Mean absolute error. |
+
+**NOTE:** Metrics can be added by editing the METRIC_MAPPING map in the metrics/core.py module.
 
 ### Plots
+There are four different plots that can be generated (mainly for classifiers):
+1. Probability distribution, histrogram of predicted probabilities;
+2. ROC curve, receiver operating characteristic curve;
+3. Reliability diagram, classifier calibration curve;
+4. Fairness heatmap, heatmap of differences for different strata to assess model bias.
 
-Three types of plots are available: bar graphs for the metrics, predicted probability distributions, and calibration curves. 
-
-The following graphs are from one pipeline with two models, one to predict complications and the other to predict 90-day mortality. The predictor and calibrator results are plotted on the same graphs to compare the effect of recalibration. 
-
-Plots of the AUROC and log loss metric values with confidence intervals for each outcome:
-
-| Any complication | 90-day mortality |
-| :---: | :---: |
-| ![AUROC_any_comp](docs/assets/ai_risk_HGBc_v0.4.1.4-d.1.3.2_ANY_COMP_auroc.png) | ![AUROC_90d_mortality](docs/assets/ai_risk_HGBc_v0.4.1.4-d.1.3.2_MORTALITY_90D_auroc.png) |
-| ![log_loss_any_comp](docs/assets/ai_risk_HGBc_v0.4.1.4-d.1.3.2_ANY_COMP_log_loss.png) | ![log_loss_90d_mortality](docs/assets/ai_risk_HGBc_v0.4.1.4-d.1.3.2_MORTALITY_90D_log_loss.png) |
-
-
-Predicted probability distributions for each outcome:
-
-| Any complication | 90-day mortality |
-| :---: | :---: |
-| ![proba_dist_any_comp](docs/assets/ai_risk_HGBc_v0.4.1.4-d.1.3.2_ANY_COMP_proba_dist.png) | ![proba_dist_90d_mortality](docs/assets/ai_risk_HGBc_v0.4.1.4-d.1.3.2_MORTALITY_90D_proba_dist.png) |
-
-
-Calibration curves for each outcome:
-
-| Any complication | 90-day mortality |
-| :---: | :---: |
-| ![calibration_curve_any_comp](docs/assets/ai_risk_HGBc_v0.4.1.4-d.1.3.2_ANY_COMP_reliability_diagram.png) | ![proba_dist_90d_mortality](docs/assets/ai_risk_HGBc_v0.4.1.4-d.1.3.2_MORTALITY_90D_reliability_diagram.png) |
 ___
-## Example
+## Examples
 
-Here is a short example that shows how to load data, train the models, and plot the calibration curves:
-
+Minimal example based on configuration files:
 ``` py linenums="1"
-from medpipe import (
-	Pipeline
-	read_toml_configuration,
-	load_data_from_csv,
-	get_positive_proba,
-	extract_labels,
-	plot_reliability_diagrams,
-)
+import medpipe as mp
 
-# Load configuration and data
-config = read_toml_configuration("config_file.toml")
-data = load_data_from_csv("data.csv")
+config_path = "config-examples/HGBc_config.toml"
+pipe = mp.MedpipePipeline(config_path, logger=None)
+pipe.run()  # Run pipeline based on configuration
+pipe.save()  # Save pipeline
+```
 
-# Create pipeline
-pipeline = Pipeline(general_config)
+Example allowing the user more control over the data and plots:
+``` py linenums="1"
+import medpipe as mp
 
-# Split data into sets and train model
-X_train, X_test = pipeline.get_test_data(data)
-pipeline.run(X_train)
+config_path = "config-examples/HGBc_config.toml"
+pipe = mp.MedpipePipeline(config_path, logger=None)
+data = load_data(pipe.medpipe_config.data.path)  # Load the data
 
-# Plot calibration curve
-X_test, y_test = extract_labels(X_test, pipeline.label_list)
-y_pred_proba = pipeline.predict_proba(X_test)
-plot_reliability_diagrams(y_test, get_positive_proba(y_pred_proba, display_kwargs={"n_bins": 10, "strategy": "quantile"})
+# Get the different data sets
+X_train, y_train, X_test, y_test, X_recal, y_recal, _ = pipe.get_data_sets(data)
+pipe.fit(X_train, y_train, X_recal, y_recal)  # Fit the pipeline
 
+# Make predictions for each outcome and plot some figures
+for outcome in pipe.outcomes:
+	y_preds = pipe.predict_proba(X_test, outcome)[0]
+	mp.plot_ROC_curve(y_test, y_preds, "ROC curve")
+	mp.plot_reliability_diagram(y_test, y_preds, "Calibration", strategy="quantile")
+	
 ```
