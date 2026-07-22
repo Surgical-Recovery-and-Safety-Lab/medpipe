@@ -8,6 +8,7 @@ a recalibrator.
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, Type, overload
 from warnings import warn
@@ -851,6 +852,12 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
 
         """
         save_path = self.medpipe_config.top_level.paths.figure_dir  # Save path
+        save_dir = os.path.join(
+            save_path,
+            self.medpipe_config.top_level.meta.project_name,
+            self.medpipe_config.top_level.meta.version,
+        )
+
         version = self.medpipe_config.top_level.meta.version
 
         calibration_config = self.medpipe_config.workflow.evaluation.calibration
@@ -873,7 +880,7 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
                 show_fig=False,
                 dpi=300,
                 set_title=f"{outcome} predicted distribution",
-                save_path=save_path + f"{outcome}_distribution_{version}",
+                save_path=save_dir + f"{outcome}_distribution_{version}",
             )
             plot_ROC_curve(
                 y[:, i],
@@ -882,7 +889,7 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
                 show_fig=False,
                 dpi=300,
                 set_title=f"{outcome} ROC curve",
-                save_path=save_path + f"{outcome}_ROC_curve_{version}",
+                save_path=save_dir + f"{outcome}_ROC_curve_{version}",
             )
             plot_reliability_diagram(
                 y[:, i],
@@ -890,7 +897,7 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
                 **calibration_kwargs,
                 show_fig=False,
                 dpi=300,
-                save_path=save_path + f"{outcome}_calibration_{version}",
+                save_path=save_dir + f"{outcome}_calibration_{version}",
             )
             scores[i, :] = compute_metrics(self.metrics, y[:, i], raw_predictions)
 
@@ -918,7 +925,7 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
                 show_fig=False,
                 dpi=300,
                 set_title=f"{METRIC_MAPPING[metric][-1]} fairness heatmap",
-                save_path=save_path + f"{metric}_fairness_{version}",
+                save_path=save_dir + f"{metric}_fairness_{version}",
             )
 
     def _print_test_metrics(
