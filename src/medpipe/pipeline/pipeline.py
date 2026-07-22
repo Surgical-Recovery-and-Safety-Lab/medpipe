@@ -874,6 +874,7 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
                 raw_predictions = self.predict_proba(X, outcome, "recalibrator")[0]
             else:
                 raw_predictions = self.predict_proba(X, outcome, "predictor")[0]
+
             plot_probability_distribution(
                 raw_predictions,
                 label="Distribution",
@@ -884,7 +885,7 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
             )
             plot_ROC_curve(
                 y[:, i],
-                raw_predictions[:, i],
+                raw_predictions[:, 1],
                 label="ROC",
                 show_fig=False,
                 dpi=300,
