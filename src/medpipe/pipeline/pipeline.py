@@ -1295,7 +1295,7 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
         )
 
         run_mode = self.medpipe_config.top_level.meta.run_mode
-        if run_mode != "fast":
+        if run_mode == "audit" or run_mode == "cv":
             print_message("Running cross-validation", self.logger, SCRIPT_NAME)
             if self.preprocessor:
                 X_train, X_recal = self._prepare_features(X_train, X_recal)
@@ -1323,7 +1323,9 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
         print_message("Final test results", self.logger, SCRIPT_NAME)
         self.test_models(X_test, y_test)
 
-        if run_mode == "audit" and is_classifier(self.predictor[self.outcomes[0]]):
+        if (run_mode == "audit" or run_mode == "eval") and is_classifier(
+            self.predictor[self.outcomes[0]]
+        ):
             # Only run if the predictors are classifiers and run mode is audit
             print_message("Plotting classifier figures", self.logger, SCRIPT_NAME)
             strata_idx = self._get_strata_idx(data, X_test)
