@@ -35,7 +35,7 @@ SubConfigTypes: TypeAlias = Literal["data", "workflow", "hyperparameters"]
 class MetaConfig(BaseModel):
     version: str
     project_name: str
-    run_mode: Literal["fast", "cv", "audit"] = "audit"
+    run_mode: Literal["fast", "eval", "cv", "audit"] = "audit"
     model_config = {"extra": "forbid"}
 
     @field_validator("version")
@@ -391,19 +391,20 @@ class MedpipeConfig(BaseModel):
         return self
 
     @model_validator(mode="after")
-    def validate_audit_evaluation(self) -> "MedpipeConfig":
-        """Check that audit run mode has correct evaluation."""
-        if self.top_level.meta.run_mode == "audit":
+    def validate_evaluation(self) -> "MedpipeConfig":
+        """Check that audit and eval run modes have correct evaluation."""
+        run_mode = self.top_level.meta.run_mode
+        if run_mode == "audit" or run_mode == "eval":
             if self.workflow.evaluation.calibration is None:
                 expr = (
                     "Evaluation calibration parameters must be specified "
-                    "when run_mode is 'audit'"
+                    "when run_mode is 'audit' or 'eval'"
                 )
                 raise ValueError(expr)
             if self.workflow.evaluation.fairness is None:
                 expr = (
                     "Evaluation fairness parameters must be specified "
-                    "when run_mode is 'audit'"
+                    "when run_mode is 'audit' or 'eval'"
                 )
                 raise ValueError(expr)
         return self
