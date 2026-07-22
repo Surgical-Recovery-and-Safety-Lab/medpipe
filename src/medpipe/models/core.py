@@ -4,7 +4,7 @@ Models functions module.
 This module provides functions to core functions for models and pipelines.
 
 Functions:
-- create_model: Creates an AI model.
+- create_estimator: Creates an AI model.
 - save_pipeline: Saves a pipeline with joblib.
 - load_pipeline: Loads a pipeline with joblib.
 """
