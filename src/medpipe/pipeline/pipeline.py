@@ -896,8 +896,10 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
                 y[:, i],
                 raw_predictions,
                 **calibration_kwargs,
+                label="Model calibration",
                 show_fig=False,
                 dpi=300,
+                set_title=f"{outcome} reliability diagram",
                 save_path=save_dir + f"/{outcome}_calibration_{version}",
             )
             scores[i, :] = compute_metrics(self.metrics, y[:, i], raw_predictions)
