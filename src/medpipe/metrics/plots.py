@@ -508,9 +508,9 @@ def plot_strata_heatmap(
 
     # Set title
     if metric == "ici":
-        ax.set_title(title + METRIC_MAPPING[metric][-1] + " (%)", fontweight="bold")
+        ax.set_title(title + " (%)", fontweight="bold")
     else:
-        ax.set_title(title + METRIC_MAPPING[metric][-1], fontweight="bold")
+        ax.set_title(title, fontweight="bold")
 
     # Create matrix with original scores as first row
     strata_matrix = np.vstack((scores, np.array(strata_scores)))
