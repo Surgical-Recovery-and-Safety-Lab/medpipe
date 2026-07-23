@@ -1,6 +1,6 @@
 [project]
 name = "medpipe"
-version = "0.3.0.dev0"
+version = "0.3.0"
 description = "A package for clinical AI pipeline development"
 readme = "README.md"
 requires-python = ">=3.12"
