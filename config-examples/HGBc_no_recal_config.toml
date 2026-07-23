@@ -2,8 +2,7 @@
 version = "v0.1.1"  # Used to get data, workflow, and hyperparameters
 project_name = "ai_risk_HGBc"
 # Options
-# audit: CV training, CV probability caching, evaluation metrics,
-# calibration and fairness, final model training
+# audit: CV training, CV probability caching, evaluation metrics, calibration and fairness, final model training
 # cv: CV training, CV probability caching, evaluation metrics, final model training
 # eval: Run final model training, evaluation metrics, calibration and fairness.
 # fast: Only run final model training
@@ -17,6 +16,3 @@ figure_dir = "figures/"  # Directory to save figures
 
 [model]
 algorithm = "HistGradientBoostingClassifier"
-
-[recalibration]
-method = "IsotonicRegression"

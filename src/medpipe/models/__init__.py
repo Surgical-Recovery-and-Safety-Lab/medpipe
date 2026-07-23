@@ -3,9 +3,7 @@ medpipe.models module
 
 submodules:
 - core: contains core functions.
-- Predictor: class for prediction models.
-- Calibrator: class for calibration models.
 """
 
-from . import calibrators, core, predictors
-from .core import get_full_proba, get_positive_proba, load_pipeline, save_pipeline
+from . import core
+from .core import create_estimator, load_pipeline, save_pipeline

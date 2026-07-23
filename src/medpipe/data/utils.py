@@ -4,108 +4,179 @@ Utility functions module.
 This module provides utility functions for data manipulation.
 
 Functions:
-- get_validation_idx: Removes some of the indices to create a validation set.
+- get_split_idx: Returns the indices for the data splits.
+- split_data: Split data into train and test or train and recalibration sets.
 - extract_labels: Extracts prediction labels from data.
-- downcast_dtypes: Downcasts the float and int dtypes in data.
-- convert_data: Convert data to a ndarray if possible.
+- convert_dtypes: Converts data types to category in a pd.DataFrame.
 """
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Literal, cast
 
 import numpy as np
 import pandas as pd
-import sklearn as skl
+from sklearn.model_selection import train_test_split
 
-from medpipe._types import Labels, PredData
+from medpipe._types import Labels
 from medpipe.utils.exceptions import array_check, array_dim_check
 
 if TYPE_CHECKING:
     import numpy.typing as npt
 
 
-def get_validation_idx(
+def get_split_idx(
     idx_list: npt.NDArray,
-    groups: pd.Series | npt.NDArray = np.array([]),
-    group_vals: list[Any] | None = None,
-    val_size: float = 0.1,
+    column: pd.Series | npt.NDArray,
+    values: list[str] | list[int],
 ) -> tuple[npt.NDArray, npt.NDArray]:
     """
-    Removes some of the indices to create a validation set.
-
-    If groups are provided and group_vals is None, all the indices of
-    the group with the largest value are selected as the validation set.
-    If group_vals is specified with groups, then the group_vals are
-    selected as the validation/test set.
+    Returns the indices for the data splits.
 
     Parameters
     ----------
     idx_list : npt.NDArray
         Indices of the set to split of shape (n_samples,).
-    groups : pd.Series | npt.NDArray, default: np.array([])
-        Groups of shape (n_samples,) to which the train indices belong or empty.
-    group_vals : list[Any] | None, default: None
-        Group values that should be in the test set.
-    val_size : float, default: 0.1
-        Size of the validation set if groups are None.
+    column : pd.Series | npt.NDArray
+        Column of shape (n_samples,) used to split the data.
+    values : list[str] | list[int]
+        Group values that should be in the test or recalibration set.
 
     Returns
     -------
     train_idx : npt.NDArray
         Train indices.
-    val_idx : npt.NDArray
-        Validation indices.
+    other_idx : npt.NDArray
+        Other indices for the test or recalibration set.
 
     Raises
     ------
     TypeError
-        If groups is not pd.Series or np.ndarray.
-        If group_vals is not iterable.
-        If group_vals is not a list or a np.ndarray.
-        If val_size is not a float.
-    ValueError
-        If val_size < 0 or val_size > 1.
+        If column is not pd.Series or np.ndarray.
+        If values is not a list or a np.ndarray.
 
     """
     array_check(idx_list)
 
     # Standardize groups to numpy
-    if isinstance(groups, pd.Series):
-        groups = groups.to_numpy()
-    elif not isinstance(groups, np.ndarray):
-        raise TypeError(f"groups should be pd.Series or np.array, got {type(groups)}")
+    if isinstance(column, pd.Series):
+        column = column.to_numpy()
+    elif not isinstance(column, np.ndarray):
+        raise TypeError(f"column should be pd.Series or np.array, got {type(column)}")
 
-    if groups.size != 0:
-        array_dim_check(idx_list, groups, dim=0)
+    array_dim_check(idx_list, column, dim=0)  # Ensure dimension match
 
-        if group_vals is not None:
-            # Type checking validation
-            if not isinstance(group_vals, (list, np.ndarray)):
-                raise TypeError("group_vals should be list or array")
+    # Type checking validation
+    if not isinstance(values, (list, np.ndarray)):
+        raise TypeError(f"values should be list or np.array, got {type(values)}")
 
-            # Vectorized selection: Find where 'groups' matches any value in 'group_vals'
-            val_mask = np.isin(groups, group_vals)
-            val_idx = np.where(val_mask)[0]
-            train_idx = np.where(~val_mask)[0]
-        else:
-            # Default: Take the largest group ID as validation
-            group_max = np.max(groups)
-            val_mask = groups == group_max
-            val_idx = np.where(val_mask)[0]
-            train_idx = np.where(~val_mask)[0]
+    # Vectorized selection: Find where 'column' matches any value in 'values'
+    val_mask = np.isin(column, values)
+    other_idx = np.where(val_mask)[0]
+    train_idx = np.where(~val_mask)[0]
 
-    else:
-        if not isinstance(val_size, float):
-            raise TypeError(f"val_size should be a float, but got {type(val_size)}")
-        if not (0.0 <= val_size <= 1.0):
-            raise ValueError(f"val_size should be between 0 and 1, but got {val_size}")
+    if len(other_idx) == 0:
+        # Other indices are empty because value was not in column
+        raise ValueError(f"{values} not present in column")
 
-        train_idx, val_idx = skl.model_selection.train_test_split(
-            idx_list, test_size=val_size, random_state=42
+    return train_idx, other_idx
+
+
+def split_data(
+    features: pd.DataFrame,
+    labels: Labels,
+    strategy: Literal["random", "group"],
+    group_column: str | None = None,
+    values: list[str] | list[int] | None = None,
+    test_size: float | None = None,
+    recalibration_size: float | None = None,
+) -> tuple[pd.DataFrame, Labels, pd.DataFrame, Labels]:
+    """
+    Split data into train and test or train and recalibration sets.
+
+    If strategy is group then group_column and values must be specified.
+    If strategy is random then test_size or recalibration_size must be
+    specified. If both are specified, the selected value is test_size.
+
+    Parameters
+    ----------
+    features : pd.DataFrame
+        Features to split.
+    labels : Labels
+        Labels to split.
+    strategy : {"random", "group"}
+        Strategy used to split the data.
+    group_column : str | None, default: None
+        Name of the column used to split with if strategy is group.
+    values : list[str] | list[int] | None, default: None
+        Values of the group column that do not belong to the train set.
+    test_size : float | None, default: None
+        Test set size if the strategy is random.
+    recalibration_size : float | None, default: None
+        Recalibration set size if the strategy is random.
+
+    Returns
+    -------
+    X_train, X_test : pd.DataFrame
+        Train and test / recalibration set.
+    y_train, y_test : Labels
+        Train and test / recalibration labels.
+
+    Raises
+    ------
+    TypeError
+        If features is not a pd.DataFrame.
+        If labels is not a np.ndarray.
+    ValueError
+        If group_colum and values not specified with group strategy.
+        If test_size or recalibration_size not specified with random strategy.
+
+    """
+    if not isinstance(features, pd.DataFrame):
+        raise TypeError(f"features should be a pd.DataFrame, but got {type(features)}")
+    if not isinstance(labels, np.ndarray):
+        raise TypeError(f"labels should be a np.array, but got {type(labels)}")
+
+    if strategy == "group":
+        if not group_column or not values:
+            raise ValueError(
+                "group_column and values must be specified with group strategy"
+            )
+
+        train_idx, test_idx = get_split_idx(
+            np.arange(len(features)),
+            features[group_column],  # type: ignore
+            values,  # type: ignore
         )
 
-    return train_idx, val_idx
+        X_train = features.iloc[train_idx]
+        y_train = labels[train_idx]
+        X_test = features.iloc[test_idx]
+        y_test = labels[test_idx]
+
+    elif strategy == "random":
+        if test_size:
+            size = test_size
+        elif recalibration_size:
+            size = recalibration_size
+        else:
+            raise ValueError(
+                "test_size or recalibration_size must be specified with random strategy"
+            )
+
+        X_train, X_test, y_train, y_test = train_test_split(
+            features, labels, test_size=size
+        )
+
+    else:
+        raise ValueError(f"strategy should be random or group, but got {strategy}")
+
+    return (
+        cast(pd.DataFrame, X_train),
+        cast(Labels, y_train),
+        cast(pd.DataFrame, X_test),
+        cast(Labels, y_test),
+    )
 
 
 def extract_labels(
@@ -133,8 +204,8 @@ def extract_labels(
     TypeError
         If data is not a pd.DataFrame.
     TypeError
-        If labels is not list(str).
-    KeyError
+        If labels is not list[str].
+    ValueError
         If a prediction label is not a valid key.
 
     """
@@ -146,124 +217,53 @@ def extract_labels(
         raise TypeError(f"labels should contain strings, but got {type(labels[0])}")
 
     # .drop() and column selection are already highly optimized in Pandas
+    for label in labels:
+        if label not in data.columns:
+            raise ValueError(f"{label} was not found in data")
+
     X = data.drop(columns=labels)
     y = data[labels].to_numpy()
 
     return X, y
 
 
-def downcast_dtypes(data: pd.DataFrame) -> pd.DataFrame:
+def convert_dtypes(X: pd.DataFrame) -> pd.DataFrame:
     """
-    Downcasts the float64 and int64 dtypes in data.
+    Convert data types to avoid errors when calling other
+    functions.
+
+    Object categories are converted to categoricals. Data is
+    checked to see if it can be converted to numeric before
+    converting to categorical.
+    Timedeltas are converted to days.
 
     Parameters
     ----------
-    data : pd.DataFrame
-        Data to downcast of shape (n_samples, n_labels).
+    X : pd.DataFrame
+        Data to convert.
 
     Returns
     -------
-    downcast_data : pd.DataFrame
-        Downcast data of shape (n_samples, n_labels).
-
-    """
-    df = data.copy()
-
-    # Process integers
-    ints = df.select_dtypes(include=["integer"]).columns
-    for col in ints:
-        df[col] = pd.to_numeric(df[col], downcast="integer")
-
-    # Process floats
-    floats = df.select_dtypes(include=["floating"]).columns
-    for col in floats:
-        df[col] = pd.to_numeric(df[col], downcast="float")
-
-    return df
-
-
-def convert_data(data: PredData) -> PredData:
-    """
-    Convert data to a ndarray if possible.
-
-    The function checks if all columns are numeric to assess convertability.
-    If the data can be converted, the pd.DataFrame is converted to ndarray.
-    If the data is already ndarray the data is returned.
-
-    Parameters
-    ----------
-    data : PredData
-        Data to check.
-
-    Returns
-    -------
-    converted_data : npt.NDArray
-        Converted data of shape (n_samples, n_features)
-
-    """
-    if isinstance(data, np.ndarray):
-        return data
-
-    if isinstance(data, pd.DataFrame):
-        # select_dtypes is faster than iterating through columns manually
-        numeric_cols = data.select_dtypes(include=[np.number])
-
-        # If the number of numeric columns equals total columns, convert all
-        if numeric_cols.shape[1] == data.shape[1]:
-            return data.to_numpy()
-
-    return data
-
-
-def get_data_from_idx(
-    data: PredData, idx: npt.NDArray | list[int] = np.array([])
-) -> PredData:
-    """
-    Returns the data at the given indices based on the data type.
-
-    If no indices are provided, the full data is returned.
-
-    Parameters
-    ----------
-    data : PredData
-        Data of shape (n_samples, n_features) to query.
-    idx : npt.NDArray | list[int], default: np.array([])
-        Array of shape (n_indices,) indices to extract data at.
-
-    Returns
-    -------
-    indexed_data : PredData
-        Data of shape (n_indices, n_features).
+    X_converted  : pd.DataFrame
+        Data with converted dtypes.
 
     Raises
     ------
     TypeError
-        If idx is not array-like.
-        If idx does not contain integers.
-        If data is not PredData type.
+        If X is not a pd.DataFrame.
 
     """
-    # Early exit for empty/None
-    if idx is None or (isinstance(idx, (np.ndarray, list)) and len(idx) == 0):
-        return data
+    if not isinstance(X, pd.DataFrame):
+        raise TypeError(f"Input X should be a pd.DataFrame, but got {type(X)}")
+    obj_cols = X.select_dtypes(include=["object"]).columns
+    timedelta_cols = X.select_dtypes(include=["timedelta64"]).columns
+    for col in obj_cols:
+        try:
+            X[col] = pd.to_numeric(X[col])
+        except ValueError:
+            X[col] = X[col].astype("category")
 
-    # Convert once without copying if already an array
-    idx_arr = np.asanyarray(idx)
+    for col in timedelta_cols:
+        X[col] = X[col].dt.days  # Convert timedelta to days
 
-    # Boolean masks are allowed (must match data length)
-    # Integer indices are allowed (positional)
-    is_int = np.issubdtype(idx_arr.dtype, np.integer)
-    is_bool = np.issubdtype(idx_arr.dtype, np.bool_)
-
-    if not (is_int or is_bool):
-        raise TypeError(f"idx must be integers or booleans, but got {idx_arr.dtype}")
-
-    # Handle DataFrames
-    if isinstance(data, pd.DataFrame):
-        return data.iloc[idx_arr]
-
-    # Handle NumPy
-    if isinstance(data, np.ndarray):
-        return data[idx_arr]
-
-    raise TypeError(f"Expected PredData (NDArray/DataFrame), but got {type(data)}")
+    return X

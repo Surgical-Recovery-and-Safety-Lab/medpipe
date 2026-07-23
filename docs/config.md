@@ -2,270 +2,235 @@
 This document provides details about the configuration structures for the **medpipe** package. See the [_config-examples_](https://github.com/Surgical-Recovery-and-Safety-Lab/medpipe/tree/main/config-examples) folder for examples. 
 
 ## Configuration file structure
-Configuration files are required to provide variables and options. They are written using TOML. The main configuration files are for the data (loading, preprocessing, etc.), the models (name, type, hyperparameters, etc.), and the logger (message, log location, etc.). Examples for the configuration files can be found in the *config-examples* folder.
+Configuration files are required to provide variables and options. They are written using TOML. There are three main configuration folders: data, workflow, and hyperparameters. Examples for the configuration files can be found in the *config-examples* folder.
 
 The configuration files are nested in folders and subfolders with the following structure:
 ```text
 ├── data/
-│   ├── features/
-│   │   └── name_features-v1.toml
-│   ├── general/
-│   │   └── name_general-v0.toml
-│   ├── preprocessing/
-│   │   └── name_preprocessing-v0.toml
-│   └── splitting/
-│       └── name_splitting-v1.toml
-├── model/
-│   ├── calibrator/
-│   │   └── name_calibrator-v1.toml
-│   ├── hyperparameters/
-│   │   └── name_hyperparameters-v1.toml
-│   ├── imbalance/
-│   │   └── name_imbalance-v0.toml
-│   └── labels/
-│       └── name_labels-va.toml
-├── data_config.toml
-├── log_config.toml
-└── model_config.toml
+│   └── data_v0.toml
+├── hyperparameters/
+│   ├── hyperparameters_v0.toml
+│   └── hyperparameters_v1.toml
+├── workflow/
+│   ├── workflow_v0.toml
+│   └── workflow_v1.toml
+└── top_level_config.toml
 ```
 
 ## Naming conventions
-The top-level configuration files (data_config.toml, log_config.toml, and model_config.toml) do not follow any particular naming rules and can have any name. 
+The top-level configuration file does not follow any particular naming rules and can have any name. The path to this file is the one specified to the MedpipePipeline instance.
 
-The folders (data/ and model/) do not follow any particular naming rules. However, the subfolders must match with the names in tree, which are provided in the top level configuration files.
+The folders data/, hyperparameters/, and workflow/ must be specified. They can be located in a different folder but must follow the same path.
 
-The subfolder .toml files must be structed as **name_subfoler-vX.toml**, where X is an integer or a letter. The *name* variable is provided in the top-level configuration files, the *subfolder* variable must match the name of the subfolder, and the *X* must match the version number provided in the top-level configuration. The **labels** version number is a letter to provide a separation between model parameters and data parameters. 
+The configuration files located within each subfolder (data/, hyperparameters/, or workflow/) all follow the same naming convention: **folder_name_vX.toml**, where folder_name is one of the three folders, and X is an integer. 
+
+## Top-level configuration
+This is the configuration file that is read when creating a MedpipePipeline object. There are four tables in a top-level configuration file. 
+
+### Meta table
+
+This table and its variables are all mandatory. 
+
+| **Key** | **Type**  | **Description** |
+| :--- | :---  | :--- |
+| `version` | string  | Version number. See below for more information. |
+| `project_name` | string | Name of the project which will be used for saving models and figures. |
+| `run_mode` | {"audit", "cv", "eval", "fast"} | Mode to use when calling the run() function. See below for more details. |
+
+**Version number info:** 
+
+The version number is parsed and used to read the data/, workflow/, and hyperparameters/ configuration. Thus, version "v0.0.1" reads the data_v0.toml, workflow_v0.toml, and hyperparameters_v1.toml configurations.
+
+**Run mode info:** 
+
+The run mode has 4 different settings:
+* "audit" runs a cross-validation scheme, tests the final models, and plots relevant figures for the classifiers; 
+* "cv" only runs the cross-validation scheme and tests the final models; 
+* "eval" trains and tests the models, and plots relevant figures for the classifiers; and,
+* "fast" only trains and tests the final models.
+
+### Paths table
+
+This table and its variables are all mandatory. 
+
+| **Key** | **Type**  | **Description** |
+| :--- | :---  | :--- |
+| `config_dir` | string  | Absolute or relative path to the directory that contains the configuration subfolders. |
+| `model_dir` | string | Absolute or relative path to the directory where pipelines are saved or loaded from. |
+| `figure_dir` | string | Absolute or relative path to the directory where figures are saved. |
+
+**NOTE:** When using the "eval" or "audit" run mode, the figures are saved as figure_dir/project_name/version/saved_figure.png.
+
+### Model table
+
+This table and its variables are all mandatory. 
+
+| **Key** | **Type**  | **Description** |
+| :--- | :---  | :--- |
+| `algorithm` | string  | Algorithm to use for the pipeline predictors. |
+
+**NOTE:** The algorithm must be an exact match with the desired model to load in sklearn or ngboost. 
+
+### Recalibration table
+
+This table and its variables are optional. If not specified, no recalibration will be performed.
+
+| **Key** | **Type**  | **Description** |
+| :--- | :---  | :--- |
+| `method` | string  | Method to use for the pipeline recalibrators. |
 
 ## Data configuration
-The data_config.toml file contains main parameters and a data table with the following parameters:
+The data_vX.toml file must contain the following parameters:
 
 | **Key** | **Type**  | **Description** |
 | :--- | :---  | :--- |
-| `version` | string  | Version number for the data configuration. |
-| `base_dir` | string | Base directory location. |
+| `path` | string  | Aboslute or relative path to the data file. |
+| `predictors` | list[string] | List of predictors to extract from the data. |
+| `outcomes` | list[string] | List of outcomes to extract from the data. |
 
-**NOTE:** The version number is formatted as vX.Y where X and Y are integers. The version number contains as many numbers as there are subfolders. The numbers are parsed to fetch the correct file version in the subfolders. 
+Errors will be raised if any of these variables are missing from the configuration file. Additionally, an error is raised if an outcome is present in the predictor list. 
 
-**Data table**
+**NOTE:** The data can be a .csv or a .parquet file.
 
-These parameters are used to extract, load, and save the data.  The table is named [data_parameters].
+## Workflow configuration
+The workflow configuration file contains the parameter tables that configure data preprocessing, model validation, and evaluation. It is divided into three tables. 
 
-| **Key** | **Type**  | **Default** | **Description** |
-| :--- | :---  | :--- | :--- |
-| `dir` | string  | N/A | Location of data configuration files from base_dir. |
-| `subfolders` | list[string] | See note | List of subfolders to search for data configuration files. |
-| `name` | string | N/A | Prefix name of the data configuration files. |
-| `extension` | string | '.toml' | Extension of the data configuration files. |
+### Preprocessing table
 
-**NOTE:** The subfolders must be ['general', 'features'] for the data parameters.
-
-### Data subfolders
-#### Features
-The features configuration files contain the list of features to extract from the database. The feature list is contained in a TOML table named [features].
+The preprocessing table contains the preprocessing operations. This table and its variables are optional. 
 
 | **Key** | **Type**  | **Description** |
 | :--- | :---  | :--- |
-| `feature_list` | list[string]  |  List of the features, including prediction labels, to extract from the data. |
+| `preprocess` | bool  | Flag for performing preprocessing operations. |
+| `operations` | list[Operations] | List of preprocessing operations. See below for more details |
 
-#### General
-The general configuration files contain main parameters and an I/O table, and a DB table with the following parameters:
+**operations subtable**
 
-| **Key** | **Type**  | **Description** |
-| :--- | :---  | :--- |
-| `base_dir` | string | Base directory location. |
-
-**I/O table**
-
-These paramaters are used for saving and loading data.  The table is named [io_parameters].
-
-| **Key** | **Type**  | **Default** | **Description** |
-| :--- | :---  | :--- | :--- |
-| `dir` | string  | N/A | Location of the data from base_dir. |
-| `name` | string | N/A | Prefix name of the data file. |
-| `extension` | string | '.csv' | Extension of the data file. |
-
-**DB table**
-
-These paramaters are used for opening and extracting data from a database.  The table is named [db_parameters].
-
-| **Key** | **Type**  | **Default** | **Description** |
-| :--- | :---  | :--- | :--- |
-| `dir` | string  | N/A | Location of the database from base_dir. |
-| `name` | string | N/A | Prefix name of the database file. |
-| `table_name` | string | 'main' | Name of the table to query. |
-| `extension` | string | '.db' | Extension of the database file. |
-
-#### Preprocessing
-The preprocessing configuration files contain the preprocessing operations and the feature list on which to apply them. The variables are stored in tables with the following parameters:
-
-**Preprocessing table**
+An Operation is dictionary with the following parameters:
 
 | **Key** | **Type**  | **Description** |
 | :--- | :---  | :--- |
-| `preprocess` | bool | Flag to apply operations. |
+| `name` | string  | Name of the preprocessing operation. |
+| `columns` | list[string] | List of column on which to apply preprocessing operation. |
+| `kwargs` | --- | Additional keyword arguments for the preprocessing operation. |
 
-**NOTE:** The v0 preprocessing file only contains the preprocessing table with the preprocess flag set to false.
+**NOTE:** The name of the Operation must match one of the available options. The keyword arguments can be provided as a dictionary key and value. 
 
-The following tables can be removed if the preprocessing operations does not need to be performed.
+### Validation table
 
-**Ordinal encoder table**
+The validation table contains subtables that describe the validation strategies. This table and the test_split subtable are mandatory. 
 
-These paramaters are used for the ordinal encoder preprocessing operation. The table is named [preprocessing.ordinal_encoder].
+**test_split subtable**
 
-| **Key** | **Type**  | **Description** |
-| :--- | :---  | :--- |
-| `feature_list` | list[string]  |  List of the features encode. |
-
-**Standarise table**
-
-These paramaters are used for the standardise preprocessing operation. The table is named [preprocessing.standardise].
+This table is mandatory. 
 
 | **Key** | **Type**  | **Description** |
 | :--- | :---  | :--- |
-| `feature_list` | list[string]  |  List of the features to standardise. |
+| `strategy` | {"random", "group"}  | Strategy to split the data into train and test sets. |
+| `test_size` | float | Only if strategy is random, size of the test set, between 0 and 1. |
+| `group_column` | string | Only if strategy is group, column use to split the data. |
+| `values` | list[string \| int] | Only if strategy is group, values of the group to use as the test set. |
 
-**Bin table**
+**NOTE:** If the strategy is group, the data is split based on the values for the group_column. For example, if the group_colum is OP_YEAR and the values is [2024], the test set will be made up of all samples that have OP_YEAR = 2024. 
 
-These paramaters are used for the bin preprocessing operation. The table is named [preprocessing.bin].
+**recalibration_split subtable**
 
-| **Key** | **Type**  | **Description** |
-| :--- | :---  | :--- |
-| `feature_list` | list[string]  |  List of the features to bin. |
-
-#### Splitting
-The splitting configuration files contain the variables used for splitting the data into test and train splits and for cross validation. The variables are contained in two TOML tables named [split_variables] and [cv_variables].
-
-**Split table**
-These parameters are used for splitting test and train sets.
+This table is only mandatory if a recalibration method is specified in the top-level config.
 
 | **Key** | **Type**  | **Description** |
 | :--- | :---  | :--- |
-| `group_name` | string  | Feature to use to split the data. |
-| `test_size` | float  | Size of the test set if group_name is "". |
-| `drop` | bool  | Flag to drop the feature from the training process. |
+| `strategy` | {"random", "group"}  | Strategy to split the data into train and recalibration sets. |
+| `recalibration_size` | float | Only if strategy is random, size of the recalibration set, between 0 and 1. |
+| `group_column` | string | Only if strategy is group, column use to split the data. |
+| `values` | list[string \| int] | Only if strategy is group, values of the group to use as the recalibration set. |
 
-**CV table**
-These parameters are used for cross-validation scheme.
+**NOTE:** If the strategy is group, the data is split based on the values for the group_column. For example, if the group_colum is OP_YEAR and the values is [2023], the recalibration set will be made up of all samples that have OP_YEAR = 2023. 
 
-| **Key** | **Type**  | **Description** |
-| :--- | :---  | :--- |
-| `group_k_fold` | bool  | Flag to use group K-fold cross validation. |
-| `group_name` | string  | Feature to use to create the groups. If "" then n_splits is used. |
-| `drop` | bool  | Flag to drop the feature from the training process. |
-| `n_splits` | int  | Number of splits to create for the cross validation, if group_k_fold is False. |
-| `shuffle` | bool  | Flag to shuffle the groups. |
-| `random_state` | int  | Random seed used for repeatability. |
+**IMPORTANT:** The recalibration split is performed after the test split, using the new train set (*i.e.* without the test samples).
 
-## Model configuration
-The model_config.toml file contains main parameters, a model table, a data table, an I/O table, and a fig table with the following parameters:
+**cross_validation subtable**
 
-| **Key** | **Type**  | **Default** | **Description** |
-| :--- | :---  | :--- | :--- |
-| `version` | string  | N/A | Version number for the model configuration. |
-| `predictor_type` | string | 'hgb-c' | Predictor type to use. |
-| `base_dir` | string | N/A| Base directory location. |
-
-**NOTE:** The version number is formatted as vA.B.C.D-W.X.Y.Z where W is a letter and A, B, C, D, X, Y, and Z are integers. The A.B.C.D portion represents the data version number and the W.X.Y.Z the model version number. The version number contains as many symbols as there are subfolders. The symbols are parsed to fetch the correct file version in the subfolders. 
-
-**Model table**
-
-These parameters are used to create the models. The table is named [model_parameters].
-
-| **Key** | **Type**  | **Default** | **Description** |
-| :--- | :---  | :--- | :--- |
-| `dir` | string  | N/A | Location of model configuration files from base_dir. |
-| `subfolders` | list[string] | See note | List of subfolders to search for model configuration files. |
-| `name` | string | N/A | Prefix name of the model configuration files. |
-| `extension` | string | '.toml' | Extension of the model configuration files. |
-
-**NOTE:** The subfolders must be ['labels', 'imbalance', 'hyperparameters', 'calibrator'] for the model parameters. 
-
-**Data table**
-
-These parameters are used to load and preprocess the data. The table is named [data_parameters].
-
-| **Key** | **Type**  | **Default** | **Description** |
-| :--- | :---  | :--- | :--- |
-| `dir` | string  | N/A | Location of data configuration files from base_dir. |
-| `subfolders` | list[string] | See note | List of subfolders to search for data configuration files. |
-| `name` | string | N/A | Prefix name of the data configuration files. |
-| `extension` | string | '.toml' | Extension of the data configuration files. |
-
-**NOTE:** The subfolders must be ['general', 'features', 'splitting', 'preprocessing'] for the data parameters.
-
-**I/O table**
-
-These paramaters are used for saving and loading models. The table is named [io_parameters].
-
-| **Key** | **Type**  | **Default** | **Description** |
-| :--- | :---  | :--- | :--- |
-| `dir` | string  | N/A | Location of models to save or load from base_dir. |
-| `name` | string | N/A | Prefix name of the I/O configuration files. |
-| `extension` | string | '.pkl' | Extension of the models to load or save. |
-
-**Fig table**
-
-These paramaters are used for saving figures and results. The table is named [fig_parameters].
-
-| **Key** | **Type**  | **Default** | **Description** |
-| :--- | :---  | :--- | :--- |
-| `dir` | string  | N/A | Location to save figures from base_dir. |
-| `name` | string | N/A | Prefix name of the fig configuration files. |
-| `extension` | string | '.png' | Extension of the figure to save. |
-
-### Model subfolders
-#### Calibrator
-The calibrator configuration files contain the variables used to create the calibration layer. The calibrator model type is stored in the [calibrator] table.
+This table is only mandatory with the 'cv' or 'audit' run modes.
 
 | **Key** | **Type**  | **Description** |
 | :--- | :---  | :--- |
-| `calibrator_type` | string  | Type of calibrator model. |
+| `strategy` | {"random", "group"}  | Strategy to use for cross-validation. |
+| `group_column` | string | Only if strategy is group, column use to cross-validate. |
+| `n_splits` | int | Number of cross-validation splits, must be greater than 2. |
+| `shuffle` | bool | Flag to shuffle data before splitting. |
+| `random_state` | int | Affects the ordering of the shuffling if shuffle is True. |
 
-Hyperparameters for the calibrator can be passed by specifying the keys in the [calibrator.hyperparameters] table. 
+### Evaluation table
 
-**NOTE:** The v1 file creates a logistic regression and the v2 a isotonic regression. 
+The evaluation table contains the parameters for the pipeline evaluation. This table and the metrics subtable are mandatory. 
 
-#### Hyperparameters
-The hyperparameters configuration files contain the hyperparameters for the predictor model that is used. The variables are contained in the [hyperparameters] table. The keys must match those for the model created. 
+**metrics subtable**
 
-#### Imbalance
-The imbalance configuration files contain the variables to address class imbalance in the data in a weighting and a sampler table with the following parameters:
-
-**Weighting table**
-
-These paramaters are used to apply weights for the examples or classes. The table is named [weighting].
+This table is mandatory.
 
 | **Key** | **Type**  | **Description** |
 | :--- | :---  | :--- |
-| `weighting_fn` | string  | Weighting function to use. |
+| `metrics` | list[string]  | List of metrics to evaluate the models on. |
 
-**Sampler table**
+The list of available metrics is the following:
 
-These paramaters are used to sample the examples. The table is named [sampler].
+| Metric | Description |
+| :--- | :--- |
+| Accuracy | Proportion of all classifications that were correct. |
+| Recall | Proportion of all actual positives that were classified correctly (true positive rate). |
+| Precision | Proportion of all the  positive classifications that are actually positive. |
+| F1 score | Harmonic mean of precision and recall. |
+| AUROC | Area under the ROC curve. |
+| AP | Area under the precision-recall curve. |
+| Log loss | Logarithmic loss. |
+| Brier score | Brier score loss. |
+| ICI | Integrated calibration index. |
+| RMSE | Root mean squared error. |
+| MAE| Mean absolute error. |
+
+**NOTE:** Metrics can be added by editing the METRIC_MAPPING map in the metrics/core.py module.
+
+**calibration subtable**
+
+This table is only mandatory with the 'audit' or 'eval' run modes.
 
 | **Key** | **Type**  | **Description** |
 | :--- | :---  | :--- |
-| `sampler_fn` | string  | Sampler function to use. |
-| `target_ratio` | float  | Target ratio between majority and minority examples to achieve. |
-| `hard_percent` | float  | Percent of examples deemed 'hard' to include. Only used with certain functions. |
+| `strategy` | {"uniform", "quantile", "spline"}  | Strategy to compute the calibration curve. |
+| `n_boostraps` | int | Number of bootstrap iterations to compute confidence intervals. |
 
-#### Labels
-The labels configuration files contain the list of prediction labels. The label list is contained in a TOML table named [labels].
+**NOTE:** The 'spline' calibration strategy fits a spline to the data, which is computationally intensive. The number of boostraps should be carefully chosen to avoid long computations. 
+
+**fairness subtable**
+
+This table is only mandatory with the 'audit' or 'eval' run modes.
 
 | **Key** | **Type**  | **Description** |
 | :--- | :---  | :--- |
-| `label_list` | list[string]  |  List of the labels to predict |
+| `strata` | list[string] | Strata to evaluate fairness on. |
+| `groups` | dict[string, list[list[int \| float \| string]]] | Groups to evaluate fairness on. See below for more details. |
 
-**NOTE:** The label list version number is not an integer but a letter. 
+**IMPORTANT:** The strata are columns over which to evaluate the model to assess bias and fairness. For each column, all unique values are tested. For example, if sex is a strata, the models will be evaluated for all female and male samples. The groups parameters allows to set the groups on which to evaluate the model, mainly designed for a strata like age. In this case, the groups will be a list of lists [[18, 50], [51, 120]], which will evaluate the models for samples with ages between 18 and 50, and ages 51 and 120. 
 
-## Logger configuration
+## Hyperparameters configuration
 
-The log_config.toml contains parameters for the logger.
+### Hyperparameters table
 
-| **Key** | **Type**  | **Default** | **Description** |
-| :--- | :---  | :--- | :--- |
-| `version` | string  | N/A | Version number for the logger configuration. |
-| `base_dir` | string | N/A | Base directory location. |
-| `log_dir` | string | N/A | Location to save log files in. |
-| `log_message` | string | "Exception raised in " | Message used by logger when writing to log file. |
-| `print_message` | string | "[ERROR] An exception was raised.\n\nCheck logs "| Message used by logger when printing to terminal. |
+The hyperparameters table contains the parameters used to tune the predictors and the recalibrators (if specified). The subtables allow for passing any keyword argument which will be passed on to the predictors or recalibrators when they are created. The hyperparameter table and the predictor subtable are mandatory. 
+
+**predictor subtable**
+
+This table is mandatory. 
+
+| **Key** | **Type**  | **Description** |
+| :--- | :---  | :--- |
+| `learning_rate` | float  | Predictor learning rate, must be greater than 0. |
+| `kwargs` | ---  | Additional arguments passed to the predictors. |
+
+**recalibrator subtable**
+
+This table is optional. 
+
+| **Key** | **Type**  | **Description** |
+| :--- | :---  | :--- |
+| `kwargs` | ---  | Arguments passed to the recalibrators. |

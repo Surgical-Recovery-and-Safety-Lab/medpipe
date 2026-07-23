@@ -4,203 +4,539 @@ Configuration utilities module.
 This module provides helper functions for reading configuration files.
 
 Functions:
-- get_file_path: Gets a file path from a configuration dictionary.
-- get_configuration: Gets the configuration by chaining .toml configurations.
 - parse_version_number: Function that parses a version number.
-- split_version_number: Splits a version number into the data and model version numbers.
+- read_subconfiguration_file: Reads the contents of a configuration file
+    from a path.
 """
 
 from __future__ import annotations
 
-from typing import Any
+import tomllib
+from pathlib import Path
+from typing import Literal, TypeAlias
+from warnings import warn
+
+from pydantic import BaseModel, Field, field_validator, model_validator
+
+from medpipe.metrics.core import METRICS
 
 from .exceptions import file_checks
-from .io import read_toml_configuration
+
+# Define file specific types
+SubConfig: TypeAlias = "DataConfig | HyperparameterConfig | WorkflowConfig"
+SubConfigTypes: TypeAlias = Literal["data", "workflow", "hyperparameters"]
+
+# ==============================================================================
+# CONFIGURATION SCHEMA (pydantic)
+# ==============================================================================
+# --- TOP-LEVEL MASTER SCHEMAS ---
 
 
-def get_file_path(
-    config_dict: dict[str, Any],
-    v_number: str = "",
-    path_type: str = "io",
-    exists: bool = True,
-) -> str:
+class MetaConfig(BaseModel):
+    version: str
+    project_name: str
+    run_mode: Literal["fast", "eval", "cv", "audit"] = "audit"
+    model_config = {"extra": "forbid"}
+
+    @field_validator("version")
+    @classmethod
+    def validate_version_format(cls, v: str) -> str:
+        """Validate version is formatted as vX.Y.Z"""
+        try:
+            v_splits = v.split(".")
+            assert len(v_splits) == 3
+        except:
+            raise ValueError(f"Version should be formatted as vX.Y.Z, but got {v}")
+        return v
+
+    @field_validator("project_name")
+    @classmethod
+    def validate_project_name(cls, name: str) -> str:
+        """Validate that project name is not empty."""
+        if not name:
+            raise ValueError("Project name should not be an empty string.")
+
+        return name
+
+
+class PathsConfig(BaseModel):
+    config_dir: str
+    model_dir: str
+    figure_dir: str
+    model_config = {"extra": "forbid"}
+
+    @field_validator("config_dir", "model_dir", "figure_dir")
+    @classmethod
+    def validate_paths(cls, dir: str) -> str:
+        """Validate that paths point to directories."""
+        path = Path(dir).expanduser().resolve()
+
+        if path.is_file():
+            raise ValueError(f"{path} points to an existing file")
+
+        path.mkdir(parents=True, exist_ok=True)
+        return dir
+
+
+class ModelConfig(BaseModel):
+    algorithm: str
+    model_config = {"extra": "forbid"}
+
+
+class RecalibrationConfig(BaseModel):
+    method: str | None = None
+    model_config = {"extra": "forbid"}
+
+
+class TopLevelConfig(BaseModel):
+    """The master schema for the top-level configuration file."""
+
+    meta: MetaConfig
+    paths: PathsConfig
+    model: ModelConfig
+    recalibration: RecalibrationConfig | None = None
+    model_config = {"extra": "forbid"}
+
+
+# --- DATA SCHEMAS
+class DataConfig(BaseModel):
+    """The master schema for the data subconfiguration file."""
+
+    path: str
+    predictors: list[str]
+    outcomes: list[str]
+    model_config = {"extra": "forbid"}
+
+    @field_validator("path")
+    @classmethod
+    def validate_path(cls, file: str) -> str:
+        """Validate that path is a points to a file."""
+        data_path = Path(file)
+        suffix = data_path.suffix
+        if suffix == "":
+            raise ValueError("path should be a file, but got no suffix")
+
+        if suffix != ".csv":
+            if suffix != ".parquet":
+                raise ValueError(
+                    f"path should be a .csv or .parquet file, but got suffix {suffix}"
+                )
+        return file
+
+    @model_validator(mode="after")
+    def check_for_target_leakage(self) -> "DataConfig":
+        # Check if any outcome intersects with the predictor list
+        overlap = set(self.outcomes).intersection(set(self.predictors))
+        if overlap:
+            raise ValueError(
+                "Overlap between predictors and outcomes which will break "
+                f"model validity: {list(overlap)}"
+            )
+        return self
+
+
+# --- WORKFLOW SCHEMAS
+class PreprocessOperationConfig(BaseModel):
+    name: str  # Matches the exact class name
+    columns: list[str]  # The specific columns this transformer applies to
+    model_config = {"extra": "allow"}
+
+    @field_validator("columns")
+    @classmethod
+    def validate_columns(cls, columns: list[str]) -> list[str]:
+        """Validate that columns are not empty."""
+        if not columns:
+            raise ValueError("Columns cannot be an empty list")
+        return columns
+
+
+class PreprocessingConfig(BaseModel):
+    preprocess: bool | None = None
+    operations: list[PreprocessOperationConfig] | None = None
+    model_config = {"extra": "forbid"}
+
+    @model_validator(mode="after")
+    def validate_operations(self) -> "PreprocessingConfig":
+        if self.preprocess and not self.operations:
+            raise ValueError("Operations must be specified if preprocess is True")
+        return self
+
+
+class SplitTestConfig(BaseModel):
+    strategy: Literal["random", "group"] = "random"
+    group_column: str | None = None
+    values: list[str | int] | None = None
+    test_size: float | None = Field(default=None, gt=0.0, lt=1.0)
+    model_config = {"extra": "forbid"}
+
+    @model_validator(mode="after")
+    def validate_strategy(self) -> "SplitTestConfig":
+        if self.strategy == "random" and not self.test_size:
+            raise ValueError("The random strategy requires a test size")
+
+        if self.strategy == "group":
+            msg = "The group strategy requires "
+            if not self.group_column:
+                raise ValueError(msg + "a group column to be specified")
+            elif not self.values:
+                raise ValueError(msg + "values to be specified")
+
+        return self
+
+
+class SplitRecalibrationConfig(BaseModel):
+    strategy: Literal["random", "group"] | None = None
+    group_column: str | None = None
+    values: list[str | int] | None = None
+    recalibration_size: float | None = Field(default=None, gt=0.0, lt=1.0)
+    model_config = {"extra": "forbid"}
+
+    @model_validator(mode="after")
+    def validate_strategy(self) -> "SplitRecalibrationConfig":
+        if self.strategy == "random" and not self.recalibration_size:
+            raise ValueError("The random strategy requires a test size")
+
+        if self.strategy == "group":
+            msg = "The group strategy requires "
+            if not self.group_column:
+                raise ValueError(msg + "a group column to be specified")
+            elif not self.values:
+                raise ValueError(msg + "values to be specified")
+
+        return self
+
+
+class CrossValConfig(BaseModel):
+    strategy: Literal["random", "group"]
+    group_column: str | None = None
+    n_splits: int = Field(default=2, ge=2)
+    shuffle: bool | None = None
+    random_state: int | None = Field(default=None, ge=0)
+    model_config = {"extra": "forbid"}
+
+    @model_validator(mode="after")
+    def validate_strategy(self) -> "CrossValConfig":
+        if self.strategy == "group" and not self.group_column:
+            raise ValueError(
+                "The group strategy requires a group column to be specified"
+            )
+        return self
+
+
+class ValidationSubConfig(BaseModel):
+    test_split: SplitTestConfig
+    cross_validation: CrossValConfig | None = None
+    recalibration_split: SplitRecalibrationConfig | None = None
+
+    model_config = {"extra": "forbid"}
+
+    @model_validator(mode="after")
+    def validate_group_strategies(self) -> "ValidationSubConfig":
+        """Validate that recalibration and test split have same strategy."""
+        if self.recalibration_split:
+            if self.recalibration_split.strategy != self.test_split.strategy:
+                raise ValueError("Recalibration and test strategies should match")
+        return self
+
+    @model_validator(mode="after")
+    def validate_group_columns(self) -> "ValidationSubConfig":
+        """Validate that recalibration and test split have same group columns."""
+        if self.recalibration_split:
+            # Check only when strategy is group
+            if (
+                self.recalibration_split.strategy == "group"
+                and self.test_split.strategy == "group"
+            ):
+                if (
+                    self.recalibration_split.group_column
+                    != self.test_split.group_column
+                ):
+                    raise ValueError(
+                        "Recalibration and test group columns should match"
+                    )
+        return self
+
+    @model_validator(mode="after")
+    def validate_group_values(self) -> "ValidationSubConfig":
+        """Validate that recalibration and test split have different values."""
+        if self.recalibration_split and self.recalibration_split.values is not None:
+            if (
+                self.recalibration_split.strategy == "group"
+                and self.test_split.strategy == "group"
+            ):
+                for value in self.recalibration_split.values:
+                    if value in self.test_split.values:  # type: ignore
+                        raise ValueError(
+                            "Recalibration and test values should be different"
+                        )
+        return self
+
+
+class MetricsConfig(BaseModel):
+    metrics: list[str] = Field(default=["roc_auc", "ici"])
+    model_config = {"extra": "forbid"}
+
+    @model_validator(mode="after")
+    def validate_metrics(self) -> "MetricsConfig":
+        """Validate input metrics."""
+        for metric in self.metrics:
+            if metric not in METRICS:
+                expr = (
+                    f"{metric} was not found in available metric "
+                    f"list. Available metrics are {METRICS}"
+                )
+                raise ValueError(expr)
+
+        return self
+
+
+class CalibrationConfig(BaseModel):
+    strategy: Literal["uniform", "quantile", "spline"] = Field(default="uniform")
+    n_bootstraps: int = Field(default=200, ge=0)
+    model_config = {"extra": "forbid"}
+
+
+class FairnessConfig(BaseModel):
+    strata: list[str]
+    groups: dict[str, list[list[int | float | str]]] | None = None
+    model_config = {"extra": "forbid"}
+
+    @model_validator(mode="after")
+    def validate_group_keys(self) -> "FairnessConfig":
+        """Validate group keys are in strata."""
+        if self.groups:
+            for key in self.groups.keys():
+                if key not in self.strata:
+                    raise ValueError(f"{key} should be in the strata list")
+                if not self.groups[key]:
+                    raise ValueError(f"{key} should not have an empty list")
+        return self
+
+
+class EvaluationSubConfig(BaseModel):
+    metrics: MetricsConfig
+    calibration: CalibrationConfig | None = None
+    fairness: FairnessConfig | None = None
+    model_config = {"extra": "forbid"}
+
+
+class WorkflowConfig(BaseModel):
+    """The master schema for the workflow subconfiguration file."""
+
+    preprocessing: PreprocessingConfig | None = None
+    validation: ValidationSubConfig
+    evaluation: EvaluationSubConfig
+
+    model_config = {"extra": "forbid"}
+
+
+# --- HYPERPARAMETERS SCHEMAS
+class PredictorConfig(BaseModel):
+    learning_rate: float = Field(default=0.1, gt=0)
+    # Allow extra parameters to be passed as keyword argument to predictor
+    model_config = {"extra": "allow"}
+
+
+class RecalibratorConfig(BaseModel):
+    # Allow extra parameters to be passed as keyword argument to recalibrator
+    model_config = {"extra": "allow"}
+
+
+class ModelHyperparamSubConfig(BaseModel):
+    predictor: PredictorConfig
+    recalibrator: RecalibratorConfig | None = None
+
+    model_config = {"extra": "forbid"}
+
+
+class HyperparameterConfig(BaseModel):
+    """The master schema for the hyperparameter subconfiguration file."""
+
+    hyperparameters: ModelHyperparamSubConfig
+    model_config = {"extra": "forbid"}
+
+
+class MedpipeConfig(BaseModel):
+    """The master schema for a medpipe pipeline."""
+
+    top_level: TopLevelConfig
+    data: DataConfig
+    workflow: WorkflowConfig
+    hyperparameters: HyperparameterConfig
+    model_config = {"extra": "forbid"}
+
+    @model_validator(mode="after")
+    def validate_recalibration(self) -> "MedpipeConfig":
+        """Check recalibration split is specified with recalibration method."""
+        if self.top_level.recalibration:  # Recalibration is present
+            if not self.workflow.validation.recalibration_split:
+                expr = (
+                    "Recalibration validation split must be "
+                    "specified when a recalibration method is used"
+                )
+                raise ValueError(expr)
+        return self
+
+    @model_validator(mode="after")
+    def validate_cross_validation(self) -> "MedpipeConfig":
+        """Check that a cross-validation config is passed with correct
+        run modes."""
+        if self.top_level.meta.run_mode != "fast":
+            if self.workflow.validation.cross_validation is None:
+                expr = (
+                    "Cross-validation parameters must be specified "
+                    "when run_mode is not 'fast'"
+                )
+                raise ValueError(expr)
+        return self
+
+    @model_validator(mode="after")
+    def validate_evaluation(self) -> "MedpipeConfig":
+        """Check that audit and eval run modes have correct evaluation."""
+        run_mode = self.top_level.meta.run_mode
+        if run_mode == "audit" or run_mode == "eval":
+            if self.workflow.evaluation.calibration is None:
+                expr = (
+                    "Evaluation calibration parameters must be specified "
+                    "when run_mode is 'audit' or 'eval'"
+                )
+                raise ValueError(expr)
+            if self.workflow.evaluation.fairness is None:
+                expr = (
+                    "Evaluation fairness parameters must be specified "
+                    "when run_mode is 'audit' or 'eval'"
+                )
+                raise ValueError(expr)
+        return self
+
+
+# ==============================================================================
+# CONFIGURATION FUNCTIONS
+# ==============================================================================
+
+
+# Define some constants
+SUBCONFIG_REGISTRY: dict[SubConfigTypes, type[SubConfig]] = {
+    "data": DataConfig,
+    "workflow": WorkflowConfig,
+    "hyperparameters": HyperparameterConfig,
+}
+
+
+def read_subconfiguration_file(path: str | Path, subtype: SubConfigTypes) -> SubConfig:
     """
-    Gets the path to a file from a configuration dictionary.
+    Reads the contents of a configuration file from a path.
 
-    If the path_type is "fig", the extension is removed.
+    The contents are validated using the pydantic classes defined
+    in _types.py.
 
     Parameters
     ----------
-    config_dict : dict[str, Any]
-        Dictionary from a loaded .TOML file.
-    v_number : str, default: ""
-        Version number.
-    path_type : {"io", "db", "data", "fig"}, default: "io"
-        Path type in the configuration file.
-    exists : bool, default: True
-        Flag to indicate if the file should exists.
+    path: str | Path
+        Path to the configuration file.
+    subtype: SubConfigTypes {"data", "workflow", "hyperparameters"}
+        Subtype of the configuration being read.
 
     Returns
     -------
-    file_path : str
-        Path to the file.
+    config: SubConfig
+        Subconfiguration dictionary.
+
+    Raises
+    ------
+    TypeError
+        If path is not a str or Path.
+    FileNotFoundError
+        If path does not exist.
+    IsADirectoryError
+        If path is not a file.
+    ValueError
+        If path it not a .toml file.
+        If subtype is not in {"data", "workflow", "hyperparameters"}.
+    tomllib.TOMLDecodeError
+        If the file was not read properly.
 
     """
-    if type(config_dict) is not type(dict()):
-        raise TypeError(
-            f"config_dict should be a dictionary, but got {type(config_dict)}"
-        )
-    if type(path_type) is not type(""):
-        raise TypeError(f"path_type should be a str, but got {type(path_type)}")
-
-    if path_type not in ["io", "db", "data", "fig"]:
-        raise ValueError(f"path_type should be io, db, or data, but got {path_type}")
-
-    key = path_type + "_parameters"
-    if key not in config_dict.keys():
-        raise KeyError(f"config_dict should have a {key} key")
-
-    parameters = config_dict[key]
-
-    if path_type == "fig":
-        # Create a fig folder for each version number
-        file_path = (
-            parameters["dir"]
-            + f"{v_number}/"
-            + parameters["name"]
-            + v_number
-            + parameters["extension"]
-        )
-    else:
-        file_path = (
-            parameters["dir"] + parameters["name"] + v_number + parameters["extension"]
+    if subtype not in SUBCONFIG_REGISTRY.keys():
+        valid_options = list(SUBCONFIG_REGISTRY.keys())
+        raise ValueError(
+            f"Unexpected subtype {subtype}, expecting one of {valid_options}"
         )
 
-    # Run file checks before returning
-    file_checks(file_path, parameters["extension"], exists=exists)
+    file_checks(path, ".toml")
 
-    if path_type == "fig":  # If figure remove extension
-        return file_path[: -len(parameters["extension"])]
+    with open(path, "rb") as file:
+        raw_config = tomllib.load(file)
+    subtype_class = SUBCONFIG_REGISTRY[subtype]
 
-    return file_path
+    return subtype_class.model_validate(raw_config)
 
 
-def split_version_number(v_number: str) -> tuple[str, str]:
+def parse_version_number(version: str) -> list[str]:
     """
-    Splits a version number into the data and model version numbers.
+    Parses a version number.
 
-    Expecting a version number in the format vX.Y.Z-nN, where X.Y.Z is the
-    data version number and nN is the model version number.
+    Expecting a version number in the format vX.Y.Z, with
+    X the data version,
+    Y the workflow version,
+    Z the hyperparameters version.
 
     Parameters
     ----------
-    v_number : str
-        Data version number to split.
+    version : str
+        Version number to parse.
 
     Returns
     -------
-    data_v_number : str
-        Data version number in the format vX.Y.Z.
-    model_v_number : str
-        Model version number in the format vnN.
+    v_list : list[str]
+        List containing data, workflow, hyperparameters numbers.
 
     Raises
     ------
     TypeError
         If v_number is not a string.
     ValueError
-        If v_number format is incorrect.
+        If v_number is an empty string.
+        If v_number does not have 3 elements.
+        If v_number has an empty element.
+
+    Warns
+    -----
+    UserWarning
+        If the version string has more than 3 elements.
 
     """
-    if type(v_number) is not type(""):
-        raise TypeError(f"v_number should be a string, but got {type(v_number)}")
+    if not isinstance(version, str):
+        raise TypeError(f"Version should be a string, but got {type(version)}")
 
-    if "-" not in v_number:
+    if not version:
         raise ValueError(
-            f"Incorrect version number format, expecting vX.Y.Z-nN but got {v_number}"
+            "Version is empty. Check the version number is formatted as vX.Y.Z"
         )
-
-    data_v_number, model_v_number = v_number.split("-")  # Split at the - sign
-
-    if data_v_number[0] != "v":
-        # Add v in case version number does not have one
-        data_v_number = "v" + data_v_number
-
-    return data_v_number, "v" + model_v_number
-
-
-def parse_version_number(v_number: str) -> list[str]:
-    """
-    Parses a version number.
-
-    Expecting a version number in the format vX.Y.Z.
-
-    Parameters
-    ----------
-    v_number : str
-        Version number to parse.
-
-    Returns
-    -------
-    v_list : list[str]
-        List containing [source, extraction, preprocessing] numbers.
-
-    Raises
-    ------
-    TypeError
-        If v_number is not a string.
-
-    """
-    if type(v_number) is not type(""):
-        raise TypeError(f"v_number should be a string, but got {type(v_number)}")
-
-    if v_number[0] == "v":
+    v_to_parse = version
+    if version[0] == "v":
         # Remove v prefix if present
-        v_number = v_number[1:]
+        v_to_parse = version[1:]
 
-    return v_number.split(".")
+    v_list = v_to_parse.split(".")
 
+    # Safety checks
+    v_len = len(v_list)
 
-def get_configuration(parameters: dict[str, Any], v_number: str) -> dict[str, Any]:
-    """
-    Gets the configuration by chaining .toml configurations.
-
-    Parameters
-    ----------
-    parameters : dict[str, Any]
-        Parameters for the configuration chaining.
-    v_number : str
-        Version number of the data to recuperate.
-
-    Returns
-    -------
-    config_dict : dict[str, Any]
-        Configuration parameters dictionary.
-
-    Raises
-    ------
-    TypeError
-        If parameters is not a dict.
-
-    """
-    if type(parameters) is not type(dict()):
-        raise TypeError(f"parameters should be a dict, but got f{type(parameters)}")
-
-    config_dict = {}  # Create empty configuration dictionary
-    path = parameters["dir"]
-    v_list = parse_version_number(v_number)
-
-    for i, folder in enumerate(parameters["subfolders"]):
-        if folder[-1] != "/":
-            folder += "/"
-        file_path = (
-            path
-            + folder
-            + parameters["name"]
-            + folder[:-1]
-            + f"-v{v_list[i]}"
-            + parameters["extension"]
+    if v_len < 3:
+        raise ValueError(
+            f"Expecting 3 values, but got {v_len}. "
+            "Check the version number is formatted as vX.Y.Z"
         )
-        config_dict.update(read_toml_configuration(file_path))
+    elif v_len > 3:
+        warn(f"Expecting 3 values, but got {v_len}. Everything after 3 is ignored.")
 
-    return config_dict
+    else:  # Check that there are not empty elements
+        for i, v in enumerate(v_list):
+            if not v:
+                raise ValueError(
+                    f"Element {i} in version is empty. "
+                    "Check the version number is formatted as vX.Y.Z"
+                )
+
+    return v_list[:3]

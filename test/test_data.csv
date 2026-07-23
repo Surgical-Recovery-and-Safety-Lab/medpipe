@@ -1,0 +1,301 @@
+AGE,SEX,PRIOR_CANCER,ADMISSION_ACUITY,ADMISSION_SOURCE,CATEGORY_LEVEL_1,OP_SEVERITY,DHB_NAME,OP_YEAR,MORTALITY_30D,ANY_COMP
+19,F,0,Acute,Routine,Obstetrics & Gynaecology,2,Auckland,2024,0,1
+29,M,1,Acute,Routine,General Surgery,3,Auckland,2024,1,1
+23,M,1,Acute,Transfer,Plastics,2,Wellington,2024,1,0
+33,M,1,Acute,Transfer,Plastics,2,Christchruch,2024,0,0
+32,F,1,Acute,Transfer,General Surgery,2,Auckland,2024,0,0
+23,F,1,Acute,Routine,Plastics,2,Wellington,2024,0,0
+53,M,0,Elective,Transfer,General Surgery,2,Wellington,2024,0,0
+83,M,0,Acute,Routine,Plastics,2,Christchruch,2024,0,0
+71,F,1,Elective,Transfer,Orthopaedics,1,Auckland,2024,0,1
+56,M,1,Elective,Routine,General Surgery,1,Wellington,2024,1,0
+40,M,1,Elective,Routine,Orthopaedics,1,Christchruch,2024,1,1
+71,F,0,Elective,Routine,Orthopaedics,1,Wellington,2024,0,0
+24,F,0,Elective,Transfer,General Surgery,1,Wellington,2024,0,0
+90,F,0,Elective,Transfer,Plastics,1,Auckland,2024,0,0
+19,F,1,Elective,Transfer,General Surgery,1,Auckland,2024,0,0
+49,M,1,Elective,Transfer,Orthopaedics,1,Wellington,2024,0,0
+54,F,1,Elective,Transfer,Plastics,1,Auckland,2024,0,0
+82,F,1,Elective,Routine,Orthopaedics,1,Wellington,2024,0,0
+60,F,1,Elective,Routine,Plastics,1,Christchruch,2024,0,0
+18,M,0,Elective,Transfer,Orthopaedics,3,Christchruch,2023,0,1
+50,M,0,Acute,Routine,Plastics,2,Wellington,2023,1,1
+63,F,0,Acute,Transfer,General Surgery,2,Christchruch,2023,1,0
+35,F,0,Acute,Transfer,Obstetrics & Gynaecology,1,Christchruch,2023,0,0
+44,F,1,Acute,Transfer,Plastics,4,Christchruch,2023,0,0
+68,M,0,Acute,Routine,Plastics,3,Wellington,2023,0,0
+25,F,0,Acute,Transfer,Plastics,2,Christchruch,2023,0,1
+90,F,1,Acute,Routine,Orthopaedics,2,Auckland,2023,1,0
+85,M,1,Acute,Transfer,Plastics,3,Wellington,2023,1,1
+25,M,0,Acute,Routine,Orthopaedics,3,Christchruch,2023,0,1
+64,M,1,Acute,Routine,Plastics,3,Christchruch,2023,0,0
+33,F,1,Acute,Routine,General Surgery,3,Christchruch,2023,0,0
+48,F,1,Acute,Routine,General Surgery,3,Wellington,2023,0,0
+20,M,1,Acute,Routine,Plastics,3,Auckland,2023,0,0
+75,F,0,Acute,Routine,Plastics,3,Auckland,2023,0,0
+19,M,0,Acute,Routine,Plastics,3,Wellington,2023,0,0
+22,M,0,Acute,Transfer,Orthopaedics,3,Wellington,2023,0,0
+88,M,0,Acute,Transfer,Plastics,3,Wellington,2023,0,0
+85,M,0,Acute,Transfer,General Surgery,3,Christchruch,2023,0,0
+19,F,1,Acute,Transfer,Obstetrics & Gynaecology,2,Christchruch,2022,0,1
+84,M,1,Acute,Routine,General Surgery,3,Christchruch,2022,1,1
+27,M,1,Acute,Routine,Plastics,2,Christchruch,2022,0,0
+41,M,0,Acute,Routine,Plastics,2,Christchruch,2022,0,0
+30,F,1,Elective,Routine,General Surgery,1,Christchruch,2022,0,0
+44,F,0,Elective,Transfer,Orthopaedics,1,Wellington,2022,0,0
+58,F,1,Elective,Routine,Plastics,1,Auckland,2022,0,0
+81,F,1,Elective,Transfer,General Surgery,1,Auckland,2022,0,0
+29,F,0,Elective,Transfer,General Surgery,1,Wellington,2022,1,0
+33,F,0,Elective,Transfer,Obstetrics & Gynaecology,1,Auckland,2022,1,0
+47,M,1,Elective,Routine,General Surgery,1,Auckland,2022,0,1
+62,F,0,Elective,Routine,Plastics,1,Wellington,2022,0,1
+79,F,1,Elective,Transfer,Plastics,1,Wellington,2022,0,0
+35,M,1,Elective,Routine,General Surgery,1,Wellington,2022,0,0
+20,F,1,Elective,Routine,General Surgery,1,Christchruch,2022,0,0
+34,F,0,Elective,Routine,Obstetrics & Gynaecology,3,Christchruch,2022,0,0
+51,F,1,Acute,Routine,General Surgery,2,Christchruch,2022,0,0
+77,F,1,Acute,Routine,Plastics,4,Christchruch,2022,0,0
+63,M,1,Elective,Routine,Plastics,2,Wellington,2022,0,0
+88,M,0,Elective,Routine,Orthopaedics,3,Auckland,2021,1,0
+20,M,0,Acute,Routine,Plastics,2,Wellington,2021,1,0
+75,F,1,Acute,Transfer,General Surgery,2,Christchruch,2021,0,1
+28,M,0,Elective,Transfer,General Surgery,3,Christchruch,2021,0,0
+88,M,1,Acute,Transfer,Orthopaedics,3,Christchruch,2021,0,0
+55,F,1,Acute,Transfer,General Surgery,3,Christchruch,2021,0,0
+62,F,0,Elective,Transfer,Orthopaedics,1,Wellington,2021,1,0
+89,F,1,Elective,Transfer,Obstetrics & Gynaecology,2,Christchruch,2021,1,0
+34,M,1,Elective,Routine,General Surgery,2,Auckland,2021,0,0
+67,M,0,Elective,Transfer,Plastics,2,Auckland,2021,0,0
+24,M,0,Elective,Transfer,:W,2,Christchruch,2021,0,1
+39,F,0,Elective,Transfer,Plastics,2,Wellington,2021,0,1
+59,F,0,Elective,Transfer,Orthopaedics,2,Auckland,2021,0,0
+44,F,0,Elective,Routine,Orthopaedics,2,Auckland,2021,0,0
+75,M,1,Elective,Transfer,Plastics,2,Christchruch,2021,0,0
+55,M,1,Elective,Routine,Orthopaedics,2,Christchruch,2021,0,0
+85,F,1,Elective,Routine,Obstetrics & Gynaecology,2,Christchruch,2021,0,0
+89,M,0,Elective,Routine,General Surgery,2,Auckland,2021,0,0
+35,F,1,Acute,Routine,Plastics,1,Auckland,2021,1,1
+19,F,0,Acute,Routine,Obstetrics & Gynaecology,2,Auckland,2024,0,1
+29,M,1,Acute,Routine,General Surgery,3,Auckland,2024,1,1
+23,M,1,Acute,Transfer,Plastics,2,Wellington,2024,1,0
+33,M,1,Acute,Transfer,Plastics,2,Christchruch,2024,0,0
+32,F,1,Acute,Transfer,General Surgery,2,Auckland,2024,0,0
+23,F,1,Acute,Routine,Plastics,2,Wellington,2024,0,0
+53,M,0,Elective,Transfer,General Surgery,2,Wellington,2024,0,0
+83,M,0,Acute,Routine,Plastics,2,Christchruch,2024,0,0
+71,F,1,Elective,Transfer,Orthopaedics,1,Auckland,2024,0,1
+56,M,1,Elective,Routine,General Surgery,1,Wellington,2024,1,0
+40,M,1,Elective,Routine,Orthopaedics,1,Christchruch,2024,1,1
+71,F,0,Elective,Routine,Orthopaedics,1,Wellington,2024,0,0
+24,F,0,Elective,Transfer,General Surgery,1,Wellington,2024,0,0
+90,F,0,Elective,Transfer,Plastics,1,Auckland,2024,0,0
+19,F,1,Elective,Transfer,General Surgery,1,Auckland,2024,0,0
+49,M,1,Elective,Transfer,Orthopaedics,1,Wellington,2024,0,0
+54,F,1,Elective,Transfer,Plastics,1,Wellington,2024,0,0
+82,F,1,Elective,Routine,Orthopaedics,1,Auckland,2024,0,0
+60,F,1,Elective,Routine,Plastics,1,Auckland,2024,0,0
+18,M,0,Elective,Transfer,Orthopaedics,3,Wellington,2023,0,1
+50,M,0,Acute,Routine,Plastics,2,Christchruch,2023,1,1
+63,F,0,Acute,Transfer,General Surgery,2,Christchruch,2023,1,0
+35,F,0,Acute,Transfer,Obstetrics & Gynaecology,1,Christchruch,2023,0,0
+44,F,1,Acute,Transfer,Plastics,4,Auckland,2023,0,0
+68,M,0,Acute,Routine,Plastics,3,Wellington,2023,0,0
+25,F,0,Acute,Transfer,Plastics,2,Christchruch,2023,0,1
+90,F,1,Acute,Routine,Orthopaedics,2,Wellington,2023,1,0
+85,M,1,Acute,Transfer,Plastics,3,Wellington,2023,1,1
+25,M,0,Acute,Routine,Orthopaedics,3,Christchruch,2023,0,1
+64,M,1,Acute,Routine,Plastics,3,Auckland,2023,0,0
+33,F,1,Acute,Routine,General Surgery,3,Wellington,2023,0,0
+48,F,1,Acute,Routine,General Surgery,3,Wellington,2023,0,0
+20,M,1,Acute,Routine,Plastics,3,Christchruch,2023,0,0
+75,F,0,Acute,Routine,Plastics,3,Auckland,2023,0,0
+19,M,0,Acute,Routine,Plastics,3,Wellington,2023,0,0
+22,M,0,Acute,Transfer,Orthopaedics,3,Christchruch,2023,0,0
+88,M,0,Acute,Transfer,Plastics,3,Wellington,2023,0,0
+85,M,0,Acute,Transfer,General Surgery,3,Wellington,2023,0,0
+19,F,1,Acute,Transfer,Obstetrics & Gynaecology,2,Wellington,2022,0,1
+84,M,1,Acute,Routine,General Surgery,3,Christchruch,2022,1,1
+27,M,1,Acute,Routine,Plastics,2,Wellington,2022,1,0
+41,M,0,Acute,Routine,Plastics,2,Christchruch,2022,0,0
+30,F,1,Elective,Routine,General Surgery,1,Auckland,2022,0,0
+44,F,0,Elective,Transfer,Orthopaedics,1,Wellington,2022,0,0
+58,F,1,Elective,Routine,Plastics,1,Wellington,2022,0,0
+81,F,1,Elective,Transfer,General Surgery,1,Christchruch,2022,0,0
+29,F,0,Elective,Transfer,General Surgery,1,Auckland,2022,0,0
+33,F,0,Elective,Transfer,Obstetrics & Gynaecology,1,Wellington,2022,1,0
+47,M,1,Elective,Routine,General Surgery,1,Christchruch,2022,0,1
+62,F,0,Elective,Routine,Plastics,1,Wellington,2022,1,1
+79,F,1,Elective,Transfer,Plastics,1,Christchruch,2022,0,0
+35,M,1,Elective,Routine,General Surgery,1,Auckland,2022,0,0
+20,F,1,Elective,Routine,General Surgery,1,Wellington,2022,0,0
+34,F,0,Elective,Routine,Obstetrics & Gynaecology,3,Wellington,2022,0,0
+51,F,1,Acute,Routine,General Surgery,2,Christchruch,2022,0,0
+77,F,1,Acute,Routine,Plastics,4,Auckland,2022,0,0
+63,M,1,Elective,Routine,Plastics,2,Wellington,2022,0,0
+88,M,0,Elective,Routine,Orthopaedics,3,Christchruch,2021,0,0
+20,M,0,Acute,Routine,Plastics,2,Wellington,2021,1,0
+75,F,1,Acute,Transfer,General Surgery,2,Wellington,2021,0,1
+28,M,0,Elective,Transfer,General Surgery,3,Auckland,2021,0,0
+88,M,1,Acute,Transfer,Orthopaedics,3,Wellington,2021,0,0
+55,F,1,Acute,Transfer,General Surgery,3,Christchruch,2021,0,0
+62,F,0,Elective,Transfer,Orthopaedics,1,Christchruch,2021,0,0
+89,F,1,Elective,Transfer,Obstetrics & Gynaecology,2,Christchruch,2021,0,0
+34,M,1,Elective,Routine,General Surgery,2,Auckland,2021,0,0
+67,M,0,Elective,Transfer,Plastics,2,Auckland,2021,0,0
+24,M,0,Elective,Transfer,Plastics,2,Christchruch,2021,0,1
+39,F,0,Elective,Transfer,Plastics,2,Wellington,2021,1,1
+59,F,0,Elective,Transfer,Orthopaedics,2,Auckland,2021,1,0
+44,F,0,Elective,Routine,Orthopaedics,2,Auckland,2021,0,0
+75,M,1,Elective,Transfer,Plastics,2,Christchruch,2021,0,0
+55,M,1,Elective,Routine,Orthopaedics,2,Wellington,2021,0,0
+85,F,1,Elective,Routine,Obstetrics & Gynaecology,2,Auckland,2021,0,0
+89,M,0,Elective,Routine,General Surgery,2,Auckland,2021,0,0
+35,F,1,Acute,Routine,Plastics,1,Wellington,2021,1,1
+19,F,0,Acute,Routine,Obstetrics & Gynaecology,2,Wellington,2024,0,1
+29,M,1,Acute,Routine,General Surgery,3,Auckland,2024,1,1
+23,M,1,Acute,Transfer,Plastics,2,Auckland,2024,1,0
+33,M,1,Acute,Transfer,Plastics,2,Christchruch,2024,0,0
+32,F,1,Acute,Transfer,General Surgery,2,Auckland,2024,0,0
+23,F,1,Acute,Routine,Plastics,2,Wellington,2024,0,0
+53,M,0,Elective,Transfer,General Surgery,2,Auckland,2024,0,0
+83,M,0,Acute,Routine,Plastics,2,Auckland,2024,0,0
+71,F,1,Elective,Transfer,Orthopaedics,1,Wellington,2024,0,1
+56,M,1,Elective,Routine,General Surgery,1,Wellington,2024,1,0
+40,M,1,Elective,Routine,Orthopaedics,1,Auckland,2024,1,1
+71,F,0,Elective,Routine,Orthopaedics,1,Auckland,2024,0,0
+24,F,0,Elective,Transfer,General Surgery,1,Wellington,2024,0,0
+90,F,0,Elective,Transfer,Plastics,1,Auckland,2024,0,0
+19,F,1,Elective,Transfer,General Surgery,1,Auckland,2024,0,0
+49,M,1,Elective,Transfer,Orthopaedics,1,Wellington,2024,0,0
+54,F,1,Elective,Transfer,Plastics,1,Wellington,2024,0,0
+82,F,1,Elective,Routine,Orthopaedics,1,Auckland,2024,0,0
+60,F,1,Elective,Routine,Plastics,1,Auckland,2024,0,0
+18,M,0,Elective,Transfer,Orthopaedics,3,Auckland,2023,0,1
+50,M,0,Acute,Routine,Plastics,2,Wellington,2023,1,1
+63,F,0,Acute,Transfer,General Surgery,2,Christchruch,2023,1,0
+35,F,0,Acute,Transfer,Obstetrics & Gynaecology,1,Christchruch,2023,0,0
+44,F,1,Acute,Transfer,Plastics,4,Christchruch,2023,0,0
+68,M,0,Acute,Routine,Plastics,3,Wellington,2023,0,0
+25,F,0,Acute,Transfer,Plastics,2,Christchruch,2023,0,1
+90,F,1,Acute,Routine,Orthopaedics,2,Auckland,2023,1,0
+85,M,1,Acute,Transfer,Plastics,3,Wellington,2023,1,1
+25,M,0,Acute,Routine,Orthopaedics,3,Christchruch,2023,0,1
+64,M,1,Acute,Routine,Plastics,3,Christchruch,2023,0,0
+33,F,1,Acute,Routine,General Surgery,3,Christchruch,2023,0,0
+48,F,1,Acute,Routine,General Surgery,3,Wellington,2023,0,0
+20,M,1,Acute,Routine,Plastics,3,Auckland,2023,0,0
+75,F,0,Acute,Routine,Plastics,3,Auckland,2023,0,0
+19,M,0,Acute,Routine,Plastics,3,Wellington,2023,0,0
+22,M,0,Acute,Transfer,Orthopaedics,3,Wellington,2023,0,0
+88,M,0,Acute,Transfer,Plastics,3,Wellington,2023,0,0
+85,M,0,Acute,Transfer,General Surgery,3,Christchruch,2023,0,0
+19,F,1,Acute,Transfer,Obstetrics & Gynaecology,2,Christchruch,2022,0,1
+84,M,1,Acute,Routine,General Surgery,3,Christchruch,2022,1,1
+27,M,1,Acute,Routine,Plastics,2,Wellington,2022,1,0
+41,M,0,Acute,Routine,Plastics,2,Auckland,2022,0,0
+30,F,1,Elective,Routine,General Surgery,1,Auckland,2022,0,0
+44,F,0,Elective,Transfer,Orthopaedics,1,Wellington,2022,0,0
+58,F,1,Elective,Routine,Plastics,1,Wellington,2022,0,0
+81,F,1,Elective,Transfer,General Surgery,1,Auckland,2022,0,0
+29,F,0,Elective,Transfer,General Surgery,1,Auckland,2022,0,0
+33,F,0,Elective,Transfer,Obstetrics & Gynaecology,1,Auckland,2022,1,0
+47,M,1,Elective,Routine,General Surgery,1,Auckland,2022,0,1
+62,F,0,Elective,Routine,Plastics,1,Wellington,2022,1,1
+79,F,1,Elective,Transfer,Plastics,1,Auckland,2022,0,0
+35,M,1,Elective,Routine,General Surgery,1,Auckland,2022,0,0
+20,F,1,Elective,Routine,General Surgery,1,Auckland,2022,0,0
+34,F,0,Elective,Routine,Obstetrics & Gynaecology,3,Wellington,2022,0,0
+51,F,1,Acute,Routine,General Surgery,2,Christchruch,2022,0,0
+18,F,1,Acute,Routine,Plastics,4,Christchruch,2022,0,0
+23,M,1,Elective,Routine,Plastics,2,Wellington,2022,0,0
+43,M,0,Elective,Routine,Orthopaedics,3,Auckland,2021,0,0
+59,M,0,Acute,Routine,Plastics,2,Auckland,2021,1,0
+33,F,1,Acute,Transfer,General Surgery,2,Wellington,2021,0,1
+56,M,0,Elective,Transfer,General Surgery,3,Christchruch,2021,0,0
+72,M,1,Acute,Transfer,Orthopaedics,3,Christchruch,2021,0,0
+91,F,1,Acute,Transfer,General Surgery,3,Christchruch,2021,0,0
+88,F,0,Elective,Transfer,Orthopaedics,1,Wellington,2021,0,0
+42,F,1,Elective,Transfer,Obstetrics & Gynaecology,2,Wellington,2021,0,0
+28,M,1,Elective,Routine,General Surgery,2,Auckland,2021,0,0
+19,M,0,Elective,Transfer,Plastics,2,Auckland,2021,0,0
+20,M,0,Elective,Transfer,Plastics,2,Wellington,2021,0,1
+39,F,0,Elective,Transfer,Plastics,2,Wellington,2021,0,1
+40,F,0,Elective,Transfer,Orthopaedics,2,Auckland,2021,1,0
+33,F,0,Elective,Routine,Orthopaedics,2,Auckland,2021,1,0
+84,M,1,Elective,Transfer,Plastics,2,Auckland,2021,0,0
+58,M,1,Elective,Routine,Orthopaedics,2,Wellington,2021,0,0
+75,F,1,Elective,Routine,Obstetrics & Gynaecology,2,Christchruch,2021,0,0
+72,M,0,Elective,Routine,General Surgery,2,Christchruch,2021,0,0
+71,F,1,Acute,Routine,Plastics,1,Auckland,2021,0,1
+77,F,0,Acute,Routine,Obstetrics & Gynaecology,2,Auckland,2024,0,1
+48,M,1,Acute,Routine,General Surgery,3,Auckland,2024,0,1
+57,M,1,Acute,Transfer,Plastics,2,Wellington,2024,0,0
+93,M,1,Acute,Transfer,Plastics,2,Christchruch,2024,0,0
+28,F,1,Acute,Transfer,General Surgery,2,Auckland,2024,1,0
+48,F,1,Acute,Routine,Plastics,2,Wellington,2024,1,0
+53,M,0,Elective,Transfer,General Surgery,2,Wellington,2024,0,0
+83,M,0,Acute,Routine,Plastics,2,Christchruch,2024,0,0
+71,F,1,Elective,Transfer,Orthopaedics,1,Auckland,2024,0,1
+56,M,1,Elective,Routine,General Surgery,1,Wellington,2024,0,0
+40,M,1,Elective,Routine,Orthopaedics,1,Christchruch,2024,1,1
+71,F,0,Elective,Routine,Orthopaedics,1,Wellington,2024,1,0
+24,F,0,Elective,Transfer,General Surgery,1,Wellington,2024,0,0
+90,F,0,Elective,Transfer,Plastics,1,Auckland,2024,0,0
+19,F,1,Elective,Transfer,General Surgery,1,Auckland,2024,0,0
+49,M,1,Elective,Transfer,Orthopaedics,1,Wellington,2024,0,0
+54,F,1,Elective,Transfer,Plastics,1,Auckland,2024,0,0
+82,F,1,Elective,Routine,Orthopaedics,1,Wellington,2024,0,0
+60,F,1,Elective,Routine,Plastics,1,Christchruch,2024,0,0
+18,M,0,Elective,Transfer,Orthopaedics,3,Christchruch,2023,0,1
+50,M,0,Acute,Routine,Plastics,2,Wellington,2023,1,1
+63,F,0,Acute,Transfer,General Surgery,2,Christchruch,2023,1,0
+22,F,0,Acute,Transfer,Obstetrics & Gynaecology,1,Christchruch,2023,0,0
+88,F,1,Acute,Transfer,Plastics,4,Christchruch,2023,0,0
+85,M,0,Acute,Routine,Plastics,3,Wellington,2023,0,0
+19,F,0,Acute,Transfer,Plastics,2,Christchruch,2023,0,1
+84,F,1,Acute,Routine,Orthopaedics,2,Auckland,2023,1,0
+27,M,1,Acute,Transfer,Plastics,3,Wellington,2023,1,1
+41,M,0,Acute,Routine,Orthopaedics,3,Christchruch,2023,0,1
+30,M,1,Acute,Routine,Plastics,3,Christchruch,2023,0,0
+44,F,1,Acute,Routine,General Surgery,3,Christchruch,2023,0,0
+58,F,1,Acute,Routine,General Surgery,3,Wellington,2023,0,0
+81,M,1,Acute,Routine,Plastics,3,Auckland,2023,0,0
+29,F,0,Acute,Routine,Plastics,3,Auckland,2023,0,0
+33,M,0,Acute,Routine,Plastics,3,Wellington,2023,0,0
+47,M,0,Acute,Transfer,Orthopaedics,3,Wellington,2023,0,0
+62,M,0,Acute,Transfer,Plastics,3,Wellington,2023,0,0
+79,M,0,Acute,Transfer,General Surgery,3,Christchruch,2023,0,0
+35,F,1,Acute,Transfer,Obstetrics & Gynaecology,2,Christchruch,2022,0,1
+20,M,1,Acute,Routine,General Surgery,3,Christchruch,2022,1,1
+34,M,1,Acute,Routine,Plastics,2,Christchruch,2022,1,0
+51,M,0,Acute,Routine,Plastics,2,Christchruch,2022,0,0
+18,F,1,Elective,Routine,General Surgery,1,Christchruch,2022,0,0
+23,F,0,Elective,Transfer,Orthopaedics,1,Wellington,2022,0,0
+43,F,1,Elective,Routine,Plastics,1,Auckland,2022,0,0
+59,F,1,Elective,Transfer,General Surgery,1,Auckland,2022,0,0
+33,F,0,Elective,Transfer,General Surgery,1,Wellington,2022,0,0
+56,F,0,Elective,Transfer,Obstetrics & Gynaecology,1,Auckland,2022,1,0
+72,M,1,Elective,Routine,General Surgery,1,Auckland,2022,0,1
+91,F,0,Elective,Routine,Plastics,1,Wellington,2022,1,1
+88,F,1,Elective,Transfer,Plastics,1,Wellington,2022,0,0
+42,M,1,Elective,Routine,General Surgery,1,Wellington,2022,0,0
+28,F,1,Elective,Routine,General Surgery,1,Christchruch,2022,0,0
+19,F,0,Elective,Routine,Obstetrics & Gynaecology,3,Christchruch,2022,0,0
+20,F,1,Acute,Routine,General Surgery,2,Christchruch,2022,0,0
+39,F,1,Acute,Routine,Plastics,4,Christchruch,2022,0,0
+40,M,1,Elective,Routine,Plastics,2,Wellington,2022,0,0
+33,M,0,Elective,Routine,Orthopaedics,3,Auckland,2021,0,0
+84,M,0,Acute,Routine,Plastics,2,Wellington,2021,1,0
+58,F,1,Acute,Transfer,General Surgery,2,Christchruch,2021,0,1
+75,M,0,Elective,Transfer,General Surgery,3,Christchruch,2021,0,0
+72,M,1,Acute,Transfer,Orthopaedics,3,Christchruch,2021,0,0
+71,F,1,Acute,Transfer,General Surgery,3,Christchruch,2021,0,0
+77,F,0,Elective,Transfer,Orthopaedics,1,Wellington,2021,0,0
+48,F,1,Elective,Transfer,Obstetrics & Gynaecology,2,Christchruch,2021,0,0
+57,M,1,Elective,Routine,General Surgery,2,Auckland,2021,0,0
+93,M,0,Elective,Transfer,Plastics,2,Auckland,2021,0,0
+28,M,0,Elective,Transfer,Plastics,2,Christchruch,2021,0,1
+48,F,0,Elective,Transfer,Plastics,2,Wellington,2021,1,1
+19,F,0,Elective,Transfer,Orthopaedics,2,Auckland,2021,1,0
+20,F,0,Elective,Routine,Orthopaedics,2,Auckland,2021,0,0
+39,M,1,Elective,Transfer,Plastics,2,Christchruch,2021,0,0

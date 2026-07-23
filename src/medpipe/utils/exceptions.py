@@ -12,7 +12,7 @@ Functions:
 
 from __future__ import annotations
 
-import pathlib
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from numpy import ndarray
@@ -23,16 +23,18 @@ if TYPE_CHECKING:
     import pandas as pd
 
 
-def file_checks(file: str, extension: str, exists: bool = True) -> None:
+def file_checks(
+    file: str | Path, extension: str | list[str], exists: bool = True
+) -> None:
     """
     Performs checks to ensure that a file and extension are correct.
 
     Parameters
     ----------
-    file : str
+    file : str | Path
         File to check.
-    extension : str
-        Extension of the file to check.
+    extension : str | list[str]
+        Extension or list of extensions of the file to check.
     exists : bool, default: True
         Flag to indicate if the file should exists.
 
@@ -44,19 +46,23 @@ def file_checks(file: str, extension: str, exists: bool = True) -> None:
     Raises
     ------
     TypeError
-        If file is not a str.
+        If file is not a str or a Path.
+        If extension is not a str or list[str].
     FileNotFoundError
         If file does not exist.
     IsADirectoryError
         If file is a directory.
     ValueError
-        If file extension is not .extension file.
+        If file extension is not correct.
 
     """
-    if type(file) is not str:
-        raise TypeError(f"{file} should be a string")
+    if not isinstance(file, (str, Path)):
+        raise TypeError(f"File should be a string or Path")
 
-    path_object = pathlib.Path(file)  # Create a Path object
+    if not isinstance(extension, (str, list)):
+        raise TypeError(f"Extension should be a string or list of strings")
+
+    path_object = Path(file).expanduser().resolve()  # Create a Path object
 
     path_checks(str(path_object.parent))
 
@@ -66,18 +72,25 @@ def file_checks(file: str, extension: str, exists: bool = True) -> None:
     if not path_object.is_file() and exists:
         raise IsADirectoryError(f"{file} should be a file")
 
-    if path_object.suffix != extension:
-        raise ValueError(f"{file} should be a {extension} file")
+    suffix = path_object.suffix
+    if isinstance(extension, str):
+        if suffix != extension:
+            raise ValueError(f"File suffix should be {extension}, but got {suffix}")
+    else:
+        if suffix not in extension:
+            raise ValueError(
+                f"File suffix should be one of {extension}, but got {suffix}"
+            )
 
 
-def path_checks(path: str) -> None:
+def path_checks(path: str | Path) -> None:
     """
     Performs checks to ensure that a path is correct and creates it
     if it does not exist.
 
     Parameters
     ----------
-    path : str
+    path : str | Path
         Path to check.
 
     Returns
@@ -88,36 +101,20 @@ def path_checks(path: str) -> None:
     Raises
     ------
     TypeError
-        If path is not a str.
+        If path is not a str or Path.
     FileNotFoundError
         If path does not exist.
     NotADirectoryError
         If path is not a directory.
 
     """
-    if type(path) is not str:
-        raise TypeError(f"{path} should be a string")
+    if not isinstance(path, (str, Path)):
+        raise TypeError(f"Path should be a string or a Path")
 
-    path_object = pathlib.Path(path)  # Create a Path object
-    path_suffix = path_object.suffix
-    dir = False
-
-    if path_suffix != "":
-        try:
-            # If suffix ends with a digit because of version number
-            int(path_suffix[1:])
-            dir = True
-        except ValueError:
-            pass
-    else:
-        # If there is no suffix
-        dir = True
+    path_object = Path(path).expanduser().resolve()  # Create a Path object
 
     if not path_object.exists() and dir:
         path_object.mkdir(parents=True)
-
-    if not path_object.exists():
-        raise FileNotFoundError(f"{path} does not exist")
 
     if not path_object.is_dir():
         raise NotADirectoryError(f"{path} should be a directory")
@@ -145,7 +142,7 @@ def array_check(arr: npt.NDArray | pd.Series | list[Any]) -> None:
     """
     target_types = (list, ndarray, Series)
     if not isinstance(arr, target_types):
-        raise TypeError(f"arr should be an array-like but instead got {type(arr)}")
+        raise TypeError(f"Input should be an array-like but instead got {type(arr)}")
 
 
 def array_dim_check(
@@ -185,6 +182,6 @@ def array_dim_check(
             raise ValueError("The dimensions do not agree")
     else:
         if type(dim) is not int:
-            raise TypeError("dim should be an integer")
+            raise TypeError("Input dim should be an integer")
         if arr1.shape[dim] != arr2.shape[dim]:
             raise ValueError(f"The {dim} axis does not agree")

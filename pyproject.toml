@@ -1,18 +1,14 @@
-[build-system]
-build-backend = "setuptools.build_meta"
-requires = [ "setuptools>=80.9" ]
-
 [project]
 name = "medpipe"
-version = "1.0.0"
+version = "0.3.0"
 description = "A package for clinical AI pipeline development"
 readme = "README.md"
+requires-python = ">=3.12"
 license = "Apache-2.0"
-license-files = [ "LICEN[CS]E*" ]
+license-files = ["LICEN[CS]E*"]
 authors = [
   { name = "Mathias Roesler", email = "mathias.roesler@auckland.co.nz" },
 ]
-requires-python = ">=3.12"
 classifiers = [
   "Operating System :: POSIX :: Linux",
   "Programming Language :: Python :: 3 :: Only",
@@ -20,10 +16,21 @@ classifiers = [
   "Programming Language :: Python :: 3.13",
   "Programming Language :: Python :: 3.14",
 ]
-dynamic = [ "dependencies" ]
 urls.Repository = "https://github.com/Surgical-Recovery-and-Safety-Lab/medpipe"
+dynamic = ["dependencies"]
+
+[build-system]
+requires = ["setuptools>=80.9"]
+build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
 package-dir = { "" = "src" }
-packages = [ "medpipe", "medpipe.data", "medpipe.models", "medpipe.metrics", "medpipe.pipeline", "medpipe.utils" ]
-dynamic.dependencies = { file = [ "requirements.txt" ] }
+packages = [
+  "medpipe",
+  "medpipe.data",
+  "medpipe.models",
+  "medpipe.metrics",
+  "medpipe.pipeline",
+  "medpipe.utils"
+]
+dynamic.dependencies = { file = ["requirements.txt"] }

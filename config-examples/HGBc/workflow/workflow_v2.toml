@@ -1,0 +1,39 @@
+[preprocessing]
+preprocess = false  # Perform preprocessing if true
+
+# Operations are run in order
+operations = [
+  { name = "OrdinalEncoder", columns = [
+    "SEX",
+    "ADMISSION_ACUITY",
+    "ADMISSION_SOURCE",
+    "CATEGORY_LEVEL_1"
+  ] },
+]
+
+[validation]
+[validation.test_split]  # Test / train splitting variables
+strategy = "random"  # Can be random, group or none
+test_size = 0.1  # Size of the test set if not using group
+
+[validation.recalibration_split]  # Recalibration data splitting variables
+strategy = "random"  # Can be random, group, or none
+recalibration_size = 0.1
+
+[validation.cross_validation]  # Cross-validation variables
+strategy = "random"  # Can be random, group, or none
+n_splits = 3  # Number of groups (group strategy) or folds (random strategy)
+shuffle = true
+random_state = 42
+
+[evaluation]
+[evaluation.metrics]
+metrics = ["roc_auc", "log_loss"]
+
+[evaluation.calibration]
+strategy = "quantile"
+n_bootstraps = 2
+
+[evaluation.fairness]
+strata = ["SEX", "AGE"]
+groups = { "AGE" = [[18, 50], [51, 120]] }
