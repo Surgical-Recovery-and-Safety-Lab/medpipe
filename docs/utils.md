@@ -3,12 +3,15 @@
 This page documents the `utils` sub-package.
 
 ---
+## Configuration
+::: medpipe.utils.config
 
-::: medpipe.utils.logger
-
+## I/O
 ::: medpipe.utils.io
 
+## Exceptions
 ::: medpipe.utils.exceptions
 
-::: medpipe.utils.config
+## Logger
+::: medpipe.utils.logger
 

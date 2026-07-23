@@ -4,9 +4,9 @@ This page documents the `metrics` sub-package.
 
 ---
 
-## plots
+## Plots
 ::: medpipe.metrics.plots
 
-## core
+## Core
 ::: medpipe.metrics.core
 
