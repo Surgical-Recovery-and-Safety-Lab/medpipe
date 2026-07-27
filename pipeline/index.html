@@ -1169,7 +1169,7 @@ the predicted probabilities of the recalibrator for that fold.</p>
       </thead>
       <tbody>
             <tr class="doc-section-item">
-              <td><code><span title="medpipe.pipeline.pipeline.MedpipePipeline.fit_transfrom">fit_transfrom</span></code></td>
+              <td><code><a class="autorefs autorefs-internal" title="fit_transform(X) (medpipe.pipeline.pipeline.MedpipePipeline.fit_transform)" href="#medpipe.pipeline.pipeline.MedpipePipeline.fit_transform">fit_transform</a></code></td>
               <td>
                 <div class="doc-md-description">
                   <p>Fits the preprocessor operations and transforms the input data.</p>
@@ -2749,7 +2749,7 @@ the predicted probabilities of the recalibrator for that fold.</p>
 </span><span id="__span-0-89"><a id="__codelineno-0-89" name="__codelineno-0-89"></a>
 </span><span id="__span-0-90"><a id="__codelineno-0-90" name="__codelineno-0-90"></a><span class="sd">    Methods</span>
 </span><span id="__span-0-91"><a id="__codelineno-0-91" name="__codelineno-0-91"></a><span class="sd">    -------</span>
-</span><span id="__span-0-92"><a id="__codelineno-0-92" name="__codelineno-0-92"></a><span class="sd">    fit_transfrom(X)</span>
+</span><span id="__span-0-92"><a id="__codelineno-0-92" name="__codelineno-0-92"></a><span class="sd">    fit_transform(X)</span>
 </span><span id="__span-0-93"><a id="__codelineno-0-93" name="__codelineno-0-93"></a><span class="sd">        Fits the preprocessor operations and transforms the input data.</span>
 </span><span id="__span-0-94"><a id="__codelineno-0-94" name="__codelineno-0-94"></a><span class="sd">    transform(X)</span>
 </span><span id="__span-0-95"><a id="__codelineno-0-95" name="__codelineno-0-95"></a><span class="sd">        Transforms input data based on preprocessor fitted operations.</span>
@@ -4049,7 +4049,7 @@ the predicted probabilities of the recalibrator for that fold.</p>
 </span><span id="__span-0-1389"><a id="__codelineno-0-1389" name="__codelineno-0-1389"></a>            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">recalibrator</span><span class="p">:</span>
 </span><span id="__span-0-1390"><a id="__codelineno-0-1390" name="__codelineno-0-1390"></a>                <span class="n">recal_results</span> <span class="o">=</span> <span class="n">compute_metrics</span><span class="p">(</span>
 </span><span id="__span-0-1391"><a id="__codelineno-0-1391" name="__codelineno-0-1391"></a>                    <span class="bp">self</span><span class="o">.</span><span class="n">metrics</span><span class="p">,</span>
-</span><span id="__span-0-1392"><a id="__codelineno-0-1392" name="__codelineno-0-1392"></a>                    <span class="n">y</span><span class="o">.</span><span class="n">ravel</span><span class="p">(),</span>
+</span><span id="__span-0-1392"><a id="__codelineno-0-1392" name="__codelineno-0-1392"></a>                    <span class="n">y</span><span class="p">[:,</span> <span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">ravel</span><span class="p">(),</span>
 </span><span id="__span-0-1393"><a id="__codelineno-0-1393" name="__codelineno-0-1393"></a>                    <span class="bp">self</span><span class="o">.</span><span class="n">recalibrator</span><span class="p">[</span><span class="n">outcome</span><span class="p">]</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">raw_outputs</span><span class="p">),</span>
 </span><span id="__span-0-1394"><a id="__codelineno-0-1394" name="__codelineno-0-1394"></a>                <span class="p">)</span>
 </span><span id="__span-0-1395"><a id="__codelineno-0-1395" name="__codelineno-0-1395"></a>
@@ -6272,7 +6272,7 @@ Model type or list of model types to use.</p>
 </span><span id="__span-0-1389"><a id="__codelineno-0-1389" name="__codelineno-0-1389"></a>        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">recalibrator</span><span class="p">:</span>
 </span><span id="__span-0-1390"><a id="__codelineno-0-1390" name="__codelineno-0-1390"></a>            <span class="n">recal_results</span> <span class="o">=</span> <span class="n">compute_metrics</span><span class="p">(</span>
 </span><span id="__span-0-1391"><a id="__codelineno-0-1391" name="__codelineno-0-1391"></a>                <span class="bp">self</span><span class="o">.</span><span class="n">metrics</span><span class="p">,</span>
-</span><span id="__span-0-1392"><a id="__codelineno-0-1392" name="__codelineno-0-1392"></a>                <span class="n">y</span><span class="o">.</span><span class="n">ravel</span><span class="p">(),</span>
+</span><span id="__span-0-1392"><a id="__codelineno-0-1392" name="__codelineno-0-1392"></a>                <span class="n">y</span><span class="p">[:,</span> <span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">ravel</span><span class="p">(),</span>
 </span><span id="__span-0-1393"><a id="__codelineno-0-1393" name="__codelineno-0-1393"></a>                <span class="bp">self</span><span class="o">.</span><span class="n">recalibrator</span><span class="p">[</span><span class="n">outcome</span><span class="p">]</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">raw_outputs</span><span class="p">),</span>
 </span><span id="__span-0-1394"><a id="__codelineno-0-1394" name="__codelineno-0-1394"></a>            <span class="p">)</span>
 </span><span id="__span-0-1395"><a id="__codelineno-0-1395" name="__codelineno-0-1395"></a>
