@@ -89,7 +89,7 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
 
     Methods
     -------
-    fit_transfrom(X)
+    fit_transform(X)
         Fits the preprocessor operations and transforms the input data.
     transform(X)
         Transforms input data based on preprocessor fitted operations.
@@ -1389,7 +1389,7 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
             if self.recalibrator:
                 recal_results = compute_metrics(
                     self.metrics,
-                    y.ravel(),
+                    y[:, i].ravel(),
                     self.recalibrator[outcome].predict(raw_outputs),
                 )
 

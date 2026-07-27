@@ -259,6 +259,16 @@ class TestTestModels:
         mp_pipeline.fit(X_train, y_train, X_recal, y_recal)
         mp_pipeline.test_models(X_test, y_test)
 
+    def test_pipeline_test_models_success_with_recalibrator(
+        self, mp_pipeline: MedpipePipeline, mock_data: MockData, mock_labels: MockLabels
+    ) -> None:
+        """Test successful function call."""
+        mp_pipeline.recalibrator_method = "IsotonicRegression"
+        X_train, X_test, X_recal = mock_data
+        y_train, y_test, y_recal = mock_labels
+        mp_pipeline.fit(X_train, y_train, X_recal, y_recal)
+        mp_pipeline.test_models(X_test, y_test)
+
 
 class TestPredictProba:
     """Test class for the predict_proba function of
