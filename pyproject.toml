@@ -1,6 +1,6 @@
 [project]
 name = "medpipe"
-version = "0.3.1.dev0"
+version = "0.3.1"
 description = "A package for clinical AI pipeline development"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -16,8 +16,11 @@ classifiers = [
   "Programming Language :: Python :: 3.13",
   "Programming Language :: Python :: 3.14",
 ]
-urls.Repository = "https://github.com/Surgical-Recovery-and-Safety-Lab/medpipe"
 dynamic = ["dependencies"]
+
+[project.urls]
+Changelog = "https://github.com/https://github.com/Surgical-Recovery-and-Safety-Lab/medpipe/blob/main/CHANGELOG.md"
+Homepage = "https://github.com/Surgical-Recovery-and-Safety-Lab/medpipe"
 
 [build-system]
 requires = ["setuptools>=80.9"]
