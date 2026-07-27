@@ -152,8 +152,6 @@ def plot_ROC_curve(
         positive class probabilities of shape (n_samples,).
     label : str, default: ""
         Label for the legend.
-    strategy : Literal["uniform", "quantile", "spline"]
-        Strategy to use for the calibration curve.
     n_bootstraps : int, default: 1000
         Number of iteration for the bootstrap.
     save_path : str, default: []
