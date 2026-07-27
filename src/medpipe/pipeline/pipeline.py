@@ -1389,7 +1389,7 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
             if self.recalibrator:
                 recal_results = compute_metrics(
                     self.metrics,
-                    y.ravel(),
+                    y[:, i].ravel(),
                     self.recalibrator[outcome].predict(raw_outputs),
                 )
 
