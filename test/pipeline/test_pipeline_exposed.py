@@ -26,13 +26,37 @@ from pandas.testing import assert_frame_equal
 from pytest import MonkeyPatch
 from sklearn.base import check_is_fitted
 from sklearn.linear_model import LinearRegression
-from sklearn.pipeline import NotFittedError
+from sklearn.pipeline import NotFittedError, Pipeline
 
 from medpipe.pipeline.pipeline import MedpipePipeline
+from medpipe.utils.io import read_toml_configuration
 
 # ==============================================================================
 # Test classes for exposed functions
 # ==============================================================================
+
+
+class TestPipeline:
+    """Test class for the MedpipePipeline class initialisation"""
+
+    def test_create_pipeline_from_file(self, example_config_dir: Path) -> None:
+        """Test successful pipeline creation from configuration file."""
+        pipe = MedpipePipeline(example_config_dir / "HGBc_config.toml", logger=None)
+        assert pipe.version == "v0.1.1"
+        assert pipe.predictor_algo == "HistGradientBoostingClassifier"
+        assert pipe.recalibrator_method == "IsotonicRegression"
+        assert pipe.n_outcomes == 1
+        assert isinstance(pipe.preprocessor, Pipeline)
+
+    def test_create_pipeline_from_config(self, example_config_dir: Path) -> None:
+        """Test successful pipeline creation from MedpipeConfig."""
+        config = read_toml_configuration(example_config_dir / "HGBc_config.toml")
+        pipe = MedpipePipeline(config, logger=None)
+        assert pipe.version == "v0.1.1"
+        assert pipe.predictor_algo == "HistGradientBoostingClassifier"
+        assert pipe.recalibrator_method == "IsotonicRegression"
+        assert pipe.n_outcomes == 1
+        assert isinstance(pipe.preprocessor, Pipeline)
 
 
 class TestTransform:
