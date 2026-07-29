@@ -202,6 +202,9 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
                     **self.medpipe_config.hyperparameters.hyperparameters.recalibrator.model_dump(),
                 )
 
+            elif self.recalibrator_method:  # Default parameters
+                self.recalibrator[outcome] = create_estimator(self.recalibrator_method)
+
             # Initialise folds
             self.folds[outcome] = {}
 
