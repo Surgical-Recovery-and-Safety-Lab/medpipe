@@ -1,19 +1,15 @@
 """
 Configuration utilities module.
 
-This module provides helper functions for reading configuration files.
+This module provides configuration schemas.
 
-Functions:
-- parse_version_number: Function that parses a version number.
-- read_subconfiguration_file: Reads the contents of a configuration file
-    from a path.
 """
 
 from __future__ import annotations
 
 import tomllib
 from pathlib import Path
-from typing import Literal, TypeAlias
+from typing import Any, Literal
 from warnings import warn
 
 from pydantic import BaseModel, Field, field_validator, model_validator
@@ -22,10 +18,6 @@ from medpipe.metrics.core import METRICS
 
 from .exceptions import file_checks
 
-# Define file specific types
-SubConfig: TypeAlias = "DataConfig | HyperparameterConfig | WorkflowConfig"
-SubConfigTypes: TypeAlias = Literal["data", "workflow", "hyperparameters"]
-
 # ==============================================================================
 # CONFIGURATION SCHEMA (pydantic)
 # ==============================================================================
@@ -33,21 +25,11 @@ SubConfigTypes: TypeAlias = Literal["data", "workflow", "hyperparameters"]
 
 
 class MetaConfig(BaseModel):
-    version: str
+    """The master schema for the meta section of the configuration file."""
+
     project_name: str
     run_mode: Literal["fast", "eval", "cv", "audit"] = "audit"
     model_config = {"extra": "forbid"}
-
-    @field_validator("version")
-    @classmethod
-    def validate_version_format(cls, v: str) -> str:
-        """Validate version is formatted as vX.Y.Z"""
-        try:
-            v_splits = v.split(".")
-            assert len(v_splits) == 3
-        except:
-            raise ValueError(f"Version should be formatted as vX.Y.Z, but got {v}")
-        return v
 
     @field_validator("project_name")
     @classmethod
@@ -59,48 +41,9 @@ class MetaConfig(BaseModel):
         return name
 
 
-class PathsConfig(BaseModel):
-    config_dir: str
-    model_dir: str
-    figure_dir: str
-    model_config = {"extra": "forbid"}
-
-    @field_validator("config_dir", "model_dir", "figure_dir")
-    @classmethod
-    def validate_paths(cls, dir: str) -> str:
-        """Validate that paths point to directories."""
-        path = Path(dir).expanduser().resolve()
-
-        if path.is_file():
-            raise ValueError(f"{path} points to an existing file")
-
-        path.mkdir(parents=True, exist_ok=True)
-        return dir
-
-
-class ModelConfig(BaseModel):
-    algorithm: str
-    model_config = {"extra": "forbid"}
-
-
-class RecalibrationConfig(BaseModel):
-    method: str | None = None
-    model_config = {"extra": "forbid"}
-
-
-class TopLevelConfig(BaseModel):
-    """The master schema for the top-level configuration file."""
-
-    meta: MetaConfig
-    paths: PathsConfig
-    model: ModelConfig
-    recalibration: RecalibrationConfig | None = None
-    model_config = {"extra": "forbid"}
-
-
-# --- DATA SCHEMAS
+# --- DATA SCHEMAS ---
 class DataConfig(BaseModel):
-    """The master schema for the data subconfiguration file."""
+    """The master schema for the data section of the configuration file."""
 
     path: str
     predictors: list[str]
@@ -135,7 +78,7 @@ class DataConfig(BaseModel):
         return self
 
 
-# --- WORKFLOW SCHEMAS
+# --- WORKFLOW SCHEMAS ---
 class PreprocessOperationConfig(BaseModel):
     name: str  # Matches the exact class name
     columns: list[str]  # The specific columns this transformer applies to
@@ -330,40 +273,89 @@ class WorkflowConfig(BaseModel):
     model_config = {"extra": "forbid"}
 
 
-# --- HYPERPARAMETERS SCHEMAS
-class PredictorConfig(BaseModel):
-    learning_rate: float = Field(default=0.1, gt=0)
-    # Allow extra parameters to be passed as keyword argument to predictor
-    model_config = {"extra": "allow"}
-
-
-class RecalibratorConfig(BaseModel):
-    # Allow extra parameters to be passed as keyword argument to recalibrator
-    model_config = {"extra": "allow"}
-
-
-class ModelHyperparamSubConfig(BaseModel):
-    predictor: PredictorConfig
-    recalibrator: RecalibratorConfig | None = None
-
+# --- MODEL SCHEMAS ---
+class RecalibrationConfig(BaseModel):
+    method: str
+    hyperparameters: dict[str, Any] = Field(default_factory=dict)
     model_config = {"extra": "forbid"}
 
 
-class HyperparameterConfig(BaseModel):
-    """The master schema for the hyperparameter subconfiguration file."""
+class ModelSetup(BaseModel):
+    """Configuration for a model, recalibrator, and their hyperparameters."""
 
-    hyperparameters: ModelHyperparamSubConfig
+    algorithm: str
+    hyperparameters: dict[str, Any] = Field(default_factory=dict)
+    recalibration: RecalibrationConfig | None = None
     model_config = {"extra": "forbid"}
 
 
+# --- GLOBAL MEDPIPE CONFIGURATION SCHEMA ---
 class MedpipeConfig(BaseModel):
-    """The master schema for a medpipe pipeline."""
+    """The master schema for a single-file configuration."""
 
-    top_level: TopLevelConfig
+    meta: MetaConfig
     data: DataConfig
     workflow: WorkflowConfig
-    hyperparameters: HyperparameterConfig
+
+    # The default setup applied to all outcomes
+    default_model: ModelSetup
+
+    # Optional overrides keyed by outcome name
+    outcome_overrides: dict[str, ModelSetup] = Field(default_factory=dict)
+
+    # Dynamically generated during validation: fully resolved configurations per outcome
+    resolved_models: dict[str, ModelSetup] = Field(default_factory=dict, init_var=False)
+
     model_config = {"extra": "forbid"}
+
+    @model_validator(mode="after")
+    def resolve_cascading_models(self) -> "MedpipeConfig":
+        """Cascade default_model settings into outcome_overrides."""
+        resolved = {}
+        for outcome in self.data.outcomes:
+            # Start with a copy of the default model setup
+            base_setup = self.default_model.model_dump()
+
+            # If the user provided an override for this outcome, update the base
+            if outcome in self.outcome_overrides:
+                override_setup = self.outcome_overrides[outcome].model_dump(
+                    exclude_unset=True
+                )
+
+                # Update base algorithm
+                if "algorithm" in override_setup:
+                    base_setup["algorithm"] = override_setup["algorithm"]
+
+                # Merge predictor hyperparameters
+                if "hyperparameters" in override_setup:
+                    base_setup["hyperparameters"].update(
+                        override_setup["hyperparameters"]
+                    )
+
+                # Handle recalibration merge
+                if (
+                    "recalibration" in override_setup
+                    and override_setup["recalibration"]
+                ):
+                    if base_setup.get("recalibration"):
+                        # Both have recalibration, do a deep merge
+                        if "method" in override_setup["recalibration"]:
+                            base_setup["recalibration"]["method"] = override_setup[
+                                "recalibration"
+                            ]["method"]
+                        if "hyperparameters" in override_setup["recalibration"]:
+                            base_setup["recalibration"]["hyperparameters"].update(
+                                override_setup["recalibration"]["hyperparameters"]
+                            )
+                    else:
+                        # Base had no recalibration, overwrite entirely
+                        base_setup["recalibration"] = override_setup["recalibration"]
+
+            # Save the fully resolved configuration for this outcome
+            resolved[outcome] = ModelSetup(**base_setup)
+
+        self.resolved_models = resolved
+        return self
 
     @model_validator(mode="after")
     def validate_recalibration(self) -> "MedpipeConfig":
