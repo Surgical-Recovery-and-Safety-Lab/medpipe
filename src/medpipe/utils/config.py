@@ -7,23 +7,18 @@ This module provides configuration schemas.
 
 from __future__ import annotations
 
-import tomllib
 from pathlib import Path
 from typing import Any, Literal
-from warnings import warn
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 from medpipe.metrics.core import METRICS
 
-from .exceptions import file_checks
 
 # ==============================================================================
 # CONFIGURATION SCHEMA (pydantic)
 # ==============================================================================
 # --- TOP-LEVEL MASTER SCHEMAS ---
-
-
 class MetaConfig(BaseModel):
     """The master schema for the meta section of the configuration file."""
 
@@ -360,7 +355,7 @@ class MedpipeConfig(BaseModel):
     @model_validator(mode="after")
     def validate_recalibration(self) -> "MedpipeConfig":
         """Check recalibration split is specified with recalibration method."""
-        if self.top_level.recalibration:  # Recalibration is present
+        if self.default_model.recalibration:  # Recalibration is present
             if not self.workflow.validation.recalibration_split:
                 expr = (
                     "Recalibration validation split must be "
@@ -373,7 +368,7 @@ class MedpipeConfig(BaseModel):
     def validate_cross_validation(self) -> "MedpipeConfig":
         """Check that a cross-validation config is passed with correct
         run modes."""
-        if self.top_level.meta.run_mode != "fast":
+        if self.meta.run_mode != "fast":
             if self.workflow.validation.cross_validation is None:
                 expr = (
                     "Cross-validation parameters must be specified "
@@ -385,7 +380,7 @@ class MedpipeConfig(BaseModel):
     @model_validator(mode="after")
     def validate_evaluation(self) -> "MedpipeConfig":
         """Check that audit and eval run modes have correct evaluation."""
-        run_mode = self.top_level.meta.run_mode
+        run_mode = self.meta.run_mode
         if run_mode == "audit" or run_mode == "eval":
             if self.workflow.evaluation.calibration is None:
                 expr = (
@@ -400,135 +395,3 @@ class MedpipeConfig(BaseModel):
                 )
                 raise ValueError(expr)
         return self
-
-
-# ==============================================================================
-# CONFIGURATION FUNCTIONS
-# ==============================================================================
-
-
-# Define some constants
-SUBCONFIG_REGISTRY: dict[SubConfigTypes, type[SubConfig]] = {
-    "data": DataConfig,
-    "workflow": WorkflowConfig,
-    "hyperparameters": HyperparameterConfig,
-}
-
-
-def read_subconfiguration_file(path: str | Path, subtype: SubConfigTypes) -> SubConfig:
-    """
-    Reads the contents of a configuration file from a path.
-
-    The contents are validated using the pydantic classes defined
-    in _types.py.
-
-    Parameters
-    ----------
-    path: str | Path
-        Path to the configuration file.
-    subtype: SubConfigTypes {"data", "workflow", "hyperparameters"}
-        Subtype of the configuration being read.
-
-    Returns
-    -------
-    config: SubConfig
-        Subconfiguration dictionary.
-
-    Raises
-    ------
-    TypeError
-        If path is not a str or Path.
-    FileNotFoundError
-        If path does not exist.
-    IsADirectoryError
-        If path is not a file.
-    ValueError
-        If path it not a .toml file.
-        If subtype is not in {"data", "workflow", "hyperparameters"}.
-    tomllib.TOMLDecodeError
-        If the file was not read properly.
-
-    """
-    if subtype not in SUBCONFIG_REGISTRY.keys():
-        valid_options = list(SUBCONFIG_REGISTRY.keys())
-        raise ValueError(
-            f"Unexpected subtype {subtype}, expecting one of {valid_options}"
-        )
-
-    file_checks(path, ".toml")
-
-    with open(path, "rb") as file:
-        raw_config = tomllib.load(file)
-    subtype_class = SUBCONFIG_REGISTRY[subtype]
-
-    return subtype_class.model_validate(raw_config)
-
-
-def parse_version_number(version: str) -> list[str]:
-    """
-    Parses a version number.
-
-    Expecting a version number in the format vX.Y.Z, with
-    X the data version,
-    Y the workflow version,
-    Z the hyperparameters version.
-
-    Parameters
-    ----------
-    version : str
-        Version number to parse.
-
-    Returns
-    -------
-    v_list : list[str]
-        List containing data, workflow, hyperparameters numbers.
-
-    Raises
-    ------
-    TypeError
-        If v_number is not a string.
-    ValueError
-        If v_number is an empty string.
-        If v_number does not have 3 elements.
-        If v_number has an empty element.
-
-    Warns
-    -----
-    UserWarning
-        If the version string has more than 3 elements.
-
-    """
-    if not isinstance(version, str):
-        raise TypeError(f"Version should be a string, but got {type(version)}")
-
-    if not version:
-        raise ValueError(
-            "Version is empty. Check the version number is formatted as vX.Y.Z"
-        )
-    v_to_parse = version
-    if version[0] == "v":
-        # Remove v prefix if present
-        v_to_parse = version[1:]
-
-    v_list = v_to_parse.split(".")
-
-    # Safety checks
-    v_len = len(v_list)
-
-    if v_len < 3:
-        raise ValueError(
-            f"Expecting 3 values, but got {v_len}. "
-            "Check the version number is formatted as vX.Y.Z"
-        )
-    elif v_len > 3:
-        warn(f"Expecting 3 values, but got {v_len}. Everything after 3 is ignored.")
-
-    else:  # Check that there are not empty elements
-        for i, v in enumerate(v_list):
-            if not v:
-                raise ValueError(
-                    f"Element {i} in version is empty. "
-                    "Check the version number is formatted as vX.Y.Z"
-                )
-
-    return v_list[:3]
