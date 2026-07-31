@@ -18,13 +18,7 @@ from typing import TYPE_CHECKING
 
 import pandas as pd
 
-from .config import (
-    SUBCONFIG_REGISTRY,
-    MedpipeConfig,
-    TopLevelConfig,
-    parse_version_number,
-    read_subconfiguration_file,
-)
+from .config import MedpipeConfig
 from .exceptions import file_checks
 
 if TYPE_CHECKING:
@@ -72,8 +66,7 @@ def load_data(data_file: str | Path) -> pd.DataFrame:
 
 def read_toml_configuration(config_file: str | Path) -> MedpipeConfig:
     """
-    Reads the top-level .TOML configuration file and returns contents with
-    subconfiguration contents.
+    Reads a medpipe TOML configuration file.
 
     Parameters
     ----------
@@ -85,42 +78,12 @@ def read_toml_configuration(config_file: str | Path) -> MedpipeConfig:
     config : MedpipeConfig
         Configuration for the pipeline.
 
-    Raises
-    ------
-    TypeError
-        If config_file is not a str or Path.
-    FileNotFoundError
-        If config_file does not exist.
-    IsADirectoryError
-        If config_file is not a file.
-    NotADirectoryError
-        If subconfig_dir is not a directory.
-    ValueError
-        If config_file extension is not .toml file.
-    tomllib.TOMLDecodeError
-        If the file was not read properly.
-
     """
     file_checks(config_file, ".toml")
 
     with open(config_file, "rb") as file:
         raw_config = tomllib.load(file)
 
-    # Check top-level configuration is correct
-    top_level_config: TopLevelConfig = TopLevelConfig.model_validate(raw_config)
-    subconfig_dir = Path(
-        top_level_config.paths.config_dir
-    )  # Create Path from config_dir
-    subconfig_path = subconfig_dir.expanduser().resolve()
-
-    v_list = parse_version_number(top_level_config.meta.version)
-
-    parsed_configs: dict[str, Config] = {"top_level": top_level_config}
-
-    for i, subtype in enumerate(SUBCONFIG_REGISTRY.keys()):
-        sub_path = subconfig_path / subtype / (subtype + f"_v{v_list[i]}.toml")
-        parsed_configs[subtype] = read_subconfiguration_file(sub_path, subtype)
-
-    config = MedpipeConfig(**parsed_configs)  # type: ignore
+    config = MedpipeConfig.model_validate(raw_config)
 
     return config
