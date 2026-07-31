@@ -41,7 +41,6 @@ from medpipe.metrics.plots import (
 from medpipe.models.core import create_estimator
 from medpipe.utils.config import MedpipeConfig
 from medpipe.utils.io import load_data, read_toml_configuration
-from medpipe.utils.logger import print_message
 
 SCRIPT_NAME = "pipeline/pipeline"
 if TYPE_CHECKING:
@@ -166,12 +165,6 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
         self.outcomes = self.medpipe_config.data.outcomes
         self.n_outcomes = len(self.outcomes)
         self.metrics = self.medpipe_config.workflow.evaluation.metrics.metrics
-
-        print_message(
-            f"Setting up MedpipePipeline {self.version}",
-            self.logger,
-            SCRIPT_NAME,
-        )
 
         # Setup preprocessor
         self.preprocessor = (
@@ -1287,7 +1280,6 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
             If data is not a pd.DataFrame.
 
         """
-        print_message("Loading data", self.logger, SCRIPT_NAME)
         if data is None:
             data = load_data(self.medpipe_config.data.path)
 
@@ -1302,7 +1294,6 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
 
         run_mode = self.medpipe_config.top_level.meta.run_mode
         if run_mode == "audit" or run_mode == "cv":
-            print_message("Running cross-validation", self.logger, SCRIPT_NAME)
             if self.preprocessor:
                 X_train, X_recal = self._prepare_features(X_train, X_recal)
             # Create cross-validation generator
@@ -1323,17 +1314,14 @@ class MedpipePipeline(BaseEstimator, ClassifierMixin):
 
                 self._print_fold_metrics(cv_results, outcome)
         else:
-            print_message("Running training", self.logger, SCRIPT_NAME)
             self.fit(X_train, y_train, X_recal, y_recal)
 
-        print_message("Final test results", self.logger, SCRIPT_NAME)
         self.test_models(X_test, y_test)
 
         if (run_mode == "audit" or run_mode == "eval") and is_classifier(
             self.predictor[self.outcomes[0]]
         ):
             # Only run if the predictors are classifiers and run mode is audit
-            print_message("Plotting classifier figures", self.logger, SCRIPT_NAME)
             strata_idx = self._get_strata_idx(data, X_test)
             self._classifier_plots(X_test, y_test, *strata_idx)
 
