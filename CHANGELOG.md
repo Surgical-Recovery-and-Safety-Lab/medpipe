@@ -9,14 +9,18 @@ and this project adheres to Semantic Versioning ([SemVer](https://semver.org/spe
 ### Added
 * Recalibrator creation in the case where no hyperparameters are specified
 * Reproducibility module that contains functions to store configuration and environment information
-* Test suites for the reproducibility module
+* Test suites for the reproducibility module functions and classes
+* Test suites for the logger module functions
 
 ### Changed
 * Moved tests for the MedpipePipeline initialisation to the exposed test set
+* **breaking** Refactored the logger module
 
 ### Fixed
 * Typo in plot_ROC_curve docstring
 
+### Removed
+* Removed references to the print_message function that no longer exists
 
 ## [0.3.1] - 2026-07-27
 
