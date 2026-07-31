@@ -1,156 +1,88 @@
 """
-Logger functions.
+medpipe.utils.logger
+--------------------
 
-This module provides helper functions for logging.
-
-Functions:
-- setup_logger: sets up a logger for a script.
-- exception_handler: Function that logs exceptions.
-- print_message: Function that prints and logs an info message.
+Provides centralized logging configuration for the medpipe package.
+Supports routing high-level logs to the console and detailed debugging
+logs to specific experiment artifact directories.
 """
 
-from __future__ import annotations
-
 import logging
-import logging.config
-import pathlib
 import sys
-from typing import Any
-
-import medpipe.utils.exceptions
-
-LOGGING_CONFIG = {
-    "version": 1,
-    "disable_existing_loggers": False,
-    "formatters": {
-        "standard": {"format": "%(asctime)s [%(levelname)s] %(name)s: %(message)s"},
-    },
-    "handlers": {
-        "file": {
-            "class": "logging.FileHandler",
-            "level": "INFO",
-            "formatter": "standard",
-            "filename": "default_name.log",
-            "mode": "w",
-            "encoding": "utf8",
-        },
-    },
-    "loggers": {
-        "root": {
-            "level": "INFO",
-            "handlers": ["file"],
-            "propagate": False,
-        }
-    },
-}
+from pathlib import Path
+from typing import Union
 
 
-def setup_logger(script_name: str, log_path: str) -> logging.Logger:
-    """
-    Setups a logger for logging exceptions.
+def get_console_logger(
+    name: str = "medpipe", level: int = logging.INFO
+) -> logging.Logger:
+    """Initialize and return the base console logger for the package.
+
+    This function configures a StreamHandler to output logs to standard output
+    with a clean, human-readable format. If the logger already has handlers,
+    it avoids duplicating them.
 
     Parameters
     ----------
-    script_name : str
-        Name of the script to log exceptions from.
-    log_path : str
-        Path to the folder to store the log file.
+    name : str, default="medpipe"
+        The name of the logger.
+    level : int, default=logging.INFO
+        The logging level threshold for the console.
 
     Returns
     -------
-    logger : logging.Logger
-        Logger object.
-
-    Raises
-    ______
-    TypeError
-        If script_name or log_path are not a str.
-    FileNotFoundError
-        If log_path do not exist.
-    NotADirectoryError
-        If log_path is not a directory.
+    logging.Logger
+        Configured standard library Logger instance.
 
     """
-    if type(script_name) is not str:
-        raise TypeError(f"{script_name} should be a string")
+    logger = logging.getLogger(name)
+    logger.setLevel(logging.DEBUG)  # Base logger must capture everything
 
-    try:
-        medpipe.utils.exceptions.path_checks(log_path)
+    # Prevent duplicate handlers if instantiated multiple times
+    if not logger.handlers:
+        console_handler = logging.StreamHandler(sys.stdout)
+        console_handler.setLevel(level)
 
-    except (FileNotFoundError, TypeError, NotADirectoryError):
-        raise
+        formatter = logging.Formatter(
+            fmt="%(asctime)s | %(levelname)-8s | %(message)s",
+            datefmt="%Y-%m-%d %H:%M:%S",
+        )
+        console_handler.setFormatter(formatter)
+        logger.addHandler(console_handler)
 
-    # Change the log file destination
-    logger_config_dict = LOGGING_CONFIG
-    logger_config_dict["handlers"]["file"]["filename"] = str(
-        pathlib.Path(log_path) / f"{script_name}.log"
+    return logger
+
+
+def add_file_handler(
+    logger: logging.Logger,
+    log_dir: Union[str, Path],
+    filename: str = "execution.log",
+    level: int = logging.DEBUG,
+) -> None:
+    """Attach a FileHandler to an existing logger to archive detailed run logs.
+
+    Parameters
+    ----------
+    logger : logging.Logger
+        The logger instance to attach the handler to.
+    log_dir : str or Path
+        The directory where the log file should be saved (e.g., an artifact folder).
+    filename : str, default="execution.log"
+        The name of the log file.
+    level : int, default=logging.DEBUG
+        The logging level threshold for the file output.
+
+    """
+    log_path = Path(log_dir)
+    log_path.mkdir(parents=True, exist_ok=True)
+    file_path = log_path / filename
+
+    file_handler = logging.FileHandler(file_path, mode="w", encoding="utf-8")
+    file_handler.setLevel(level)
+
+    # File logs get a more detailed format including the exact module and line number
+    formatter = logging.Formatter(
+        fmt="%(asctime)s | %(name)s | %(levelname)-8s | %(module)s:%(lineno)d | %(message)s"
     )
-
-    logging.config.dictConfig(logger_config_dict)  # Configure logger
-
-    return logging.getLogger(script_name)
-
-
-def exception_handler(
-    logger: logging.Logger, log_path: str, log_config: dict[str, Any], script_name: str
-) -> None:
-    """
-    Handles exceptions and logs them.
-
-    Parameters
-    ----------
-    logger : logging.Logger
-        Logger object that logs the exception.
-    log_path : str
-        Path to the log file being used.
-    log_config : dict[str, Any]
-        Configuration parameters for the log messages.
-    script_name : str
-        Name of the script in which the error occurred.
-
-    Returns
-    -------
-    None
-        Nothing is returned.
-
-    """
-    logger.exception(log_config["log_message"] + f"{script_name}")
-    sys.stderr.write(log_config["print_message"] + f"{log_path}/{script_name}.log\n")
-
-
-def print_message(
-    message: str, logger: logging.Logger | None = None, script_name: str = ""
-) -> None:
-    """
-    Wrapper function to print message or log them.
-
-    If the logger.level is less than 0, only log message.
-    If the logger.level is greater than 0, log and print.
-    If logger is None, only print.
-
-    Parameters
-    ----------
-    message : str
-        Message to print or log.
-    logger : logging.Logger | None, default:None
-        Logger to log message. If None message is printed to terminal.
-    script_name : str, default: ""
-        Script name to know where the message is coming from.
-
-    Returns
-    -------
-    None
-        Nothing is returned.
-
-    """
-    if logger:
-        if logger.level >= 0:
-            # Print to file and screen
-            logger.info(f"{message} in {script_name}")
-            sys.stdout.write(f"[INFO] {message}\n")
-        elif logger.level < 0:
-            # Don't print to screen
-            logger.info(f"{message} in {script_name}")
-    else:
-        # Only print to screen
-        print(f"[INFO] {message} in {script_name}")
+    file_handler.setFormatter(formatter)
+    logger.addHandler(file_handler)
