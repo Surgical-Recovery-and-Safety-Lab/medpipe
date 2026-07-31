@@ -19,21 +19,12 @@ from .metrics import (
 )
 from .models import load_pipeline, save_pipeline
 from .pipeline.pipeline import MedpipePipeline
-from .utils import (
-    exception_handler,
-    load_data,
-    print_message,
-    read_toml_configuration,
-    setup_logger,
-)
+from .utils import load_data, read_toml_configuration
 
 __all__ = [
     "MedpipePipeline",
-    "exception_handler",
     "load_data",
-    "print_message",
     "read_toml_configuration",
-    "setup_logger",
     "load_pipeline",
     "save_pipeline",
     "plot_probability_distribution",
