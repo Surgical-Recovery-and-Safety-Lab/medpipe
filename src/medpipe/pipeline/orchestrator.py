@@ -1,11 +1,12 @@
 from pathlib import Path
-from typing import Optional, Union
+from typing import Any, Dict, Optional, Tuple, Union
 
 import pandas as pd
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
 
 from medpipe.data.preprocessing import PreprocessorRegistry
+from medpipe.data.utils import extract_labels, split_data
 from medpipe.utils.config import MedpipeConfig
 from medpipe.utils.io import load_data, read_toml_configuration
 from medpipe.utils.logger import add_file_handler, get_console_logger
@@ -18,7 +19,8 @@ class MedpipeOrchestrator:
 
     This orchestrator acts as the primary entry point for setting up the machine
     learning pipeline. It establishes the reproducibility environment, configures
-    logging, ingests raw data, and builds the scikit-learn preprocessing pipeline.
+    logging, ingests raw data, builds the scikit-learn preprocessing pipeline,
+    and resolves configuration overrides and data splits.
 
     Parameters
     ----------
@@ -38,11 +40,17 @@ class MedpipeOrchestrator:
     logger : logging.Logger
         The configured logger instance for the orchestrator, routing to both
         console and the artifact directory.
+    resolved_model_configs : Dict[str, Any]
+        A dictionary containing the fully resolved model configurations per outcome.
 
     Methods
     -------
     ingest_data()
         Loads and validates the raw dataset specified in the configuration.
+    prepare_data()
+        Extracts labels and applies sequential splits for test and recalibration sets.
+    resolve_model_configurations()
+        Merges default models with outcome overrides for final configurations.
     build_preprocessor()
         Constructs an sklearn Pipeline for data transformation.
     _save_reproducibility_artifacts()
@@ -72,11 +80,14 @@ class MedpipeOrchestrator:
         self.logger = get_console_logger("medpipe")
         add_file_handler(self.logger, log_dir=self.run_dir)
 
+        self.resolved_model_configs: Dict[str, Any] = {}
+
         self.logger.info(
             f"Initialised MedpipeOrchestrator. Run directory: {self.run_dir}"
         )
 
         self._save_reproducibility_artifacts()
+        self.resolve_model_configurations()
 
     def _save_reproducibility_artifacts(self) -> None:
         """
@@ -101,6 +112,111 @@ class MedpipeOrchestrator:
             dataset_path=dataset_path,
         )
         self.logger.info("Reproducibility artifacts saved successfully.")
+
+    def resolve_model_configurations(self) -> Dict[str, Any]:
+        """
+        Merges the default model configuration with specific outcome overrides.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Dictionary containing the fully resolved configuration for each outcome.
+
+        """
+        config_dict = (
+            self.config.model_dump()
+            if hasattr(self.config, "model_dump")
+            else dict(self.config)
+        )
+
+        default_model = config_dict.get("default_model", {})
+        overrides = config_dict.get("outcome_overrides", {})
+        outcomes = self.config.data.outcomes
+
+        for outcome in outcomes:
+            outcome_specific = overrides.get(outcome, {})
+            # Merge dictionaries (overrides take precedence over defaults)
+            self.resolved_model_configs[outcome] = {**default_model, **outcome_specific}
+
+        self.logger.info("Resolved model configurations for all outcomes.")
+        return self.resolved_model_configs
+
+    def prepare_data(
+        self,
+    ) -> Tuple[
+        pd.DataFrame,
+        pd.DataFrame,
+        Optional[pd.DataFrame],
+        Optional[pd.DataFrame],
+        pd.DataFrame,
+        pd.DataFrame,
+    ]:
+        """
+        Ingests data, extracts labels, and performs configured train/recal/test splits.
+
+        Returns
+        -------
+        X_train : pd.DataFrame
+        y_train : pd.DataFrame
+        X_recal : Optional[pd.DataFrame]
+        y_recal : Optional[pd.DataFrame]
+        X_test : pd.DataFrame
+        y_test : pd.DataFrame
+
+        """
+        data = self.ingest_data()
+        outcomes = self.config.data.outcomes
+
+        X, y_arr = extract_labels(data, outcomes)
+
+        val_config = getattr(self.config.workflow, "validation", None)
+        if not val_config:
+            raise ValueError("Validation configuration is missing from workflow.")
+
+        # 1. Apply Test Split
+        test_cfg = val_config.test_split
+        X_temp, y_temp_arr, X_test, y_test_arr = split_data(
+            features=X,
+            labels=y_arr,
+            strategy=test_cfg.strategy,
+            group_column=getattr(test_cfg, "group_column", None),
+            values=getattr(test_cfg, "values", None),
+            test_size=getattr(test_cfg, "test_size", None),
+        )
+
+        # Re-wrap multi-label arrays into DataFrames aligned with their X indices
+        y_temp_df = pd.DataFrame(y_temp_arr, columns=outcomes, index=X_temp.index)
+        y_test_df = pd.DataFrame(y_test_arr, columns=outcomes, index=X_test.index)
+
+        # 2. Apply Recalibration Split (Optional)
+        recal_cfg = getattr(val_config, "recalibration_split", None)
+
+        if recal_cfg:
+            X_train, y_train_arr, X_recal, y_recal_arr = split_data(
+                features=X_temp,
+                labels=y_temp_df.to_numpy(),
+                strategy=recal_cfg.strategy,
+                group_column=getattr(recal_cfg, "group_column", None),
+                values=getattr(recal_cfg, "values", None),
+                # Using recalibration_size for random splits internally mapped to test_size in utility
+                recalibration_size=getattr(recal_cfg, "recalibration_size", None),
+            )
+            y_train_df = pd.DataFrame(
+                y_train_arr, columns=outcomes, index=X_train.index
+            )
+            y_recal_df = pd.DataFrame(
+                y_recal_arr, columns=outcomes, index=X_recal.index
+            )
+
+            self.logger.info(
+                "Data successfully split into Train, Recalibration, and Test sets."
+            )
+            return X_train, y_train_df, X_recal, y_recal_df, X_test, y_test_df
+
+        self.logger.info(
+            "Data successfully split into Train and Test sets (No recalibration set configured)."
+        )
+        return X_temp, y_temp_df, None, None, X_test, y_test_df
 
     def ingest_data(self) -> pd.DataFrame:
         """
