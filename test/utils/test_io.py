@@ -32,7 +32,7 @@ class TestReadTOMLConfiguration:
         base_dir = Path(__file__).parent.parent.parent
 
         example_config_dir = base_dir / "config-examples/"
-        read_toml_configuration(example_config_dir / "HGBc_config.toml")
+        read_toml_configuration(example_config_dir / "medpipe.toml")
 
 
 class TestLoadData:
