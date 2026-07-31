@@ -6,8 +6,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to Semantic Versioning ([SemVer](https://semver.org/spec/v2.0.0.html)).
 
 ## [Unreleased]
+### Added
+* Recalibrator creation in the case where no hyperparameters are specified
+* Reproducibility module that contains functions to store configuration and environment information
+* Test suites for the reproducibility module
+
+### Changed
+* Moved tests for the MedpipePipeline initialisation to the exposed test set
+
 ### Fixed
 * Typo in plot_ROC_curve docstring
+
 
 ## [0.3.1] - 2026-07-27
 
