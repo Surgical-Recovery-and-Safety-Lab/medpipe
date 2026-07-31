@@ -13,6 +13,36 @@ from pydantic import ValidationError
 from medpipe.metrics.core import METRICS
 from medpipe.utils.config import *
 
+# ------------------------------------------------------------------------------
+# FIXTURES for minimal required nested configurations
+# ------------------------------------------------------------------------------
+
+
+@pytest.fixture
+def valid_workflow_dict():
+    """Provides a minimal valid workflow dictionary to satisfy
+    MedpipeConfig requirements."""
+    return {
+        "validation": {
+            "test_split": {
+                "strategy": "group",
+                "group_column": "OP_YEAR",
+                "values": [2024],
+            },
+            "cross_validation": {
+                "strategy": "group",
+                "group_column": "DHB_NAME",
+                "n_splits": 3,
+            },
+        },
+        "evaluation": {
+            "metrics": {"metrics": ["roc_auc"]},
+            "calibration": {"strategy": "uniform", "n_bootstraps": 10},
+            "fairness": {"strata": ["SEX"]},
+        },
+    }
+
+
 # ==============================================================================
 # SCHEMA VALIDATION TESTS
 # ==============================================================================
@@ -24,7 +54,6 @@ class TestMetaConfig:
     def _get_valid_config_dict(self, **overrides) -> dict:
         """Creates a fresh valid config dict to override."""
         config_dict = {
-            "version": "v0.0.1",
             "project_name": "mepipe-test",
             "run_mode": "audit",
         }
@@ -39,15 +68,6 @@ class TestMetaConfig:
 
         assert config.model_dump() == raw_config
 
-    @pytest.mark.parametrize("version", ["v0.1", "not_a_version"])
-    def test_version_format(self, version: str) -> None:
-        """Test incorrect version number formats."""
-        with pytest.raises(
-            ValidationError,
-            match=f"Version should be formatted as vX.Y.Z, but got {version}",
-        ):
-            MetaConfig.model_validate(self._get_valid_config_dict(version=version))
-
     def test_project_name_empty(self) -> None:
         """Test that project name is not empty."""
         with pytest.raises(
@@ -55,117 +75,12 @@ class TestMetaConfig:
         ):
             MetaConfig.model_validate(self._get_valid_config_dict(project_name=""))
 
-
-class TestPathsConfig:
-    """Test class for the PathsConfig class"""
-
-    def _get_valid_config_dict(self, tmp_path: Path, **overrides) -> dict:
-        """Creates a fresh valid config dict to override."""
-        config_dict = {
-            "config_dir": str(tmp_path / "config"),
-            "model_dir": str(tmp_path / "models"),
-            "figure_dir": str(tmp_path / "figures"),
-        }
-        config_dict.update(overrides)
-
-        return config_dict
-
-    def test_valid_config(self, tmp_path: Path) -> None:
-        """Pass valid configuration to PathsConfig."""
-        raw_config = self._get_valid_config_dict(tmp_path)
-        config = PathsConfig.model_validate(raw_config)
-
-        assert config.model_dump() == raw_config
-
-    @pytest.mark.parametrize(
-        "parameter, path",
-        [
-            ("config_dir", "config.toml"),
-            ("model_dir", "model.joblib"),
-            ("figure_dir", "figure.png"),
-        ],
-    )
-    def test_validate_paths(self, tmp_path: Path, parameter: str, path: str) -> None:
-        """Test paths are not a file."""
-        file_path = tmp_path / path
-        file_path.touch()  # Write file to tmp_path
-
-        args = {parameter: str(file_path)}  # Create new kwargs
+    def test_meta_config_invalid_run_mode(self):
+        """Test that invalid literal for run_mode raises a validation error."""
         with pytest.raises(
-            ValidationError, match=f"{file_path} points to an existing file"
+            ValidationError, match="Input should be 'fast', 'eval', 'cv' or 'audit'"
         ):
-            PathsConfig.model_validate(self._get_valid_config_dict(tmp_path, **args))
-
-
-class TestModelConfig:
-    """Test class for the ModelConfig class"""
-
-    def _get_valid_config_dict(self, **overrides) -> dict:
-        """Creates a fresh valid config dict to override."""
-        config_dict = {
-            "algorithm": "HistGradientBoostingClassifier",
-        }
-        config_dict.update(overrides)
-
-        return config_dict
-
-    def test_valid_config(self) -> None:
-        """Pass valid configuration to ModelConfig."""
-        raw_config = self._get_valid_config_dict()
-        config = ModelConfig.model_validate(raw_config)
-
-        assert config.model_dump() == raw_config
-
-
-class TestRecalibrationConfig:
-    """Test class for the RecalibrationConfig class"""
-
-    def _get_valid_config_dict(self, **overrides) -> dict:
-        """Creates a fresh valid config dict to override."""
-        config_dict = {
-            "method": "isotonic",
-        }
-        config_dict.update(overrides)
-
-        return config_dict
-
-    def test_valid_config(self) -> None:
-        """Pass valid configuration to RecalibrationConfig."""
-        raw_config = self._get_valid_config_dict()
-        config = RecalibrationConfig.model_validate(raw_config)
-
-        assert config.model_dump() == raw_config
-
-
-class TestTopLevelConfig:
-    """Test class for the TopLevelConfig class"""
-
-    def _get_valid_config_dict(self, tmp_path: Path, **overrides) -> dict:
-        """Creates a fresh valid config dict to override."""
-        config_dict = {
-            "meta": {
-                "version": "v0.0.1",
-                "project_name": "mepipe-test",
-                "run_mode": "audit",
-            },
-            "paths": {
-                "config_dir": str(tmp_path / "path/to/config"),
-                "model_dir": str(tmp_path / "path/to/models"),
-                "figure_dir": str(tmp_path / "path/to/figures"),
-            },
-            "model": {"algorithm": "HistGradientBoostingClassifier"},
-            "recalibration": {"method": "isotonic"},
-        }
-        config_dict.update(overrides)
-
-        return config_dict
-
-    def test_valid_config(self, tmp_path: Path) -> None:
-        """Pass valid configuration to TopLevelConfig."""
-        raw_config = self._get_valid_config_dict(tmp_path)
-        config = TopLevelConfig.model_validate(raw_config)
-
-        assert config.model_dump() == raw_config
+            MetaConfig(project_name="my_project", run_mode="unsupported_mode")  # type: ignore
 
 
 class TestDataConfig:
@@ -234,6 +149,13 @@ class TestDataConfig:
                     tmp_path, predictors=predictors, outcomes=outcomes
                 )
             )
+
+    def test_data_config_no_extension(self):
+        """Test that a path with no extension fails validation."""
+        with pytest.raises(
+            ValidationError, match="path should be a file, but got no suffix"
+        ):
+            DataConfig(path="dataset", predictors=["age"], outcomes=["mortality"])
 
 
 class TestPreprocessOperationConfig:
@@ -984,99 +906,55 @@ class TestWorkflowConfig:
         assert config.model_dump() == raw_config
 
 
-class TestPredictorConfig:
-    """Test class for the PredictorConfig class"""
-
-    def _get_valid_config_dict(self, **overrides) -> dict:
-        """Creates a fresh valid config dict to override."""
-        config_dict = {"learning_rate": 0.1}
-        config_dict.update(overrides)
-
-        return config_dict
-
-    def test_valid_config(self) -> None:
-        """Pass valid configuration to PredictorConfig."""
-        raw_config = self._get_valid_config_dict()
-        config = PredictorConfig.model_validate(raw_config)
-
-        assert config.model_dump() == raw_config
-
-    @pytest.mark.parametrize("learning_rate", [-0.5, 0.0])
-    def test_learning_rate_limits(self, learning_rate: float) -> None:
-        """Test the learning rate value limits."""
-        with pytest.raises(ValidationError, match="Input should be greater than 0"):
-            PredictorConfig.model_validate(
-                self._get_valid_config_dict(learning_rate=learning_rate)
-            )
-
-
-class TestRecalibratorConfig:
-    """Test class for the RecalibratorConfig class"""
-
-    def _get_valid_config_dict(self, **overrides) -> dict:
-        """Creates a fresh valid config dict to override."""
-        config_dict = {"out_of_bounds": "clip"}
-        config_dict.update(overrides)
-
-        return config_dict
-
-    def test_valid_config(self) -> None:
-        """Pass valid configuration to RecalibratorConfig."""
-        raw_config = self._get_valid_config_dict()
-        config = RecalibratorConfig.model_validate(raw_config)
-
-        assert config.model_dump() == raw_config
-
-    def test_valid_config_None(self) -> None:
-        """Test case when configuration is empty dictionary."""
-        config = RecalibratorConfig.model_validate({})
-
-        for value in config.model_dump().values():
-            assert value == None
-
-
-class TestModelHyperparamsSubConfigConfig:
-    """Test class for the ModelHyperparamsSubConfigConfig class"""
+class TestRecalibrationConfig:
+    """Test class for the RecalibrationConfig class"""
 
     def _get_valid_config_dict(self, **overrides) -> dict:
         """Creates a fresh valid config dict to override."""
         config_dict = {
-            "predictor": {"learning_rate": 0.1},
-            "recalibrator": {"out_of_bounds": "clip"},
+            "method": "isotonic",
+            "hyperparameters": {},
         }
         config_dict.update(overrides)
 
         return config_dict
 
     def test_valid_config(self) -> None:
-        """Pass valid configuration to ModelHyperparamsSubConfigConfig."""
+        """Pass valid configuration to RecalibrationConfig."""
         raw_config = self._get_valid_config_dict()
-        config = ModelHyperparamSubConfig.model_validate(raw_config)
+        config = RecalibrationConfig.model_validate(raw_config)
 
         assert config.model_dump() == raw_config
 
 
-class TestHyperparameterConfig:
-    """Test class for the HyperparameterConfig class"""
+class TestModelSetupConfig:
+    """Test class for the ModelSetup class"""
 
-    def _get_valid_config_dict(self, **overrides) -> dict:
-        """Creates a fresh valid config dict to override."""
-        config_dict = {
-            "hyperparameters": {
-                "predictor": {"learning_rate": 0.1},
-                "recalibrator": {"out_of_bounds": "clip"},
+    def test_model_setup_valid(self):
+        """Test valid model setup with defaults."""
+        model = ModelSetup(algorithm="LogisticRegression")
+        assert model.algorithm == "LogisticRegression"
+        assert model.hyperparameters == {}
+        assert model.recalibration is None
+
+    def test_model_setup_with_recalibration(self):
+        """Test valid model setup including recalibration parameters."""
+        model = ModelSetup(
+            algorithm="XGBClassifier",
+            hyperparameters={"learning_rate": 0.1},
+            recalibration={  # type: ignore
+                "method": "IsotonicRegression",
+                "hyperparameters": {"out_of_bounds": "clip"},
             },
-        }
-        config_dict.update(overrides)
+        )
+        assert model.recalibration
+        assert model.recalibration.method == "IsotonicRegression"
+        assert model.recalibration.hyperparameters["out_of_bounds"] == "clip"
 
-        return config_dict
-
-    def test_valid_config(self) -> None:
-        """Pass valid configuration to HyperparameterConfig."""
-        raw_config = self._get_valid_config_dict()
-        config = HyperparameterConfig.model_validate(raw_config)
-
-        assert config.model_dump() == raw_config
+    def test_model_setup_extra_forbidden(self):
+        """Test that extra fields at the model setup level are strictly forbidden."""
+        with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
+            ModelSetup(algorithm="RF", unexpected_flag=True)  # type: ignore
 
 
 class TestMedpipeConfig:
@@ -1085,24 +963,22 @@ class TestMedpipeConfig:
     def _get_valid_config_dict(self, tmp_path: Path, **overrides) -> dict:
         """Creates a fresh valid config dict to override."""
         config_dict = {
-            "top_level": {
-                "meta": {
-                    "version": "v0.0.1",
-                    "project_name": "mepipe-test",
-                    "run_mode": "audit",
-                },
-                "paths": {
-                    "config_dir": str(tmp_path / "path/to/config"),
-                    "model_dir": str(tmp_path / "path/to/models"),
-                    "figure_dir": str(tmp_path / "path/to/figures"),
-                },
-                "model": {"algorithm": "HistGradientBoostingClassifier"},
-                "recalibration": {"method": "isotonic"},
+            "meta": {
+                "project_name": "medpipe-test",
+                "run_mode": "audit",
             },
             "data": {
                 "path": str(tmp_path / "path/to/data.csv"),
                 "predictors": ["AGE", "SEX", "OP_SEVERITY"],
-                "outcomes": ["MORTALITY_30D"],
+                "outcomes": ["MORTALITY_30D", "ANY_COMP"],
+            },
+            "default_model": {
+                "algorithm": "HistGradientBoostingClassifier",
+                "hyperparameters": {"learning_rate": 0.1},
+                "recalibration": {
+                    "method": "IsotonicRegression",
+                    "hyperparameters": {},
+                },
             },
             "workflow": {
                 "preprocessing": None,
@@ -1139,15 +1015,8 @@ class TestMedpipeConfig:
                     },
                 },
             },
-            "hyperparameters": {
-                "hyperparameters": {
-                    "predictor": {"learning_rate": 0.1},
-                    "recalibrator": {"out_of_bounds": "clip"},
-                },
-            },
         }
         config_dict.update(overrides)
-
         return config_dict
 
     def test_valid_config(self, tmp_path: Path) -> None:
@@ -1155,7 +1024,15 @@ class TestMedpipeConfig:
         raw_config = self._get_valid_config_dict(tmp_path)
         config = MedpipeConfig.model_validate(raw_config)
 
-        assert config.model_dump() == raw_config
+        # We exclude dynamically generated resolved_models from the dump comparison
+        dumped = config.model_dump(exclude={"resolved_models"})
+
+        # Ensure outcome overrides is empty if not provided in raw config,
+        # since dump will include default_factory fields
+        if "outcome_overrides" not in raw_config:
+            raw_config["outcome_overrides"] = {}
+
+        assert dumped == raw_config
 
     def test_recalibration_split(self, tmp_path: Path) -> None:
         """Test case when recalibration method and split mismatch."""
@@ -1165,6 +1042,8 @@ class TestMedpipeConfig:
         )
 
         config = self._get_valid_config_dict(tmp_path)
+        # recalibration is defined in default_model, so setting split
+        # to None should trigger error
         config["workflow"]["validation"]["recalibration_split"] = None
 
         with pytest.raises(ValueError, match=match_expr):
@@ -1180,7 +1059,7 @@ class TestMedpipeConfig:
             "when run_mode is not 'fast'"
         )
         config = self._get_valid_config_dict(tmp_path)
-        config["top_level"]["meta"]["run_mode"] = run_mode
+        config["meta"]["run_mode"] = run_mode
         config["workflow"]["validation"]["cross_validation"] = None
 
         with pytest.raises(ValueError, match=match_expr):
@@ -1202,8 +1081,110 @@ class TestMedpipeConfig:
             "when run_mode is 'audit' or 'eval'"
         )
         config = self._get_valid_config_dict(tmp_path)
-        config["top_level"]["meta"]["run_mode"] = run_mode
+        config["meta"]["run_mode"] = run_mode
         config["workflow"]["evaluation"][params] = None
 
         with pytest.raises(ValueError, match=match_expr):
             MedpipeConfig.model_validate(config)
+
+    def test_cascade_no_overrides(self, tmp_path: Path) -> None:
+        """Test that default models map to all outcomes when there are no overrides."""
+        raw_config = self._get_valid_config_dict(tmp_path)
+        config = MedpipeConfig.model_validate(raw_config)
+
+        assert "MORTALITY_30D" in config.resolved_models
+        assert "ANY_COMP" in config.resolved_models
+
+        # Both should match the default model perfectly
+        assert (
+            config.resolved_models["MORTALITY_30D"].algorithm
+            == "HistGradientBoostingClassifier"
+        )
+        assert (
+            config.resolved_models["ANY_COMP"].algorithm
+            == "HistGradientBoostingClassifier"
+        )
+        assert (
+            config.resolved_models["MORTALITY_30D"].hyperparameters["learning_rate"]
+            == 0.1
+        )
+
+    def test_cascade_algorithm_and_hyperparameters_merge(self, tmp_path: Path) -> None:
+        """Test that hyperparameters correctly deep merge when overridden."""
+        raw_config = self._get_valid_config_dict(tmp_path)
+
+        # Override the ANY_COMP outcome
+        raw_config["outcome_overrides"] = {
+            "ANY_COMP": {
+                "algorithm": "RandomForestClassifier",
+                "hyperparameters": {"n_estimators": 200, "max_depth": 5},
+            }
+        }
+
+        config = MedpipeConfig.model_validate(raw_config)
+
+        # MORTALITY_30D should remain default
+        model_mortality = config.resolved_models["MORTALITY_30D"]
+        assert model_mortality.algorithm == "HistGradientBoostingClassifier"
+        assert model_mortality.hyperparameters == {"learning_rate": 0.1}
+
+        # ANY_COMP should be merged
+        model_comp = config.resolved_models["ANY_COMP"]
+        assert model_comp.algorithm == "RandomForestClassifier"
+        # learning_rate cascades down, n_estimators/max_depth are added
+        assert model_comp.hyperparameters == {
+            "learning_rate": 0.1,
+            "n_estimators": 200,
+            "max_depth": 5,
+        }
+
+    def test_cascade_recalibration_deep_merge(self, tmp_path: Path) -> None:
+        """Test that recalibration methods and kwargs merge correctly."""
+        raw_config = self._get_valid_config_dict(tmp_path)
+
+        # Add a default recalibration hyperparameter for the test
+        raw_config["default_model"]["recalibration"]["hyperparameters"]["y_min"] = 0
+
+        raw_config["outcome_overrides"] = {
+            "MORTALITY_30D": {
+                "algorithm": "HistGradientBoostingClassifier",
+                "recalibration": {
+                    "method": "PlattScaling",
+                    "hyperparameters": {"cv": 5},
+                },
+            }
+        }
+
+        config = MedpipeConfig.model_validate(raw_config)
+
+        res_recal = config.resolved_models["MORTALITY_30D"].recalibration
+        assert res_recal is not None
+        assert res_recal.method == "PlattScaling"
+        # Merged hyperparameters: y_min kept from default, cv added from override
+        assert res_recal.hyperparameters == {"y_min": 0, "cv": 5}
+
+    def test_cascade_adds_recalibration_when_base_has_none(
+        self, tmp_path: Path
+    ) -> None:
+        """Test that an override can introduce recalibration to a base
+        model that lacks it."""
+        raw_config = self._get_valid_config_dict(tmp_path)
+
+        # Remove recalibration from the base completely
+        raw_config["default_model"]["recalibration"] = None
+
+        raw_config["outcome_overrides"] = {
+            "ANY_COMP": {
+                "algorithm": "HistGradientBoostingClassifier",
+                "recalibration": {"method": "PlattScaling"},
+            }
+        }
+
+        config = MedpipeConfig.model_validate(raw_config)
+
+        assert config.default_model.recalibration is None
+        assert config.resolved_models["MORTALITY_30D"].recalibration is None
+
+        # The override should have successfully added it
+        assert config.resolved_models["ANY_COMP"].recalibration is not None
+        assert config.resolved_models["ANY_COMP"].recalibration.method == "PlattScaling"
