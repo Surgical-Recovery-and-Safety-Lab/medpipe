@@ -166,6 +166,7 @@ class MedpipeOrchestrator:
         """
         data = self.ingest_data()
         outcomes = self.config.data.outcomes
+        outcome_columns = pd.Index(outcomes)
 
         X, y_arr = extract_labels(data, outcomes)
 
@@ -185,8 +186,12 @@ class MedpipeOrchestrator:
         )
 
         # Re-wrap multi-label arrays into DataFrames aligned with their X indices
-        y_temp_df = pd.DataFrame(y_temp_arr, columns=outcomes, index=X_temp.index)
-        y_test_df = pd.DataFrame(y_test_arr, columns=outcomes, index=X_test.index)
+        y_temp_df = pd.DataFrame(
+            y_temp_arr, columns=outcome_columns, index=X_temp.index
+        )
+        y_test_df = pd.DataFrame(
+            y_test_arr, columns=outcome_columns, index=X_test.index
+        )
 
         # 2. Apply Recalibration Split (Optional)
         recal_cfg = getattr(val_config, "recalibration_split", None)
@@ -202,10 +207,10 @@ class MedpipeOrchestrator:
                 recalibration_size=getattr(recal_cfg, "recalibration_size", None),
             )
             y_train_df = pd.DataFrame(
-                y_train_arr, columns=outcomes, index=X_train.index
+                y_train_arr, columns=outcome_columns, index=X_train.index
             )
             y_recal_df = pd.DataFrame(
-                y_recal_arr, columns=outcomes, index=X_recal.index
+                y_recal_arr, columns=outcome_columns, index=X_recal.index
             )
 
             self.logger.info(
