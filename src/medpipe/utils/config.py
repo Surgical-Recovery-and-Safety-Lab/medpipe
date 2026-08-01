@@ -145,9 +145,9 @@ class SplitRecalibrationConfig(BaseModel):
 
 
 class CrossValConfig(BaseModel):
-    strategy: Literal["random", "group"]
+    strategy: Literal["random", "group", "search"]
     group_column: str | None = None
-    n_splits: int = Field(default=2, ge=2)
+    n_splits: int | None = Field(default=None, ge=2)
     shuffle: bool | None = None
     random_state: int | None = Field(default=None, ge=0)
     model_config = {"extra": "forbid"}
@@ -270,7 +270,7 @@ class WorkflowConfig(BaseModel):
 
 # --- MODEL SCHEMAS ---
 class RecalibrationConfig(BaseModel):
-    method: str
+    method: Literal["isotonic", "sigmoid", "temperature"]
     hyperparameters: dict[str, Any] = Field(default_factory=dict)
     model_config = {"extra": "forbid"}
 
@@ -394,4 +394,40 @@ class MedpipeConfig(BaseModel):
                     "when run_mode is 'audit' or 'eval'"
                 )
                 raise ValueError(expr)
+        return self
+
+    @model_validator(mode="after")
+    def validate_search_cv(self) -> "MedpipeConfig":
+        """Check that at least one hyperparamters is a list
+        with search cv strategy."""
+        workflow_cv_cfg = self.workflow.validation.cross_validation
+        if workflow_cv_cfg is not None and workflow_cv_cfg.strategy == "search":
+            for outcome, model_setup in self.resolved_models.items():
+                hyperparams = model_setup.hyperparameters
+
+                # Check if any value in the hyperparameters dict is a list
+                has_list_hyperparam = any(
+                    isinstance(v, list) for v in hyperparams.values()
+                )
+
+                if not has_list_hyperparam:
+                    raise ValueError(
+                        f"Cross-validation strategy is set to 'search', but outcome "
+                        f"'{outcome}' has no hyperparameter defined as a list for "
+                        "GridSearchCV."
+                    )
+
+        return self
+
+    @model_validator(mode="after")
+    def validate_outcome_overrides_exist_in_outcomes(self) -> "MedpipeConfig":
+        """Ensures all outcome names in outcome_overrides are defined in data.outcomes."""
+        if self.outcome_overrides and self.data and self.data.outcomes:
+            valid_outcomes = set(self.data.outcomes)
+            for override_outcome in self.outcome_overrides:
+                if override_outcome not in valid_outcomes:
+                    raise ValueError(
+                        f"Outcome override '{override_outcome}' is not present "
+                        f"in data.outcomes: {self.data.outcomes}"
+                    )
         return self
