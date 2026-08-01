@@ -22,9 +22,7 @@ from sklearn.metrics import (
     average_precision_score,
     brier_score_loss,
     f1_score,
-    get_scorer,
     log_loss,
-    make_scorer,
     mean_absolute_error,
     precision_score,
     recall_score,
@@ -33,45 +31,21 @@ from sklearn.metrics import (
 )
 
 from medpipe._types import Labels
-from medpipe.utils.exceptions import array_dim_check
+from medpipe.metrics.registry import MetricRegistry, MetricSpec
 
 if TYPE_CHECKING:
     import numpy.typing as npt
 
-SCRIPT_NAME = "metrics/core"
+# ------------------------------------------------------------------------------
+# STANDALONE METRIC FUNCTIONS
+# ------------------------------------------------------------------------------
 
 
-def ici_score(
-    y: Labels,
-    y_pred: npt.NDArray,
-) -> float:
-    """
-    Computes the integrated calibration index using a spline-based
-    calibration curve.
-
-    Parameters
-    ----------
-    y : Labels
-        Ground truth labels.
-    y_pred : npt.NDArray
-        Predictions from the model of shape
-        (n_samples,) or (n_samples, 2).
-
-    Returns
-    -------
-    ici : float
-        Integrated calibration index value.
-
-    Raises
-    ------
-    ValueError
-        If spline predicted probabilities are None.
-
-    """
+def ici_score(y: Labels, y_pred: npt.NDArray) -> float:
+    """Computes the integrated calibration index using a spline-based curve."""
     if y_pred.ndim == 2:
-        y_pred = y_pred[:, 1]  # Get only positive probabilities
+        y_pred = y_pred[:, 1]
 
-    # Create and fit spline
     spline = SplineCalib(logodds_scale=True)
     spline.fit(y_pred, y)
     smoothed_outputs = spline.predict(y_pred)
@@ -82,48 +56,59 @@ def ici_score(
         raise ValueError("Error predicting probabilities with spline")
 
 
-# Define metric registery
-METRIC_MAPPING = {  #  metric name, scorer, function to use, print name
-    "accuracy": ("accuracy", accuracy_score, "predict", "Accuracy"),
-    "precision": ("precision", precision_score, "predict", "Precision"),
-    "recall": ("recall", recall_score, "predict", "Recall"),
-    "log_loss": ("neg_log_loss", log_loss, "predict_proba", "Log loss"),
-    "brier_score": (
-        "neg_brier_score",
+# ------------------------------------------------------------------------------
+# DEFAULT METRIC REGISTRATIONS
+# ------------------------------------------------------------------------------
+
+_DEFAULT_METRICS = [
+    MetricSpec("accuracy", accuracy_score, "predict", "Accuracy", "accuracy"),
+    MetricSpec("precision", precision_score, "predict", "Precision", "precision"),
+    MetricSpec("recall", recall_score, "predict", "Recall", "recall"),
+    MetricSpec("f1", f1_score, "predict", "F1", "f1"),
+    MetricSpec("log_loss", log_loss, "predict_proba", "Log loss", "neg_log_loss"),
+    MetricSpec(
+        "brier_score",
         brier_score_loss,
         "predict_proba",
         "Brier score",
+        "neg_brier_score",
     ),
-    "f1": ("f1", f1_score, "predict", "F1"),
-    "roc_auc": (
+    MetricSpec(
         "roc_auc",
         roc_auc_score,
         ("decision_function", "predict_proba"),
         "AUROC",
+        "roc_auc",
     ),
-    "ap": (
-        "average_precision",
+    MetricSpec(
+        "auroc",
+        roc_auc_score,
+        ("decision_function", "predict_proba"),
+        "AUROC",
+        "roc_auc",
+    ),
+    MetricSpec(
+        "ap",
         average_precision_score,
         ("decision_function", "predict_proba"),
         "AP",
+        "average_precision",
     ),
-    "auroc": (
-        "roc_auc",
-        roc_auc_score,
-        ("decision_function", "predict_proba"),
-        "AUROC",
-    ),
-    "ici": ("ici", ici_score, "predict_proba", "ICI"),
-    "rmse": (
-        "neg_root_mean_squared_error",
+    MetricSpec(
+        "rmse",
         root_mean_squared_error,
-        ("predict"),
+        "predict",
         "RMSE",
+        "neg_root_mean_squared_error",
     ),
-    "mae": ("neg_mean_absolute_error", mean_absolute_error, ("predict"), "MAE"),
-}
+    MetricSpec("mae", mean_absolute_error, "predict", "MAE", "neg_mean_absolute_error"),
+    MetricSpec("ici", ici_score, "predict_proba", "ICI"),
+]
 
-METRICS = [key for key in METRIC_MAPPING.keys()]
+for _spec in _DEFAULT_METRICS:
+    MetricRegistry.register_spec(_spec)
+
+METRICS = MetricRegistry.list_registered()
 
 
 def build_scorers(metrics: list[str] | npt.NDArray) -> dict[str, Callable]:
@@ -153,22 +138,13 @@ def build_scorers(metrics: list[str] | npt.NDArray) -> dict[str, Callable]:
         or not metrics
         or not isinstance(metrics[0], str)
     ):
-        # Ensure metrics is not an empty list and is a list of strings
         raise TypeError("Input metrics should be a list of strings")
 
-    scorers = {}  # Empty dict to contain scorers
-    for metric in metrics:
-        if metric == "ici":
-            scorers[metric] = make_scorer(ici_score, response_method="predict_proba")
+    scorers = {}
+    for metric_name in metrics:
+        spec = MetricRegistry.get(metric_name)
+        scorers[metric_name] = spec.get_scorer()
 
-        elif metric in METRICS:
-            scorers[metric] = get_scorer(METRIC_MAPPING[metric][0])
-        else:
-            expr = (
-                f"{metric} was not found in available metric "
-                f"list. Available metrics are {METRICS}"
-            )
-            raise ValueError(expr)
     return scorers
 
 
@@ -208,7 +184,6 @@ def compute_metrics(
         or not metrics
         or not isinstance(metrics[0], str)
     ):
-        # Ensure metrics is not an empty list and is a list of strings
         raise TypeError("Input metrics should be a list of strings")
 
     if not isinstance(y_pred, np.ndarray):
@@ -218,29 +193,18 @@ def compute_metrics(
         raise TypeError(f"Input y should be a np.ndarray, but got {type(y)}")
 
     if y_pred.ndim == 2:
-        y_pred = y_pred[:, 1]  # Get only positive probabilities
+        y_pred = y_pred[:, 1]
 
-    array_dim_check(y, y_pred)
+    scores = np.zeros(len(metrics))
+    y_labels = np.round(y_pred)
 
-    scores = np.zeros(len(metrics))  # Empty array to hold scores
-    y_labels = np.round(y_pred)  # Get labels based on probabilities
+    for i, metric_name in enumerate(metrics):
+        spec = MetricRegistry.get(metric_name)
 
-    for i, metric in enumerate(metrics):
-        try:
-            method = METRIC_MAPPING[metric][2]
-        except KeyError:
-            expr = (
-                f"{metric} was not found in available metric "
-                f"list. Available metrics are {METRICS}"
-            )
-            raise ValueError(expr)
-
-        if "predict_proba" in method:
-            # Use the predictions to compute the score
-            scores[i] = METRIC_MAPPING[metric][1](y, y_pred)
-
+        if "predict_proba" in spec.response_method:
+            scores[i] = float(spec.func(y, y_pred))
         else:
-            scores[i] = METRIC_MAPPING[metric][1](y, y_labels)
+            scores[i] = float(spec.func(y, y_labels))
 
     return scores
 
@@ -278,29 +242,24 @@ def print_metrics(
 
     """
     if not isinstance(results, np.ndarray):
-        expr = f"Input results should be a np.ndarray, but got {type(results)}"
-        raise TypeError(expr)
+        raise TypeError(
+            f"Input results should be a np.ndarray, but got {type(results)}"
+        )
 
     if not isinstance(metrics, list):
-        expr = f"Input metrics should be a list of strings, but got {type(metrics)}"
-        raise TypeError(expr)
+        raise TypeError(
+            f"Input metrics should be a list of strings, but got {type(metrics)}"
+        )
 
     if len(metrics) != len(results):
-        expr = (
+        raise ValueError(
             "Input results and metrics should have the same length, "
             f"but got {len(results)} and {len(metrics)}"
         )
-        raise ValueError(expr)
 
-    for i, metric in enumerate(metrics):
-        if metric not in METRICS:
-            expr = (
-                f"{metric} was not found in available metric "
-                f"list. Available metrics are {METRICS}"
-            )
-            raise ValueError(expr)
-
-        print(f"{METRIC_MAPPING[metric][3]}: {results[i]:.3f}")
+    for i, metric_name in enumerate(metrics):
+        spec = MetricRegistry.get(metric_name)
+        print(f"{spec.display_name}: {results[i]:.3f}")
 
 
 def compute_strata_metrics(
@@ -345,13 +304,10 @@ def compute_strata_metrics(
         )
 
     for idx, arr in enumerate(strata_idx):
-        # Verify it's a numpy array
         if not isinstance(arr, np.ndarray):
             raise TypeError(
                 f"Element at index {idx} must be a np.ndarray, got {type(arr).__name__}"
             )
-
-        # Verify the array contains integers using its data type kind
         if arr.dtype.kind not in ("i", "u"):
             raise TypeError(
                 f"Array at index {idx} must contain integers, got dtype '{arr.dtype}'"
