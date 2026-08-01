@@ -207,7 +207,10 @@ class TestMedpipeOrchestrator:
 
         orchestrator = MedpipeOrchestrator(config=mock_config)
 
-        with pytest.raises(ValueError, match="is not registered and was not found"):
+        with pytest.raises(
+            ValueError,
+            match="was not found in the custom registry or fallback modules.",
+        ):
             orchestrator.build_preprocessor()
 
     def test_resolve_model_configurations_success(
