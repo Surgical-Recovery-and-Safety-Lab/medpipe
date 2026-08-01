@@ -158,7 +158,7 @@ class MedpipeRunner:
         joblib.dump(model, file_path, compress=3)
         self.logger.info(f"[{outcome}] Model saved to {file_path}")
 
-    def _train_model(
+    def _train_model_cv(
         self,
         outcome: str,
         pipeline: Pipeline,
@@ -195,15 +195,16 @@ class MedpipeRunner:
             The best fitted pipeline after cross-validation or grid search.
 
         """
-        is_grid_search = any(isinstance(v, (list, tuple)) for v in hyperparams.values())
-
         # Retrieve the list of metrics from the configuration safely
         try:
             configured_metrics = self.orchestrator.config.workflow.evaluation.metrics
         except AttributeError:
             configured_metrics = ["roc_auc"]
 
-        if is_grid_search:
+        cv_cfg = self.orchestrator.config.workflow.validation.cross_validation
+        assert cv_cfg
+
+        if cv_cfg.strategy == "search":
             self.logger.info(f"[{outcome}] Running GridSearchCV tuning.")
 
             pipeline_params = {
@@ -216,7 +217,7 @@ class MedpipeRunner:
                 param_grid=pipeline_params,
                 cv=cv_splitter,
                 scoring=configured_metrics,
-                refit=configured_metrics[0],
+                refit=True,
                 n_jobs=-1,
             )
             search.fit(X_train, y_train, groups=groups_train)
@@ -367,15 +368,18 @@ class MedpipeRunner:
         )
 
         # 3. Training Loop
-        best_pipeline = self._train_model(
-            outcome=outcome,
-            pipeline=pipeline,
-            hyperparams=hyperparams,
-            X_train=X_train,
-            y_train=y_train,
-            groups_train=groups_train,
-            cv_splitter=cv_splitter,
-        )
+        if self.orchestrator.config.meta.run_mode in ["audit", "cv"]:
+            best_pipeline = self._train_model_cv(
+                outcome=outcome,
+                pipeline=pipeline,
+                hyperparams=hyperparams,
+                X_train=X_train,
+                y_train=y_train,
+                groups_train=groups_train,
+                cv_splitter=cv_splitter,
+            )
+        else:
+            best_pipeline = pipeline.fit(X_train, y_train)
 
         # 4. Optional Post-Hoc Recalibration
         final_model = self._calibrate_model(
