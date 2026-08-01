@@ -943,12 +943,12 @@ class TestModelSetupConfig:
             algorithm="XGBClassifier",
             hyperparameters={"learning_rate": 0.1},
             recalibration={  # type: ignore
-                "method": "IsotonicRegression",
+                "method": "isotonic",
                 "hyperparameters": {"out_of_bounds": "clip"},
             },
         )
         assert model.recalibration
-        assert model.recalibration.method == "IsotonicRegression"
+        assert model.recalibration.method == "isotonic"
         assert model.recalibration.hyperparameters["out_of_bounds"] == "clip"
 
     def test_model_setup_extra_forbidden(self):
@@ -976,7 +976,7 @@ class TestMedpipeConfig:
                 "algorithm": "HistGradientBoostingClassifier",
                 "hyperparameters": {"learning_rate": 0.1},
                 "recalibration": {
-                    "method": "IsotonicRegression",
+                    "method": "isotonic",
                     "hyperparameters": {},
                 },
             },
@@ -1149,7 +1149,7 @@ class TestMedpipeConfig:
             "MORTALITY_30D": {
                 "algorithm": "HistGradientBoostingClassifier",
                 "recalibration": {
-                    "method": "PlattScaling",
+                    "method": "sigmoid",
                     "hyperparameters": {"cv": 5},
                 },
             }
@@ -1159,7 +1159,7 @@ class TestMedpipeConfig:
 
         res_recal = config.resolved_models["MORTALITY_30D"].recalibration
         assert res_recal is not None
-        assert res_recal.method == "PlattScaling"
+        assert res_recal.method == "sigmoid"
         # Merged hyperparameters: y_min kept from default, cv added from override
         assert res_recal.hyperparameters == {"y_min": 0, "cv": 5}
 
@@ -1176,7 +1176,7 @@ class TestMedpipeConfig:
         raw_config["outcome_overrides"] = {
             "ANY_COMP": {
                 "algorithm": "HistGradientBoostingClassifier",
-                "recalibration": {"method": "PlattScaling"},
+                "recalibration": {"method": "sigmoid"},
             }
         }
 
@@ -1187,4 +1187,57 @@ class TestMedpipeConfig:
 
         # The override should have successfully added it
         assert config.resolved_models["ANY_COMP"].recalibration is not None
-        assert config.resolved_models["ANY_COMP"].recalibration.method == "PlattScaling"
+        assert config.resolved_models["ANY_COMP"].recalibration.method == "sigmoid"
+
+    def test_validate_search_cv_fails_when_no_list_hyperparameters(
+        self, tmp_path: Path
+    ) -> None:
+        """Test that strategy='search' raises ValidationError when all
+        hyperparameters are scalars."""
+        raw_config = self._get_valid_config_dict(tmp_path)
+        raw_config["workflow"]["validation"]["cross_validation"]["strategy"] = "search"
+        # Ensure default and overrides only have scalar parameters
+        raw_config["default_model"]["hyperparameters"] = {"learning_rate": 0.1}
+
+        with pytest.raises(
+            ValidationError, match="no hyperparameter defined as a list"
+        ):
+            MedpipeConfig.model_validate(raw_config)
+
+    def test_validate_search_cv_succeeds_with_list_hyperparameters(
+        self, tmp_path: Path
+    ) -> None:
+        """Test that strategy='search' passes validation when at least one
+        hyperparameter is a list."""
+        raw_config = self._get_valid_config_dict(tmp_path)
+        raw_config["workflow"]["validation"]["cross_validation"]["strategy"] = "search"
+        raw_config["default_model"]["hyperparameters"] = {
+            "learning_rate": [0.01, 0.1],
+            "max_depth": 3,
+        }
+
+        config = MedpipeConfig.model_validate(raw_config)
+
+        assert config.workflow.validation.cross_validation
+        assert config.workflow.validation.cross_validation.strategy == "search"
+        assert config.resolved_models["MORTALITY_30D"].hyperparameters[
+            "learning_rate"
+        ] == [0.01, 0.1]
+
+    def test_outcome_override_not_in_outcomes_list(self, tmp_path: Path) -> None:
+        """Test that specifying an override for an outcome not listed in
+        data.outcomes raises a ValidationError."""
+        raw_config = self._get_valid_config_dict(tmp_path)
+
+        # Add an override for an outcome name that is NOT in data.outcomes
+        raw_config["outcome_overrides"] = {
+            "UNLISTED_OUTCOME": {
+                "algorithm": "RandomForestClassifier",
+            }
+        }
+
+        match_expr = f"Outcome override 'UNLISTED_OUTCOME' is not present "
+        f"in data.outcomes: {raw_config["data"]["outcomes"]}"
+
+        with pytest.raises(ValidationError, match=escape(match_expr)):
+            MedpipeConfig.model_validate(raw_config)
