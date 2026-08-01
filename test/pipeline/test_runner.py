@@ -11,7 +11,6 @@ from sklearn.linear_model import LinearRegression
 from sklearn.model_selection import StratifiedGroupKFold, StratifiedKFold
 from sklearn.pipeline import Pipeline
 
-from medpipe.models.registry import ModelRegistry
 from medpipe.pipeline.orchestrator import MedpipeOrchestrator
 from medpipe.pipeline.runner import MedpipeRunner
 
@@ -28,22 +27,20 @@ class TestMedpipeRunner:
         orchestrator.run_dir = Path("/fake/run/dir")
         orchestrator.build_preprocessor.return_value = None
 
-        # Explicitly mock the configuration object first, replicating your mock_config fixture
         mock_config = MagicMock()
         mock_config.data = MagicMock()
         mock_config.workflow = MagicMock()
+        mock_config.meta = MagicMock()
 
-        # Apply the required runner configurations
+        mock_config.meta.run_mode = "cv"
         mock_config.data.outcomes = ["MORTALITY_30D"]
         mock_config.workflow.validation.cross_validation.strategy = "random"
         mock_config.workflow.validation.cross_validation.n_splits = 2
         mock_config.workflow.validation.cross_validation.random_state = 42
         mock_config.workflow.evaluation.metrics = ["accuracy"]
 
-        # Attach the configuration mock to the orchestrator mock
         orchestrator.config = mock_config
 
-        # Standard resolved configuration
         orchestrator.resolved_model_configs = {
             "MORTALITY_30D": {
                 "algorithm": "RandomForestClassifier",
@@ -81,7 +78,6 @@ class TestMedpipeRunner:
 
     def test_instantiate_estimator_regressor_wrapped(self, mock_orchestrator):
         """Test that regressors are automatically wrapped in TransformedTargetRegressor."""
-        # Ensure LinearRegression is available via the fallback modules
         runner = MedpipeRunner(orchestrator=mock_orchestrator)
         estimator = runner._instantiate_estimator("LinearRegression", {})
 
@@ -95,7 +91,7 @@ class TestMedpipeRunner:
 
         estimator = runner._instantiate_estimator("RandomForestClassifier", params)
         assert isinstance(estimator, RandomForestClassifier)
-        assert estimator.n_estimators == 10  # Should take the first element of the list
+        assert estimator.n_estimators == 10
         assert estimator.max_depth == 5
 
     def test_create_cv_splitter(self, mock_orchestrator):
@@ -116,32 +112,30 @@ class TestMedpipeRunner:
         runner = MedpipeRunner(orchestrator=mock_orchestrator)
         mock_model = MagicMock(spec=Pipeline)
 
-        # Setup mock run_dir to avoid actual disk writes if parents don't exist
         with patch.object(Path, "mkdir") as mock_mkdir:
             runner._save_model(mock_model, "MORTALITY_30D")
 
             mock_mkdir.assert_called_once_with(exist_ok=True, parents=True)
             mock_dump.assert_called_once()
 
-            # Verify the filepath constructed
             expected_path = Path("/fake/run/dir/models/MORTALITY_30D_model.joblib")
             assert mock_dump.call_args[0][1] == expected_path
 
     # --- Unit Tests for Training and Calibration Sub-routines ---
 
     @patch("medpipe.pipeline.runner.cross_validate")
-    def test_train_model_standard_cv(self, mock_cv, mock_orchestrator, dummy_data):
-        """Test _train_model uses standard cross_validate when no list hyperparameters exist."""
+    def test_train_model_cv_standard_cv(self, mock_cv, mock_orchestrator, dummy_data):
+        """Test _train_model_cv uses standard cross_validate when no search
+        strategy is set."""
         runner = MedpipeRunner(orchestrator=mock_orchestrator)
 
         X_train, y_train, _, _ = dummy_data
         mock_pipeline = MagicMock(spec=Pipeline)
         cv_splitter = MagicMock()
 
-        # Scalar hyperparameters trigger standard CV
         hyperparams = {"max_depth": 3, "n_estimators": 100}
 
-        result = runner._train_model(
+        result = runner._train_model_cv(
             outcome="MORTALITY_30D",
             pipeline=mock_pipeline,
             hyperparams=hyperparams,
@@ -151,43 +145,41 @@ class TestMedpipeRunner:
             cv_splitter=cv_splitter,
         )
 
-        # Verify cross_validate was called with correct arguments
         mock_cv.assert_called_once_with(
             estimator=mock_pipeline,
             X=X_train,
             y=y_train,
             groups=None,
             cv=cv_splitter,
-            scoring=["accuracy"],  # Drawn from the mock_orchestrator fixture
+            scoring=["accuracy"],
             n_jobs=-1,
         )
 
-        # Verify the base pipeline was fitted on the full training data and returned
         mock_pipeline.fit.assert_called_once_with(X_train, y_train)
         assert result == mock_pipeline.fit.return_value
 
     @patch("medpipe.pipeline.runner.GridSearchCV")
-    def test_train_model_grid_search(
+    def test_train_model_cv_grid_search(
         self, mock_grid_search, mock_orchestrator, dummy_data
     ):
-        """Test _train_model triggers GridSearchCV and prefixes parameters correctly."""
+        """Test _train_model_cv triggers GridSearchCV when strategy is set to 'search'."""
+        mock_orchestrator.config.workflow.validation.cross_validation.strategy = (
+            "search"
+        )
         runner = MedpipeRunner(orchestrator=mock_orchestrator)
-        # Adding a second metric to verify refit behavior
         runner.orchestrator.config.workflow.evaluation.metrics = ["accuracy", "roc_auc"]
 
         X_train, y_train, _, _ = dummy_data
         mock_pipeline = MagicMock(spec=Pipeline)
         cv_splitter = MagicMock()
 
-        # List hyperparameter triggers GridSearchCV
         hyperparams = {"max_depth": [3, 5], "n_estimators": 10}
 
-        # Setup mock return for GridSearchCV
         mock_search_instance = MagicMock()
         mock_grid_search.return_value = mock_search_instance
         mock_search_instance.best_estimator_ = "best_model"
 
-        result = runner._train_model(
+        result = runner._train_model_cv(
             outcome="MORTALITY_30D",
             pipeline=mock_pipeline,
             hyperparams=hyperparams,
@@ -197,8 +189,6 @@ class TestMedpipeRunner:
             cv_splitter=cv_splitter,
         )
 
-        # Verify parameters were prefixed with 'classifier__' and
-        # scalars converted to lists
         expected_params = {
             "classifier__max_depth": [3, 5],
             "classifier__n_estimators": [10],
@@ -209,27 +199,25 @@ class TestMedpipeRunner:
             param_grid=expected_params,
             cv=cv_splitter,
             scoring=["accuracy", "roc_auc"],
-            refit="accuracy",  # Should map to the first configured metric
+            refit=True,
             n_jobs=-1,
         )
 
-        # Verify search was fitted and best estimator returned
         mock_search_instance.fit.assert_called_once_with(X_train, y_train, groups=None)
         assert result == "best_model"
 
     @patch("medpipe.pipeline.runner.cross_validate")
-    def test_train_model_missing_metrics_config(
+    def test_train_model_cv_missing_metrics_config(
         self, mock_cv, mock_orchestrator, dummy_data
     ):
-        """Test _train_model falls back to 'roc_auc' if metrics config is missing."""
+        """Test _train_model_cv falls back to 'roc_auc' if metrics config is missing."""
         runner = MedpipeRunner(orchestrator=mock_orchestrator)
-        # Explicitly break the metrics config to trigger the AttributeError fallback
         del runner.orchestrator.config.workflow.evaluation.metrics
 
         X_train, y_train, _, _ = dummy_data
         mock_pipeline = MagicMock(spec=Pipeline)
 
-        runner._train_model(
+        runner._train_model_cv(
             outcome="MORTALITY_30D",
             pipeline=mock_pipeline,
             hyperparams={"depth": 3},
@@ -239,7 +227,6 @@ class TestMedpipeRunner:
             cv_splitter=MagicMock(),
         )
 
-        # Assert fallback metric was used
         assert mock_cv.call_args[1]["scoring"] == ["roc_auc"]
 
     @patch("medpipe.pipeline.runner.CalibratedClassifierCV")
@@ -254,7 +241,6 @@ class TestMedpipeRunner:
         mock_pipeline = MagicMock(spec=Pipeline)
         model_config = {"recalibration": {"method": "sigmoid"}}
 
-        # Setup mock returns
         mock_calibrator_instance = MagicMock()
         mock_calibrated.return_value = mock_calibrator_instance
         mock_calibrator_instance.fit.return_value = "final_calibrated_model"
@@ -268,22 +254,16 @@ class TestMedpipeRunner:
             y_recal=y_recal,
         )
 
-        # Verify the pipeline was frozen
         mock_frozen.assert_called_once_with(mock_pipeline)
-
-        # Verify calibrator was built with the frozen model and correct method
         mock_calibrated.assert_called_once_with(
             estimator="frozen_pipeline", cv=2, method="sigmoid"
         )
-
-        # Verify calibrator was fitted on recalibration data
         mock_calibrator_instance.fit.assert_called_once_with(X_recal, y_recal)
         assert result == "final_calibrated_model"
 
     def test_calibrate_model_skip_none_data(self, mock_orchestrator):
         """Test calibration is skipped when X_recal is None."""
         runner = MedpipeRunner(orchestrator=mock_orchestrator)
-
         mock_pipeline = MagicMock(spec=Pipeline)
         model_config = {"recalibration": {"method": "sigmoid"}}
 
@@ -295,13 +275,11 @@ class TestMedpipeRunner:
             y_recal=None,
         )
 
-        # Should return original pipeline untouched
         assert result == mock_pipeline
 
     def test_calibrate_model_skip_empty_dataframe(self, mock_orchestrator):
         """Test calibration is skipped when X_recal is an empty DataFrame."""
         runner = MedpipeRunner(orchestrator=mock_orchestrator)
-
         mock_pipeline = MagicMock(spec=Pipeline)
         model_config = {"recalibration": {"method": "sigmoid"}}
 
@@ -309,11 +287,10 @@ class TestMedpipeRunner:
             outcome="MORTALITY_30D",
             best_pipeline=mock_pipeline,
             model_config=model_config,
-            X_recal=pd.DataFrame(),  # Empty DataFrame
+            X_recal=pd.DataFrame(),
             y_recal=np.array([]),
         )
 
-        # Should return original pipeline untouched
         assert result == mock_pipeline
 
     def test_calibrate_model_skip_missing_config(self, mock_orchestrator, dummy_data):
@@ -322,7 +299,7 @@ class TestMedpipeRunner:
         _, _, X_recal, y_recal = dummy_data
 
         mock_pipeline = MagicMock(spec=Pipeline)
-        model_config = {}  # Empty config, no recalibration key
+        model_config = {}
 
         result = runner._calibrate_model(
             outcome="MORTALITY_30D",
@@ -332,10 +309,47 @@ class TestMedpipeRunner:
             y_recal=y_recal,
         )
 
-        # Should return original pipeline untouched
         assert result == mock_pipeline
 
-    # --- Tests for the Execution Loop ---
+    # --- Tests for Run Modes & Execution Loop ---
+
+    @pytest.mark.parametrize(
+        "run_mode, should_call_cv",
+        [
+            ("fast", False),
+            ("eval", False),
+            ("cv", True),
+            ("audit", True),
+        ],
+    )
+    @patch("medpipe.pipeline.runner.MedpipeRunner._save_model")
+    @patch("medpipe.pipeline.runner.MedpipeRunner._train_model_cv")
+    def test_fit_outcome_run_modes(
+        self,
+        mock_train_cv,
+        mock_save,
+        mock_orchestrator,
+        dummy_data,
+        run_mode,
+        should_call_cv,
+    ):
+        """Verify run_mode logic properly controls routing to CV vs direct pipeline fitting."""
+        mock_orchestrator.config.meta.run_mode = run_mode
+        runner = MedpipeRunner(orchestrator=mock_orchestrator)
+
+        X_train, y_train, _, _ = dummy_data
+
+        with patch.object(
+            Pipeline, "fit", return_value=MagicMock()
+        ) as mock_pipeline_fit:
+            runner.fit_outcome("MORTALITY_30D", X_train, y_train)
+
+            if should_call_cv:
+                mock_train_cv.assert_called_once()
+                mock_pipeline_fit.assert_not_called()
+            else:
+                mock_train_cv.assert_not_called()
+                mock_pipeline_fit.assert_called_once_with(X_train, y_train)
 
     def test_fit_outcome_no_algorithm_raises_error(self, mock_orchestrator, dummy_data):
         """Test missing algorithm configuration fails gracefully."""
@@ -346,55 +360,6 @@ class TestMedpipeRunner:
             ValueError, match="No algorithm specified for outcome: MORTALITY_30D"
         ):
             runner.fit_outcome("MORTALITY_30D", dummy_data[0], dummy_data[1])
-
-    @patch("medpipe.pipeline.runner.MedpipeRunner._save_model")
-    def test_fit_outcome_standard_cv(self, mock_save, mock_orchestrator, dummy_data):
-        """Test fit_outcome using standard cross-validation (no list hyperparams)."""
-        runner = MedpipeRunner(orchestrator=mock_orchestrator)
-        X_train, y_train, _, _ = dummy_data
-
-        # Patch cross_validate so it doesn't actually run, but returns dummy metrics
-        with patch("medpipe.pipeline.runner.cross_validate") as mock_cv:
-            mock_cv.return_value = {"test_score": [0.8, 0.85]}
-
-            model = runner.fit_outcome("MORTALITY_30D", X_train, y_train)
-
-            # Assert cross_validate was called, not GridSearchCV
-            mock_cv.assert_called_once()
-
-            # Assert returning a Pipeline
-            assert isinstance(model, Pipeline)
-            assert "classifier" in model.named_steps
-            mock_save.assert_called_once_with(model, "MORTALITY_30D")
-
-    @patch("medpipe.pipeline.runner.MedpipeRunner._save_model")
-    def test_fit_outcome_gridsearch(self, mock_save, mock_orchestrator, dummy_data):
-        """Test fit_outcome triggers GridSearchCV when lists are present in params."""
-        # Inject list parameter to trigger GridSearch
-        mock_orchestrator.resolved_model_configs["MORTALITY_30D"]["hyperparameters"] = {
-            "n_estimators": [5, 10],
-            "max_depth": 3,
-        }
-
-        runner = MedpipeRunner(orchestrator=mock_orchestrator)
-        X_train, y_train, _, _ = dummy_data
-
-        with patch("medpipe.pipeline.runner.GridSearchCV") as MockGridSearch:
-            mock_gs_instance = MockGridSearch.return_value
-            mock_gs_instance.best_estimator_ = Pipeline(
-                [("classifier", RandomForestClassifier())]
-            )
-            mock_gs_instance.best_params_ = {
-                "classifier__n_estimators": 5,
-                "classifier__max_depth": [3],
-            }
-
-            model = runner.fit_outcome("MORTALITY_30D", X_train, y_train)
-
-            MockGridSearch.assert_called_once()
-            mock_gs_instance.fit.assert_called_once()
-            assert isinstance(model, Pipeline)
-            mock_save.assert_called_once_with(model, "MORTALITY_30D")
 
     @patch("medpipe.pipeline.runner.MedpipeRunner._save_model")
     def test_fit_outcome_with_recalibration(
@@ -409,7 +374,6 @@ class TestMedpipeRunner:
                 "MORTALITY_30D", X_train, y_train, X_recal=X_recal, y_recal=y_recal
             )
 
-            # Should be wrapped in calibrator
             assert isinstance(model, CalibratedClassifierCV)
             mock_save.assert_called_once_with(model, "MORTALITY_30D")
 
@@ -418,7 +382,6 @@ class TestMedpipeRunner:
         self, mock_fit_outcome, mock_orchestrator, dummy_data
     ):
         """Test that run method correctly iterates outcomes and unpacks dataframes."""
-        # Setup multiple outcomes
         mock_orchestrator.config.data.outcomes = ["OUTCOME_1", "OUTCOME_2"]
         runner = MedpipeRunner(orchestrator=mock_orchestrator)
 
@@ -433,12 +396,10 @@ class TestMedpipeRunner:
 
         fitted_models = runner.run(X_train, y_train_df, X_recal, y_recal_df)
 
-        # Verify fit_outcome was called twice
         assert mock_fit_outcome.call_count == 2
         assert "OUTCOME_1" in fitted_models
         assert "OUTCOME_2" in fitted_models
 
-        # Verify the 1D extraction for the first call
         first_call_kwargs = mock_fit_outcome.call_args_list[0].kwargs
         assert first_call_kwargs["outcome"] == "OUTCOME_1"
         assert np.array_equal(first_call_kwargs["y_train"], np.array([0, 1, 0, 1]))
