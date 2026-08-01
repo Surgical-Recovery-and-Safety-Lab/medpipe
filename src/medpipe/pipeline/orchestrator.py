@@ -5,7 +5,7 @@ import pandas as pd
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
 
-from medpipe.data.preprocessing import PreprocessorRegistry
+from medpipe.data.registry import PreprocessorRegistry
 from medpipe.data.utils import extract_labels, split_data
 from medpipe.utils.config import MedpipeConfig
 from medpipe.utils.io import load_data, read_toml_configuration
