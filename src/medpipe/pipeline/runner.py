@@ -1,3 +1,4 @@
+import json
 from typing import Any, Dict, Optional, Union
 
 import joblib
@@ -159,6 +160,50 @@ class MedpipeRunner:
         joblib.dump(model, file_path, compress=3)
         self.logger.info(f"[{outcome}] Model saved to {file_path}")
 
+    def _save_cv_results(self, outcome: str, cv_results_df: pd.DataFrame) -> None:
+        """
+        Save cross-validation results to disk in the artifacts directory.
+
+        Exports a detailed fold-level CSV file for spreadsheet auditing alongside
+        a JSON file containing summary statistics (mean and standard deviation)
+        for each test evaluation metric.
+
+        Parameters
+        ----------
+        outcome : str
+            The name of the outcome being evaluated.
+        cv_results_df : pd.DataFrame
+            DataFrame containing fold-by-fold cross-validation metrics and timing
+            information derived from scikit-learn's `cross_validate` or `GridSearchCV`.
+
+        Returns
+        -------
+        None
+
+        """
+        artifacts_dir = self.orchestrator.run_dir / "artifacts"
+        artifacts_dir.mkdir(exist_ok=True, parents=True)
+
+        # Save detailed fold-level CSV
+        csv_path = artifacts_dir / f"{outcome}_cv_results.csv"
+        cv_results_df.to_csv(csv_path, index=False)
+        self.logger.info(f"[{outcome}] Detailed CV results saved to {csv_path}")
+
+        # Extract and save summary report (mean ± std dev for test scores)
+        summary = {}
+        for col in cv_results_df.columns:
+            if col.startswith("test_"):
+                metric_name = col.replace("test_", "")
+                summary[metric_name] = {
+                    "mean": float(cv_results_df[col].mean()),
+                    "std": float(cv_results_df[col].std()),
+                }
+
+        json_path = artifacts_dir / f"{outcome}_cv_summary.json"
+        with open(json_path, "w") as f:
+            json.dump(summary, f, indent=4)
+        self.logger.info(f"[{outcome}] CV summary saved to {json_path}")
+
     def _train_model_cv(
         self,
         outcome: str,
@@ -227,13 +272,17 @@ class MedpipeRunner:
             )
             search.fit(X_train, y_train, groups=groups_train)
 
+            # Convert search results to DataFrame & save artifacts
+            cv_results_df = pd.DataFrame(search.cv_results_)
+            self._save_cv_results(outcome, cv_results_df)
+
             self.logger.info(f"[{outcome}] Best parameters: {search.best_params_}")
             return search.best_estimator_
 
         else:
             self.logger.info(f"[{outcome}] Running standard cross-validation.")
 
-            cross_validate(
+            results = cross_validate(
                 estimator=pipeline,
                 X=X_train,
                 y=y_train,
@@ -242,6 +291,10 @@ class MedpipeRunner:
                 scoring=scorers_dict,
                 n_jobs=-1,
             )
+
+            # Convert cross_validate dict to DataFrame & save artifacts
+            cv_results_df = pd.DataFrame(results)
+            self._save_cv_results(outcome, cv_results_df)
 
             self.logger.info(
                 f"[{outcome}] Fitting final base pipeline on full training data."
