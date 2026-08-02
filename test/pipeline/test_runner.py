@@ -34,6 +34,7 @@ class TestMedpipeRunner:
         mock_config.meta = MagicMock()
 
         mock_config.meta.run_mode = "cv"
+        mock_config.meta.project_name = "test_project"
         mock_config.data.outcomes = ["MORTALITY_30D"]
         mock_config.workflow.validation.cross_validation.strategy = "random"
         mock_config.workflow.validation.cross_validation.n_splits = 2
@@ -122,6 +123,23 @@ class TestMedpipeRunner:
             mock_dump.assert_called_once()
 
             expected_path = Path("/fake/run/dir/models/MORTALITY_30D_model.joblib")
+            assert mock_dump.call_args[0][1] == expected_path
+
+    @patch("medpipe.pipeline.runner.joblib.dump")
+    def test_save_final_models(self, mock_dump, mock_orchestrator):
+        """Test that _save_final_models saves the complete model bundle using project_name."""
+        runner = MedpipeRunner(orchestrator=mock_orchestrator)
+        mock_model = MagicMock(spec=Pipeline)
+        runner.fitted_models = {"MORTALITY_30D": mock_model}
+
+        with patch.object(Path, "mkdir") as mock_mkdir:
+            runner._save_final_models()
+
+            mock_mkdir.assert_called_once_with(exist_ok=True, parents=True)
+            mock_dump.assert_called_once()
+
+            expected_path = Path("/fake/run/dir/models/test_project_fitted.joblib")
+            assert mock_dump.call_args[0][0] == {"MORTALITY_30D": mock_model}
             assert mock_dump.call_args[0][1] == expected_path
 
     @patch("medpipe.pipeline.runner.open")
@@ -401,6 +419,36 @@ class TestMedpipeRunner:
         assert "roc_auc" in passed_scoring
         mock_save_cv_results.assert_called_once()
 
+    @patch("medpipe.pipeline.runner.MedpipeRunner._save_cv_results")
+    def test_train_model_cv_group_strategy_without_groups_raises_error(
+        self, mock_save_cv_results, mock_orchestrator, dummy_data
+    ):
+        """Test that cross-validation with a group strategy raises an error
+        if groups_train is None."""
+        mock_orchestrator.config.workflow.validation.cross_validation.strategy = "group"
+        runner = MedpipeRunner(orchestrator=mock_orchestrator)
+
+        X_train, y_train, _, _ = dummy_data
+        mock_pipeline = MagicMock(spec=Pipeline)
+        cv_splitter = runner._create_cv_splitter("group", 2, 42)
+
+        hyperparams = {"max_depth": 3}
+
+        # StratifiedGroupKFold raises ValueError if groups is None during
+        # cross_validate / fit
+        with pytest.raises(
+            ValueError, match="The 'groups' parameter should not be None"
+        ):
+            runner._train_model_cv(
+                outcome="MORTALITY_30D",
+                pipeline=mock_pipeline,
+                hyperparams=hyperparams,
+                X_train=X_train,
+                y_train=y_train,
+                groups_train=None,
+                cv_splitter=cv_splitter,
+            )
+
     @patch("medpipe.pipeline.runner.CalibratedClassifierCV")
     @patch("medpipe.pipeline.runner.FrozenEstimator")
     def test_calibrate_model_success(
@@ -558,11 +606,13 @@ class TestMedpipeRunner:
         mock_save.assert_called_once_with(model, "MORTALITY_30D")
         mock_train_cv.assert_called_once()
 
+    @patch("medpipe.pipeline.runner.MedpipeRunner._save_final_models")
     @patch("medpipe.pipeline.runner.MedpipeRunner.fit_outcome")
-    def test_run_orchestrates_outcomes(
-        self, mock_fit_outcome, mock_orchestrator, dummy_data
+    def test_run_orchestrates_outcomes_and_saves_final_models(
+        self, mock_fit_outcome, mock_save_final_models, mock_orchestrator, dummy_data
     ):
-        """Test that run method correctly iterates outcomes and unpacks dataframes."""
+        """Test that run method iterates outcomes, stores fitted models,
+        and saves final model dictionary."""
         mock_orchestrator.config.data.outcomes = ["OUTCOME_1", "OUTCOME_2"]
         runner = MedpipeRunner(orchestrator=mock_orchestrator)
 
@@ -580,8 +630,23 @@ class TestMedpipeRunner:
         assert mock_fit_outcome.call_count == 2
         assert "OUTCOME_1" in fitted_models
         assert "OUTCOME_2" in fitted_models
+        mock_save_final_models.assert_called_once()
 
         first_call_kwargs = mock_fit_outcome.call_args_list[0].kwargs
         assert first_call_kwargs["outcome"] == "OUTCOME_1"
         assert np.array_equal(first_call_kwargs["y_train"], np.array([0, 1, 0, 1]))
         assert np.array_equal(first_call_kwargs["y_recal"], np.array([1, 0]))
+
+    def test_run_missing_outcome_in_y_train_raises_keyerror(
+        self, mock_orchestrator, dummy_data
+    ):
+        """Test that run raises KeyError if configured outcome column is absent
+        in y_train_df."""
+        mock_orchestrator.config.data.outcomes = ["MISSING_OUTCOME"]
+        runner = MedpipeRunner(orchestrator=mock_orchestrator)
+
+        X_train = dummy_data[0]
+        y_train_df = pd.DataFrame({"OTHER_OUTCOME": [0, 1, 0, 1]})
+
+        with pytest.raises(KeyError, match="MISSING_OUTCOME"):
+            runner.run(X_train, y_train_df)
