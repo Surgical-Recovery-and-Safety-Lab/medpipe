@@ -255,6 +255,11 @@ class MedpipeRunner:
         sklearn.pipeline.Pipeline
             The best fitted pipeline after cross-validation or grid search.
 
+        Raises
+        ------
+        ValueError
+            If the groups_train is None when strategy is group.
+
         """
         # Retrieve the list of metrics from the configuration safely
         try:
@@ -266,6 +271,9 @@ class MedpipeRunner:
 
         cv_cfg = self.orchestrator.config.workflow.validation.cross_validation
         assert cv_cfg
+
+        if cv_cfg.strategy == "group" and groups_train is None:
+            raise ValueError("The 'groups' parameter should not be None")
 
         scorers_dict = build_scorers(configured_metrics)
 
