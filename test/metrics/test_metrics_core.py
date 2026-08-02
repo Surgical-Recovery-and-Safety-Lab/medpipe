@@ -87,8 +87,8 @@ class TestBuildScorers:
     def test_build_scorers_invalid_metric(self) -> None:
         """Test case when metrics has invalid value."""
         match_expr = (
-            "invalid was not found in available metric "
-            f"list. Available metrics are {METRICS}"
+            "'invalid' was not found in available metrics. "
+            f"Available metrics are {METRICS}"
         )
 
         with pytest.raises(ValueError, match=escape(match_expr)):
@@ -142,8 +142,8 @@ class TestComputeMetrics:
     def test_compute_metrics_invalid_metric(self) -> None:
         """Test case when metrics has invalid value."""
         match_expr = (
-            "invalid was not found in available metric "
-            f"list. Available metrics are {METRICS}"
+            "'invalid' was not found in available metrics. "
+            f"Available metrics are {METRICS}"
         )
 
         with pytest.raises(ValueError, match=escape(match_expr)):
@@ -178,8 +178,8 @@ class TestPrintMetrics:
     def test_print_metrics_invalid_metric(self) -> None:
         """Test case when an invalid metric is in metrics."""
         match_expr = (
-            "invalid was not found in available metric "
-            f"list. Available metrics are {METRICS}"
+            "'invalid' was not found in available metrics. "
+            f"Available metrics are {METRICS}"
         )
         with pytest.raises(ValueError, match=escape(match_expr)):
             print_metrics(np.array([0.0]), ["invalid"])
