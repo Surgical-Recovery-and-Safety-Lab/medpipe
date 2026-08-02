@@ -152,6 +152,7 @@ class MedpipeRunner:
             The finalized, fully fitted model.
         outcome : str
             The name of the outcome, used to name the saved file.
+
         """
         save_dir = self.orchestrator.run_dir / "models"
         save_dir.mkdir(exist_ok=True, parents=True)
@@ -159,6 +160,20 @@ class MedpipeRunner:
         file_path = save_dir / f"{outcome}_model.joblib"
         joblib.dump(model, file_path, compress=3)
         self.logger.info(f"[{outcome}] Model saved to {file_path}")
+
+    def _save_final_models(self) -> None:
+        """
+        Saves the complete dictionary of fitted outcome models into a single
+        file in the models directory for downstream evaluation.
+
+        """
+        save_dir = self.orchestrator.run_dir / "models"
+        save_dir.mkdir(exist_ok=True, parents=True)
+
+        project_name = self.orchestrator.config.meta.project_name
+        models_path = save_dir / f"{project_name}_fitted.joblib"
+        joblib.dump(self.fitted_models, models_path, compress=3)
+        self.logger.info(f"Fitted final models saved to {models_path}")
 
     def _save_cv_results(self, outcome: str, cv_results_df: pd.DataFrame) -> None:
         """
@@ -502,5 +517,8 @@ class MedpipeRunner:
             )
 
             self.fitted_models[outcome] = final_model
+
+        # Save final models dictionary
+        self._save_final_models()
 
         return self.fitted_models
