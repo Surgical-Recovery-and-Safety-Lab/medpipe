@@ -200,7 +200,7 @@ class MedpipeRunner:
                 }
 
         json_path = artifacts_dir / f"{outcome}_cv_summary.json"
-        with open(json_path, "w") as f:
+        with open(json_path, "w", encoding="utf-8") as f:
             json.dump(summary, f, indent=4)
         self.logger.info(f"[{outcome}] CV summary saved to {json_path}")
 
