@@ -16,6 +16,7 @@ from sklearn.model_selection import (
 from sklearn.pipeline import Pipeline
 
 from medpipe.data.transformers import BoundedLogitTransformer
+from medpipe.metrics.core import build_scorers
 from medpipe.models.registry import ModelRegistry
 from medpipe.pipeline.orchestrator import MedpipeOrchestrator
 from medpipe.utils.logger import get_console_logger
@@ -197,12 +198,16 @@ class MedpipeRunner:
         """
         # Retrieve the list of metrics from the configuration safely
         try:
-            configured_metrics = self.orchestrator.config.workflow.evaluation.metrics
+            configured_metrics = (
+                self.orchestrator.config.workflow.evaluation.metrics.metrics
+            )
         except AttributeError:
             configured_metrics = ["roc_auc"]
 
         cv_cfg = self.orchestrator.config.workflow.validation.cross_validation
         assert cv_cfg
+
+        scorers_dict = build_scorers(configured_metrics)
 
         if cv_cfg.strategy == "search":
             self.logger.info(f"[{outcome}] Running GridSearchCV tuning.")
@@ -216,8 +221,8 @@ class MedpipeRunner:
                 estimator=pipeline,
                 param_grid=pipeline_params,
                 cv=cv_splitter,
-                scoring=configured_metrics,
-                refit=True,
+                scoring=scorers_dict,
+                refit=configured_metrics[0],  # type: ignore
                 n_jobs=-1,
             )
             search.fit(X_train, y_train, groups=groups_train)
@@ -234,7 +239,7 @@ class MedpipeRunner:
                 y=y_train,
                 groups=groups_train,
                 cv=cv_splitter,
-                scoring=configured_metrics,
+                scoring=scorers_dict,
                 n_jobs=-1,
             )
 
