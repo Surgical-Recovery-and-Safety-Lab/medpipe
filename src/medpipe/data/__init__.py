@@ -6,4 +6,4 @@ submodules:
 """
 
 from . import utils
-from .utils import convert_dtypes, extract_labels, get_split_idx, split_data
+from .utils import extract_labels, get_split_idx, split_data
