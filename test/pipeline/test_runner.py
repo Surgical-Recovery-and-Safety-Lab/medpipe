@@ -15,59 +15,66 @@ from medpipe.metrics.registry import MetricRegistry, MetricSpec
 from medpipe.pipeline.orchestrator import MedpipeOrchestrator
 from medpipe.pipeline.runner import MedpipeRunner
 
+# =============================================================================
+# Shared Fixtures
+# =============================================================================
 
-class TestMedpipeRunner:
-    """
-    Comprehensive test suite for the MedpipeRunner class.
-    """
 
-    @pytest.fixture
-    def mock_orchestrator(self):
-        """Creates a mocked MedpipeOrchestrator with standard configurations."""
-        orchestrator = MagicMock(spec=MedpipeOrchestrator)
-        orchestrator.run_dir = Path("/fake/run/dir")
-        orchestrator.build_preprocessor.return_value = None
+@pytest.fixture
+def mock_orchestrator():
+    """Creates a mocked MedpipeOrchestrator with standard configurations."""
+    orchestrator = MagicMock(spec=MedpipeOrchestrator)
+    orchestrator.run_dir = Path("/fake/run/dir")
+    orchestrator.build_preprocessor.return_value = None
 
-        mock_config = MagicMock()
-        mock_config.data = MagicMock()
-        mock_config.workflow = MagicMock()
-        mock_config.meta = MagicMock()
+    mock_config = MagicMock()
+    mock_config.data = MagicMock()
+    mock_config.workflow = MagicMock()
+    mock_config.meta = MagicMock()
 
-        mock_config.meta.run_mode = "cv"
-        mock_config.meta.project_name = "test_project"
-        mock_config.data.outcomes = ["MORTALITY_30D"]
-        mock_config.workflow.validation.cross_validation.strategy = "random"
-        mock_config.workflow.validation.cross_validation.n_splits = 2
-        mock_config.workflow.validation.cross_validation.random_state = 42
-        mock_config.workflow.evaluation.metrics.metrics = ["accuracy"]
+    mock_config.meta.run_mode = "cv"
+    mock_config.meta.project_name = "test_project"
+    mock_config.data.outcomes = ["MORTALITY_30D"]
+    mock_config.workflow.validation.cross_validation.strategy = "random"
+    mock_config.workflow.validation.cross_validation.n_splits = 2
+    mock_config.workflow.validation.cross_validation.random_state = 42
+    mock_config.workflow.evaluation.metrics.metrics = ["accuracy"]
 
-        orchestrator.config = mock_config
+    orchestrator.config = mock_config
 
-        orchestrator.resolved_model_configs = {
-            "MORTALITY_30D": {
-                "algorithm": "RandomForestClassifier",
-                "hyperparameters": {"n_estimators": 5, "max_depth": 3},
-                "recalibration": {"method": "temperature"},
-            }
+    orchestrator.resolved_model_configs = {
+        "MORTALITY_30D": {
+            "algorithm": "RandomForestClassifier",
+            "hyperparameters": {"n_estimators": 5, "max_depth": 3},
+            "recalibration": {"method": "temperature"},
         }
-        return orchestrator
+    }
+    return orchestrator
 
-    @pytest.fixture
-    def dummy_data(self):
-        """Provides small, consistent dummy data for fitting."""
-        X_train = pd.DataFrame(
-            {"feature1": [1, 2, 3, 4, 5, 6], "feature2": [6, 5, 4, 3, 2, 1]}
-        )
-        y_train = np.array([0, 1, 0, 1, 0, 1])
 
-        X_recal = pd.DataFrame(
-            {"feature1": [2, 3, 4, 5, 6, 7], "feature2": [7, 6, 5, 4, 3, 2]}
-        )
-        y_recal = np.array([1, 0, 1, 0, 1, 0])
+@pytest.fixture
+def dummy_data():
+    """Provides small, consistent dummy data for fitting."""
+    X_train = pd.DataFrame(
+        {"feature1": [1, 2, 3, 4, 5, 6], "feature2": [6, 5, 4, 3, 2, 1]}
+    )
+    y_train = np.array([0, 1, 0, 1, 0, 1])
 
-        return X_train, y_train, X_recal, y_recal
+    X_recal = pd.DataFrame(
+        {"feature1": [2, 3, 4, 5, 6, 7], "feature2": [7, 6, 5, 4, 3, 2]}
+    )
+    y_recal = np.array([1, 0, 1, 0, 1, 0])
 
-    # --- Unit Tests for Internal Methods ---
+    return X_train, y_train, X_recal, y_recal
+
+
+# =============================================================================
+# Test Classes per Runner Function / Method
+# =============================================================================
+
+
+class TestInstantiateEstimator:
+    """Unit tests for MedpipeRunner._instantiate_estimator."""
 
     def test_instantiate_estimator_classifier(self, mock_orchestrator):
         runner = MedpipeRunner(orchestrator=mock_orchestrator)
@@ -79,8 +86,7 @@ class TestMedpipeRunner:
         assert estimator.n_estimators == 10
 
     def test_instantiate_estimator_regressor_wrapped(self, mock_orchestrator):
-        """Test that regressors are automatically wrapped in
-        TransformedTargetRegressor."""
+        """Test that regressors are automatically wrapped in TransformedTargetRegressor."""
         runner = MedpipeRunner(orchestrator=mock_orchestrator)
         estimator = runner._instantiate_estimator("LinearRegression", {})
 
@@ -88,8 +94,7 @@ class TestMedpipeRunner:
         assert isinstance(estimator.regressor, LinearRegression)
 
     def test_instantiate_estimator_list_params_filtered(self, mock_orchestrator):
-        """Test that list hyperparameters are reduced to scalars for
-        initial instantiation."""
+        """Test that list hyperparameters are reduced to scalars for initial instantiation."""
         runner = MedpipeRunner(orchestrator=mock_orchestrator)
         params = {"n_estimators": [10, 50, 100], "max_depth": 5}
 
@@ -97,6 +102,10 @@ class TestMedpipeRunner:
         assert isinstance(estimator, RandomForestClassifier)
         assert estimator.n_estimators == 10
         assert estimator.max_depth == 5
+
+
+class TestCreateCvSplitter:
+    """Unit tests for MedpipeRunner._create_cv_splitter."""
 
     def test_create_cv_splitter(self, mock_orchestrator):
         runner = MedpipeRunner(orchestrator=mock_orchestrator)
@@ -111,6 +120,10 @@ class TestMedpipeRunner:
         with pytest.raises(ValueError, match="Strategy must be 'random' or 'group'"):
             runner._create_cv_splitter("invalid_strategy", 5, 42)
 
+
+class TestSaveModel:
+    """Unit tests for MedpipeRunner._save_model."""
+
     @patch("medpipe.pipeline.runner.joblib.dump")
     def test_save_model(self, mock_dump, mock_orchestrator):
         runner = MedpipeRunner(orchestrator=mock_orchestrator)
@@ -124,6 +137,10 @@ class TestMedpipeRunner:
 
             expected_path = Path("/fake/run/dir/models/MORTALITY_30D_model.joblib")
             assert mock_dump.call_args[0][1] == expected_path
+
+
+class TestSaveFinalModels:
+    """Unit tests for MedpipeRunner._save_final_models."""
 
     @patch("medpipe.pipeline.runner.joblib.dump")
     def test_save_final_models(self, mock_dump, mock_orchestrator):
@@ -142,14 +159,17 @@ class TestMedpipeRunner:
             assert mock_dump.call_args[0][0] == {"MORTALITY_30D": mock_model}
             assert mock_dump.call_args[0][1] == expected_path
 
+
+class TestSaveCvResults:
+    """Unit tests for MedpipeRunner._save_cv_results."""
+
     @patch("medpipe.pipeline.runner.open")
     @patch("json.dump")
     @patch.object(pd.DataFrame, "to_csv")
     def test_save_cv_results(
         self, mock_to_csv, mock_json_dump, mock_open, mock_orchestrator
     ):
-        """Test that _save_cv_results writes fold results to CSV and
-        summary statistics to JSON."""
+        """Test that _save_cv_results writes fold results to CSV and summary statistics to JSON."""
         runner = MedpipeRunner(orchestrator=mock_orchestrator)
 
         cv_data = {
@@ -175,12 +195,13 @@ class TestMedpipeRunner:
             )
             mock_json_dump.assert_called_once()
 
-            # Verify JSON payload calculations (mean & std dev of test_ columns)
             summary_arg = mock_json_dump.call_args[0][0]
             assert summary_arg["accuracy"]["mean"] == pytest.approx(0.85)
             assert summary_arg["ici"]["mean"] == pytest.approx(0.03)
 
-    # --- Unit Tests for Training and Calibration Sub-routines ---
+
+class TestTrainModelCv:
+    """Unit tests for MedpipeRunner._train_model_cv."""
 
     @patch("medpipe.pipeline.runner.MedpipeRunner._save_cv_results")
     @patch("medpipe.pipeline.runner.cross_validate")
@@ -221,7 +242,6 @@ class TestMedpipeRunner:
         assert isinstance(call_kwargs["scoring"], dict)
         assert "accuracy" in call_kwargs["scoring"]
 
-        # Verify artifacts save step
         mock_save_cv_results.assert_called_once()
         saved_df = mock_save_cv_results.call_args[0][1]
         assert isinstance(saved_df, pd.DataFrame)
@@ -235,8 +255,7 @@ class TestMedpipeRunner:
     def test_train_model_cv_grid_search(
         self, mock_grid_search, mock_save_cv_results, mock_orchestrator, dummy_data
     ):
-        """Test _train_model_cv triggers GridSearchCV and calls _save_cv_results
-        when strategy is 'search'."""
+        """Test _train_model_cv triggers GridSearchCV and calls _save_cv_results when strategy is 'search'."""
         mock_orchestrator.config.workflow.validation.cross_validation.strategy = (
             "search"
         )
@@ -283,7 +302,6 @@ class TestMedpipeRunner:
         assert isinstance(call_kwargs["scoring"], dict)
         assert call_kwargs["refit"] == "accuracy"
 
-        # Verify artifacts save step
         mock_save_cv_results.assert_called_once()
         saved_df = mock_save_cv_results.call_args[0][1]
         assert isinstance(saved_df, pd.DataFrame)
@@ -296,8 +314,7 @@ class TestMedpipeRunner:
     def test_train_model_cv_standard_cv_with_custom_metrics(
         self, mock_cv, mock_save_cv_results, mock_orchestrator, dummy_data
     ):
-        """Test _train_model_cv converts built-in & custom metrics
-        (e.g. ici) to scorers."""
+        """Test _train_model_cv converts built-in & custom metrics (e.g. ici) to scorers."""
         mock_orchestrator.config.workflow.evaluation.metrics.metrics = [
             "accuracy",
             "ici",
@@ -338,8 +355,7 @@ class TestMedpipeRunner:
     def test_train_model_cv_grid_search_with_custom_registry_metric(
         self, mock_grid_search, mock_save_cv_results, mock_orchestrator, dummy_data
     ):
-        """Test _train_model_cv handles custom metrics registered via
-        MetricRegistry in GridSearchCV."""
+        """Test _train_model_cv handles custom metrics registered via MetricRegistry in GridSearchCV."""
         custom_spec = MetricSpec(
             name="dummy_custom_score",
             func=lambda y, y_pred: 0.95,
@@ -423,8 +439,7 @@ class TestMedpipeRunner:
     def test_train_model_cv_group_strategy_without_groups_raises_error(
         self, mock_save_cv_results, mock_orchestrator, dummy_data
     ):
-        """Test that cross-validation with a group strategy raises an error
-        if groups_train is None."""
+        """Test that cross-validation with a group strategy raises an error if groups_train is None."""
         mock_orchestrator.config.workflow.validation.cross_validation.strategy = "group"
         runner = MedpipeRunner(orchestrator=mock_orchestrator)
 
@@ -434,8 +449,6 @@ class TestMedpipeRunner:
 
         hyperparams = {"max_depth": 3}
 
-        # StratifiedGroupKFold raises ValueError if groups is None during
-        # cross_validate / fit
         with pytest.raises(
             ValueError, match="The 'groups' parameter should not be None"
         ):
@@ -448,6 +461,10 @@ class TestMedpipeRunner:
                 groups_train=None,
                 cv_splitter=cv_splitter,
             )
+
+
+class TestCalibrateModel:
+    """Unit tests for MedpipeRunner._calibrate_model."""
 
     @patch("medpipe.pipeline.runner.CalibratedClassifierCV")
     @patch("medpipe.pipeline.runner.FrozenEstimator")
@@ -531,7 +548,9 @@ class TestMedpipeRunner:
 
         assert result == mock_pipeline
 
-    # --- Tests for Run Modes & Execution Loop ---
+
+class TestFitOutcome:
+    """Unit tests for MedpipeRunner.fit_outcome."""
 
     @pytest.mark.parametrize(
         "run_mode, should_call_cv",
@@ -553,8 +572,7 @@ class TestMedpipeRunner:
         run_mode,
         should_call_cv,
     ):
-        """Verify run_mode logic properly controls routing to CV vs direct
-        pipeline fitting."""
+        """Verify run_mode logic properly controls routing to CV vs direct pipeline fitting."""
         mock_orchestrator.config.meta.run_mode = run_mode
         runner = MedpipeRunner(orchestrator=mock_orchestrator)
 
@@ -591,7 +609,6 @@ class TestMedpipeRunner:
         runner = MedpipeRunner(orchestrator=mock_orchestrator)
         X_train, y_train, X_recal, y_recal = dummy_data
 
-        # Use a real fitted estimator pipeline so scikit-learn inspection succeeds
         real_pipeline = Pipeline(
             [("clf", RandomForestClassifier(n_estimators=2, max_depth=2))]
         )
@@ -606,13 +623,16 @@ class TestMedpipeRunner:
         mock_save.assert_called_once_with(model, "MORTALITY_30D")
         mock_train_cv.assert_called_once()
 
+
+class TestRun:
+    """Unit tests for MedpipeRunner.run."""
+
     @patch("medpipe.pipeline.runner.MedpipeRunner._save_final_models")
     @patch("medpipe.pipeline.runner.MedpipeRunner.fit_outcome")
     def test_run_orchestrates_outcomes_and_saves_final_models(
         self, mock_fit_outcome, mock_save_final_models, mock_orchestrator, dummy_data
     ):
-        """Test that run method iterates outcomes, stores fitted models,
-        and saves final model dictionary."""
+        """Test that run method iterates outcomes, stores fitted models, and saves final model dictionary."""
         mock_orchestrator.config.data.outcomes = ["OUTCOME_1", "OUTCOME_2"]
         runner = MedpipeRunner(orchestrator=mock_orchestrator)
 
@@ -640,8 +660,7 @@ class TestMedpipeRunner:
     def test_run_missing_outcome_in_y_train_raises_keyerror(
         self, mock_orchestrator, dummy_data
     ):
-        """Test that run raises KeyError if configured outcome column is absent
-        in y_train_df."""
+        """Test that run raises KeyError if configured outcome column is absent in y_train_df."""
         mock_orchestrator.config.data.outcomes = ["MISSING_OUTCOME"]
         runner = MedpipeRunner(orchestrator=mock_orchestrator)
 
