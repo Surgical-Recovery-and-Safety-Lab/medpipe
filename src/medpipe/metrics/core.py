@@ -167,6 +167,8 @@ def compute_metrics(
         If metrics is not a list of strings.
         If y is not a np.ndarray.
         If y_pred is not a np.ndarray
+    ValueError
+        If there is only one class for AUROC and AP calculations.
 
     """
     if not isinstance(metrics, (list, np.ndarray)):
@@ -180,6 +182,14 @@ def compute_metrics(
     if not isinstance(y, np.ndarray):
         raise TypeError(f"Input y should be a np.ndarray, but got {type(y)}")
 
+    # Ensure y contains at least 2 classes for binary ranking/precision metrics
+    if len(np.unique(y)) < 2:
+        binary_metrics = {"roc_auc", "auroc", "ap"}
+        if any(m in binary_metrics for m in metrics):
+            raise ValueError(
+                "Only one class present in y_true. "
+                "AUROC and AP score are not defined in that case."
+            )
     if y_pred.ndim == 2:
         y_pred = y_pred[:, 1]
 
