@@ -9,6 +9,10 @@ from sklearn.pipeline import Pipeline
 from medpipe.pipeline.orchestrator import MedpipeOrchestrator
 from medpipe.utils.config import MedpipeConfig
 
+# =============================================================================
+# Shared Fixtures
+# =============================================================================
+
 
 @pytest.fixture
 def mock_config():
@@ -38,10 +42,16 @@ def mock_config():
     return config
 
 
+# =============================================================================
+# Test Classes per Orchestrator Function / Method
+# =============================================================================
+
+
 @patch("medpipe.pipeline.orchestrator.ArtifactManager")
 @patch("medpipe.pipeline.orchestrator.get_console_logger")
 @patch("medpipe.pipeline.orchestrator.add_file_handler")
-class TestMedpipeOrchestrator:
+class TestInit:
+    """Unit tests for MedpipeOrchestrator.__init__."""
 
     def test_init_with_config_object(
         self, mock_add_handler, mock_get_logger, mock_artifact_mgr, mock_config
@@ -84,7 +94,157 @@ class TestMedpipeOrchestrator:
             ValueError,
             match="A configuration file or a MedpipeConfig must be specified",
         ):
-            MedpipeOrchestrator(config=12345)
+            MedpipeOrchestrator(config=12345)  # type: ignore
+
+
+@patch("medpipe.pipeline.orchestrator.ArtifactManager")
+@patch("medpipe.pipeline.orchestrator.get_console_logger")
+@patch("medpipe.pipeline.orchestrator.add_file_handler")
+class TestSaveReproducibilityArtifacts:
+    """Unit tests for MedpipeOrchestrator._save_reproducibility_artifacts."""
+
+    @patch.object(MedpipeOrchestrator, "resolve_model_configurations")
+    def test_save_artifacts_missing_data_attribute(
+        self, mock_resolve, mock_add_handler, mock_get_logger, mock_artifact_mgr
+    ):
+        """Test artifact saving handles a config entirely missing the data block."""
+        mock_config_no_data = MagicMock(spec=MedpipeConfig)
+        # Explicitly remove the data attribute to trigger the artifact manager fallback
+        del mock_config_no_data.data
+        mock_config_no_data.model_dump.return_value = {"workflow": {}}
+
+        mock_artifact_mgr_instance = mock_artifact_mgr.return_value
+
+        # Initialize orchestrator (mock_resolve prevents it from crashing on missing data)
+        orchestrator = MedpipeOrchestrator(config=mock_config_no_data)
+
+        # Verify save_env_state was called with dataset_path=None
+        mock_artifact_mgr_instance.save_env_state.assert_called_once_with(
+            destination_dir=orchestrator.run_dir,
+            config={"workflow": {}},
+            dataset_path=None,
+        )
+
+
+@patch("medpipe.pipeline.orchestrator.ArtifactManager")
+@patch("medpipe.pipeline.orchestrator.get_console_logger")
+@patch("medpipe.pipeline.orchestrator.add_file_handler")
+class TestResolveModelConfigurations:
+    """Unit tests for MedpipeOrchestrator.resolve_model_configurations."""
+
+    def test_resolve_model_configurations_success(
+        self, mock_add_handler, mock_get_logger, mock_artifact_mgr, mock_config
+    ):
+        """Test that default models and outcome overrides are correctly merged."""
+        mock_config.data.outcomes = ["MORTALITY_30D", "ANY_COMP"]
+
+        mock_config.model_dump.return_value = {
+            "default_model": {
+                "algorithm": "HistGradientBoostingClassifier",
+                "hyperparameters": {"learning_rate": 0.1, "loss": "log_loss"},
+            },
+            "outcome_overrides": {
+                "ANY_COMP": {
+                    "algorithm": "RandomForestClassifier",
+                    "hyperparameters": {"n_estimators": 200, "max_depth": 10},
+                }
+            },
+        }
+
+        orchestrator = MedpipeOrchestrator(config=mock_config)
+        resolved = orchestrator.resolve_model_configurations()
+
+        assert "MORTALITY_30D" in resolved
+        assert "ANY_COMP" in resolved
+
+        # MORTALITY_30D should use pure defaults
+        assert (
+            resolved["MORTALITY_30D"]["algorithm"] == "HistGradientBoostingClassifier"
+        )
+        assert resolved["MORTALITY_30D"]["hyperparameters"]["learning_rate"] == 0.1
+
+        # ANY_COMP should use overridden algorithm and hyperparameters
+        assert resolved["ANY_COMP"]["algorithm"] == "RandomForestClassifier"
+        assert resolved["ANY_COMP"]["hyperparameters"]["n_estimators"] == 200
+
+    def test_resolve_model_configurations_no_overrides(
+        self, mock_add_handler, mock_get_logger, mock_artifact_mgr, mock_config
+    ):
+        """Test configuration resolution when no overrides are provided."""
+        mock_config.data.outcomes = ["MORTALITY_30D"]
+        mock_config.model_dump.return_value = {
+            "default_model": {"algorithm": "HistGradientBoostingClassifier"}
+        }
+
+        orchestrator = MedpipeOrchestrator(config=mock_config)
+        resolved = orchestrator.resolve_model_configurations()
+
+        assert (
+            resolved["MORTALITY_30D"]["algorithm"] == "HistGradientBoostingClassifier"
+        )
+
+    def test_resolve_model_configurations_missing_default_model(
+        self, mock_add_handler, mock_get_logger, mock_artifact_mgr, mock_config
+    ):
+        """Test configuration resolution when default_model is completely absent."""
+        mock_config.data.outcomes = ["ANY_COMP"]
+
+        mock_config.model_dump.return_value = {
+            "outcome_overrides": {
+                "ANY_COMP": {
+                    "algorithm": "RandomForestClassifier",
+                    "hyperparameters": {"n_estimators": 100},
+                }
+            }
+        }
+
+        orchestrator = MedpipeOrchestrator(config=mock_config)
+        resolved = orchestrator.resolve_model_configurations()
+
+        assert "ANY_COMP" in resolved
+        assert resolved["ANY_COMP"]["algorithm"] == "RandomForestClassifier"
+        assert "default_model" not in resolved["ANY_COMP"]
+
+    def test_resolve_model_configurations_completely_empty(
+        self, mock_add_handler, mock_get_logger, mock_artifact_mgr, mock_config
+    ):
+        """Test configuration resolution when neither defaults nor overrides exist."""
+        mock_config.data.outcomes = ["MORTALITY_30D"]
+
+        mock_config.model_dump.return_value = {}
+
+        orchestrator = MedpipeOrchestrator(config=mock_config)
+        resolved = orchestrator.resolve_model_configurations()
+
+        assert "MORTALITY_30D" in resolved
+        assert resolved["MORTALITY_30D"] == {}
+
+    def test_resolve_model_configurations_extra_override_ignored(
+        self, mock_add_handler, mock_get_logger, mock_artifact_mgr, mock_config
+    ):
+        """Test that overrides for outcomes not listed in data.outcomes are ignored."""
+        mock_config.data.outcomes = ["MORTALITY_30D"]
+
+        mock_config.model_dump.return_value = {
+            "default_model": {"algorithm": "LogisticRegression"},
+            "outcome_overrides": {
+                "MORTALITY_30D": {"algorithm": "RandomForestClassifier"},
+                "GHOST_OUTCOME": {"algorithm": "SVC"},
+            },
+        }
+
+        orchestrator = MedpipeOrchestrator(config=mock_config)
+        resolved = orchestrator.resolve_model_configurations()
+
+        assert "MORTALITY_30D" in resolved
+        assert "GHOST_OUTCOME" not in resolved
+
+
+@patch("medpipe.pipeline.orchestrator.ArtifactManager")
+@patch("medpipe.pipeline.orchestrator.get_console_logger")
+@patch("medpipe.pipeline.orchestrator.add_file_handler")
+class TestIngestData:
+    """Unit tests for MedpipeOrchestrator.ingest_data."""
 
     @patch("medpipe.pipeline.orchestrator.load_data")
     def test_ingest_data_success(
@@ -116,14 +276,138 @@ class TestMedpipeOrchestrator:
         mock_config,
     ):
         """Test data ingestion raises TypeError if data is not a DataFrame."""
-        mock_load_data.return_value = {
-            "AGE": [25, 30]
-        }  # Returns dict instead of DataFrame
+        mock_load_data.return_value = {"AGE": [25, 30]}
 
         orchestrator = MedpipeOrchestrator(config=mock_config)
 
         with pytest.raises(TypeError, match="Input data should be a pd.DataFrame"):
             orchestrator.ingest_data()
+
+
+@patch("medpipe.pipeline.orchestrator.ArtifactManager")
+@patch("medpipe.pipeline.orchestrator.get_console_logger")
+@patch("medpipe.pipeline.orchestrator.add_file_handler")
+class TestPrepareData:
+    """Unit tests for MedpipeOrchestrator.prepare_data."""
+
+    @patch("medpipe.pipeline.orchestrator.split_data")
+    @patch("medpipe.pipeline.orchestrator.extract_labels")
+    def test_prepare_data_with_recalibration(
+        self,
+        mock_extract,
+        mock_split,
+        mock_add_handler,
+        mock_get_logger,
+        mock_artifact_mgr,
+        mock_config,
+    ):
+        """Test data preparation when both test and recalibration splits are configured."""
+        mock_config.data.outcomes = ["MORTALITY_30D"]
+        val_config = MagicMock()
+        val_config.test_split.strategy = "group"
+        val_config.recalibration_split.strategy = "group"
+        mock_config.workflow.validation = val_config
+
+        orchestrator = MedpipeOrchestrator(config=mock_config)
+
+        orchestrator.ingest_data = MagicMock(
+            return_value=pd.DataFrame({"A": [1, 2, 3, 4]})
+        )
+
+        mock_extract.return_value = (
+            pd.DataFrame({"A": [1, 2, 3, 4]}),
+            np.array([[0], [1], [0], [1]]),
+        )
+
+        mock_split.side_effect = [
+            (
+                pd.DataFrame(index=pd.Index([0, 1, 2])),
+                np.array([[0], [1], [0]]),
+                pd.DataFrame(index=pd.Index([3])),
+                np.array([[1]]),
+            ),
+            (
+                pd.DataFrame(index=pd.Index([0, 1])),
+                np.array([[0], [1]]),
+                pd.DataFrame(index=pd.Index([2])),
+                np.array([[0]]),
+            ),
+        ]
+
+        X_train, y_train, X_recal, y_recal, X_test, y_test = orchestrator.prepare_data()
+
+        assert mock_split.call_count == 2
+        assert isinstance(X_train, pd.DataFrame)
+        assert isinstance(y_train, pd.DataFrame)
+        assert isinstance(X_recal, pd.DataFrame)
+        assert isinstance(y_recal, pd.DataFrame)
+        assert isinstance(X_test, pd.DataFrame)
+        assert isinstance(y_test, pd.DataFrame)
+
+        assert list(y_train.columns) == ["MORTALITY_30D"]
+        assert list(y_recal.columns) == ["MORTALITY_30D"]
+        assert list(y_test.columns) == ["MORTALITY_30D"]
+
+    @patch("medpipe.pipeline.orchestrator.split_data")
+    @patch("medpipe.pipeline.orchestrator.extract_labels")
+    def test_prepare_data_without_recalibration(
+        self,
+        mock_extract,
+        mock_split,
+        mock_add_handler,
+        mock_get_logger,
+        mock_artifact_mgr,
+        mock_config,
+    ):
+        """Test data preparation handles missing recalibration configuration gracefully."""
+        mock_config.data.outcomes = ["MORTALITY_30D"]
+        val_config = MagicMock()
+        val_config.test_split.strategy = "group"
+        val_config.recalibration_split = None
+        mock_config.workflow.validation = val_config
+
+        orchestrator = MedpipeOrchestrator(config=mock_config)
+        orchestrator.ingest_data = MagicMock(return_value=pd.DataFrame())
+
+        mock_extract.return_value = (pd.DataFrame(), np.array([]))
+
+        mock_split.return_value = (
+            pd.DataFrame(index=pd.Index([0, 1])),
+            np.array([[0], [1]]),
+            pd.DataFrame(index=pd.Index([2])),
+            np.array([[0]]),
+        )
+
+        X_train, y_train, X_recal, y_recal, X_test, y_test = orchestrator.prepare_data()
+
+        assert mock_split.call_count == 1
+        assert X_recal is None
+        assert y_recal is None
+        assert isinstance(X_train, pd.DataFrame)
+        assert isinstance(X_test, pd.DataFrame)
+
+    def test_prepare_data_missing_validation_raises_error(
+        self, mock_add_handler, mock_get_logger, mock_artifact_mgr, mock_config
+    ):
+        """Test that missing validation configuration raises a ValueError."""
+        mock_config.workflow.validation = None
+        mock_config.data.outcomes = ["MORTALITY_30D"]
+        orchestrator = MedpipeOrchestrator(config=mock_config)
+        orchestrator.ingest_data = MagicMock(
+            return_value=pd.DataFrame({"MORTALITY_30D": [0]})
+        )
+
+        with pytest.raises(
+            ValueError, match="Validation configuration is missing from workflow"
+        ):
+            orchestrator.prepare_data()
+
+
+@patch("medpipe.pipeline.orchestrator.ArtifactManager")
+@patch("medpipe.pipeline.orchestrator.get_console_logger")
+@patch("medpipe.pipeline.orchestrator.add_file_handler")
+class TestBuildPreprocessor:
+    """Unit tests for MedpipeOrchestrator.build_preprocessor."""
 
     def test_build_preprocessor_success(
         self, mock_add_handler, mock_get_logger, mock_artifact_mgr, mock_config
@@ -163,33 +447,10 @@ class TestMedpipeOrchestrator:
         assert isinstance(pipeline, Pipeline)
         assert len(pipeline.steps) == 0
 
-    @patch.object(MedpipeOrchestrator, "resolve_model_configurations")
-    def test_save_artifacts_missing_data_attribute(
-        self, mock_resolve, mock_add_handler, mock_get_logger, mock_artifact_mgr
-    ):
-        """Test artifact saving handles a config entirely missing the data block."""
-        mock_config_no_data = MagicMock(spec=MedpipeConfig)
-        # Explicitly remove the data attribute to trigger the artifact manager fallback
-        del mock_config_no_data.data
-        mock_config_no_data.model_dump.return_value = {"workflow": {}}
-
-        mock_artifact_mgr_instance = mock_artifact_mgr.return_value
-
-        # Initialize orchestrator (mock_resolve prevents it from crashing on missing data)
-        orchestrator = MedpipeOrchestrator(config=mock_config_no_data)
-
-        # Verify save_env_state was called with dataset_path=None
-        mock_artifact_mgr_instance.save_env_state.assert_called_once_with(
-            destination_dir=orchestrator.run_dir,
-            config={"workflow": {}},
-            dataset_path=None,
-        )
-
     def test_build_preprocessor_dict_is_none(
         self, mock_add_handler, mock_get_logger, mock_artifact_mgr, mock_config
     ):
-        """Test pipeline building returns None if the preprocessing config
-        block is missing."""
+        """Test pipeline building returns None if the preprocessing config block is missing."""
         mock_config.workflow.preprocessing = None
 
         orchestrator = MedpipeOrchestrator(config=mock_config)
@@ -200,9 +461,7 @@ class TestMedpipeOrchestrator:
     def test_build_preprocessor_invalid_operation_raises_error(
         self, mock_add_handler, mock_get_logger, mock_artifact_mgr, mock_config
     ):
-        """Test that an invalid operation name in the config bubbles up
-        the Registry's ValueError."""
-        # Inject a bad operation name into the mock configuration
+        """Test that an invalid operation name in the config bubbles up a ValueError."""
         mock_config.workflow.preprocessing.operations[0].name = "FakeMagicalTransformer"
 
         orchestrator = MedpipeOrchestrator(config=mock_config)
@@ -213,251 +472,125 @@ class TestMedpipeOrchestrator:
         ):
             orchestrator.build_preprocessor()
 
-    def test_resolve_model_configurations_success(
-        self, mock_add_handler, mock_get_logger, mock_artifact_mgr, mock_config
-    ):
-        """
-        Test that default models and outcome overrides are correctly merged.
-        """
-        # Set up outcomes
-        mock_config.data.outcomes = ["MORTALITY_30D", "ANY_COMP"]
 
-        # Mock the configuration dictionary structure based on medpipe.toml
-        mock_config.model_dump.return_value = {
-            "default_model": {
-                "algorithm": "HistGradientBoostingClassifier",
-                "hyperparameters": {"learning_rate": 0.1, "loss": "log_loss"},
+class TestExtractStratumSubgroup:
+    """Unit test suite for MedpipeOrchestrator.extract_stratum_subgroup."""
+
+    @pytest.fixture
+    def mock_orchestrator(self) -> MedpipeOrchestrator:
+        """Create a lightweight MedpipeOrchestrator instance with mocked dependencies."""
+        orchestrator = object.__new__(MedpipeOrchestrator)
+        orchestrator.logger = MagicMock()
+        return orchestrator
+
+    @pytest.fixture
+    def sample_data(self) -> tuple[pd.DataFrame, pd.DataFrame]:
+        """Provide aligned feature (X) and label (y) DataFrames."""
+        indices = pd.Index([101, 102, 103, 104, 105])
+        X = pd.DataFrame(
+            {
+                "AGE": [20, 45, 70, 35, 80],
+                "SEX": ["F", "M", "F", "M", "F"],
+                "FEAT1": [1.1, 2.2, 3.3, 4.4, 5.5],
             },
-            "outcome_overrides": {
-                "ANY_COMP": {
-                    "algorithm": "RandomForestClassifier",
-                    "hyperparameters": {"n_estimators": 200, "max_depth": 10},
-                }
+            index=indices,
+        )
+        y = pd.DataFrame(
+            {
+                "readmission": [0, 1, 0, 1, 1],
+                "mortality": [0, 0, 1, 0, 1],
             },
-        }
-
-        orchestrator = MedpipeOrchestrator(config=mock_config)
-        resolved = orchestrator.resolve_model_configurations()
-
-        assert "MORTALITY_30D" in resolved
-        assert "ANY_COMP" in resolved
-
-        # MORTALITY_30D should use pure defaults
-        assert (
-            resolved["MORTALITY_30D"]["algorithm"] == "HistGradientBoostingClassifier"
+            index=indices,
         )
-        assert resolved["MORTALITY_30D"]["hyperparameters"]["learning_rate"] == 0.1
+        return X, y
 
-        # ANY_COMP should use overridden algorithm and hyperparameters
-        assert resolved["ANY_COMP"]["algorithm"] == "RandomForestClassifier"
-        assert resolved["ANY_COMP"]["hyperparameters"]["n_estimators"] == 200
-
-    def test_resolve_model_configurations_no_overrides(
-        self, mock_add_handler, mock_get_logger, mock_artifact_mgr, mock_config
-    ):
-        """
-        Test configuration resolution when no overrides are provided.
-        """
-        mock_config.data.outcomes = ["MORTALITY_30D"]
-        mock_config.model_dump.return_value = {
-            "default_model": {"algorithm": "HistGradientBoostingClassifier"}
-        }
-
-        orchestrator = MedpipeOrchestrator(config=mock_config)
-        resolved = orchestrator.resolve_model_configurations()
-
-        assert (
-            resolved["MORTALITY_30D"]["algorithm"] == "HistGradientBoostingClassifier"
-        )
-
-    @patch("medpipe.pipeline.orchestrator.split_data")
-    @patch("medpipe.pipeline.orchestrator.extract_labels")
-    def test_prepare_data_with_recalibration(
+    def test_extract_subgroup_with_x_and_y_success(
         self,
-        mock_extract,
-        mock_split,
-        mock_add_handler,
-        mock_get_logger,
-        mock_artifact_mgr,
-        mock_config,
-    ):
-        """
-        Test data preparation when both test and recalibration splits are configured.
-        """
-        # Setup mock configuration
-        mock_config.data.outcomes = ["MORTALITY_30D"]
-        val_config = MagicMock()
-        val_config.test_split.strategy = "group"
-        val_config.recalibration_split.strategy = "group"
-        mock_config.workflow.validation = val_config
+        mock_orchestrator: MedpipeOrchestrator,
+        sample_data: tuple[pd.DataFrame, pd.DataFrame],
+    ) -> None:
+        """Verify slicing both features (X) and target labels (y) preserves alignment and copy independence."""
+        X, y = sample_data
 
-        orchestrator = MedpipeOrchestrator(config=mock_config)
-
-        # Mocking ingest_data manually on the instance to avoid patching load_data again
-        orchestrator.ingest_data = MagicMock(
-            return_value=pd.DataFrame({"A": [1, 2, 3, 4]})
+        X_sub, y_sub = mock_orchestrator.extract_stratum_subgroup(
+            X=X, column="SEX", group="M", y=y
         )
 
-        # Mock extract_labels return
-        mock_extract.return_value = (
-            pd.DataFrame({"A": [1, 2, 3, 4]}),
-            np.array([[0], [1], [0], [1]]),
-        )
+        assert isinstance(X_sub, pd.DataFrame)
+        assert isinstance(y_sub, pd.DataFrame)
+        assert len(X_sub) == 2
+        assert len(y_sub) == 2
 
-        # Mock split_data returns. It is called twice:
-        # 1st call (Test Split): returns (X_temp, y_temp_arr, X_test, y_test_arr)
-        # 2nd call (Recal Split): returns (X_train, y_train_arr, X_recal, y_recal_arr)
-        mock_split.side_effect = [
-            (
-                pd.DataFrame(index=[0, 1, 2]),
-                np.array([[0], [1], [0]]),
-                pd.DataFrame(index=[3]),
-                np.array([[1]]),
-            ),
-            (
-                pd.DataFrame(index=[0, 1]),
-                np.array([[0], [1]]),
-                pd.DataFrame(index=[2]),
-                np.array([[0]]),
-            ),
-        ]
+        assert list(X_sub.index) == [102, 104]
+        assert list(y_sub.index) == [102, 104]
 
-        X_train, y_train, X_recal, y_recal, X_test, y_test = orchestrator.prepare_data()
+        # Ensure returned objects are deep copies
+        X_sub.loc[102, "FEAT1"] = 999.0
+        assert X.loc[102, "FEAT1"] == 2.2
 
-        # Assertions
-        assert mock_split.call_count == 2
-        assert isinstance(X_train, pd.DataFrame)
-        assert isinstance(y_train, pd.DataFrame)
-        assert isinstance(X_recal, pd.DataFrame)
-        assert isinstance(y_recal, pd.DataFrame)
-        assert isinstance(X_test, pd.DataFrame)
-        assert isinstance(y_test, pd.DataFrame)
-
-        # Ensure labels are rebuilt with correct outcome columns
-        assert list(y_train.columns) == ["MORTALITY_30D"]
-        assert list(y_recal.columns) == ["MORTALITY_30D"]
-        assert list(y_test.columns) == ["MORTALITY_30D"]
-
-    @patch("medpipe.pipeline.orchestrator.split_data")
-    @patch("medpipe.pipeline.orchestrator.extract_labels")
-    def test_prepare_data_without_recalibration(
+    def test_extract_subgroup_without_y_returns_none(
         self,
-        mock_extract,
-        mock_split,
-        mock_add_handler,
-        mock_get_logger,
-        mock_artifact_mgr,
-        mock_config,
-    ):
-        """
-        Test data preparation handles missing recalibration configuration gracefully.
-        """
-        # Setup mock configuration without recalibration split
-        mock_config.data.outcomes = ["MORTALITY_30D"]
-        val_config = MagicMock()
-        val_config.test_split.strategy = "group"
-        val_config.recalibration_split = None  # No recalibration
-        mock_config.workflow.validation = val_config
+        mock_orchestrator: MedpipeOrchestrator,
+        sample_data: tuple[pd.DataFrame, pd.DataFrame],
+    ) -> None:
+        """Verify call with y=None returns (X_subgroup, None)."""
+        X, _ = sample_data
 
-        orchestrator = MedpipeOrchestrator(config=mock_config)
-        orchestrator.ingest_data = MagicMock(return_value=pd.DataFrame())
-
-        mock_extract.return_value = (pd.DataFrame(), np.array([]))
-
-        # split_data will only be called once
-        mock_split.return_value = (
-            pd.DataFrame(index=[0, 1]),
-            np.array([[0], [1]]),
-            pd.DataFrame(index=[2]),
-            np.array([[0]]),
+        X_sub, y_sub = mock_orchestrator.extract_stratum_subgroup(
+            X=X, column="AGE", group=(18, 50), y=None
         )
 
-        X_train, y_train, X_recal, y_recal, X_test, y_test = orchestrator.prepare_data()
+        assert len(X_sub) == 3
+        assert y_sub is None
 
-        assert mock_split.call_count == 1
-        assert X_recal is None
-        assert y_recal is None
-        assert isinstance(X_train, pd.DataFrame)
-        assert isinstance(X_test, pd.DataFrame)
+    def test_extract_subgroup_range_tuple(
+        self,
+        mock_orchestrator: MedpipeOrchestrator,
+        sample_data: tuple[pd.DataFrame, pd.DataFrame],
+    ) -> None:
+        """Verify continuous numerical group resolution using tuple bounds."""
+        X, y = sample_data
 
-    def test_prepare_data_missing_validation_raises_error(
-        self, mock_add_handler, mock_get_logger, mock_artifact_mgr, mock_config
-    ):
-        """
-        Test that missing validation configuration raises a ValueError.
-        """
-        mock_config.workflow.validation = None
-        mock_config.data.outcomes = ["MORTALITY_30D"]
-        orchestrator = MedpipeOrchestrator(config=mock_config)
-        orchestrator.ingest_data = MagicMock(
-            return_value=pd.DataFrame({"MORTALITY_30D": [0]})
+        X_sub, y_sub = mock_orchestrator.extract_stratum_subgroup(
+            X=X, column="AGE", group=(60, 90), y=y
         )
 
-        with pytest.raises(
-            ValueError, match="Validation configuration is missing from workflow"
-        ):
-            orchestrator.prepare_data()
+        assert y_sub is not None
+        assert len(X_sub) == 2
+        assert list(X_sub.index) == [103, 105]
+        assert list(y_sub.index) == [103, 105]
 
-    def test_resolve_model_configurations_missing_default_model(
-        self, mock_add_handler, mock_get_logger, mock_artifact_mgr, mock_config
-    ):
-        """
-        Test configuration resolution when default_model is completely absent.
-        """
-        mock_config.data.outcomes = ["ANY_COMP"]
+    def test_zero_matches_logs_warning_and_returns_empty_dataframes(
+        self,
+        mock_orchestrator: MedpipeOrchestrator,
+        sample_data: tuple[pd.DataFrame, pd.DataFrame],
+    ) -> None:
+        """Verify zero matched rows triggers logger warning and returns empty DataFrames."""
+        X, y = sample_data
 
-        # Missing 'default_model' entirely
-        mock_config.model_dump.return_value = {
-            "outcome_overrides": {
-                "ANY_COMP": {
-                    "algorithm": "RandomForestClassifier",
-                    "hyperparameters": {"n_estimators": 100},
-                }
-            }
-        }
+        X_sub, y_sub = mock_orchestrator.extract_stratum_subgroup(
+            X=X, column="SEX", group="UNKNOWN", y=y
+        )
 
-        orchestrator = MedpipeOrchestrator(config=mock_config)
-        resolved = orchestrator.resolve_model_configurations()
+        assert y_sub is not None
+        assert len(X_sub) == 0
+        assert len(y_sub) == 0
+        assert list(X_sub.columns) == list(X.columns)
+        assert list(y_sub.columns) == list(y.columns)
 
-        assert "ANY_COMP" in resolved
-        assert resolved["ANY_COMP"]["algorithm"] == "RandomForestClassifier"
-        assert "default_model" not in resolved["ANY_COMP"]
+        mock_orchestrator.logger.warning.assert_called_once()
+        log_msg = mock_orchestrator.logger.warning.call_args[0][0]
+        assert "returned 0 samples" in log_msg
 
-    def test_resolve_model_configurations_completely_empty(
-        self, mock_add_handler, mock_get_logger, mock_artifact_mgr, mock_config
-    ):
-        """
-        Test configuration resolution when neither defaults nor overrides exist.
-        """
-        mock_config.data.outcomes = ["MORTALITY_30D"]
+    def test_missing_column_raises_key_error(
+        self,
+        mock_orchestrator: MedpipeOrchestrator,
+        sample_data: tuple[pd.DataFrame, pd.DataFrame],
+    ) -> None:
+        """Verify KeyError is raised when the stratification column is missing from X."""
+        X, y = sample_data
 
-        # Completely empty model configuration
-        mock_config.model_dump.return_value = {}
-
-        orchestrator = MedpipeOrchestrator(config=mock_config)
-        resolved = orchestrator.resolve_model_configurations()
-
-        assert "MORTALITY_30D" in resolved
-        assert resolved["MORTALITY_30D"] == {}  # Should resolve to an empty dictionary
-
-    def test_resolve_model_configurations_extra_override_ignored(
-        self, mock_add_handler, mock_get_logger, mock_artifact_mgr, mock_config
-    ):
-        """
-        Test that overrides for outcomes not listed in data.outcomes are ignored.
-        """
-        mock_config.data.outcomes = ["MORTALITY_30D"]
-
-        mock_config.model_dump.return_value = {
-            "default_model": {"algorithm": "LogisticRegression"},
-            "outcome_overrides": {
-                "MORTALITY_30D": {"algorithm": "RandomForestClassifier"},
-                "GHOST_OUTCOME": {"algorithm": "SVC"},  # Not in data.outcomes
-            },
-        }
-
-        orchestrator = MedpipeOrchestrator(config=mock_config)
-        resolved = orchestrator.resolve_model_configurations()
-
-        assert "MORTALITY_30D" in resolved
-        assert "GHOST_OUTCOME" not in resolved
+        with pytest.raises(KeyError, match="Stratum column 'INVALID_COL' not found"):
+            mock_orchestrator.extract_stratum_subgroup(
+                X=X, column="INVALID_COL", group="M", y=y
+            )
