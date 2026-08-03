@@ -6,7 +6,7 @@ from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
 
 from medpipe.data.registry import PreprocessorRegistry
-from medpipe.data.utils import extract_labels, split_data
+from medpipe.data.utils import extract_labels, resolve_subgroup_mask, split_data
 from medpipe.utils.config import MedpipeConfig
 from medpipe.utils.io import load_data, read_toml_configuration
 from medpipe.utils.logger import add_file_handler, get_console_logger
@@ -203,7 +203,6 @@ class MedpipeOrchestrator:
                 strategy=recal_cfg.strategy,
                 group_column=getattr(recal_cfg, "group_column", None),
                 values=getattr(recal_cfg, "values", None),
-                # Using recalibration_size for random splits internally mapped to test_size in utility
                 recalibration_size=getattr(recal_cfg, "recalibration_size", None),
             )
             y_train_df = pd.DataFrame(
@@ -251,6 +250,54 @@ class MedpipeOrchestrator:
             )
 
         return data
+
+    def extract_stratum_subgroup(
+        self,
+        X: pd.DataFrame,
+        column: str,
+        group: Any,
+        y: pd.DataFrame | None = None,
+    ) -> Tuple[pd.DataFrame, pd.DataFrame | None]:
+        """
+        Extract a stratified subgroup from features (and optional target labels).
+
+        Resolves continuous range bounds or discrete categorical identifiers.
+
+        Parameters
+        ----------
+        X : pd.DataFrame
+            Feature matrix containing the stratification column.
+        column : str
+            Name of the column defining the stratum (e.g., 'AGE', 'SEX').
+        group : Any
+            The specific subgroup identifier or range (e.g., 'M', (18, 65), '[18, 65)').
+        y : pd.DataFrame, optional
+            Corresponding ground truth label DataFrame aligned with X. Default is None.
+
+        Returns
+        -------
+        X_subgroup : pd.DataFrame
+            Filtered feature DataFrame for the specified stratum group.
+        y_subgroup : pd.DataFrame or None
+            Filtered label DataFrame matching X_subgroup index, or None if y was not provided.
+
+        """
+        self.logger.info(
+            f"Extracting subgroup for stratum '{column}' matching group: {group}"
+        )
+
+        mask = resolve_subgroup_mask(X, column=column, group=group)
+        n_matched = mask.sum()
+
+        if n_matched == 0:
+            self.logger.warning(
+                f"Subgroup extraction returned 0 samples for column '{column}' and group '{group}'."
+            )
+
+        X_subgroup = X.loc[mask].copy()
+        y_subgroup = y.loc[mask].copy() if y is not None else None
+
+        return X_subgroup, y_subgroup
 
     def build_preprocessor(self) -> Optional[Pipeline]:
         """
