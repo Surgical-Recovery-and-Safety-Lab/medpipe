@@ -7,12 +7,12 @@ Functions:
 - get_split_idx: Returns the indices for the data splits.
 - split_data: Split data into train and test or train and recalibration sets.
 - extract_labels: Extracts prediction labels from data.
-- convert_dtypes: Converts data types to category in a pd.DataFrame.
 """
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Literal, cast
+import re
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 import numpy as np
 import pandas as pd
@@ -227,43 +227,68 @@ def extract_labels(
     return X, y
 
 
-def convert_dtypes(X: pd.DataFrame) -> pd.DataFrame:
+def resolve_subgroup_mask(
+    df: pd.DataFrame,
+    column: str,
+    group: Any,
+) -> pd.Series:
     """
-    Convert data types to avoid errors when calling other
-    functions.
-
-    Object categories are converted to categoricals. Data is
-    checked to see if it can be converted to numeric before
-    converting to categorical.
-    Timedeltas are converted to days.
+    Generate a boolean mask for a dataset matching a stratum group definition.
 
     Parameters
     ----------
-    X : pd.DataFrame
-        Data to convert.
+    df : pd.DataFrame
+        Dataset containing the stratum column.
+    column : str
+        Name of the column to stratify on.
+    group : Any
+        Group definition. Can be a discrete scalar ('M'), a range tuple (18, 65),
+        a pd.Interval, or an interval string like '[18, 65)'.
 
     Returns
     -------
-    X_converted  : pd.DataFrame
-        Data with converted dtypes.
+    pd.Series
+        Boolean mask of shape (n_samples,) matching the group criteria.
 
     Raises
     ------
-    TypeError
-        If X is not a pd.DataFrame.
+    KeyError
+        If `column` is not present in `df`.
+    ValueError
+        If `group` interval format cannot be parsed.
 
     """
-    if not isinstance(X, pd.DataFrame):
-        raise TypeError(f"Input X should be a pd.DataFrame, but got {type(X)}")
-    obj_cols = X.select_dtypes(include=["object"]).columns
-    timedelta_cols = X.select_dtypes(include=["timedelta64"]).columns
-    for col in obj_cols:
-        try:
-            X[col] = pd.to_numeric(X[col])
-        except ValueError:
-            X[col] = X[col].astype("category")
+    if column not in df.columns:
+        raise KeyError(f"Stratum column '{column}' not found in DataFrame.")
 
-    for col in timedelta_cols:
-        X[col] = X[col].dt.days  # Convert timedelta to days
+    col_data = df[column]
 
-    return X
+    # Column is already a Pandas Categorical with pd.Interval values
+    if isinstance(group, pd.Interval):
+        return col_data == group
+
+    # Group passed as a tuple/list of bounds: (min, max)
+    elif isinstance(group, (tuple, list)) and len(group) == 2:
+        lower, upper = group[0], group[1]
+        return (col_data >= lower) & (col_data < upper)
+
+    # Group passed as an interval string e.g. "[18, 65)" or "(18, 65]"
+    elif (
+        isinstance(group, str)
+        and ("[" in group or "(" in group)
+        and ("]" in group or ")" in group)
+    ):
+        pattern = r"^([\[\(])\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*([\]\)])$"
+        match = re.match(pattern, group.strip())
+        if match:
+            left_open = match.group(1) == "("
+            lower = float(match.group(2))
+            upper = float(match.group(3))
+            right_open = match.group(4) == ")"
+
+            lower_mask = (col_data > lower) if left_open else (col_data >= lower)
+            upper_mask = (col_data < upper) if right_open else (col_data <= upper)
+            return lower_mask & upper_mask
+
+    # Standard discrete scalar equality (e.g. string, int, float)
+    return col_data == group
