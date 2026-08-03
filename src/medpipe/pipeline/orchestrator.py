@@ -49,6 +49,8 @@ class MedpipeOrchestrator:
         Loads and validates the raw dataset specified in the configuration.
     prepare_data()
         Extracts labels and applies sequential splits for test and recalibration sets.
+    extract_stratum_subgroup(X, column, group, y=None)
+        Extract a stratified subgroup from features (and optional target labels).
     resolve_model_configurations()
         Merges default models with outcome overrides for final configurations.
     build_preprocessor()
