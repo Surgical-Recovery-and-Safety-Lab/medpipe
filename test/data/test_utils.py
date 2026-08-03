@@ -14,7 +14,12 @@ import pytest
 from pandas.testing import assert_frame_equal
 
 from medpipe._types import Labels
-from medpipe.data.utils import convert_dtypes, extract_labels, get_split_idx, split_data
+from medpipe.data.utils import (
+    extract_labels,
+    get_split_idx,
+    resolve_subgroup_mask,
+    split_data,
+)
 
 
 class TestExtractLabels:
@@ -22,7 +27,7 @@ class TestExtractLabels:
 
     @pytest.fixture
     def mock_data(self) -> pd.DataFrame:
-        """Generate mock data for tests."""
+        """Generate mock data for tests including age, sex, bmi, any_comp, and op_year."""
         return pd.DataFrame(
             {
                 "age": [25, 30, 35, 19, 80, 47, 20, 42, 69],
@@ -298,38 +303,173 @@ class TestSplitData:
             split_data(pd.DataFrame({}), np.array([]), "invalid")  # type: ignore
 
 
-class TestConvertDtypes:
-    """Test class for the convert_dtypes function."""
+class TestResolveSubgroupMask:
+    """Unit test suite for medpipe.data.utils.resolve_subgroup_mask."""
+
+    @pytest.fixture
+    def mock_data(self) -> pd.DataFrame:
+        """Generate mock data for tests including age, sex, bmi, any_comp, and op_year."""
+        return pd.DataFrame(
+            {
+                "age": [25, 30, 35, 19, 80, 47, 20, 42, 69],
+                "sex": ["M", "F", "M", "M", "M", "F", "M", "M", "F"],
+                "bmi": [18.5, 22.0, 24.9, 30.0, 35.5, 20.0, 28.4, 31.2, np.nan],
+                "any_comp": [True, True, False, False, False, True, True, False, False],
+                "op_year": [2024, 2024, 2024, 2023, 2023, 2022, 2022, 2022, 2023],
+            }
+        )
+
+    # -------------------------------------------------------------------------
+    # Discrete / Scalar Matching
+    # -------------------------------------------------------------------------
+
+    def test_discrete_string_exact_match(self, mock_data: pd.DataFrame) -> None:
+        """Verify exact equality matching for categorical strings."""
+        mask = resolve_subgroup_mask(mock_data, column="sex", group="F")
+
+        assert isinstance(mask, pd.Series)
+        assert mask.tolist() == [
+            False,
+            True,
+            False,
+            False,
+            False,
+            True,
+            False,
+            False,
+            True,
+        ]
+        assert mask.index.equals(mock_data.index)
+
+    def test_discrete_numeric_exact_match(self, mock_data: pd.DataFrame) -> None:
+        """Verify exact equality matching for discrete numbers."""
+        mask = resolve_subgroup_mask(mock_data, column="age", group=30)
+
+        assert mask.tolist() == [
+            False,
+            True,
+            False,
+            False,
+            False,
+            False,
+            False,
+            False,
+            False,
+        ]
+
+    # -------------------------------------------------------------------------
+    # Range Tuples / Lists
+    # -------------------------------------------------------------------------
+
+    def test_tuple_range_bounds(self, mock_data: pd.DataFrame) -> None:
+        """Verify range tuple (min, max) applies inclusive lower and exclusive upper bounds."""
+        # Range [18, 30) -> includes 25, 19, 20; excludes 30, 35, 80, 47, 42, 69
+        mask = resolve_subgroup_mask(mock_data, column="age", group=(18, 30))
+
+        assert mask.tolist() == [
+            True,
+            False,
+            False,
+            True,
+            False,
+            False,
+            True,
+            False,
+            False,
+        ]
+
+    def test_list_range_bounds_float(self, mock_data: pd.DataFrame) -> None:
+        """Verify floating point range bounds passed as a list using BMI."""
+        # Range [20.0, 30.0) -> includes 22.0, 24.9, 20.0, 28.4; excludes 18.5, 30.0, 35.5, 31.2, NaN
+        mask = resolve_subgroup_mask(mock_data, column="bmi", group=[20.0, 30.0])
+
+        assert mask.tolist() == [
+            False,
+            True,
+            True,
+            False,
+            False,
+            True,
+            True,
+            False,
+            False,
+        ]
+
+    # -------------------------------------------------------------------------
+    # Interval Strings
+    # -------------------------------------------------------------------------
 
     @pytest.mark.parametrize(
-        "X, dtypes",
+        "interval_str, expected_bools",
         [
-            ({"col1": ["a", "b"]}, [pd.CategoricalDtype()]),
-            ({"col1": [1, 2]}, [pd.Int64Dtype()]),
             (
-                {"col1": [1, 2], "col2": ["1", "2"]},
-                [pd.Int64Dtype(), pd.Int64Dtype()],
-            ),
+                "[20, 45)",
+                [True, True, True, False, False, False, True, True, False],
+            ),  # 20 <= age < 45
             (
-                {"col1": pd.to_timedelta(["1 days", "2 days"]), "col2": ["1", "2"]},
-                [pd.Int64Dtype(), pd.Int64Dtype()],
-            ),
+                "(20, 45]",
+                [True, True, True, False, False, False, False, True, False],
+            ),  # 20 < age <= 45
+            (
+                "[20, 42]",
+                [True, True, True, False, False, False, True, True, False],
+            ),  # 20 <= age <= 42
+            (
+                "(20, 42)",
+                [True, True, True, False, False, False, False, False, False],
+            ),  # 20 < age < 42
         ],
     )
-    def test_convert_dtypes_success(
-        self,
-        X: dict[str, list[int | str]],
-        dtypes: list[pd.CategoricalDtype | pd.Int64Dtype],
+    def test_interval_string_parsing(
+        self, mock_data: pd.DataFrame, interval_str: str, expected_bools: list[bool]
     ) -> None:
-        """Test successful function call."""
-        df = convert_dtypes(pd.DataFrame(X))
+        """Verify boundary resolution for open, closed, and half-open interval strings."""
+        mask = resolve_subgroup_mask(mock_data, column="age", group=interval_str)
 
-        for i, key in enumerate(X.keys()):
-            assert df[key].dtype.type == dtypes[i].type
+        assert mask.tolist() == expected_bools
 
-    @pytest.mark.parametrize("X", [3.14, 42, "llama", [], (), {}])
-    def test_convert_dtypes_incorrect_type(self, X: Any) -> None:
-        """Test case when X is not a pd.DataFrame."""
-        match_expr = f"Input X should be a pd.DataFrame, but got {type(X)}"
-        with pytest.raises(TypeError, match=match_expr):
-            convert_dtypes(X)
+    # -------------------------------------------------------------------------
+    # Pandas Interval Objects
+    # -------------------------------------------------------------------------
+
+    def test_pd_interval_object(self, mock_data: pd.DataFrame) -> None:
+        """Verify direct matching against pd.Interval values."""
+        df = mock_data.copy()
+        df["interval_col"] = pd.interval_range(start=0, end=90, periods=9)
+        target_interval = df["interval_col"].iloc[0]
+
+        mask = resolve_subgroup_mask(df, column="interval_col", group=target_interval)
+
+        assert mask.iloc[0] == True
+        assert mask.sum() == 1
+
+    # -------------------------------------------------------------------------
+    # Edge Cases and Errors
+    # -------------------------------------------------------------------------
+
+    def test_missing_column_raises_key_error(self, mock_data: pd.DataFrame) -> None:
+        """Verify KeyError is raised when the specified column is not in DataFrame."""
+        with pytest.raises(KeyError, match="Stratum column 'NON_EXISTENT' not found"):
+            resolve_subgroup_mask(mock_data, column="NON_EXISTENT", group="M")
+
+    def test_nan_values_evaluate_to_false(self, mock_data: pd.DataFrame) -> None:
+        """Ensure missing values (NaN in BMI column) evaluate to False without error."""
+        mask = resolve_subgroup_mask(mock_data, column="bmi", group=(0, 100))
+
+        # Index 8 is np.nan in mock_data['bmi']
+        assert mask.iloc[8] == False
+
+    def test_no_matching_rows_returns_all_false(self, mock_data: pd.DataFrame) -> None:
+        """Verify valid call matching 0 rows returns a Series of all False values."""
+        mask = resolve_subgroup_mask(mock_data, column="age", group=(100, 120))
+
+        assert not mask.any()
+        assert len(mask) == len(mock_data)
+
+    def test_empty_dataframe(self) -> None:
+        """Verify handling of an empty DataFrame."""
+        empty_df = pd.DataFrame({"age": pd.Series(dtype=float)})
+        mask = resolve_subgroup_mask(empty_df, column="age", group=(18, 65))
+
+        assert len(mask) == 0
+        assert isinstance(mask, pd.Series)
