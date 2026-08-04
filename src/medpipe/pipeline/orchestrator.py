@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple, Union
+from typing import Any, Optional, Tuple, Union
 
 import pandas as pd
 from sklearn.compose import ColumnTransformer
@@ -40,8 +40,6 @@ class MedpipeOrchestrator:
     logger : logging.Logger
         The configured logger instance for the orchestrator, routing to both
         console and the artifact directory.
-    resolved_model_configs : Dict[str, Any]
-        A dictionary containing the fully resolved model configurations per outcome.
 
     Methods
     -------
@@ -51,8 +49,6 @@ class MedpipeOrchestrator:
         Extracts labels and applies sequential splits for test and recalibration sets.
     extract_stratum_subgroup(X, column, group, y=None)
         Extract a stratified subgroup from features (and optional target labels).
-    resolve_model_configurations()
-        Merges default models with outcome overrides for final configurations.
     build_preprocessor()
         Constructs an sklearn Pipeline for data transformation.
     _save_reproducibility_artifacts()
@@ -82,14 +78,11 @@ class MedpipeOrchestrator:
         self.logger = get_console_logger("medpipe.orchestrator")
         add_file_handler(self.logger, log_dir=self.run_dir)
 
-        self.resolved_model_configs: Dict[str, Any] = {}
-
         self.logger.info(
             f"Initialised MedpipeOrchestrator. Run directory: {self.run_dir}"
         )
 
         self._save_reproducibility_artifacts()
-        self.resolve_model_configurations()
 
     def _save_reproducibility_artifacts(self) -> None:
         """
@@ -105,8 +98,6 @@ class MedpipeOrchestrator:
             else dict(self.config)
         )
 
-        self.artifact_manager.save_resolved_config(config_dict, self.run_dir)
-
         dataset_path = self.config.data.path if hasattr(self.config, "data") else None
         self.artifact_manager.save_env_state(
             destination_dir=self.run_dir,
@@ -114,34 +105,6 @@ class MedpipeOrchestrator:
             dataset_path=dataset_path,
         )
         self.logger.info("Reproducibility artifacts saved successfully.")
-
-    def resolve_model_configurations(self) -> Dict[str, Any]:
-        """
-        Merges the default model configuration with specific outcome overrides.
-
-        Returns
-        -------
-        Dict[str, Any]
-            Dictionary containing the fully resolved configuration for each outcome.
-
-        """
-        config_dict = (
-            self.config.model_dump()
-            if hasattr(self.config, "model_dump")
-            else dict(self.config)
-        )
-
-        default_model = config_dict.get("default_model", {})
-        overrides = config_dict.get("outcome_overrides", {})
-        outcomes = self.config.data.outcomes
-
-        for outcome in outcomes:
-            outcome_specific = overrides.get(outcome, {})
-            # Merge dictionaries (overrides take precedence over defaults)
-            self.resolved_model_configs[outcome] = {**default_model, **outcome_specific}
-
-        self.logger.info("Resolved model configurations for all outcomes.")
-        return self.resolved_model_configs
 
     def prepare_data(
         self,
