@@ -79,7 +79,7 @@ class MedpipeOrchestrator:
         self.artifact_manager = ArtifactManager(base_artifact_dir)
         self.run_dir = self.artifact_manager.create_run_directory()
 
-        self.logger = get_console_logger("medpipe")
+        self.logger = get_console_logger("medpipe.orchestrator")
         add_file_handler(self.logger, log_dir=self.run_dir)
 
         self.resolved_model_configs: Dict[str, Any] = {}
