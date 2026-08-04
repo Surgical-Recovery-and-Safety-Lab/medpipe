@@ -2,6 +2,7 @@ from pathlib import Path
 from typing import Any, Optional, Tuple, Union
 
 import pandas as pd
+from numpy.typing import NDArray
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
 
@@ -115,6 +116,7 @@ class MedpipeOrchestrator:
         Optional[pd.DataFrame],
         pd.DataFrame,
         pd.DataFrame,
+        Optional[NDArray],
     ]:
         """
         Ingests data, extracts labels, and performs configured train/recal/test splits.
@@ -127,6 +129,7 @@ class MedpipeOrchestrator:
         y_recal : Optional[pd.DataFrame]
         X_test : pd.DataFrame
         y_test : pd.DataFrame
+        groups_train : Optional[npt.NDArray]
 
         """
         data = self.ingest_data()
@@ -176,16 +179,37 @@ class MedpipeOrchestrator:
             y_recal_df = pd.DataFrame(
                 y_recal_arr, columns=outcome_columns, index=X_recal.index
             )
+            self.logger.info(
+                f"Data successfully split into Train ({len(X_train):,}), "
+                f"Test ({len(X_test):,}), and "
+                f"Recalibration ({len(X_recal):,}) sets"
+            )
+
+        else:
+            X_train = X_temp
+            y_train_df = y_temp_df
+            X_recal = None
+            y_recal_df = None
 
             self.logger.info(
-                "Data successfully split into Train, Recalibration, and Test sets."
+                f"Data successfully split into Train ({len(X_train):,}), and "
+                f"Test ({len(X_test):,}) sets"
             )
-            return X_train, y_train_df, X_recal, y_recal_df, X_test, y_test_df
 
-        self.logger.info(
-            "Data successfully split into Train and Test sets (No recalibration set configured)."
-        )
-        return X_temp, y_temp_df, None, None, X_test, y_test_df
+        groups_train = None
+        cv_cfg = getattr(val_config, "cross_validation", None)
+        if cv_cfg and cv_cfg.group_column:
+            if cv_cfg.group_column in data.columns:
+                groups_train = data.loc[X_train.index, cv_cfg.group_column].to_numpy()
+            else:
+                raise KeyError(
+                    f"Cross-validation group column '{cv_cfg.group_column}' "
+                    f"was not found in dataset columns."
+                )
+
+            self.logger.info("Data successfully prepared with CV groups.")
+
+        return X_train, y_train_df, X_recal, y_recal_df, X_test, y_test_df, groups_train
 
     def ingest_data(self) -> pd.DataFrame:
         """
