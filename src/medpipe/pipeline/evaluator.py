@@ -16,13 +16,11 @@ import numpy.typing as npt
 import pandas as pd
 
 from medpipe.metrics.core import bootstrap_confidence_intervals, compute_metrics
+from medpipe.utils.logger import get_console_logger
 
 if TYPE_CHECKING:
     from medpipe.pipeline.orchestrator import MedpipeOrchestrator
     from medpipe.pipeline.runner import MedpipeRunner
-
-# Configure module-level logger
-logger = logging.getLogger("medpipe.evaluator")
 
 
 class MedpipeEvaluator:
@@ -102,7 +100,7 @@ class MedpipeEvaluator:
         self.n_bootstraps = n_bootstraps
         self.ci_level = ci_level
         self.random_state = random_state
-        self.logger = logging.getLogger("medpipe.evaluator")
+        self.logger = get_console_logger("medpipe.evaluator")
 
         # Resolve metrics from argument, orchestrator config, or fallback defaults
         if metrics is not None:
