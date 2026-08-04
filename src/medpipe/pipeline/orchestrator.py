@@ -213,20 +213,20 @@ class MedpipeOrchestrator:
 
     def ingest_data(self) -> pd.DataFrame:
         """
-        Loads the raw dataset specified in the configuration.
-
-        Reads the dataset from the path defined in `config.data.path` and
-        verifies that it is correctly loaded as a pandas DataFrame.
+        Loads the raw dataset specified in the configuration and filters it
+        to retain only predictors, outcomes, and configured group columns.
 
         Returns
         -------
         pd.DataFrame
-            The loaded raw dataset.
+            The loaded and filtered dataset.
 
         Raises
         ------
         TypeError
             If the loaded data is not a pandas DataFrame.
+        KeyError
+            If any configured required columns are missing from the raw dataset.
 
         """
         dataset_path = self.config.data.path
@@ -238,7 +238,37 @@ class MedpipeOrchestrator:
                 f"Input data should be a pd.DataFrame, but got {type(data)}"
             )
 
-        return data
+        # Collect required columns (predictors & outcomes)
+        required_cols = []
+        if hasattr(self.config, "data"):
+            required_cols.extend(getattr(self.config.data, "predictors", []))
+            required_cols.extend(getattr(self.config.data, "outcomes", []))
+
+        # Collect group columns from validation splits (test, recalibration, cross-validation)
+        val_cfg = getattr(getattr(self.config, "workflow", None), "validation", None)
+        if val_cfg:
+            for split_name in ["test_split", "recalibration_split", "cross_validation"]:
+                split = getattr(val_cfg, split_name, None)
+                if split and getattr(split, "group_column", None):
+                    required_cols.append(split.group_column)
+
+        # Deduplicate while preserving order
+        unique_cols = list(dict.fromkeys(required_cols))
+
+        # Validate column existence
+        missing_cols = [col for col in unique_cols if col not in data.columns]
+        if missing_cols:
+            raise KeyError(
+                f"The following required columns were missing from the dataset: {missing_cols}"
+            )
+
+        # Filter out unneeded columns
+        filtered_data = data[unique_cols].copy()
+        self.logger.info(
+            f"Filtered dataset from {len(data.columns)} down to {len(unique_cols)} required columns."
+        )
+
+        return pd.DataFrame(filtered_data)
 
     def extract_stratum_subgroup(
         self,
