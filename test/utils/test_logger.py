@@ -53,13 +53,24 @@ def test_get_console_logger_prevents_duplicates() -> None:
 
 def test_get_console_logger_custom_name_and_level() -> None:
     """Test initializing a logger with a custom name and a different threshold."""
-    custom_logger = get_console_logger(name="custom_logger", level=logging.WARNING)
+    # Ensure a clean state on the root 'medpipe' logger before testing
+    root_logger = logging.getLogger("medpipe")
+    root_logger.handlers.clear()
 
-    assert custom_logger.name == "custom_logger"
-    assert custom_logger.handlers[0].level == logging.WARNING
+    custom_logger = get_console_logger(
+        name="medpipe.custom_logger", level=logging.WARNING
+    )
 
-    # Cleanup for the custom logger
-    custom_logger.handlers.clear()
+    # 1. Verify the logger retains its custom requested name
+    assert custom_logger.name == "medpipe.custom_logger"
+
+    # 2. Verify handlers are attached to 'medpipe' root, not the child instance
+    assert len(custom_logger.handlers) == 0
+    assert len(root_logger.handlers) == 1
+    assert root_logger.handlers[0].level == logging.WARNING
+
+    # Cleanup for the root logger
+    root_logger.handlers.clear()
 
 
 # --- Tests for File Handler ---
