@@ -326,105 +326,227 @@ class TestPrepareData:
 
     @patch("medpipe.pipeline.orchestrator.split_data")
     @patch("medpipe.pipeline.orchestrator.extract_labels")
-    def test_prepare_data_with_recalibration(
+    def test_prepare_data_with_recalibration_and_cv_groups(
         self,
-        mock_extract,
-        mock_split,
+        mock_extract_labels,
+        mock_split_data,
         mock_add_handler,
         mock_get_logger,
         mock_artifact_mgr,
         mock_config,
     ):
-        """Test data preparation when both test and recalibration splits are configured."""
+        """Test full data preparation pipeline with test split, recalibration split,
+
+        CV group extraction, and validation column dropping.
+        """
         mock_config.data.outcomes = ["MORTALITY_30D"]
+
+        # 1. Configure validation splits and CV group column
         val_config = MagicMock()
         val_config.test_split.strategy = "group"
+        val_config.test_split.group_column = "OP_YEAR"
         val_config.recalibration_split.strategy = "group"
+        val_config.recalibration_split.group_column = "OP_YEAR"
+        val_config.cross_validation.group_column = "DHB_NAME"
         mock_config.workflow.validation = val_config
 
         orchestrator = MedpipeOrchestrator(config=mock_config)
 
-        orchestrator.ingest_data = MagicMock(
-            return_value=pd.DataFrame({"A": [1, 2, 3, 4]})
+        # 2. Mock ingest_data return value
+        raw_data = pd.DataFrame(
+            {
+                "AGE": [25, 30, 45, 60],
+                "DHB_NAME": ["Auckland", "Wellington", "Auckland", "Wellington"],
+                "OP_YEAR": [2023, 2023, 2024, 2024],
+                "MORTALITY_30D": [0, 1, 0, 1],
+            }
         )
+        orchestrator.ingest_data = MagicMock(return_value=raw_data)
 
-        mock_extract.return_value = (
-            pd.DataFrame({"A": [1, 2, 3, 4]}),
-            np.array([[0], [1], [0], [1]]),
+        # 3. Setup mock side effects for extract_labels
+        X_all = raw_data[["AGE", "DHB_NAME", "OP_YEAR"]]
+        y_all_arr = np.array([[0], [1], [0], [1]])
+
+        X_train_no_cv = pd.DataFrame(
+            {"AGE": [25, 30], "OP_YEAR": [2023, 2023]}, index=pd.Index([0, 1])
         )
+        expected_groups = np.array(["Auckland", "Wellington"])
 
-        mock_split.side_effect = [
-            (
-                pd.DataFrame(index=pd.Index([0, 1, 2])),
-                np.array([[0], [1], [0]]),
-                pd.DataFrame(index=pd.Index([3])),
-                np.array([[1]]),
-            ),
-            (
-                pd.DataFrame(index=pd.Index([0, 1])),
-                np.array([[0], [1]]),
-                pd.DataFrame(index=pd.Index([2])),
-                np.array([[0]]),
-            ),
+        mock_extract_labels.side_effect = [
+            (X_all, y_all_arr),  # Initial outcome extraction call
+            (X_train_no_cv, expected_groups),  # CV Group extraction call
         ]
 
+        # 4. Setup mock side effects for split_data
+        X_temp = pd.DataFrame(
+            {
+                "AGE": [25, 30, 45],
+                "DHB_NAME": ["Auckland", "Wellington", "Auckland"],
+                "OP_YEAR": [2023, 2023, 2023],
+            },
+            index=pd.Index([0, 1, 2]),
+        )
+        y_temp_arr = np.array([[0], [1], [0]])
+        X_test_df = pd.DataFrame(
+            {"AGE": [60], "DHB_NAME": ["Wellington"], "OP_YEAR": [2024]},
+            index=pd.Index([3]),
+        )
+        y_test_arr = np.array([[1]])
+
+        X_train_df = pd.DataFrame(
+            {
+                "AGE": [25, 30],
+                "DHB_NAME": ["Auckland", "Wellington"],
+                "OP_YEAR": [2023, 2023],
+            },
+            index=pd.Index([0, 1]),
+        )
+        y_train_arr = np.array([[0], [1]])
+        X_recal_df = pd.DataFrame(
+            {"AGE": [45], "DHB_NAME": ["Auckland"], "OP_YEAR": [2023]},
+            index=pd.Index([2]),
+        )
+        y_recal_arr = np.array([[0]])
+
+        mock_split_data.side_effect = [
+            (X_temp, y_temp_arr, X_test_df, y_test_arr),  # Test split call
+            (
+                X_train_df,
+                y_train_arr,
+                X_recal_df,
+                y_recal_arr,
+            ),  # Recalibration split call
+        ]
+
+        # Execute
         X_train, y_train, X_recal, y_recal, X_test, y_test, groups = (
             orchestrator.prepare_data()
         )
 
-        assert mock_split.call_count == 2
-        assert isinstance(X_train, pd.DataFrame)
-        assert isinstance(y_train, pd.DataFrame)
-        assert isinstance(X_recal, pd.DataFrame)
-        assert isinstance(y_recal, pd.DataFrame)
-        assert isinstance(X_test, pd.DataFrame)
-        assert isinstance(y_test, pd.DataFrame)
+        # Assertions
+        assert mock_split_data.call_count == 2
+        assert mock_extract_labels.call_count == 2
+        assert y_recal is not None
+        assert X_recal is not None
 
+        # Verify outcome column alignment
         assert list(y_train.columns) == ["MORTALITY_30D"]
         assert list(y_recal.columns) == ["MORTALITY_30D"]
         assert list(y_test.columns) == ["MORTALITY_30D"]
+
+        # Verify group columns ("OP_YEAR", "DHB_NAME") were dropped from feature matrices
+        assert "OP_YEAR" not in X_train.columns
+        assert "DHB_NAME" not in X_train.columns
+        assert "OP_YEAR" not in X_test.columns
+        assert "DHB_NAME" not in X_test.columns
+        assert "OP_YEAR" not in X_recal.columns
+        assert "DHB_NAME" not in X_recal.columns
+
+        # Verify predictors are retained
+        assert "AGE" in X_train.columns
+        assert "AGE" in X_test.columns
+        assert "AGE" in X_recal.columns
+
+        # Verify CV groups array extraction
+        np.testing.assert_array_equal(groups, expected_groups)
 
     @patch("medpipe.pipeline.orchestrator.split_data")
     @patch("medpipe.pipeline.orchestrator.extract_labels")
     def test_prepare_data_without_recalibration(
         self,
-        mock_extract,
-        mock_split,
+        mock_extract_labels,
+        mock_split_data,
         mock_add_handler,
         mock_get_logger,
         mock_artifact_mgr,
         mock_config,
     ):
-        """Test data preparation handles missing recalibration configuration gracefully."""
+        """Test data preparation handles missing recalibration and cross-validation configs gracefully."""
         mock_config.data.outcomes = ["MORTALITY_30D"]
+
         val_config = MagicMock()
-        val_config.test_split.strategy = "group"
+        val_config.test_split.strategy = "random"
+        val_config.test_split.group_column = None
         val_config.recalibration_split = None
+        val_config.cross_validation = None
         mock_config.workflow.validation = val_config
 
         orchestrator = MedpipeOrchestrator(config=mock_config)
-        orchestrator.ingest_data = MagicMock(return_value=pd.DataFrame())
 
-        mock_extract.return_value = (pd.DataFrame(), np.array([]))
+        raw_data = pd.DataFrame({"AGE": [25, 30, 45], "MORTALITY_30D": [0, 1, 0]})
+        orchestrator.ingest_data = MagicMock(return_value=raw_data)
 
-        mock_split.return_value = (
-            pd.DataFrame(index=pd.Index([0, 1])),
-            np.array([[0], [1]]),
-            pd.DataFrame(index=pd.Index([2])),
-            np.array([[0]]),
-        )
+        X_all = pd.DataFrame({"AGE": [25, 30, 45]})
+        y_all_arr = np.array([[0], [1], [0]])
+        mock_extract_labels.return_value = (X_all, y_all_arr)
+
+        X_temp = pd.DataFrame({"AGE": [25, 30]}, index=pd.Index([0, 1]))
+        y_temp_arr = np.array([[0], [1]])
+        X_test_df = pd.DataFrame({"AGE": [45]}, index=pd.Index([2]))
+        y_test_arr = np.array([[0]])
+
+        mock_split_data.return_value = (X_temp, y_temp_arr, X_test_df, y_test_arr)
 
         X_train, y_train, X_recal, y_recal, X_test, y_test, groups = (
             orchestrator.prepare_data()
         )
 
-        assert mock_split.call_count == 1
+        assert mock_split_data.call_count == 1
+        assert mock_extract_labels.call_count == 1
+
         assert X_recal is None
         assert y_recal is None
+        assert groups is None
+
         assert isinstance(X_train, pd.DataFrame)
         assert isinstance(X_test, pd.DataFrame)
+        assert list(X_train.columns) == ["AGE"]
+        assert list(X_test.columns) == ["AGE"]
 
-    def test_prepare_data_missing_validation_raises_error(
+    @patch("medpipe.pipeline.orchestrator.split_data")
+    @patch("medpipe.pipeline.orchestrator.extract_labels")
+    def test_prepare_data_missing_cv_group_column_raises_key_error(
+        self,
+        mock_extract_labels,
+        mock_split_data,
+        mock_add_handler,
+        mock_get_logger,
+        mock_artifact_mgr,
+        mock_config,
+    ):
+        """Test that KeyError is raised when the cross_validation group column is missing from training features."""
+        mock_config.data.outcomes = ["MORTALITY_30D"]
+
+        val_config = MagicMock()
+        val_config.test_split.strategy = "random"
+        val_config.test_split.group_column = None
+        val_config.recalibration_split = None
+        val_config.cross_validation.group_column = "NON_EXISTENT_COLUMN"
+        mock_config.workflow.validation = val_config
+
+        orchestrator = MedpipeOrchestrator(config=mock_config)
+        orchestrator.ingest_data = MagicMock(
+            return_value=pd.DataFrame({"AGE": [25, 30]})
+        )
+
+        mock_extract_labels.return_value = (
+            pd.DataFrame({"AGE": [25, 30]}),
+            np.array([[0], [1]]),
+        )
+        mock_split_data.return_value = (
+            pd.DataFrame({"AGE": [25, 30]}),
+            np.array([[0], [1]]),
+            pd.DataFrame(),
+            np.array([]),
+        )
+
+        with pytest.raises(
+            KeyError,
+            match="Cross-validation group column 'NON_EXISTENT_COLUMN' was not found in dataset columns.",
+        ):
+            orchestrator.prepare_data()
+
+    def test_prepare_data_missing_validation_raises_value_error(
         self, mock_add_handler, mock_get_logger, mock_artifact_mgr, mock_config
     ):
         """Test that missing validation configuration raises a ValueError."""
@@ -616,8 +738,8 @@ class TestExtractStratumSubgroup:
         assert list(X_sub.columns) == list(X.columns)
         assert list(y_sub.columns) == list(y.columns)
 
-        mock_orchestrator.logger.warning.assert_called_once()
-        log_msg = mock_orchestrator.logger.warning.call_args[0][0]
+        mock_orchestrator.logger.warning.assert_called_once()  # type: ignore
+        log_msg = mock_orchestrator.logger.warning.call_args[0][0]  # type: ignore
         assert "returned 0 samples" in log_msg
 
     def test_missing_column_raises_key_error(
