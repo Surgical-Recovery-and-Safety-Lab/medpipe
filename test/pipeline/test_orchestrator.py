@@ -161,6 +161,55 @@ class TestSaveReproducibilityArtifacts:
         )
 
 
+class TestGetValidationColumns:
+    """Unit tests for MedpipeOrchestrator._get_validation_columns."""
+
+    def test_get_validation_columns_all_splits_with_deduplication(self):
+        """Test retrieving validation columns across test, recalibration,
+        and CV with duplicate columns."""
+        orchestrator = object.__new__(MedpipeOrchestrator)
+
+        val_cfg = MagicMock()
+        val_cfg.test_split.group_column = "OP_YEAR"
+        val_cfg.recalibration_split.group_column = "OP_YEAR"  # Duplicate
+        val_cfg.cross_validation.group_column = "DHB_NAME"
+
+        orchestrator.config = MagicMock()
+        orchestrator.config.workflow.validation = val_cfg
+
+        cols = orchestrator._get_validation_columns()
+
+        assert cols == ["OP_YEAR", "DHB_NAME"]
+
+    def test_get_validation_columns_partial_splits(self):
+        """Test retrieving validation columns when only some splits
+        specify a group column."""
+        orchestrator = object.__new__(MedpipeOrchestrator)
+
+        val_cfg = MagicMock()
+        val_cfg.test_split.group_column = "OP_YEAR"
+        val_cfg.recalibration_split.group_column = None
+        val_cfg.cross_validation = None
+
+        orchestrator.config = MagicMock()
+        orchestrator.config.workflow.validation = val_cfg
+
+        cols = orchestrator._get_validation_columns()
+
+        assert cols == ["OP_YEAR"]
+
+    def test_get_validation_columns_missing_validation_config(self):
+        """Test returning an empty list when validation config or
+        workflow block is missing."""
+        orchestrator = object.__new__(MedpipeOrchestrator)
+        orchestrator.config = MagicMock()
+        orchestrator.config.workflow.validation = None
+
+        cols = orchestrator._get_validation_columns()
+
+        assert cols == []
+
+
 @patch("medpipe.pipeline.orchestrator.ArtifactManager")
 @patch("medpipe.pipeline.orchestrator.get_console_logger")
 @patch("medpipe.pipeline.orchestrator.add_file_handler")
