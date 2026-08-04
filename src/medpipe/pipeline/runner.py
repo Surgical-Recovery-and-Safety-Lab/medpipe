@@ -214,9 +214,9 @@ class MedpipeRunner:
                     "std": float(cv_results_df[col].std()),
                 }
 
-        json_path = artifacts_dir / f"{outcome}_cv_summary.json"
-        with open(json_path, "w", encoding="utf-8") as f:
-            json.dump(summary, f, indent=4)
+        json_path = self.orchestrator.artifact_manager.save_json(
+            summary, artifacts_dir, f"{outcome}_cv_summary.json"
+        )
         self.logger.info(f"[{outcome}] CV summary saved to {json_path}")
 
     def _train_model_cv(
