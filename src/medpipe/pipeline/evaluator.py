@@ -421,7 +421,7 @@ class MedpipeEvaluator:
 
         # 1. Compute overall evaluation with confidence intervals
         self.logger.info(
-            "[%s] Computing overall metrics with %d bootstrap iterations (CI=%.2f)...",
+            "[%s] Computing overall metrics with %d bootstrap iterations (CI=%.2f)",
             outcome_name,
             self.n_bootstraps,
             self.ci_level,
@@ -434,7 +434,7 @@ class MedpipeEvaluator:
         # 2. Compute subgroup metrics using identical slice evaluation logic
         if subgroup_specs:
             self.logger.info(
-                f"[{outcome_name}] Evaluating performance across extracted subgroups..."
+                f"[{outcome_name}] Evaluating performance across extracted subgroups"
             )
             subgroup_results: Dict[str, Dict[str, Dict[str, Dict[str, float]]]] = {}
             subgroups = self.extract_subgroups(X, subgroup_specs)
@@ -490,8 +490,9 @@ class MedpipeEvaluator:
         filename = f"{outcome}_evaluation_results.json"
         saved_path: Optional[Path] = None
 
-        artifacts_dir = self.orchestrator.run_dir / "artifacts"
+        artifacts_dir = self.orchestrator.run_dir
         artifact_mgr = self.orchestrator.artifact_manager
+
         saved_path = artifact_mgr.save_json(results, artifacts_dir, filename)
 
         self.logger.info(
