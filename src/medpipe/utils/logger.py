@@ -44,7 +44,7 @@ def get_console_logger(
         console_handler.setLevel(level)
 
         formatter = logging.Formatter(
-            fmt="%(asctime)s | %(levelname)-8s | %(message)s",
+            fmt="%(asctime)s | %(levelname)s | %(message)s",
             datefmt="%Y-%m-%d %H:%M:%S",
         )
         console_handler.setFormatter(formatter)
@@ -82,7 +82,7 @@ def add_file_handler(
 
     # File logs get a more detailed format including the exact module and line number
     formatter = logging.Formatter(
-        fmt="%(asctime)s | %(name)s | %(levelname)-8s | %(module)s:%(lineno)d | %(message)s"
+        fmt="%(asctime)s | %(name)s | %(levelname)s | %(module)s:%(lineno)d | %(message)s"
     )
     file_handler.setFormatter(formatter)
     logger.addHandler(file_handler)
