@@ -35,11 +35,11 @@ def get_console_logger(
         Configured standard library Logger instance.
 
     """
-    logger = logging.getLogger(name)
-    logger.setLevel(logging.DEBUG)  # Base logger must capture everything
+    # Always ensure the root package logger ("medpipe") has the console handler
+    root_logger = logging.getLogger("medpipe")
+    root_logger.setLevel(logging.DEBUG)  # Base logger captures all thresholds
 
-    # Prevent duplicate handlers if instantiated multiple times
-    if not logger.handlers:
+    if not root_logger.handlers:
         console_handler = logging.StreamHandler(sys.stdout)
         console_handler.setLevel(level)
 
@@ -48,9 +48,9 @@ def get_console_logger(
             datefmt="%Y-%m-%d %H:%M:%S",
         )
         console_handler.setFormatter(formatter)
-        logger.addHandler(console_handler)
+        root_logger.addHandler(console_handler)
 
-    return logger
+    return logging.getLogger(name)
 
 
 def add_file_handler(
@@ -73,16 +73,27 @@ def add_file_handler(
         The logging level threshold for the file output.
 
     """
+    # Resolve top-level parent logger ("medpipe") regardless of sub-logger name
+    top_logger_name = logger.name.split(".")[0]
+    target_logger = logging.getLogger(top_logger_name)
+
     log_path = Path(log_dir)
     log_path.mkdir(parents=True, exist_ok=True)
     file_path = log_path / filename
 
+    # Avoid duplicate file handlers if initialized multiple times
+    for handler in target_logger.handlers:
+        if (
+            isinstance(handler, logging.FileHandler)
+            and Path(handler.baseFilename) == file_path.resolve()
+        ):
+            return
+
     file_handler = logging.FileHandler(file_path, mode="w", encoding="utf-8")
     file_handler.setLevel(level)
 
-    # File logs get a more detailed format including the exact module and line number
     formatter = logging.Formatter(
         fmt="%(asctime)s | %(name)s | %(levelname)s | %(module)s:%(lineno)d | %(message)s"
     )
     file_handler.setFormatter(formatter)
-    logger.addHandler(file_handler)
+    target_logger.addHandler(file_handler)
