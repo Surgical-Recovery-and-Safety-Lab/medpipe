@@ -7,7 +7,6 @@ bootstrap confidence interval estimation, logging, and artifact management.
 
 from __future__ import annotations
 
-import logging
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Union
 
@@ -41,15 +40,6 @@ class MedpipeEvaluator:
     runner : MedpipeRunner
         The pipeline runner instance containing the dictionary of fitted models
         (`fitted_models`).
-    metrics : list of str, optional
-        List of metric identifiers to evaluate. If None, retrieves configured
-        metrics from `orchestrator.config` or defaults to `["accuracy", "roc_auc", "brier_score"]`.
-    n_bootstraps : int, default=1000
-        Number of bootstrap resampling iterations for calculating confidence intervals.
-    ci_level : float, default=0.95
-        Confidence level for metric confidence intervals (e.g., 0.95 for 95% CIs).
-    random_state : int, np.random.Generator, or None, default=None
-        Seed or random generator instance to ensure reproducible bootstrap resampling.
 
     Attributes
     ----------
@@ -89,30 +79,20 @@ class MedpipeEvaluator:
         self,
         orchestrator: MedpipeOrchestrator,
         runner: MedpipeRunner,
-        metrics: Optional[List[str]] = None,
-        n_bootstraps: int = 1000,
-        ci_level: float = 0.95,
-        random_state: Optional[Union[int, np.random.Generator]] = None,
     ) -> None:
         self.orchestrator = orchestrator
         self.runner = runner
+        eval_config = self.orchestrator.config.workflow.evaluation
+
         self.fitted_models: Dict[str, Any] = getattr(runner, "fitted_models", {})
-        self.n_bootstraps = n_bootstraps
-        self.ci_level = ci_level
-        self.random_state = random_state
+        self.n_bootstraps = eval_config.metrics.n_bootstraps
+        self.ci_level = eval_config.metrics.ci_level
+        self.random_state = self.orchestrator.config.workflow.random_state
         self.logger = get_console_logger("medpipe.evaluator")
 
         # Resolve metrics from argument, orchestrator config, or fallback defaults
-        if metrics is not None:
-            self.metrics = metrics
-        elif (
-            hasattr(orchestrator, "config")
-            and hasattr(orchestrator.config, "workflow")
-            and hasattr(orchestrator.config.workflow, "evaluation")
-            and hasattr(orchestrator.config.workflow.evaluation, "metrics")
-            and hasattr(orchestrator.config.workflow.evaluation.metrics, "metrics")
-        ):
-            self.metrics = orchestrator.config.workflow.evaluation.metrics.metrics
+        if eval_config.metrics is not None:
+            self.metrics = eval_config.metrics.metrics
         else:
             self.metrics = ["accuracy", "roc_auc", "brier_score"]
 
