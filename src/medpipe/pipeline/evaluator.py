@@ -90,11 +90,7 @@ class MedpipeEvaluator:
         self.random_state = self.orchestrator.config.workflow.random_state
         self.logger = get_console_logger("medpipe.evaluator")
 
-        # Resolve metrics from argument, orchestrator config, or fallback defaults
-        if eval_config.metrics is not None:
-            self.metrics = eval_config.metrics.metrics
-        else:
-            self.metrics = ["accuracy", "roc_auc", "brier_score"]
+        self.metrics = eval_config.metrics.metrics
 
     def _get_model(
         self, model: Optional[Any] = None, outcome: Optional[str] = None
