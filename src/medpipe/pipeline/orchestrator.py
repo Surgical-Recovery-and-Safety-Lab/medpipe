@@ -270,6 +270,30 @@ class MedpipeOrchestrator:
 
         return pd.DataFrame(filtered_data)
 
+    def _get_validation_columns(self) -> list[str]:
+        """
+        Collect group columns from validation splits
+        (test, recalibration, cross-validation)
+
+        Returns
+        -------
+        unique_cols : list[str]
+            Unique columns from the validation configuration.
+
+        """
+        val_columns = []
+        # Collect group columns from validation splits (test, recalibration, cross-validation)
+        val_cfg = getattr(getattr(self.config, "workflow", None), "validation", None)
+        if val_cfg:
+            for split_name in ["test_split", "recalibration_split", "cross_validation"]:
+                split = getattr(val_cfg, split_name, None)
+                if split and getattr(split, "group_column", None):
+                    val_columns.append(split.group_column)
+
+        unique_cols = list(dict.fromkeys(val_columns))
+
+        return unique_cols
+
     def extract_stratum_subgroup(
         self,
         X: pd.DataFrame,
