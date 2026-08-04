@@ -213,6 +213,7 @@ class MedpipeOrchestrator:
 
         val_columns = self._get_validation_columns()
 
+        # Drop the columns from the validation configuration
         X_train = X_train.drop(columns=val_columns, errors="ignore")
         X_test = X_test.drop(columns=val_columns)
         if X_recal is not None:
