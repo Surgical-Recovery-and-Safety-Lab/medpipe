@@ -161,7 +161,7 @@ class MedpipeOrchestrator:
             y_test_arr, columns=outcome_columns, index=X_test.index
         )
 
-        # 2. Apply Recalibration Split (Optional)
+        # Apply Recalibration Split (Optional)
         recal_cfg = getattr(val_config, "recalibration_split", None)
 
         if recal_cfg:
@@ -182,7 +182,7 @@ class MedpipeOrchestrator:
             self.logger.info(
                 f"Data successfully split into Train ({len(X_train):,}), "
                 f"Test ({len(X_test):,}), and "
-                f"Recalibration ({len(X_recal):,}) sets"
+                f"Recalibration ({len(X_recal):,}) sets."
             )
 
         else:
@@ -193,14 +193,16 @@ class MedpipeOrchestrator:
 
             self.logger.info(
                 f"Data successfully split into Train ({len(X_train):,}), and "
-                f"Test ({len(X_test):,}) sets"
+                f"Test ({len(X_test):,}) sets."
             )
 
+        # Extract groups if required
         groups_train = None
         cv_cfg = getattr(val_config, "cross_validation", None)
         if cv_cfg and cv_cfg.group_column:
-            if cv_cfg.group_column in data.columns:
-                groups_train = data.loc[X_train.index, cv_cfg.group_column].to_numpy()
+            if cv_cfg.group_column in X_train.columns:
+                X_train, groups_train = extract_labels(X_train, [cv_cfg.group_column])
+
             else:
                 raise KeyError(
                     f"Cross-validation group column '{cv_cfg.group_column}' "
@@ -208,6 +210,15 @@ class MedpipeOrchestrator:
                 )
 
             self.logger.info("Data successfully prepared with CV groups.")
+
+        val_columns = self._get_validation_columns()
+
+        X_train = X_train.drop(columns=val_columns, errors="ignore")
+        X_test = X_test.drop(columns=val_columns)
+        if X_recal is not None:
+            X_recal = X_recal.drop(columns=val_columns)
+
+        self.logger.info(f"Removed {val_columns} from data.")
 
         return X_train, y_train_df, X_recal, y_recal_df, X_test, y_test_df, groups_train
 
