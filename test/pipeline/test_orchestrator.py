@@ -168,7 +168,7 @@ class TestIngestData:
     """Unit tests for MedpipeOrchestrator.ingest_data."""
 
     @patch("medpipe.pipeline.orchestrator.load_data")
-    def test_ingest_data_success(
+    def test_ingest_data_filters_unneeded_columns_successfully(
         self,
         mock_load_data,
         mock_add_handler,
@@ -176,16 +176,80 @@ class TestIngestData:
         mock_artifact_mgr,
         mock_config,
     ):
-        """Test successful data ingestion returning a DataFrame."""
-        mock_df = pd.DataFrame({"AGE": [25, 30], "BMI": [22.5, 24.1]})
-        mock_load_data.return_value = mock_df
+        """Test successful ingestion reatins predictors, outcomes, and group columns while filtering extra ones."""
+        # 1. Configure predictors, outcomes, and group splits
+        mock_config.data.predictors = ["AGE", "BMI"]
+        mock_config.data.outcomes = ["MORTALITY_30D"]
+
+        val_config = MagicMock()
+        val_config.test_split.group_column = "OP_YEAR"
+        val_config.recalibration_split.group_column = (
+            "OP_YEAR"  # Tests deduplication logic
+        )
+        val_config.cross_validation.group_column = "DHB_NAME"
+        mock_config.workflow.validation = val_config
+
+        # 2. Raw DataFrame containing required columns + an unneeded column
+        raw_df = pd.DataFrame(
+            {
+                "AGE": [25, 30],
+                "BMI": [22.5, 24.1],
+                "MORTALITY_30D": [0, 1],
+                "OP_YEAR": [2023, 2024],
+                "DHB_NAME": ["Auckland", "Wellington"],
+                "UNNEEDED_COLUMN": ["X", "Y"],
+            }
+        )
+        mock_load_data.return_value = raw_df
 
         orchestrator = MedpipeOrchestrator(config=mock_config)
         result = orchestrator.ingest_data()
 
         mock_load_data.assert_called_once_with("dummy/path/data.csv")
         assert isinstance(result, pd.DataFrame)
-        pd.testing.assert_frame_equal(result, mock_df)
+
+        # 3. Verify 'UNNEEDED_COLUMN' was filtered out
+        expected_df = pd.DataFrame(
+            {
+                "AGE": [25, 30],
+                "BMI": [22.5, 24.1],
+                "MORTALITY_30D": [0, 1],
+                "OP_YEAR": [2023, 2024],
+                "DHB_NAME": ["Auckland", "Wellington"],
+            }
+        )
+        pd.testing.assert_frame_equal(result, expected_df)
+
+    @patch("medpipe.pipeline.orchestrator.load_data")
+    def test_ingest_data_missing_required_column_raises_key_error(
+        self,
+        mock_load_data,
+        mock_add_handler,
+        mock_get_logger,
+        mock_artifact_mgr,
+        mock_config,
+    ):
+        """Test data ingestion raises KeyError if any configured column is missing from the raw data."""
+        mock_config.data.predictors = ["AGE", "BMI"]
+        mock_config.data.outcomes = ["MORTALITY_30D"]
+        mock_config.workflow.validation = None
+
+        # Input DataFrame missing required 'BMI' column
+        incomplete_df = pd.DataFrame(
+            {
+                "AGE": [25, 30],
+                "MORTALITY_30D": [0, 1],
+            }
+        )
+        mock_load_data.return_value = incomplete_df
+
+        orchestrator = MedpipeOrchestrator(config=mock_config)
+
+        with pytest.raises(
+            KeyError,
+            match="required columns were missing from the dataset: \\['BMI'\\]",
+        ):
+            orchestrator.ingest_data()
 
     @patch("medpipe.pipeline.orchestrator.load_data")
     def test_ingest_data_failure_not_dataframe(
@@ -196,7 +260,7 @@ class TestIngestData:
         mock_artifact_mgr,
         mock_config,
     ):
-        """Test data ingestion raises TypeError if data is not a DataFrame."""
+        """Test data ingestion raises TypeError if loaded object is not a pandas DataFrame."""
         mock_load_data.return_value = {"AGE": [25, 30]}
 
         orchestrator = MedpipeOrchestrator(config=mock_config)
