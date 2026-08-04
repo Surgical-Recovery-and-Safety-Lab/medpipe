@@ -419,10 +419,11 @@ class MedpipeRunner:
 
         model_config = self.orchestrator.config.resolved_models[outcome]
         algo_name = model_config.algorithm
-        hyperparams = model_config.hyperparameters
 
         if not algo_name:
             raise ValueError(f"No algorithm specified for outcome: {outcome}")
+
+        hyperparams = model_config.hyperparameters
 
         # 1. Build Base Pipeline
         preprocessor = self.orchestrator.build_preprocessor()
