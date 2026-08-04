@@ -149,7 +149,6 @@ class CrossValConfig(BaseModel):
     group_column: str | None = None
     n_splits: int | None = Field(default=None, ge=2)
     shuffle: bool | None = None
-    random_state: int | None = Field(default=None, ge=0)
     model_config = {"extra": "forbid"}
 
     @model_validator(mode="after")
@@ -262,6 +261,8 @@ class EvaluationSubConfig(BaseModel):
 
 class WorkflowConfig(BaseModel):
     """The master schema for the workflow subconfiguration file."""
+
+    random_state: int | None = Field(default=42, ge=0)
 
     preprocessing: PreprocessingConfig | None = None
     validation: ValidationSubConfig
