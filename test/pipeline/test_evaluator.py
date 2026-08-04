@@ -475,10 +475,12 @@ class TestMedpipeEvaluatorSaveEvaluationArtifacts:
             results, outcome="MORTALITY_30D"
         )
 
-        expected_artifacts_dir = mock_orchestrator.run_dir / "artifacts"
+        expected_artifacts_dir = mock_orchestrator.run_dir
         expected_filename = "MORTALITY_30D_evaluation_results.json"
 
         mock_orchestrator.artifact_manager.save_json.assert_called_once_with(
             results, expected_artifacts_dir, expected_filename
         )
-        assert saved_path == (expected_artifacts_dir / "test_evaluation_results.json")
+        assert saved_path == (
+            expected_artifacts_dir / "artifacts/test_evaluation_results.json"
+        )
