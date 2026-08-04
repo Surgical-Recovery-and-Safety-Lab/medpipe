@@ -104,7 +104,7 @@ class MedpipeRunner:
         return estimator
 
     def _create_cv_splitter(
-        self, strategy: str, n_splits: int, random_state: int
+        self, strategy: str, n_splits: int, random_state: int | None
     ) -> Union[StratifiedKFold, StratifiedGroupKFold]:
         """
         Instantiates the appropriate cross-validation splitter.
@@ -115,7 +115,7 @@ class MedpipeRunner:
             The CV strategy to employ.
         n_splits : int
             The number of cross-validation folds.
-        random_state : int
+        random_state : int | None
             The random seed for reproducibility.
 
         Returns
