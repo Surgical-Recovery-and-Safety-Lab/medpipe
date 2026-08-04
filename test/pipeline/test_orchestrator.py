@@ -255,7 +255,9 @@ class TestPrepareData:
             ),
         ]
 
-        X_train, y_train, X_recal, y_recal, X_test, y_test = orchestrator.prepare_data()
+        X_train, y_train, X_recal, y_recal, X_test, y_test, groups = (
+            orchestrator.prepare_data()
+        )
 
         assert mock_split.call_count == 2
         assert isinstance(X_train, pd.DataFrame)
@@ -299,7 +301,9 @@ class TestPrepareData:
             np.array([[0]]),
         )
 
-        X_train, y_train, X_recal, y_recal, X_test, y_test = orchestrator.prepare_data()
+        X_train, y_train, X_recal, y_recal, X_test, y_test, groups = (
+            orchestrator.prepare_data()
+        )
 
         assert mock_split.call_count == 1
         assert X_recal is None
