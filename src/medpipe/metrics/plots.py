@@ -25,9 +25,8 @@ from sklearn.calibration import calibration_curve
 from sklearn.metrics import roc_curve
 
 from medpipe._types import Labels
+from medpipe.metrics.core import METRICS
 from medpipe.utils.exceptions import file_checks
-
-from .core import METRIC_MAPPING
 
 if TYPE_CHECKING:
     import numpy.typing as npt
@@ -540,7 +539,7 @@ def plot_strata_heatmap(
         cmap="cividis",
         shrink=0.8,
         extend="max",
-        label=rf"|$\Delta$ {METRIC_MAPPING[metric][-1]}|" + percent,
+        label=rf"|$\Delta$ {METRICS[-1]}|" + percent,
     )
     ax.set_yticks(
         np.arange(n_strata),
