@@ -245,12 +245,7 @@ class MedpipeOrchestrator:
             required_cols.extend(getattr(self.config.data, "outcomes", []))
 
         # Collect group columns from validation splits (test, recalibration, cross-validation)
-        val_cfg = getattr(getattr(self.config, "workflow", None), "validation", None)
-        if val_cfg:
-            for split_name in ["test_split", "recalibration_split", "cross_validation"]:
-                split = getattr(val_cfg, split_name, None)
-                if split and getattr(split, "group_column", None):
-                    required_cols.append(split.group_column)
+        required_cols += self._get_validation_columns()
 
         # Deduplicate while preserving order
         unique_cols = list(dict.fromkeys(required_cols))
