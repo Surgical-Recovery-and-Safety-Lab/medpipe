@@ -14,6 +14,7 @@ from sklearn.pipeline import Pipeline
 from medpipe.metrics.registry import MetricRegistry, MetricSpec
 from medpipe.pipeline.orchestrator import MedpipeOrchestrator
 from medpipe.pipeline.runner import MedpipeRunner
+from medpipe.utils.config import ModelSetup
 
 # =============================================================================
 # Shared Fixtures
@@ -576,10 +577,25 @@ class TestFitOutcome:
         run_mode,
         should_call_cv,
     ):
-        """Verify run_mode logic properly controls routing to CV vs direct pipeline fitting."""
+        """Verify run_mode logic properly controls routing to CV vs
+        direct pipeline fitting."""
         mock_orchestrator.config.meta.run_mode = run_mode
-        runner = MedpipeRunner(orchestrator=mock_orchestrator)
 
+        # Configure cross-validation mock so _create_cv_splitter succeeds
+        cv_cfg = MagicMock()
+        cv_cfg.strategy = "random"
+        cv_cfg.n_splits = 3
+        mock_orchestrator.config.workflow.validation.cross_validation = cv_cfg
+        mock_orchestrator.config.workflow.random_state = 42
+
+        # Set up resolved_models on mock_orchestrator.config
+        mock_model_setup = MagicMock(spec=ModelSetup)
+        mock_model_setup.algorithm = "HistGradientBoostingClassifier"
+        mock_model_setup.hyperparameters = {}
+        mock_model_setup.model_dump.return_value = {}
+        mock_orchestrator.config.resolved_models = {"MORTALITY_30D": mock_model_setup}
+
+        runner = MedpipeRunner(orchestrator=mock_orchestrator)
         X_train, y_train, _, _ = dummy_data
 
         with patch.object(
@@ -594,9 +610,16 @@ class TestFitOutcome:
                 mock_train_cv.assert_not_called()
                 mock_pipeline_fit.assert_called_once_with(X_train, y_train)
 
-    def test_fit_outcome_no_algorithm_raises_error(self, mock_orchestrator, dummy_data):
+    def test_fit_outcome_no_algorithm_raises_error(
+        self,
+        mock_orchestrator,
+        dummy_data,
+    ):
         """Test missing algorithm configuration fails gracefully."""
-        mock_orchestrator.resolved_model_configs = {"MORTALITY_30D": {}}
+        mock_model_setup = MagicMock(spec=ModelSetup)
+        mock_model_setup.algorithm = None
+        mock_orchestrator.config.resolved_models = {"MORTALITY_30D": mock_model_setup}
+
         runner = MedpipeRunner(orchestrator=mock_orchestrator)
 
         with pytest.raises(
@@ -609,7 +632,26 @@ class TestFitOutcome:
     def test_fit_outcome_with_recalibration(
         self, mock_save, mock_train_cv, mock_orchestrator, dummy_data
     ):
-        """Test fit_outcome utilizes CalibratedClassifierCV when recal data is provided."""
+        """Test fit_outcome utilizes CalibratedClassifierCV when recal
+        data is provided."""
+        mock_orchestrator.config.meta.run_mode = "cv"
+
+        # Configure cross-validation mock
+        cv_cfg = MagicMock()
+        cv_cfg.strategy = "random"
+        cv_cfg.n_splits = 3
+        mock_orchestrator.config.workflow.validation.cross_validation = cv_cfg
+        mock_orchestrator.config.workflow.random_state = 42
+
+        # Configure model setup with recalibration dict
+        mock_model_setup = MagicMock(spec=ModelSetup)
+        mock_model_setup.algorithm = "RandomForestClassifier"
+        mock_model_setup.hyperparameters = {}
+        mock_model_setup.model_dump.return_value = {
+            "recalibration": {"method": "isotonic"}
+        }
+        mock_orchestrator.config.resolved_models = {"MORTALITY_30D": mock_model_setup}
+
         runner = MedpipeRunner(orchestrator=mock_orchestrator)
         X_train, y_train, X_recal, y_recal = dummy_data
 
@@ -626,6 +668,37 @@ class TestFitOutcome:
         assert isinstance(model, CalibratedClassifierCV)
         mock_save.assert_called_once_with(model, "MORTALITY_30D")
         mock_train_cv.assert_called_once()
+
+    def test_fit_outcome_group_cv_missing_groups_raises_error(
+        self, mock_orchestrator, dummy_data
+    ):
+        """Test that group cross-validation strategy raises ValueError
+        when groups_train is None."""
+        mock_orchestrator.config.meta.run_mode = "cv"
+
+        cv_cfg = MagicMock()
+        cv_cfg.strategy = "group"
+        cv_cfg.n_splits = 3
+        mock_orchestrator.config.workflow.validation.cross_validation = cv_cfg
+        mock_orchestrator.config.workflow.random_state = 42
+
+        mock_model_setup = MagicMock(spec=ModelSetup)
+        mock_model_setup.algorithm = "RandomForestClassifier"
+        mock_model_setup.hyperparameters = {}
+        mock_orchestrator.config.resolved_models = {"MORTALITY_30D": mock_model_setup}
+
+        runner = MedpipeRunner(orchestrator=mock_orchestrator)
+        X_train, y_train, _, _ = dummy_data
+
+        with pytest.raises(
+            ValueError, match="The 'groups' parameter should not be None"
+        ):
+            runner.fit_outcome(
+                "MORTALITY_30D",
+                X_train,
+                y_train,
+                groups_train=None,
+            )
 
 
 class TestRun:
