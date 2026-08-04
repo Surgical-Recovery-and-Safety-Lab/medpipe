@@ -738,7 +738,11 @@ class TestMetricsConfig:
 
     def _get_valid_config_dict(self, **overrides) -> dict:
         """Creates a fresh valid config dict to override."""
-        config_dict = {"metrics": ["roc_auc", "log_loss", "ici"]}
+        config_dict = {
+            "metrics": ["roc_auc", "log_loss", "ici"],
+            "n_bootstraps": 1000,
+            "ci_level": 0.95,
+        }
         config_dict.update(overrides)
 
         return config_dict
@@ -825,7 +829,11 @@ class TestEvaluationSubConfig:
     def _get_valid_config_dict(self, **overrides) -> dict:
         """Creates a fresh valid config dict to override."""
         config_dict = {
-            "metrics": {"metrics": ["roc_auc", "ici"]},
+            "metrics": {
+                "metrics": ["roc_auc", "ici"],
+                "n_bootstraps": 1000,
+                "ci_level": 0.95,
+            },
             "calibration": {"strategy": "uniform", "n_bootstraps": 200},
             "fairness": {
                 "strata": ["AGE", "SEX"],
@@ -886,7 +894,11 @@ class TestWorkflowConfig:
                 },
             },
             "evaluation": {
-                "metrics": {"metrics": ["roc_auc", "ici"]},
+                "metrics": {
+                    "metrics": ["roc_auc", "ici"],
+                    "ci_level": 0.95,
+                    "n_bootstraps": 200,
+                },
                 "calibration": {"strategy": "uniform", "n_bootstraps": 200},
                 "fairness": {
                     "strata": ["AGE", "SEX"],
@@ -1004,7 +1016,11 @@ class TestMedpipeConfig:
                     },
                 },
                 "evaluation": {
-                    "metrics": {"metrics": ["roc_auc", "ici"]},
+                    "metrics": {
+                        "metrics": ["roc_auc", "ici"],
+                        "n_bootstraps": 200,
+                        "ci_level": 0.95,
+                    },
                     "calibration": {
                         "strategy": "uniform",
                         "n_bootstraps": 200,
