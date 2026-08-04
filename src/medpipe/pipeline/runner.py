@@ -417,9 +417,9 @@ class MedpipeRunner:
         """
         self.logger.info(f"--- Starting execution for outcome: {outcome} ---")
 
-        model_config = self.orchestrator.resolved_model_configs.get(outcome, {})
-        algo_name = model_config.get("algorithm")
-        hyperparams = model_config.get("hyperparameters", {})
+        model_config = self.orchestrator.config.resolved_models[outcome]
+        algo_name = model_config.algorithm
+        hyperparams = model_config.hyperparameters
 
         if not algo_name:
             raise ValueError(f"No algorithm specified for outcome: {outcome}")
@@ -435,21 +435,19 @@ class MedpipeRunner:
         pipeline = Pipeline(steps)
 
         # 2. Configure Cross-Validation
-        cv_config = (
-            dict(self.orchestrator.config)
-            .get("workflow", {})
-            .get("validation", {})
-            .get("cross_validation", {})
-        )
-
-        cv_splitter = self._create_cv_splitter(
-            strategy=cv_config.get("strategy", "random"),
-            n_splits=cv_config.get("n_splits", 5),
-            random_state=cv_config.get("random_state", 42),
-        )
+        cv_config = self.orchestrator.config.workflow.validation.cross_validation
 
         # 3. Training Loop
         if self.orchestrator.config.meta.run_mode in ["audit", "cv"]:
+            assert cv_config
+            assert cv_config.n_splits
+
+            cv_splitter = self._create_cv_splitter(
+                strategy=cv_config.strategy,
+                n_splits=cv_config.n_splits,
+                random_state=self.orchestrator.config.workflow.random_state,
+            )
+
             best_pipeline = self._train_model_cv(
                 outcome=outcome,
                 pipeline=pipeline,
@@ -466,7 +464,7 @@ class MedpipeRunner:
         final_model = self._calibrate_model(
             outcome=outcome,
             best_pipeline=best_pipeline,
-            model_config=model_config,
+            model_config=model_config.model_dump(),
             X_recal=X_recal,
             y_recal=y_recal,
         )
