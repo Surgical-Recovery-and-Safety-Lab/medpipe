@@ -1,9 +1,14 @@
 """
-medpipe.models module
+medpipe.models
+--------------
+Model registry and estimator lookup utilities for the Medpipe package[cite: 15].
 
-submodules:
-- core: contains core functions.
+Provides a centralized registry for registering, resolving, and instantiating
+machine learning estimators across scikit-learn, NGBoost, and custom models.
 """
 
-from . import core
-from .core import create_estimator, load_pipeline, save_pipeline
+from medpipe.models.registry import ModelRegistry
+
+__all__ = [
+    "ModelRegistry",
+]
