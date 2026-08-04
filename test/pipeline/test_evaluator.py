@@ -20,6 +20,12 @@ def mock_orchestrator(tmp_path):
     orchestrator.run_dir = tmp_path / "runs" / "v1"
     orchestrator.run_dir.mkdir(parents=True, exist_ok=True)
 
+    orchestrator.config = MagicMock()
+    orchestrator.config.workflow.random_state = 50
+    orchestrator.config.workflow.evaluation.metrics.metrics = ["accuracy", "ap"]
+    orchestrator.config.workflow.evaluation.metrics.n_bootstraps = 500
+    orchestrator.config.workflow.evaluation.metrics.ci_level = 0.95
+
     mock_artifact_manager = MagicMock()
     mock_artifact_manager.save_json.return_value = (
         orchestrator.run_dir / "artifacts" / "test_evaluation_results.json"
@@ -56,7 +62,7 @@ def sample_data():
             "sex": ["M", "F", "M", "F"],
             "bmi": [28.5, 22.0, 31.2, 24.1],
         },
-        index=[101, 102, 103, 104],
+        index=pd.Index([101, 102, 103, 104]),
     )
     y = pd.Series([0, 1, 1, 0], index=[101, 102, 103, 104], name="target")
     return X, y
@@ -68,48 +74,18 @@ def sample_data():
 class TestMedpipeEvaluatorInit:
     """Tests for MedpipeEvaluator.__init__."""
 
-    def test_init_explicit_metrics(self, mock_orchestrator, mock_runner):
+    def test_init_success(self, mock_orchestrator, mock_runner):
         """Test initialization when explicit metrics list is supplied."""
-        metrics = ["roc_auc", "accuracy"]
         evaluator = MedpipeEvaluator(
             orchestrator=mock_orchestrator,
             runner=mock_runner,
-            metrics=metrics,
-            n_bootstraps=500,
-            ci_level=0.90,
-            random_state=42,
         )
 
-        assert evaluator.metrics == metrics
         assert evaluator.n_bootstraps == 500
-        assert evaluator.ci_level == 0.90
-        assert evaluator.random_state == 42
+        assert evaluator.ci_level == 0.95
+        assert evaluator.random_state == 50
+        assert evaluator.metrics == ["accuracy", "ap"]
         assert evaluator.fitted_models == mock_runner.fitted_models
-
-    def test_init_metrics_from_orchestrator_config(
-        self, mock_orchestrator, mock_runner
-    ):
-        """Test retrieving metrics from nested orchestrator config when metrics arg is None."""
-        config_metrics = ["brier_score", "roc_auc"]
-
-        # Build nested mock config matching evaluator path check
-        mock_config = MagicMock()
-        mock_config.workflow.evaluation.metrics.metrics = config_metrics
-        mock_orchestrator.config = mock_config
-
-        evaluator = MedpipeEvaluator(
-            orchestrator=mock_orchestrator, runner=mock_runner, metrics=None
-        )
-        assert evaluator.metrics == config_metrics
-
-    def test_init_fallback_default_metrics(self, mock_orchestrator, mock_runner):
-        """Test fallback default metrics when no metrics supplied or configured in orchestrator."""
-        del mock_orchestrator.config  # Ensure no config attribute exists
-
-        evaluator = MedpipeEvaluator(
-            orchestrator=mock_orchestrator, runner=mock_runner, metrics=None
-        )
-        assert evaluator.metrics == ["accuracy", "roc_auc", "brier_score"]
 
 
 class TestMedpipeEvaluatorGetModel:
