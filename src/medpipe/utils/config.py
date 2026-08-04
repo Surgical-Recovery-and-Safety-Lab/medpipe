@@ -212,6 +212,8 @@ class ValidationSubConfig(BaseModel):
 
 class MetricsConfig(BaseModel):
     metrics: list[str] = Field(default=["roc_auc", "ici"])
+    n_bootstraps: int = Field(default=200, ge=0)
+    ci_level: float = Field(default=0.95, ge=0.0, le=1.0)
     model_config = {"extra": "forbid"}
 
     @model_validator(mode="after")
