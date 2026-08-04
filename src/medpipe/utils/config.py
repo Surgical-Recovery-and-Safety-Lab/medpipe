@@ -12,8 +12,6 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-from medpipe.metrics.core import METRICS
-
 
 # ==============================================================================
 # CONFIGURATION SCHEMA (pydantic)
@@ -218,6 +216,8 @@ class MetricsConfig(BaseModel):
     @model_validator(mode="after")
     def validate_metrics(self) -> "MetricsConfig":
         """Validate input metrics."""
+        from medpipe.metrics.core import METRICS
+
         for metric in self.metrics:
             if metric not in METRICS:
                 expr = (
