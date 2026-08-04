@@ -163,13 +163,11 @@ class TestSaveFinalModels:
 class TestSaveCvResults:
     """Unit tests for MedpipeRunner._save_cv_results."""
 
-    @patch("medpipe.pipeline.runner.open")
-    @patch("json.dump")
     @patch.object(pd.DataFrame, "to_csv")
-    def test_save_cv_results(
-        self, mock_to_csv, mock_json_dump, mock_open, mock_orchestrator
-    ):
+    def test_save_cv_results(self, mock_to_csv, mock_orchestrator):
         """Test that _save_cv_results writes fold results to CSV and summary statistics to JSON."""
+        mock_artifact_manager = MagicMock()
+        mock_orchestrator.artifact_manager = mock_artifact_manager
         runner = MedpipeRunner(orchestrator=mock_orchestrator)
 
         cv_data = {
@@ -187,17 +185,23 @@ class TestSaveCvResults:
                 Path("/fake/run/dir/artifacts/MORTALITY_30D_cv_results.csv"),
                 index=False,
             )
+            mock_artifact_manager.save_json.assert_called_once()
 
-            mock_open.assert_called_once_with(
-                Path("/fake/run/dir/artifacts/MORTALITY_30D_cv_summary.json"),
-                "w",
-                encoding="utf-8",
+            # Extract arguments passed to
+            # save_json(obj, destination_dir, filename)
+            args, kwargs = mock_artifact_manager.save_json.call_args
+            saved_obj = args[0] if args else kwargs.get("obj")
+            filename = args[2] if len(args) > 2 else kwargs.get("filename")
+
+            # Verify the summary contents and filename
+            assert "fit_time" not in saved_obj
+            assert "accuracy" in saved_obj
+            assert "ici" in saved_obj
+            assert saved_obj["accuracy"]["mean"] == pytest.approx(0.85)
+            assert saved_obj["ici"]["std"] == pytest.approx(
+                cv_results_df["test_ici"].std()
             )
-            mock_json_dump.assert_called_once()
-
-            summary_arg = mock_json_dump.call_args[0][0]
-            assert summary_arg["accuracy"]["mean"] == pytest.approx(0.85)
-            assert summary_arg["ici"]["mean"] == pytest.approx(0.03)
+            assert filename == "MORTALITY_30D_cv_summary.json"
 
 
 class TestTrainModelCv:
