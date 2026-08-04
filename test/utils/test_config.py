@@ -472,7 +472,6 @@ class TestCrossValConfig:
             "group_column": None,
             "n_splits": 2,
             "shuffle": True,
-            "random_state": 0,
         }
 
         config_dict.update(overrides)
@@ -486,7 +485,6 @@ class TestCrossValConfig:
             "group_column": "DHB_NAME",
             "n_splits": 2,
             "shuffle": True,
-            "random_state": 0,
         }
 
         config_dict.update(overrides)
@@ -539,21 +537,6 @@ class TestCrossValConfig:
         ):
             CrossValConfig.model_validate(config_dict)
 
-    @pytest.mark.parametrize("strategy", ["random", "group"])
-    def test_random_state_limits(self, strategy: str) -> None:
-        """Test the random state limits."""
-        config_dict = {}
-
-        if strategy == "random":
-            config_dict = self._get_valid_random_config_dict(random_state=-5)
-        elif strategy == "group":
-            config_dict = self._get_valid_group_config_dict(random_state=-5)
-
-        with pytest.raises(
-            ValidationError, match="Input should be greater than or equal to 0"
-        ):
-            CrossValConfig.model_validate(config_dict)
-
     def test_group_stragey_interactions(self) -> None:
         """Tests interactions between group stragey flag and
         other parameters."""
@@ -590,7 +573,6 @@ class TestValidationSubConfig:
                 "group_column": "DHB_NAME",
                 "n_splits": 2,
                 "shuffle": True,
-                "random_state": 0,
             },
         }
         config_dict.update(overrides)
@@ -618,7 +600,6 @@ class TestValidationSubConfig:
                 "group_column": None,
                 "n_splits": 2,
                 "shuffle": True,
-                "random_state": 0,
             },
         }
         config_dict.update(overrides)
@@ -858,6 +839,7 @@ class TestWorkflowConfig:
     def _get_valid_config_dict(self, **overrides) -> dict:
         """Creates a fresh valid config dict to override."""
         config_dict = {
+            "random_state": None,
             "preprocessing": {
                 "preprocess": True,
                 "operations": [
@@ -890,7 +872,6 @@ class TestWorkflowConfig:
                     "group_column": "DHB_NAME",
                     "n_splits": 2,
                     "shuffle": True,
-                    "random_state": 0,
                 },
             },
             "evaluation": {
@@ -993,13 +974,13 @@ class TestMedpipeConfig:
                 },
             },
             "workflow": {
+                "random_state": 42,
                 "preprocessing": None,
                 "validation": {
                     "cross_validation": {
                         "strategy": "random",
                         "n_splits": 5,
                         "shuffle": True,
-                        "random_state": 42,
                         "group_column": None,
                     },
                     "test_split": {
