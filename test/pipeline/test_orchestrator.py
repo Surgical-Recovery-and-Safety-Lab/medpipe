@@ -19,6 +19,10 @@ def mock_config():
     """Creates a mock MedpipeConfig with necessary attributes."""
     config = MagicMock(spec=MedpipeConfig)
 
+    # Mock Meta section
+    config.meta = MagicMock()
+    config.meta.project_name = "demo"
+
     # Mock Data section
     config.data = MagicMock()
     config.data.path = "dummy/path/data.csv"
@@ -66,7 +70,6 @@ class TestInit:
 
         assert orchestrator.config == mock_config
         assert orchestrator.run_dir == Path("artifacts/run_1")
-        mock_artifact_mgr_instance.save_resolved_config.assert_called_once()
         mock_artifact_mgr_instance.save_env_state.assert_called_once()
 
     @patch("medpipe.pipeline.orchestrator.read_toml_configuration")
@@ -103,19 +106,51 @@ class TestInit:
 class TestSaveReproducibilityArtifacts:
     """Unit tests for MedpipeOrchestrator._save_reproducibility_artifacts."""
 
-    @patch.object(MedpipeOrchestrator, "resolve_model_configurations")
+    def test_save_artifacts_success(
+        self, mock_add_handler, mock_get_logger, mock_artifact_mgr, mock_config
+    ):
+        """Test artifact saving when a valid data path and configuration are provided."""
+        mock_artifact_mgr_instance = mock_artifact_mgr.return_value
+        mock_artifact_mgr_instance.create_run_directory.return_value = Path(
+            "/tmp/run_1"
+        )
+
+        # Configure mock_config properties
+        mock_config.data.path = "dummy/path/data.csv"
+        mock_config.resolved_models = {}
+
+        expected_config_dict = {
+            "meta": {"project_name": "demo"},
+            "data": {"path": "dummy/path/data.csv"},
+        }
+        mock_config.model_dump.return_value = expected_config_dict
+
+        # Initializing Orchestrator triggers _save_reproducibility_artifacts() in __init__
+        orchestrator = MedpipeOrchestrator(config=mock_config)
+
+        # Verify save_env_state call
+        mock_artifact_mgr_instance.save_env_state.assert_called_once_with(
+            destination_dir=orchestrator.run_dir,
+            config=expected_config_dict,
+            dataset_path="dummy/path/data.csv",
+        )
+
     def test_save_artifacts_missing_data_attribute(
-        self, mock_resolve, mock_add_handler, mock_get_logger, mock_artifact_mgr
+        self, mock_add_handler, mock_get_logger, mock_artifact_mgr
     ):
         """Test artifact saving handles a config entirely missing the data block."""
+        mock_artifact_mgr_instance = mock_artifact_mgr.return_value
+        mock_artifact_mgr_instance.create_run_directory.return_value = Path(
+            "/tmp/run_1"
+        )
+
         mock_config_no_data = MagicMock(spec=MedpipeConfig)
-        # Explicitly remove the data attribute to trigger the artifact manager fallback
+        mock_config_no_data.resolved_models = {}
+        # Explicitly remove the data attribute to trigger dataset_path=None fallback
         del mock_config_no_data.data
         mock_config_no_data.model_dump.return_value = {"workflow": {}}
 
-        mock_artifact_mgr_instance = mock_artifact_mgr.return_value
-
-        # Initialize orchestrator (mock_resolve prevents it from crashing on missing data)
+        # Initializing Orchestrator triggers _save_reproducibility_artifacts() in __init__
         orchestrator = MedpipeOrchestrator(config=mock_config_no_data)
 
         # Verify save_env_state was called with dataset_path=None
@@ -124,120 +159,6 @@ class TestSaveReproducibilityArtifacts:
             config={"workflow": {}},
             dataset_path=None,
         )
-
-
-@patch("medpipe.pipeline.orchestrator.ArtifactManager")
-@patch("medpipe.pipeline.orchestrator.get_console_logger")
-@patch("medpipe.pipeline.orchestrator.add_file_handler")
-class TestResolveModelConfigurations:
-    """Unit tests for MedpipeOrchestrator.resolve_model_configurations."""
-
-    def test_resolve_model_configurations_success(
-        self, mock_add_handler, mock_get_logger, mock_artifact_mgr, mock_config
-    ):
-        """Test that default models and outcome overrides are correctly merged."""
-        mock_config.data.outcomes = ["MORTALITY_30D", "ANY_COMP"]
-
-        mock_config.model_dump.return_value = {
-            "default_model": {
-                "algorithm": "HistGradientBoostingClassifier",
-                "hyperparameters": {"learning_rate": 0.1, "loss": "log_loss"},
-            },
-            "outcome_overrides": {
-                "ANY_COMP": {
-                    "algorithm": "RandomForestClassifier",
-                    "hyperparameters": {"n_estimators": 200, "max_depth": 10},
-                }
-            },
-        }
-
-        orchestrator = MedpipeOrchestrator(config=mock_config)
-        resolved = orchestrator.resolve_model_configurations()
-
-        assert "MORTALITY_30D" in resolved
-        assert "ANY_COMP" in resolved
-
-        # MORTALITY_30D should use pure defaults
-        assert (
-            resolved["MORTALITY_30D"]["algorithm"] == "HistGradientBoostingClassifier"
-        )
-        assert resolved["MORTALITY_30D"]["hyperparameters"]["learning_rate"] == 0.1
-
-        # ANY_COMP should use overridden algorithm and hyperparameters
-        assert resolved["ANY_COMP"]["algorithm"] == "RandomForestClassifier"
-        assert resolved["ANY_COMP"]["hyperparameters"]["n_estimators"] == 200
-
-    def test_resolve_model_configurations_no_overrides(
-        self, mock_add_handler, mock_get_logger, mock_artifact_mgr, mock_config
-    ):
-        """Test configuration resolution when no overrides are provided."""
-        mock_config.data.outcomes = ["MORTALITY_30D"]
-        mock_config.model_dump.return_value = {
-            "default_model": {"algorithm": "HistGradientBoostingClassifier"}
-        }
-
-        orchestrator = MedpipeOrchestrator(config=mock_config)
-        resolved = orchestrator.resolve_model_configurations()
-
-        assert (
-            resolved["MORTALITY_30D"]["algorithm"] == "HistGradientBoostingClassifier"
-        )
-
-    def test_resolve_model_configurations_missing_default_model(
-        self, mock_add_handler, mock_get_logger, mock_artifact_mgr, mock_config
-    ):
-        """Test configuration resolution when default_model is completely absent."""
-        mock_config.data.outcomes = ["ANY_COMP"]
-
-        mock_config.model_dump.return_value = {
-            "outcome_overrides": {
-                "ANY_COMP": {
-                    "algorithm": "RandomForestClassifier",
-                    "hyperparameters": {"n_estimators": 100},
-                }
-            }
-        }
-
-        orchestrator = MedpipeOrchestrator(config=mock_config)
-        resolved = orchestrator.resolve_model_configurations()
-
-        assert "ANY_COMP" in resolved
-        assert resolved["ANY_COMP"]["algorithm"] == "RandomForestClassifier"
-        assert "default_model" not in resolved["ANY_COMP"]
-
-    def test_resolve_model_configurations_completely_empty(
-        self, mock_add_handler, mock_get_logger, mock_artifact_mgr, mock_config
-    ):
-        """Test configuration resolution when neither defaults nor overrides exist."""
-        mock_config.data.outcomes = ["MORTALITY_30D"]
-
-        mock_config.model_dump.return_value = {}
-
-        orchestrator = MedpipeOrchestrator(config=mock_config)
-        resolved = orchestrator.resolve_model_configurations()
-
-        assert "MORTALITY_30D" in resolved
-        assert resolved["MORTALITY_30D"] == {}
-
-    def test_resolve_model_configurations_extra_override_ignored(
-        self, mock_add_handler, mock_get_logger, mock_artifact_mgr, mock_config
-    ):
-        """Test that overrides for outcomes not listed in data.outcomes are ignored."""
-        mock_config.data.outcomes = ["MORTALITY_30D"]
-
-        mock_config.model_dump.return_value = {
-            "default_model": {"algorithm": "LogisticRegression"},
-            "outcome_overrides": {
-                "MORTALITY_30D": {"algorithm": "RandomForestClassifier"},
-                "GHOST_OUTCOME": {"algorithm": "SVC"},
-            },
-        }
-
-        orchestrator = MedpipeOrchestrator(config=mock_config)
-        resolved = orchestrator.resolve_model_configurations()
-
-        assert "MORTALITY_30D" in resolved
-        assert "GHOST_OUTCOME" not in resolved
 
 
 @patch("medpipe.pipeline.orchestrator.ArtifactManager")
