@@ -145,6 +145,8 @@ class ArtifactManager:
     create_run_directory()
         Create a new versioned directory for storing experiment
         artifacts.
+    save_json(obj, destination_dir)
+        Saves object as a JSON file.
     saved_resolved_config(config, destination_dir)
         Persist the resolved configuration dictionary as a JSON file.
     save_env_state(destination_dir, dataset_path)
@@ -192,6 +194,31 @@ class ArtifactManager:
         run_dir.mkdir(parents=True, exist_ok=True)
         return run_dir
 
+    def save_json(
+        self, obj: Any, destination_dir: Union[str, Path], filename: str
+    ) -> Path:
+        """Saves object as a JSON file.
+
+        Parameters
+        ----------
+        obj : Any
+            Object to save.
+        destination_dir : str or Path
+            Directory where the file will be written.
+        filename : str
+            Name of the file to save.
+
+        Returns
+        -------
+        Path
+            Path to the saved JSON file.
+
+        """
+        dest = Path(destination_dir) / filename
+        with open(dest, "w", encoding="utf-8") as f:
+            json.dump(obj, f, indent=4, default=str)
+        return dest
+
     def save_resolved_config(
         self, config: Dict[str, Any], destination_dir: Union[str, Path]
     ) -> Path:
@@ -210,10 +237,7 @@ class ArtifactManager:
             Path to the saved JSON file.
 
         """
-        dest = Path(destination_dir) / "resolved_config.json"
-        with open(dest, "w", encoding="utf-8") as f:
-            json.dump(config, f, indent=4, default=str)
-        return dest
+        return self.save_json(config, destination_dir, "resolved_config.json")
 
     def save_env_state(
         self,
@@ -239,7 +263,4 @@ class ArtifactManager:
 
         """
         env_state = capture_environment_state(config, dataset_path=dataset_path)
-        dest = Path(destination_dir) / "env_state.json"
-        with open(dest, "w", encoding="utf-8") as f:
-            json.dump(env_state, f, indent=4)
-        return dest
+        return self.save_json(env_state, destination_dir, "env_state.json")
