@@ -57,6 +57,7 @@ class TestMetaConfig:
         config_dict = {
             "project_name": "mepipe-test",
             "run_mode": "audit",
+            "verbose": "compact",
         }
         config_dict.update(overrides)
 
@@ -69,6 +70,38 @@ class TestMetaConfig:
 
         assert config.model_dump() == raw_config
 
+    def test_default_verbose(self) -> None:
+        """Test that verbose defaults to 'compact' when omitted from the configuration."""
+        raw_config = {"project_name": "demo_project", "run_mode": "cv"}
+        config = MetaConfig.model_validate(raw_config)
+
+        assert config.verbose == "compact"
+
+    @pytest.mark.parametrize(
+        "valid_verbose",
+        [
+            "quiet",
+            "compact",
+            "progress",
+            "info",
+            "detailed",
+            "debug",
+            "warning",
+            True,
+            False,
+            0,
+            1,
+            2,
+            3,
+        ],
+    )
+    def test_valid_verbose_options(self, valid_verbose) -> None:
+        """Test valid verbosity string literals, booleans, and allowed integer levels."""
+        raw_config = self._get_valid_config_dict(verbose=valid_verbose)
+        config = MetaConfig.model_validate(raw_config)
+
+        assert config.verbose == valid_verbose
+
     def test_project_name_empty(self) -> None:
         """Test that project name is not empty."""
         with pytest.raises(
@@ -76,12 +109,25 @@ class TestMetaConfig:
         ):
             MetaConfig.model_validate(self._get_valid_config_dict(project_name=""))
 
-    def test_meta_config_invalid_run_mode(self):
+    def test_meta_config_invalid_run_mode(self) -> None:
         """Test that invalid literal for run_mode raises a validation error."""
         with pytest.raises(
             ValidationError, match="Input should be 'fast', 'eval', 'cv' or 'audit'"
         ):
             MetaConfig(project_name="my_project", run_mode="unsupported_mode")  # type: ignore
+
+    def test_invalid_verbose_string(self) -> None:
+        """Test that an invalid string mode raises a ValidationError."""
+        with pytest.raises(ValidationError):
+            MetaConfig(project_name="my_project", verbose="ultra_verbose")  # type: ignore
+
+    def test_invalid_verbose_integer_out_of_bounds(self) -> None:
+        """Test that integers outside the allowed [0, 3] range raise a ValidationError."""
+        with pytest.raises(ValidationError):
+            MetaConfig(project_name="my_project", verbose=5)  # type: ignore
+
+        with pytest.raises(ValidationError):
+            MetaConfig(project_name="my_project", verbose=-1)  # type: ignore
 
 
 class TestDataConfig:
@@ -965,6 +1011,7 @@ class TestMedpipeConfig:
             "meta": {
                 "project_name": "medpipe-test",
                 "run_mode": "audit",
+                "verbose": "compact",
             },
             "data": {
                 "path": str(tmp_path / "path/to/data.csv"),
