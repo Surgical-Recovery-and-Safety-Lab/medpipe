@@ -196,7 +196,7 @@ class MedpipeRunner:
         None
 
         """
-        artifacts_dir = self.orchestrator.run_dir / "artifacts"
+        artifacts_dir = self.orchestrator.run_dir / "CV"
         artifacts_dir.mkdir(exist_ok=True, parents=True)
 
         # Save detailed fold-level CSV
