@@ -1,7 +1,7 @@
 """
 medpipe.models
 --------------
-Model registry and estimator lookup utilities for the Medpipe package[cite: 15].
+Model registry and estimator lookup utilities for the Medpipe package.
 
 Provides a centralized registry for registering, resolving, and instantiating
 machine learning estimators across scikit-learn, NGBoost, and custom models.

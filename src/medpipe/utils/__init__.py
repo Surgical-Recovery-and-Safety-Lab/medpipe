@@ -4,7 +4,7 @@ medpipe.utils
 Core utility functions and infrastructure for the Medpipe package.
 
 Exposes configuration schemas, I/O handlers, centralized logging,
-component registries, reproducibility management, and assertion utilities[cite: 22].
+component registries, reproducibility management, and assertion utilities.
 """
 
 from medpipe.utils.config import MedpipeConfig

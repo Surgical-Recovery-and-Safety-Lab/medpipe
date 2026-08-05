@@ -3,8 +3,9 @@ medpipe.metrics
 ---------------
 Metrics, scoring registries, and plotting utilities for the Medpipe package.
 
-Provides core metric computation functions, bootstrap confidence interval estimation[cite: 17],
-cross-validation scorer building[cite: 17], metric registries[cite: 20], and visualization tools[cite: 18, 19].
+Provides core metric computation functions, bootstrap confidence interval
+estimation, cross-validation scorer building, metric registries,
+and visualization tools.
 """
 
 from medpipe.metrics.core import (
