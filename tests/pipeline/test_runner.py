@@ -39,6 +39,7 @@ def mock_orchestrator():
     mock_config.workflow.validation.cross_validation.strategy = "random"
     mock_config.workflow.validation.cross_validation.n_splits = 2
     mock_config.workflow.validation.cross_validation.random_state = 42
+    mock_config.workflow.validation.cross_validation.grid_search = False
     mock_config.workflow.evaluation.metrics.metrics = ["accuracy"]
 
     orchestrator.config = mock_config
@@ -183,7 +184,7 @@ class TestSaveCvResults:
 
             mock_mkdir.assert_called_once_with(exist_ok=True, parents=True)
             mock_to_csv.assert_called_once_with(
-                Path("/fake/run/dir/artifacts/MORTALITY_30D_cv_results.csv"),
+                Path("/fake/run/dir/CV/MORTALITY_30D_cv_results.csv"),
                 index=False,
             )
             mock_artifact_manager.save_json.assert_called_once()
@@ -262,8 +263,10 @@ class TestTrainModelCv:
     ):
         """Test _train_model_cv triggers GridSearchCV and calls _save_cv_results when strategy is 'search'."""
         mock_orchestrator.config.workflow.validation.cross_validation.strategy = (
-            "search"
+            "random"
         )
+
+        mock_orchestrator.config.workflow.validation.cross_validation.grid_search = True
         runner = MedpipeRunner(orchestrator=mock_orchestrator)
         runner.orchestrator.config.workflow.evaluation.metrics.metrics = [
             "accuracy",
@@ -370,8 +373,9 @@ class TestTrainModelCv:
         MetricRegistry.register_spec(custom_spec)
 
         mock_orchestrator.config.workflow.validation.cross_validation.strategy = (
-            "search"
+            "random"
         )
+        mock_orchestrator.config.workflow.validation.cross_validation.grid_search = True
         mock_orchestrator.config.workflow.evaluation.metrics.metrics = [
             "dummy_custom_score",
             "ici",
