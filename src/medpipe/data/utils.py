@@ -235,6 +235,8 @@ def resolve_subgroup_mask(
     """
     Generate a boolean mask for a dataset matching a stratum group definition.
 
+    Ranges are inclusive so [18, 50] will include 18 and 50 in the range.
+
     Parameters
     ----------
     df : pd.DataFrame
@@ -243,7 +245,7 @@ def resolve_subgroup_mask(
         Name of the column to stratify on.
     group : Any
         Group definition. Can be a discrete scalar ('M'), a range tuple (18, 65),
-        a pd.Interval, or an interval string like '[18, 65)'.
+        a pd.Interval.
 
     Returns
     -------
@@ -270,25 +272,7 @@ def resolve_subgroup_mask(
     # Group passed as a tuple/list of bounds: (min, max)
     elif isinstance(group, (tuple, list)) and len(group) == 2:
         lower, upper = group[0], group[1]
-        return (col_data >= lower) & (col_data < upper)
-
-    # Group passed as an interval string e.g. "[18, 65)" or "(18, 65]"
-    elif (
-        isinstance(group, str)
-        and ("[" in group or "(" in group)
-        and ("]" in group or ")" in group)
-    ):
-        pattern = r"^([\[\(])\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*([\]\)])$"
-        match = re.match(pattern, group.strip())
-        if match:
-            left_open = match.group(1) == "("
-            lower = float(match.group(2))
-            upper = float(match.group(3))
-            right_open = match.group(4) == ")"
-
-            lower_mask = (col_data > lower) if left_open else (col_data >= lower)
-            upper_mask = (col_data < upper) if right_open else (col_data <= upper)
-            return lower_mask & upper_mask
+        return (col_data >= lower) & (col_data <= upper)
 
     # Standard discrete scalar equality (e.g. string, int, float)
     return col_data == group
