@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Any, Optional, Tuple, Union
+from typing import Any, Dict, Optional, Tuple, Union
 
 import pandas as pd
 from numpy import asarray
@@ -301,6 +301,39 @@ class MedpipeOrchestrator:
         unique_cols = list(dict.fromkeys(val_columns))
 
         return unique_cols
+
+    def get_subgroup_specs(self) -> Dict[str, Any]:
+        """
+        Parses `workflow.evaluation.fairness` settings into a dictionary
+        compatible with `MedpipeEvaluator.extract_subgroups`.
+
+        Returns
+        -------
+        subgroup_specs : dict of str to Any
+            Maps stratum column names either to column strings
+            (for discrete categorical groupings) or to lists of range bounds
+            defined under `groups`.
+
+        """
+        eval_cfg = getattr(getattr(self.config, "workflow", None), "evaluation", None)
+        fairness_cfg = getattr(eval_cfg, "fairness", None)
+
+        if not fairness_cfg or not getattr(fairness_cfg, "strata", None):
+            return {}
+
+        strata = fairness_cfg.strata
+        custom_groups = getattr(fairness_cfg, "groups", {}) or {}
+
+        subgroup_specs = {}
+        for column in strata:
+            if column in custom_groups:
+                # Custom ranges e.g. {"AGE": [[18, 50], [51, 120]]}
+                subgroup_specs[column] = custom_groups[column]
+            else:
+                # Column name string for discrete categorical groupby (e.g. "SEX")
+                subgroup_specs[column] = column
+
+        return subgroup_specs
 
     def extract_stratum_subgroup(
         self,
