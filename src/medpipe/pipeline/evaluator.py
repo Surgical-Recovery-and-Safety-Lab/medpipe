@@ -300,6 +300,7 @@ class MedpipeEvaluator:
                     mask = pd.Series(mask, index=X.index)
                 cat_subgroups["true"] = X.index[mask]
                 cat_subgroups["false"] = X.index[~mask]
+
             else:
                 mask = resolve_subgroup_mask(df=X, column=cat_name, group=spec)
                 cat_subgroups[str(spec)] = X.index[mask]
@@ -418,7 +419,7 @@ class MedpipeEvaluator:
 
         """
         outcome_name = outcome or "default_outcome"
-        self.logger.info(f"[{outcome_name}] Starting model evaluation")
+        self.logger.info(f"[{outcome_name}] Starting model evaluation.")
 
         eval_metrics = metrics if metrics is not None else self.metrics
         target_model = self._get_model(model, outcome)
@@ -435,7 +436,7 @@ class MedpipeEvaluator:
 
         # 1. Compute overall evaluation with confidence intervals
         self.logger.info(
-            "[%s] Computing overall metrics with %d bootstrap iterations (CI=%.2f)",
+            "[%s] Computing overall metrics with %d bootstrap iterations (CI=%.2f).",
             outcome_name,
             self.n_bootstraps,
             self.ci_level,
@@ -447,9 +448,7 @@ class MedpipeEvaluator:
 
         # 2. Compute subgroup metrics using identical slice evaluation logic
         if subgroup_specs:
-            self.logger.info(
-                f"[{outcome_name}] Evaluating performance across extracted subgroups"
-            )
+            self.logger.info(f"[{outcome_name}] Evaluating performance across strata.")
             subgroup_results: Dict[str, Dict[str, Dict[str, Dict[str, float]]]] = {}
             subgroups = self.extract_subgroups(X, subgroup_specs)
 
@@ -466,13 +465,20 @@ class MedpipeEvaluator:
                     y_sub = y_arr[pos_idx]
                     y_pred_sub = y_pred[pos_idx]
 
+                    self.logger.debug(
+                        f"[{outcome}] Evaluating stratum '{cat_name}' "
+                        f"matching group: {group_val}.",
+                    )
+                    self.logger.debug(
+                        f"[{outcome}] Number of samples in stratum: {len(y_sub)}."
+                    )
                     subgroup_results[cat_name][group_val] = self._evaluate_slice(
                         y_sub, y_pred_sub, eval_metrics
                     )
 
-            results["subgroups"] = subgroup_results
+            results["strata"] = subgroup_results
 
-        self.logger.info(f"[{outcome_name}] Completed evaluation for outcome")
+        self.logger.info(f"[{outcome_name}] Completed evaluation for outcome.")
 
         # 3. Save artifacts using ArtifactManager
         if save_artifacts:
@@ -510,6 +516,6 @@ class MedpipeEvaluator:
         saved_path = artifact_mgr.save_json(results, artifacts_dir, filename)
 
         self.logger.info(
-            f"[{outcome}] Successfully saved evaluation artifacts to {saved_path}",
+            f"[{outcome}] Successfully saved evaluation artifacts to {saved_path}.",
         )
         return saved_path

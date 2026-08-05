@@ -93,9 +93,15 @@ class MedpipeRunner:
         }
 
         estimator = estimator_class(**init_params)
+        self.logger.info(
+            f"Estimator {estimator_class.__name__} successfully instantiated"
+        )
+        self.logger.debug(f"Estimator instantiated with parameters {init_params}")
 
         if is_regressor(estimator) or isinstance(estimator, ngboost.NGBRegressor):
-            self.logger.info("Wrapping regressor in TransformedTargetRegressor")
+            self.logger.info(
+                f"Wrapping {estimator_class} in TransformedTargetRegressor"
+            )
             return TransformedTargetRegressor(
                 regressor=estimator,
                 transformer=BoundedLogitTransformer(),
@@ -278,6 +284,20 @@ class MedpipeRunner:
 
         scorers_dict = build_scorers(configured_metrics)
 
+        self.logger.debug(
+            f"[{outcome}] Cross-validation input dimensions - X_train: {X_train.shape}, "
+            f"y_train: {y_train.shape}, Positives: {int(np.sum(y_train))}"
+        )
+        if groups_train is not None:
+            unique_groups = len(np.unique(groups_train))
+            self.logger.debug(
+                f"[{outcome}] Group CV enabled with {unique_groups} unique group identifiers."
+            )
+
+        self.logger.debug(
+            f"[{outcome}] Active metrics scorers: {list(scorers_dict.keys())}"
+        )
+
         if cv_cfg.grid_search:
             self.logger.info(f"[{outcome}] Running GridSearchCV tuning.")
 
@@ -286,6 +306,9 @@ class MedpipeRunner:
                 for k, v in hyperparams.items()
             }
 
+            self.logger.debug(
+                f"[{outcome}] GridSearchCV parameter grid: {pipeline_params}"
+            )
             search = GridSearchCV(
                 estimator=pipeline,
                 param_grid=pipeline_params,
@@ -300,7 +323,11 @@ class MedpipeRunner:
             cv_results_df = pd.DataFrame(search.cv_results_)
             self._save_cv_results(outcome, cv_results_df)
 
-            self.logger.info(f"[{outcome}] Best parameters: {search.best_params_}")
+            self.logger.debug(
+                f"[{outcome}] GridSearchCV best index: {search.best_index_} | "
+                f"Best score ({configured_metrics[0]}): {search.best_score_:.4f} | "
+                f"Best parameters: {search.best_params_}"
+            )
             return search.best_estimator_
 
         else:
@@ -319,6 +346,14 @@ class MedpipeRunner:
             # Convert cross_validate dict to DataFrame & save artifacts
             cv_results_df = pd.DataFrame(results)
             self._save_cv_results(outcome, cv_results_df)
+
+            # Debug log per-fold metric breakdown
+            for col in cv_results_df.columns:
+                if col.startswith("test_"):
+                    scores = cv_results_df[col].to_numpy()
+                    self.logger.debug(
+                        f"[{outcome}] Fold scores for '{col}': {np.round(scores, 4).tolist()}"
+                    )
 
             self.logger.info(
                 f"[{outcome}] Fitting final base pipeline on full training data."
@@ -362,9 +397,15 @@ class MedpipeRunner:
         recal_config = model_config.get("recalibration")
 
         if X_recal is not None and not X_recal.empty and recal_config:
+            assert y_recal is not None  # Avoid diagnostic error
             self.logger.info(f"[{outcome}] Fitting recalibrator on holdout dataset.")
+            self.logger.debug(
+                f"[{outcome}] Recalibration dataset shape: {X_recal.shape} | "
+                f"Positives: {int(np.sum(y_recal))} ({np.mean(y_recal):.2%})"
+            )
             calibrator_method = recal_config.get("method")
 
+            self.logger.debug(f"[{outcome}] Recalibration methhod {calibrator_method}")
             calibrator = CalibratedClassifierCV(
                 estimator=FrozenEstimator(best_pipeline),
                 cv=2,
@@ -375,6 +416,10 @@ class MedpipeRunner:
         else:
             self.logger.info(
                 f"[{outcome}] Skipping recalibration (missing dataset or configuration)."
+            )
+            self.logger.debug(
+                f"[{outcome}] Skipping recalibration (X_recal present: {X_recal is not None}, "
+                f"Config present: {recal_config is not None})"
             )
             return best_pipeline
 
@@ -449,7 +494,10 @@ class MedpipeRunner:
                 n_splits=cv_config.n_splits,
                 random_state=self.orchestrator.config.workflow.random_state,
             )
-
+            self.logger.debug(
+                f"[{outcome}] CV {type(cv_splitter).__name__} "
+                f"with arguments {cv_splitter.__dict__}"
+            )
             best_pipeline = self._train_model_cv(
                 outcome=outcome,
                 pipeline=pipeline,
@@ -460,6 +508,7 @@ class MedpipeRunner:
                 cv_splitter=cv_splitter,
             )
         else:
+            self.logger.debug(f"[{outcome}] Fitting without any CV")
             best_pipeline = pipeline.fit(X_train, y_train)
 
         # 4. Optional Post-Hoc Recalibration

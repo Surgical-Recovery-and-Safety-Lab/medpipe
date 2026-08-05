@@ -185,6 +185,9 @@ class MedpipeOrchestrator:
                 f"Test ({len(X_test):,}), and "
                 f"Recalibration ({len(X_recal):,}) sets."
             )
+            self.logger.debug(f"Train set initial shape: {X_train.shape}")
+            self.logger.debug(f"Test set initial shape: {X_test.shape}")
+            self.logger.debug(f"Recalibration set initial shape: {X_recal.shape}")
 
         else:
             X_train = X_temp
@@ -196,6 +199,8 @@ class MedpipeOrchestrator:
                 f"Data successfully split into Train ({len(X_train):,}), and "
                 f"Test ({len(X_test):,}) sets."
             )
+            self.logger.debug(f"Train set initial shape: {X_train.shape}")
+            self.logger.debug(f"Test set initial shape: {X_test.shape}")
 
         # Extract groups if required
         groups_train = None
@@ -211,16 +216,25 @@ class MedpipeOrchestrator:
                 )
 
             self.logger.info("Data successfully prepared with CV groups.")
+            self.logger.debug(
+                f"Train set shape after CV groups removed: {X_train.shape}",
+            )
 
         val_columns = self._get_validation_columns()
+        if len(val_columns) != 0:
+            # Drop the columns from the validation configuration
+            X_train = X_train.drop(columns=val_columns, errors="ignore")
+            X_test = X_test.drop(columns=val_columns)
+            if X_recal is not None:
+                X_recal = X_recal.drop(columns=val_columns)
 
-        # Drop the columns from the validation configuration
-        X_train = X_train.drop(columns=val_columns, errors="ignore")
-        X_test = X_test.drop(columns=val_columns)
+            self.logger.info(f"Removed {val_columns} from data.")
+
+        # Final shapes printed to debug
+        self.logger.debug(f"Train set final shape: {X_train.shape}")
+        self.logger.debug(f"Test set final shape: {X_test.shape}")
         if X_recal is not None:
-            X_recal = X_recal.drop(columns=val_columns)
-
-        self.logger.info(f"Removed {val_columns} from data.")
+            self.logger.debug(f"Recalibration set final shape: {X_recal.shape}")
 
         return X_train, y_train_df, X_recal, y_recal_df, X_test, y_test_df, groups_train
 
@@ -251,6 +265,8 @@ class MedpipeOrchestrator:
                 f"Input data should be a pd.DataFrame, but got {type(data)}"
             )
 
+        self.logger.debug(f"Loaded data shape: {data.shape}")
+
         # Collect required columns (predictors & outcomes)
         required_cols = []
         if hasattr(self.config, "data"):
@@ -275,6 +291,7 @@ class MedpipeOrchestrator:
         self.logger.info(
             f"Filtered dataset from {len(data.columns)} down to {len(unique_cols)} required columns."
         )
+        self.logger.debug(f"Filtered data shape: {filtered_data.shape}")
 
         return pd.DataFrame(filtered_data)
 
@@ -381,6 +398,9 @@ class MedpipeOrchestrator:
         X_subgroup = X.loc[mask].copy()
         y_subgroup = y.loc[mask].copy() if y is not None else None
 
+        self.logger.debug(
+            f"{len(mask)} samples in stratum '{column}' matching group: {group}",
+        )
         return X_subgroup, y_subgroup
 
     def build_preprocessor(self) -> Optional[Pipeline]:
@@ -416,6 +436,9 @@ class MedpipeOrchestrator:
                         ct_columns_dict[column] for column in operation.columns
                     ]
 
+                    self.logger.debug(
+                        f"Creating operation {i+1}: {operation} on columns {ct_columns}"
+                    )
                     ct = ColumnTransformer(
                         [(f"op_{i+1}", op_type(**op_extras), ct_columns)],
                         remainder="passthrough",
