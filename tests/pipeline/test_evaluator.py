@@ -253,7 +253,7 @@ class TestMedpipeEvaluatorExtractSubgroups:
         X, _ = sample_data
         evaluator = MedpipeEvaluator(mock_orchestrator, mock_runner)
 
-        specs = {"age": ["[18, 50]", "[51, 120]"]}
+        specs = {"age": [[18, 50], [51, 120]]}
         subgroups = evaluator.extract_subgroups(X, specs)  # type: ignore
 
         assert "age" in subgroups
