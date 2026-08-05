@@ -2,6 +2,7 @@ from pathlib import Path
 from typing import Any, Optional, Tuple, Union
 
 import pandas as pd
+from numpy import asarray
 from numpy.typing import NDArray
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
@@ -202,7 +203,7 @@ class MedpipeOrchestrator:
         if cv_cfg and cv_cfg.group_column:
             if cv_cfg.group_column in X_train.columns:
                 X_train, groups_train = extract_labels(X_train, [cv_cfg.group_column])
-
+                groups_train = asarray(groups_train).ravel()
             else:
                 raise KeyError(
                     f"Cross-validation group column '{cv_cfg.group_column}' "
