@@ -315,7 +315,7 @@ class Medpipe:
             y_test_outcome = y_test[outcome]
             evaluations[outcome] = self.evaluate(
                 X=X_test,
-                y=y_test_outcome,
+                y=y_test_outcome.to_numpy(),
                 outcome=outcome,
                 subgroup_specs=subgroup_specs,
                 save_artifacts=True,
