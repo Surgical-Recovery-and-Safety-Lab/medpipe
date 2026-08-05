@@ -22,6 +22,7 @@ def mock_config():
     # Mock Meta section
     config.meta = MagicMock()
     config.meta.project_name = "demo"
+    config.meta.verbose = 0
 
     # Mock Data section
     config.data = MagicMock()
@@ -146,6 +147,8 @@ class TestSaveReproducibilityArtifacts:
 
         mock_config_no_data = MagicMock(spec=MedpipeConfig)
         mock_config_no_data.resolved_models = {}
+        mock_config_no_data.meta = MagicMock()
+        mock_config_no_data.meta.verbose = 0
         # Explicitly remove the data attribute to trigger dataset_path=None fallback
         del mock_config_no_data.data
         mock_config_no_data.model_dump.return_value = {"workflow": {}}
