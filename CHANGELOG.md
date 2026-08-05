@@ -19,6 +19,7 @@ and this project adheres to Semantic Versioning ([SemVer](https://semver.org/spe
 * Test suites for the registries
 * Test suites for the MedpipeOrchestrator, MedpipeRunner, and MedpipeEvaluator classes
 * New configuration file called default_config.toml
+* Stress tests for the Medpipe class
 
 ### Changed
 * **BREAKING** Refactored the logger module
@@ -30,9 +31,12 @@ and this project adheres to Semantic Versioning ([SemVer](https://semver.org/spe
 * Updated read_toml_configuration function
 * The compute_metrics function raises a ValueError if only one class is present for AUROC and AP calculations
 * Renamed config-examples to examples
+* Updated LICENSE with copyright year and owner name
+* Renamed test folder to tests
 
 ### Fixed
 * Typo in plot_ROC_curve docstring
+* Typo in the CATEGORY_LEVEL_1 column of test_data.csv
 
 ### Removed
 * Functions to read subconfiguration files in utils/io.py
