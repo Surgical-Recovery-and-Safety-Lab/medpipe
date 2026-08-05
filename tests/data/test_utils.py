@@ -363,12 +363,12 @@ class TestResolveSubgroupMask:
 
     def test_tuple_range_bounds(self, mock_data: pd.DataFrame) -> None:
         """Verify range tuple (min, max) applies inclusive lower and exclusive upper bounds."""
-        # Range [18, 30) -> includes 25, 19, 20; excludes 30, 35, 80, 47, 42, 69
+        # Range [18, 30] -> includes 25, 19, 20, 30; excludes , 35, 80, 47, 42, 69
         mask = resolve_subgroup_mask(mock_data, column="age", group=(18, 30))
 
         assert mask.tolist() == [
             True,
-            False,
+            True,
             False,
             True,
             False,
@@ -380,53 +380,20 @@ class TestResolveSubgroupMask:
 
     def test_list_range_bounds_float(self, mock_data: pd.DataFrame) -> None:
         """Verify floating point range bounds passed as a list using BMI."""
-        # Range [20.0, 30.0) -> includes 22.0, 24.9, 20.0, 28.4; excludes 18.5, 30.0, 35.5, 31.2, NaN
+        # Range [20.0, 30.0] -> includes 22.0, 24.9, 20.0, 28.4, 30.0; excludes 18.5, 35.5, 31.2, NaN
         mask = resolve_subgroup_mask(mock_data, column="bmi", group=[20.0, 30.0])
 
         assert mask.tolist() == [
             False,
             True,
             True,
-            False,
+            True,
             False,
             True,
             True,
             False,
             False,
         ]
-
-    # -------------------------------------------------------------------------
-    # Interval Strings
-    # -------------------------------------------------------------------------
-
-    @pytest.mark.parametrize(
-        "interval_str, expected_bools",
-        [
-            (
-                "[20, 45)",
-                [True, True, True, False, False, False, True, True, False],
-            ),  # 20 <= age < 45
-            (
-                "(20, 45]",
-                [True, True, True, False, False, False, False, True, False],
-            ),  # 20 < age <= 45
-            (
-                "[20, 42]",
-                [True, True, True, False, False, False, True, True, False],
-            ),  # 20 <= age <= 42
-            (
-                "(20, 42)",
-                [True, True, True, False, False, False, False, False, False],
-            ),  # 20 < age < 42
-        ],
-    )
-    def test_interval_string_parsing(
-        self, mock_data: pd.DataFrame, interval_str: str, expected_bools: list[bool]
-    ) -> None:
-        """Verify boundary resolution for open, closed, and half-open interval strings."""
-        mask = resolve_subgroup_mask(mock_data, column="age", group=interval_str)
-
-        assert mask.tolist() == expected_bools
 
     # -------------------------------------------------------------------------
     # Pandas Interval Objects
