@@ -419,7 +419,7 @@ class MedpipeEvaluator:
 
         """
         outcome_name = outcome or "default_outcome"
-        self.logger.info(f"[{outcome_name}] Starting model evaluation.")
+        self.logger.info(f"--- Starting model evaluation for outcome: {outcome} ---")
 
         eval_metrics = metrics if metrics is not None else self.metrics
         target_model = self._get_model(model, outcome)
@@ -478,11 +478,11 @@ class MedpipeEvaluator:
 
             results["strata"] = subgroup_results
 
-        self.logger.info(f"[{outcome_name}] Completed evaluation for outcome.")
-
         # 3. Save artifacts using ArtifactManager
         if save_artifacts:
             self._save_evaluation_artifacts(results, outcome=outcome_name)
+
+        self.logger.info(f"--- Finished model evaluation for outcome: {outcome} ---")
 
         return results
 

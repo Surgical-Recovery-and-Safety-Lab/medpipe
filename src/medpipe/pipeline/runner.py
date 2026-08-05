@@ -522,6 +522,7 @@ class MedpipeRunner:
 
         # 5. Save and Return
         self._save_model(final_model, outcome)
+        self.logger.info(f"--- Finished execution for outcome: {outcome} ---")
         return final_model
 
     def run(
@@ -555,6 +556,7 @@ class MedpipeRunner:
 
         """
         outcomes = self.orchestrator.config.data.outcomes
+        self.logger.debug(f"Starting fitting of {len(outcomes)} models.")
 
         for outcome in outcomes:
             # We assume y_train_df columns correspond to the requested outcomes
