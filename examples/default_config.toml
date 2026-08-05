@@ -1,9 +1,9 @@
 [meta]
 project_name = "ai_risk_HGBc"
-run_mode = "fast"
+run_mode = "cv"
 
 [data]
-path = "/home/mroe734/Documents/srs/medpipe/test/test_data.csv"
+path = "/home/mroe734/Documents/srs/medpipe/tests/test_data.csv"
 predictors = [
   "AGE",
   "SEX",
@@ -41,7 +41,7 @@ out_of_bounds = "clip"
 algorithm = "GradientBoostingClassifier"
 
 [outcome_overrides.ANY_COMP.hyperparameters]
-learning_rate = 0.1
+learning_rate = [0.1, 0.05]
 max_depth = 10
 
 # Override the recalibration method and its specific hyperparameters for ANY_COMP
@@ -78,13 +78,14 @@ values = [2023]
 
 [workflow.validation.cross_validation]
 strategy = "group"
+grid_search = true
 group_column = "DHB_NAME"
 n_splits = 3
 shuffle = true
 
 [workflow.evaluation.metrics]
 metrics = ["roc_auc", "log_loss"]
-n_bootstraps = 1000
+n_bootstraps = 50
 ci_level = 0.95
 
 [workflow.evaluation.calibration]
