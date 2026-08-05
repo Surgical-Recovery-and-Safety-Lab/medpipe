@@ -1,13 +1,13 @@
-import tempfile
+import shutil
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import numpy as np
 import pandas as pd
 import pytest
 
 from medpipe.pipeline.pipeline import Medpipe
 from medpipe.utils.config import MedpipeConfig
+from medpipe.utils.io import read_toml_configuration
 
 # ==============================================================================
 # 1. UNIT TESTS (Mocked Sub-components & Routing Validation)
@@ -85,3 +85,139 @@ class TestMedpipeUnit:
         mp.evaluate(X, y_single)
         _, kwargs = mp.evaluator.evaluate.call_args
         pd.testing.assert_series_equal(kwargs["y"], y_single.iloc[:, 0])
+
+
+# ==============================================================================
+# 2. END-TO-END STRESS TESTS (Minimal Synthetic Dataset & Configuration Branches)
+# ==============================================================================
+
+
+@pytest.fixture
+def repo_root(request: pytest.FixtureRequest) -> Path:
+    """Resolve repository root directory from pytest config."""
+    return Path(request.config.rootpath)
+
+
+@pytest.fixture
+def test_data_path(repo_root: Path) -> Path:
+    """Locate tests/test_data.csv relative to repo root."""
+    path = repo_root / "tests" / "test_data.csv"
+    if not path.exists():
+        path = repo_root / "test" / "test_data.csv"
+    return path
+
+
+@pytest.fixture
+def base_config_path(repo_root: Path) -> Path:
+    """Locate examples/default_config.toml relative to repo root."""
+    return repo_root / "examples" / "default_config.toml"
+
+
+@pytest.fixture
+def build_medpipe_config(test_data_path: Path, base_config_path: Path):
+    """Factory fixture loading default_config.toml and updating data.path dynamically."""
+
+    def _factory(run_mode: str = "fast", disable_recal: bool = False) -> MedpipeConfig:
+        config = read_toml_configuration(base_config_path)
+        config.data.path = str(test_data_path)
+        config.meta.run_mode = run_mode
+
+        if disable_recal:
+            config.default_model.recalibration = None
+            for override in config.outcome_overrides.values():
+                override.recalibration = None
+            config.workflow.validation.recalibration_split = None
+
+        return config
+
+    return _factory
+
+
+class TestMedpipeStressIntegration:
+    """Integration stress tests executing Medpipe and verifying artifact lifecycle."""
+
+    @pytest.mark.parametrize("run_mode", ["fast", "cv", "eval", "audit"])
+    @pytest.mark.parametrize("disable_recal", [False, True])
+    def test_run_mode_and_recalibration_branches(
+        self, build_medpipe_config, tmp_path: Path, run_mode: str, disable_recal: bool
+    ) -> None:
+        """Executes pipeline end-to-end, verifies artifact creation, and deletes artifacts."""
+        try:
+            config = build_medpipe_config(
+                run_mode=run_mode, disable_recal=disable_recal
+            )
+        except Exception as err:
+            pytest.skip(
+                f"Config combination incompatible with test dataset state: {err}"
+            )
+
+        # Direct artifacts to an isolated temporary directory
+        artifact_dir = tmp_path / "artifacts"
+        pipeline = Medpipe(config=config, base_artifact_dir=artifact_dir)
+        run_dir = pipeline.orchestrator.run_dir
+
+        try:
+            results = pipeline.run()
+
+            # 1. Validate returned pipeline output structure
+            assert "fitted_models" in results
+            assert "evaluations" in results
+            assert len(results["fitted_models"]) == len(config.data.outcomes)
+            assert len(results["evaluations"]) == len(config.data.outcomes)
+
+            # 2. Verify expected artifacts were created on disk
+            assert run_dir.exists()
+            assert (run_dir / "env_state.json").exists()
+
+            models_dir = run_dir / "models"
+            assert models_dir.exists()
+            for outcome in config.data.outcomes:
+                assert (models_dir / f"{outcome}_model.joblib").exists()
+                assert (run_dir / f"{outcome}_evaluation_results.json").exists()
+
+        finally:
+            # 3. Clean up/delete the run directory after verification
+            if run_dir.exists():
+                # Close any active logging handlers attached to the run file to release file locks
+                for handler in list(pipeline.logger.handlers):
+                    handler.close()
+                    pipeline.logger.removeHandler(handler)
+                shutil.rmtree(run_dir, ignore_errors=True)
+
+            assert not run_dir.exists()
+
+    def test_manual_workflow_fit_predict_evaluate_cleanup(
+        self, build_medpipe_config, tmp_path: Path
+    ) -> None:
+        """Validates manual step-by-step API execution and artifact cleanup."""
+        config = build_medpipe_config(run_mode="fast", disable_recal=True)
+        artifact_dir = tmp_path / "artifacts"
+        pipeline = Medpipe(config=config, base_artifact_dir=artifact_dir)
+        run_dir = pipeline.orchestrator.run_dir
+
+        try:
+            X_train, y_train, X_recal, y_recal, X_test, y_test, groups_train = (
+                pipeline.orchestrator.prepare_data()
+            )
+
+            fitted = pipeline.fit(X_train, y_train, X_recal, y_recal, groups_train)
+            assert set(fitted.keys()) == set(config.data.outcomes)
+
+            for outcome in config.data.outcomes:
+                eval_dict = pipeline.evaluate(
+                    X=X_test,
+                    y=y_test[outcome],
+                    outcome=outcome,
+                    save_artifacts=True,
+                )
+                assert "overall" in eval_dict
+                assert (run_dir / f"{outcome}_evaluation_results.json").exists()
+
+        finally:
+            if run_dir.exists():
+                for handler in list(pipeline.logger.handlers):
+                    handler.close()
+                    pipeline.logger.removeHandler(handler)
+                shutil.rmtree(run_dir, ignore_errors=True)
+
+            assert not run_dir.exists()
