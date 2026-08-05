@@ -33,12 +33,12 @@ class TestFileChecks:
         """Provide the location of the example configuration files."""
         base_dir = Path(__file__).parent.parent.parent
 
-        return base_dir / "config-examples/"
+        return base_dir / "examples/"
 
     @pytest.mark.parametrize(
         "file_name, extension, exists",
         [
-            ("HGBc_config.toml", ".toml", True),
+            ("default_config.toml", ".toml", True),
             ("not_a_file.csv", ".csv", False),
             (Path("data.parquet"), [".csv", ".parquet"], False),
         ],

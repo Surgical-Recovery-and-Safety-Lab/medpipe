@@ -31,8 +31,8 @@ class TestReadTOMLConfiguration:
         """Test successful function call."""
         base_dir = Path(__file__).parent.parent.parent
 
-        example_config_dir = base_dir / "config-examples/"
-        read_toml_configuration(example_config_dir / "medpipe.toml")
+        example_config_dir = base_dir / "examples/"
+        read_toml_configuration(example_config_dir / "default_config.toml")
 
 
 class TestLoadData:
