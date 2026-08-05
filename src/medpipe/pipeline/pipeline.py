@@ -35,6 +35,8 @@ class Medpipe:
         Path to the TOML configuration file or an instantiated MedpipeConfig object.
     base_artifact_dir : str or Path, default="artifacts"
         Root directory where versioned execution run artifacts, logs, and models are stored.
+    verbose : Union[bool, int, str, None], default=None
+        Console verbosity setting configuration override.
 
     Attributes
     ----------
@@ -68,11 +70,15 @@ class Medpipe:
         self,
         config: Union[str, Path, MedpipeConfig],
         base_artifact_dir: Union[str, Path] = "artifacts",
+        verbose_override: Union[bool, int, str, None] = None,
     ) -> None:
         self.logger = get_console_logger("medpipe")
+
         self.logger.info("Initialising Medpipe end-to-end pipeline.")
 
-        self.orchestrator = MedpipeOrchestrator(config, base_artifact_dir)
+        self.orchestrator = MedpipeOrchestrator(
+            config, base_artifact_dir, verbose_override
+        )
         self.mp_config = self.orchestrator.config
         self.runner = MedpipeRunner(orchestrator=self.orchestrator)
         self.evaluator = MedpipeEvaluator(

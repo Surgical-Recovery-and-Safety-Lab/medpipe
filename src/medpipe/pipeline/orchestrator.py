@@ -11,7 +11,7 @@ from medpipe.data.registry import PreprocessorRegistry
 from medpipe.data.utils import extract_labels, resolve_subgroup_mask, split_data
 from medpipe.utils.config import MedpipeConfig
 from medpipe.utils.io import load_data, read_toml_configuration
-from medpipe.utils.logger import add_file_handler, get_console_logger
+from medpipe.utils.logger import add_file_handler, get_console_logger, set_verbosity
 from medpipe.utils.reproducibility import ArtifactManager
 
 
@@ -30,6 +30,8 @@ class MedpipeOrchestrator:
         Path to the TOML configuration file or an instantiated MedpipeConfig object.
     base_artifact_dir : Union[str, Path], default="artifacts"
         Root directory where the versioned run artifacts and logs will be saved.
+    verbose_override : Union[bool, int, str, None], default=None
+        Console verbosity setting configuration override.
 
     Attributes
     ----------
@@ -64,6 +66,7 @@ class MedpipeOrchestrator:
         self,
         config: Union[str, Path, MedpipeConfig],
         base_artifact_dir: Union[str, Path] = "artifacts",
+        verbose_override: Union[bool, int, str, None] = None,
     ) -> None:
         if isinstance(config, (str, Path)):
             self.config = read_toml_configuration(config)
@@ -74,6 +77,10 @@ class MedpipeOrchestrator:
                 "A configuration file or a MedpipeConfig must be specified."
             )
 
+        if verbose_override is not None:
+            set_verbosity(verbose_override)
+        else:
+            set_verbosity(self.config.meta.verbose)
         self.artifact_manager = ArtifactManager(base_artifact_dir)
         self.run_dir = self.artifact_manager.create_run_directory()
 
