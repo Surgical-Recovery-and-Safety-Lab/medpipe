@@ -234,17 +234,38 @@ class TestMedpipeEvaluatorExtractSubgroups:
     def test_extract_subgroups_string_spec_success(
         self, mock_orchestrator, mock_runner, sample_data
     ):
-        """Test subgroup extraction using column string grouping."""
+        """Test subgroup extraction using column string categorical groupby."""
         X, _ = sample_data
         evaluator = MedpipeEvaluator(mock_orchestrator, mock_runner)
 
         specs = {"sex_group": "sex"}
-        subgroups = evaluator.extract_subgroups(X, specs)
+        subgroups = evaluator.extract_subgroups(X, specs)  # type: ignore
 
         assert "sex_group" in subgroups
         assert set(subgroups["sex_group"].keys()) == {"M", "F"}
         pd.testing.assert_index_equal(subgroups["sex_group"]["M"], pd.Index([101, 103]))
         pd.testing.assert_index_equal(subgroups["sex_group"]["F"], pd.Index([102, 104]))
+
+    def test_extract_subgroups_list_of_ranges_success(
+        self, mock_orchestrator, mock_runner, sample_data
+    ):
+        """Test subgroup extraction using a list of numerical range bounds."""
+        X, _ = sample_data
+        evaluator = MedpipeEvaluator(mock_orchestrator, mock_runner)
+
+        specs = {"age": ["[18, 50]", "[51, 120]"]}
+        subgroups = evaluator.extract_subgroups(X, specs)  # type: ignore
+
+        assert "age" in subgroups
+        assert "[18, 50]" in subgroups["age"]
+        assert "[51, 120]" in subgroups["age"]
+
+        pd.testing.assert_index_equal(
+            subgroups["age"]["[18, 50]"], pd.Index([102, 104])
+        )
+        pd.testing.assert_index_equal(
+            subgroups["age"]["[51, 120]"], pd.Index([101, 103])
+        )
 
     def test_extract_subgroups_callable_spec_success(
         self, mock_orchestrator, mock_runner, sample_data
@@ -265,27 +286,19 @@ class TestMedpipeEvaluatorExtractSubgroups:
             subgroups["elderly"]["false"], pd.Index([102, 104])
         )
 
-    def test_extract_subgroups_missing_column_key_error(
+    def test_extract_subgroups_fallback_scalar_spec(
         self, mock_orchestrator, mock_runner, sample_data
     ):
-        """Test KeyError raised when column string spec is missing from DataFrame X."""
+        """Test subgroup extraction falling back to resolve_subgroup_mask for non-column specs."""
         X, _ = sample_data
         evaluator = MedpipeEvaluator(mock_orchestrator, mock_runner)
 
-        specs = {"invalid": "non_existent_col"}
-        with pytest.raises(KeyError, match="Column 'non_existent_col' not found"):
-            evaluator.extract_subgroups(X, specs)
+        specs = {"sex": "M"}
+        subgroups = evaluator.extract_subgroups(X, specs)  # type: ignore
 
-    def test_extract_subgroups_invalid_spec_type_error(
-        self, mock_orchestrator, mock_runner, sample_data
-    ):
-        """Test TypeError raised when specification is neither string nor callable."""
-        X, _ = sample_data
-        evaluator = MedpipeEvaluator(mock_orchestrator, mock_runner)
-
-        specs = {"invalid_spec": 12345}  # Integer spec
-        with pytest.raises(TypeError, match="must be a column name string or callable"):
-            evaluator.extract_subgroups(X, specs)
+        assert "sex" in subgroups
+        assert "M" in subgroups["sex"]
+        pd.testing.assert_index_equal(subgroups["sex"]["M"], pd.Index([101, 103]))
 
 
 class TestMedpipeEvaluatorEvaluateSlice:
@@ -378,7 +391,7 @@ class TestMedpipeEvaluatorEvaluate:
 
         assert res["outcome"] == "MORTALITY_30D"
         assert "overall" in res
-        assert "subgroups" not in res
+        assert "strata" not in res
         mock_model.predict_proba.assert_called_once()
         mock_save.assert_not_called()
 
@@ -451,14 +464,14 @@ class TestMedpipeEvaluatorEvaluate:
             save_artifacts=True,
         )
 
-        assert "subgroups" in results
-        assert "sex" in results["subgroups"]
-        assert "M" in results["subgroups"]["sex"]
-        assert "F" in results["subgroups"]["sex"]
+        assert "strata" in results
+        assert "sex" in results["strata"]
+        assert "M" in results["strata"]["sex"]
+        assert "F" in results["strata"]["sex"]
 
         # Centenarians true group is empty and should be skipped
-        assert "true" not in results["subgroups"]["centenarians"]
-        assert "false" in results["subgroups"]["centenarians"]
+        assert "true" not in results["strata"]["centenarians"]
+        assert "false" in results["strata"]["centenarians"]
 
         mock_save.assert_called_once_with(results, outcome="MORTALITY_30D")
 
