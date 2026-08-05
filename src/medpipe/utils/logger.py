@@ -106,7 +106,7 @@ def set_verbosity(verbose: Union[bool, int, str] = "compact") -> None:
 
 def get_console_logger(
     name: str = "medpipe",
-    verbose: Union[bool, int, str] = "compact",
+    verbose: Union[bool, int, str, None] = None,
 ) -> logging.Logger:
     """
     Initialize and return the base console logger for the package with
@@ -144,7 +144,8 @@ def get_console_logger(
         root_logger.addHandler(console_handler)
 
     # Apply log level & filter configuration to stream handler
-    set_verbosity(verbose)
+    if verbose is not None:
+        set_verbosity(verbose)
 
     return logging.getLogger(name)
 
