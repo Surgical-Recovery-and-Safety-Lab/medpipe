@@ -29,7 +29,7 @@ class TestMedpipeUnit:
 
         mp = Medpipe(config=mock_config)
 
-        mock_orch_cls.assert_called_once_with(config=mock_config)
+        mock_orch_cls.assert_called_once_with(mock_config, "artifacts")
         mock_runner_cls.assert_called_once_with(orchestrator=mock_orch_instance)
         mock_eval_cls.assert_called_once_with(
             orchestrator=mock_orch_instance, runner=mock_runner_cls.return_value
