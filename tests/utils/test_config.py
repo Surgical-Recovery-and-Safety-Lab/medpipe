@@ -31,6 +31,7 @@ def valid_workflow_dict():
             },
             "cross_validation": {
                 "strategy": "group",
+                "grid_search": None,
                 "group_column": "DHB_NAME",
                 "n_splits": 3,
             },
@@ -469,6 +470,7 @@ class TestCrossValConfig:
         """Creates a fresh valid config dict with random strategy to override."""
         config_dict = {
             "strategy": "random",
+            "grid_search": None,
             "group_column": None,
             "n_splits": 2,
             "shuffle": True,
@@ -482,6 +484,7 @@ class TestCrossValConfig:
         """Creates a fresh valid config dict with group strategy to override."""
         config_dict = {
             "strategy": "group",
+            "grid_search": True,
             "group_column": "DHB_NAME",
             "n_splits": 2,
             "shuffle": True,
@@ -570,6 +573,7 @@ class TestValidationSubConfig:
             },
             "cross_validation": {
                 "strategy": "group",
+                "grid_search": None,
                 "group_column": "DHB_NAME",
                 "n_splits": 2,
                 "shuffle": True,
@@ -597,6 +601,7 @@ class TestValidationSubConfig:
             },
             "cross_validation": {
                 "strategy": "random",
+                "grid_search": None,
                 "group_column": None,
                 "n_splits": 2,
                 "shuffle": True,
@@ -869,6 +874,7 @@ class TestWorkflowConfig:
                 },
                 "cross_validation": {
                     "strategy": "group",
+                    "grid_search": None,
                     "group_column": "DHB_NAME",
                     "n_splits": 2,
                     "shuffle": True,
@@ -979,6 +985,7 @@ class TestMedpipeConfig:
                 "validation": {
                     "cross_validation": {
                         "strategy": "random",
+                        "grid_search": None,
                         "n_splits": 5,
                         "shuffle": True,
                         "group_column": None,
@@ -1186,28 +1193,13 @@ class TestMedpipeConfig:
         assert config.resolved_models["ANY_COMP"].recalibration is not None
         assert config.resolved_models["ANY_COMP"].recalibration.method == "sigmoid"
 
-    def test_validate_search_cv_fails_when_no_list_hyperparameters(
-        self, tmp_path: Path
-    ) -> None:
-        """Test that strategy='search' raises ValidationError when all
-        hyperparameters are scalars."""
-        raw_config = self._get_valid_config_dict(tmp_path)
-        raw_config["workflow"]["validation"]["cross_validation"]["strategy"] = "search"
-        # Ensure default and overrides only have scalar parameters
-        raw_config["default_model"]["hyperparameters"] = {"learning_rate": 0.1}
-
-        with pytest.raises(
-            ValidationError, match="no hyperparameter defined as a list"
-        ):
-            MedpipeConfig.model_validate(raw_config)
-
     def test_validate_search_cv_succeeds_with_list_hyperparameters(
         self, tmp_path: Path
     ) -> None:
-        """Test that strategy='search' passes validation when at least one
+        """Test that grid_search=true passes validation when at least one
         hyperparameter is a list."""
         raw_config = self._get_valid_config_dict(tmp_path)
-        raw_config["workflow"]["validation"]["cross_validation"]["strategy"] = "search"
+        raw_config["workflow"]["validation"]["cross_validation"]["grid_search"] = True
         raw_config["default_model"]["hyperparameters"] = {
             "learning_rate": [0.01, 0.1],
             "max_depth": 3,
@@ -1216,7 +1208,8 @@ class TestMedpipeConfig:
         config = MedpipeConfig.model_validate(raw_config)
 
         assert config.workflow.validation.cross_validation
-        assert config.workflow.validation.cross_validation.strategy == "search"
+        assert config.workflow.validation.cross_validation.strategy == "random"
+        assert config.workflow.validation.cross_validation.grid_search
         assert config.resolved_models["MORTALITY_30D"].hyperparameters[
             "learning_rate"
         ] == [0.01, 0.1]
