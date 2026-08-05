@@ -67,11 +67,12 @@ class Medpipe:
     def __init__(
         self,
         config: Union[str, Path, MedpipeConfig],
+        base_artifact_dir: Union[str, Path] = "artifacts",
     ) -> None:
         self.logger = get_console_logger("medpipe")
         self.logger.info("Initialising Medpipe end-to-end pipeline.")
 
-        self.orchestrator = MedpipeOrchestrator(config=config)
+        self.orchestrator = MedpipeOrchestrator(config, base_artifact_dir)
         self.mp_config = self.orchestrator.config
         self.runner = MedpipeRunner(orchestrator=self.orchestrator)
         self.evaluator = MedpipeEvaluator(
