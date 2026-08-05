@@ -282,6 +282,7 @@ class TestTrainModelCv:
         mock_search_instance = MagicMock()
         mock_grid_search.return_value = mock_search_instance
         mock_search_instance.best_estimator_ = "best_model"
+        mock_search_instance.best_score_ = 0.9102
         mock_search_instance.cv_results_ = {
             "params": [{"classifier__max_depth": 3}],
             "mean_test_accuracy": [0.85],
@@ -327,6 +328,7 @@ class TestTrainModelCv:
             "accuracy",
             "ici",
         ]
+        mock_orchestrator.config.workflow.cross_validation.grid_search = False
         runner = MedpipeRunner(orchestrator=mock_orchestrator)
 
         X_train, y_train, _, _ = dummy_data
@@ -392,6 +394,7 @@ class TestTrainModelCv:
         mock_search_instance = MagicMock()
         mock_grid_search.return_value = mock_search_instance
         mock_search_instance.best_estimator_ = "best_model"
+        mock_search_instance.best_score_ = 0.9102
         mock_search_instance.cv_results_ = {"mean_test_dummy_custom_score": [0.95]}
 
         result = runner._train_model_cv(
