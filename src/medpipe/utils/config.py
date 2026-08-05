@@ -8,9 +8,25 @@ This module provides configuration schemas.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, Union
 
 from pydantic import BaseModel, Field, field_validator, model_validator
+
+# ==============================================================================
+# CUSTOM VERBOSITY TYPES
+# ==============================================================================
+VerbosityMode = Literal[
+    "quiet",
+    "compact",
+    "progress",
+    "info",
+    "detailed",
+    "debug",
+    "warning",
+]
+VerbosityInt = Literal[0, 1, 2, 3]
+
+VerboseType = Union[VerbosityMode, bool, VerbosityInt]
 
 
 # ==============================================================================
@@ -22,6 +38,10 @@ class MetaConfig(BaseModel):
 
     project_name: str
     run_mode: Literal["fast", "eval", "cv", "audit"] = "audit"
+    verbose: VerboseType = Field(
+        default="compact",
+        description="Console logging verbosity: 'quiet' (0), 'compact' (1), 'info' (2), 'debug' (3).",
+    )
     model_config = {"extra": "forbid"}
 
     @field_validator("project_name")
