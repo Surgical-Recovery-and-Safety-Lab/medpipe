@@ -1,6 +1,7 @@
 [meta]
-project_name = "ai_risk_HGBc"
+project_name = "medpipe_demo"
 run_mode = "cv"
+verbose = 1
 
 [data]
 path = "/home/mroe734/Documents/srs/medpipe/tests/test_data.csv"
