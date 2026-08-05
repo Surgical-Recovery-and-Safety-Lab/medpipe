@@ -262,9 +262,6 @@ class Medpipe:
 
     def run(
         self,
-        subgroup_specs: Optional[
-            Dict[str, Union[str, Callable[[pd.DataFrame], pd.Series]]]
-        ] = None,
         groups_train: Optional[np.ndarray] = None,
     ) -> Dict[str, Any]:
         """
@@ -275,8 +272,6 @@ class Medpipe:
 
         Parameters
         ----------
-        subgroup_specs : dict of str to (str or callable), optional
-            Specifications for extracting demographic or clinical subgroups during evaluation.
         groups_train : numpy.ndarray, optional
             Group labels for training samples if group-based cross-validation is configured.
 
@@ -310,6 +305,7 @@ class Medpipe:
         self.logger.info("Step 3/3: Evaluating models on holdout test set.")
         evaluations: Dict[str, Any] = {}
         outcomes = self.orchestrator.config.data.outcomes
+        subgroup_specs = self.orchestrator.get_subgroup_specs()
 
         for outcome in outcomes:
             y_test_outcome = y_test[outcome]
