@@ -278,7 +278,7 @@ class MedpipeRunner:
 
         scorers_dict = build_scorers(configured_metrics)
 
-        if cv_cfg.strategy == "search":
+        if cv_cfg.grid_search:
             self.logger.info(f"[{outcome}] Running GridSearchCV tuning.")
 
             pipeline_params = {

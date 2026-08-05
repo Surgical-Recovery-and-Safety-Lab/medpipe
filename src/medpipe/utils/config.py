@@ -143,7 +143,8 @@ class SplitRecalibrationConfig(BaseModel):
 
 
 class CrossValConfig(BaseModel):
-    strategy: Literal["random", "group", "search"]
+    strategy: Literal["random", "group"]
+    grid_search: bool | None = None
     group_column: str | None = None
     n_splits: int | None = Field(default=None, ge=2)
     shuffle: bool | None = None
@@ -397,29 +398,6 @@ class MedpipeConfig(BaseModel):
                     "when run_mode is 'audit' or 'eval'"
                 )
                 raise ValueError(expr)
-        return self
-
-    @model_validator(mode="after")
-    def validate_search_cv(self) -> "MedpipeConfig":
-        """Check that at least one hyperparamters is a list
-        with search cv strategy."""
-        workflow_cv_cfg = self.workflow.validation.cross_validation
-        if workflow_cv_cfg is not None and workflow_cv_cfg.strategy == "search":
-            for outcome, model_setup in self.resolved_models.items():
-                hyperparams = model_setup.hyperparameters
-
-                # Check if any value in the hyperparameters dict is a list
-                has_list_hyperparam = any(
-                    isinstance(v, list) for v in hyperparams.values()
-                )
-
-                if not has_list_hyperparam:
-                    raise ValueError(
-                        f"Cross-validation strategy is set to 'search', but outcome "
-                        f"'{outcome}' has no hyperparameter defined as a list for "
-                        "GridSearchCV."
-                    )
-
         return self
 
     @model_validator(mode="after")
