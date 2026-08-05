@@ -754,3 +754,87 @@ class TestExtractStratumSubgroup:
             mock_orchestrator.extract_stratum_subgroup(
                 X=X, column="INVALID_COL", group="M", y=y
             )
+
+
+class TestGetSubgroupSpecs:
+    """Unit test suite for MedpipeOrchestrator.get_subgroup_specs."""
+
+    def test_get_subgroup_specs_with_strata_and_custom_groups(self):
+        """Test resolving subgroup specs when both strata and custom range
+        groups are defined."""
+        orchestrator = object.__new__(MedpipeOrchestrator)
+
+        fairness_cfg = MagicMock()
+        fairness_cfg.strata = ["SEX", "AGE"]
+        fairness_cfg.groups = {"AGE": [[18, 50], [51, 120]]}
+
+        orchestrator.config = MagicMock()
+        orchestrator.config.workflow.evaluation.fairness = fairness_cfg
+
+        specs = orchestrator.get_subgroup_specs()
+
+        assert specs == {
+            "SEX": "SEX",
+            "AGE": [[18, 50], [51, 120]],
+        }
+
+    def test_get_subgroup_specs_strata_only(self):
+        """Test resolving subgroup specs when strata are present without
+        custom groups."""
+        orchestrator = object.__new__(MedpipeOrchestrator)
+
+        fairness_cfg = MagicMock()
+        fairness_cfg.strata = ["SEX", "ETHNICITY"]
+        fairness_cfg.groups = None
+
+        orchestrator.config = MagicMock()
+        orchestrator.config.workflow.evaluation.fairness = fairness_cfg
+
+        specs = orchestrator.get_subgroup_specs()
+
+        assert specs == {
+            "SEX": "SEX",
+            "ETHNICITY": "ETHNICITY",
+        }
+
+    def test_get_subgroup_specs_missing_fairness_config(self):
+        """Test returning empty dict when fairness config or strata list
+        is missing."""
+        orchestrator = object.__new__(MedpipeOrchestrator)
+        orchestrator.config = MagicMock()
+        orchestrator.config.workflow.evaluation.fairness = None
+
+        specs = orchestrator.get_subgroup_specs()
+
+        assert specs == {}
+
+    def test_get_subgroup_specs_missing_workflow_or_evaluation(self):
+        """Test returning empty dict when workflow or evaluation section is
+        missing entirely."""
+        orchestrator = object.__new__(MedpipeOrchestrator)
+        orchestrator.config = MagicMock()
+        orchestrator.config.workflow = None
+
+        specs = orchestrator.get_subgroup_specs()
+
+        assert specs == {}
+
+
+class TestCheckOperation:
+    """Unit test suite for MedpipeOrchestrator._check_operation."""
+
+    def test_check_operation_registered_class(self):
+        """Test resolving valid transformer classes from registry."""
+        orchestrator = object.__new__(MedpipeOrchestrator)
+
+        op_cls = orchestrator._check_operation("StandardScaler")
+        assert op_cls.__name__ == "StandardScaler"
+
+    def test_check_operation_invalid_class_raises_value_error(self):
+        """Test invalid operation name raises ValueError."""
+        orchestrator = object.__new__(MedpipeOrchestrator)
+
+        with pytest.raises(
+            ValueError, match="was not found in the custom registry or fallback modules"
+        ):
+            orchestrator._check_operation("NonExistentTransformer")
