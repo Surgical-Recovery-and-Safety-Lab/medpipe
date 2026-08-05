@@ -14,6 +14,7 @@ import numpy as np
 import numpy.typing as npt
 import pandas as pd
 
+from medpipe.data.utils import resolve_subgroup_mask
 from medpipe.metrics.core import bootstrap_confidence_intervals, compute_metrics
 from medpipe.utils.logger import get_console_logger
 
@@ -270,18 +271,29 @@ class MedpipeEvaluator:
 
         """
         self.logger.debug(
-            "Extracting subgroups for %d categories.", len(subgroup_specs)
+            f"Extracting subgroups for {len(subgroup_specs)} categories.",
         )
         subgroups: Dict[str, Dict[str, pd.Index]] = {}
 
         for cat_name, spec in subgroup_specs.items():
             cat_subgroups: Dict[str, pd.Index] = {}
 
-            if isinstance(spec, str):
-                if spec not in X.columns:
-                    raise KeyError(f"Column '{spec}' not found in DataFrame X.")
+            if isinstance(spec, str) and spec in X.columns:
+                # Column string: discrete categorical groupby
                 for val, group_df in X.groupby(spec):
                     cat_subgroups[str(val)] = group_df.index
+
+            elif isinstance(spec, (list, tuple)):
+                # List of custom ranges e.g. [[18, 50], [51, 120]]
+                for grp in spec:
+                    mask = resolve_subgroup_mask(df=X, column=cat_name, group=grp)
+                    grp_key = (
+                        f"[{grp[0]}, {grp[1]}]"
+                        if isinstance(grp, (list, tuple)) and len(grp) == 2
+                        else str(grp)
+                    )
+                    cat_subgroups[grp_key] = X.index[mask]
+
             elif callable(spec):
                 mask = spec(X)
                 if not isinstance(mask, pd.Series):
@@ -289,11 +301,13 @@ class MedpipeEvaluator:
                 cat_subgroups["true"] = X.index[mask]
                 cat_subgroups["false"] = X.index[~mask]
             else:
-                raise TypeError(
-                    f"Subgroup specification for '{cat_name}' must be a column name string or callable."
-                )
+                mask = resolve_subgroup_mask(df=X, column=cat_name, group=spec)
+                cat_subgroups[str(spec)] = X.index[mask]
 
             subgroups[cat_name] = cat_subgroups
+            self.logger.debug(
+                f"Extracted stratum '{cat_name}' matching groups: {spec}",
+            )
 
         return subgroups
 
