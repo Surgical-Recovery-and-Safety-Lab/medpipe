@@ -9,6 +9,7 @@ from sklearn.base import BaseEstimator, is_regressor
 from sklearn.calibration import CalibratedClassifierCV, FrozenEstimator
 from sklearn.compose import TransformedTargetRegressor
 from sklearn.model_selection import (
+    BaseCrossValidator,
     GridSearchCV,
     StratifiedGroupKFold,
     StratifiedKFold,
@@ -226,8 +227,8 @@ class MedpipeRunner:
         hyperparams: dict,
         X_train: pd.DataFrame,
         y_train: np.ndarray,
+        cv_splitter: BaseCrossValidator,
         groups_train: Optional[np.ndarray],
-        cv_splitter,
     ) -> Pipeline:
         """
         Handles hyperparameter tuning via GridSearchCV or standard cross-validation.
@@ -244,11 +245,11 @@ class MedpipeRunner:
             The training feature set.
         y_train : np.ndarray
             The 1D training target labels.
+        cv_splitter : BaseCrossValidator
+            The cross-validation splitting strategy object.
         groups_train : Optional[np.ndarray]
             Group labels for the training set, used for group-based
             cross-validation splits.
-        cv_splitter : BaseCrossValidator or None
-            The cross-validation splitting strategy object.
 
         Returns
         -------
