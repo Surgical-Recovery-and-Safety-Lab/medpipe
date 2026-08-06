@@ -479,10 +479,7 @@ class MedpipeDisplayer:
         )
         display_label = label or "Predicted Probabilities"
 
-        with (
-            plt.style.context(self.theme.style_sheet),
-            plt.rc_context(self.theme.to_rc_params()),
-        ):
+        with (plt.rc_context(self.theme.to_rc_params()),):
             fig, ax = draw_probability_distribution(
                 probas=probas,
                 n_bins=n_bins,
@@ -561,10 +558,7 @@ class MedpipeDisplayer:
         display_label = label or f"Model (AUC = {roc_auc:.3f})"
 
         # Apply global theme context
-        with (
-            plt.style.context(self.theme.style_sheet),
-            plt.rc_context(self.theme.to_rc_params()),
-        ):
+        with (plt.rc_context(self.theme.to_rc_params()),):
             fig, ax = draw_roc_curve(
                 fpr=fpr,
                 tpr=tpr,
@@ -649,10 +643,7 @@ class MedpipeDisplayer:
 
         display_label = label or f"Model (AP = {ap_score:.3f})"
 
-        with (
-            plt.style.context(self.theme.style_sheet),
-            plt.rc_context(self.theme.to_rc_params()),
-        ):
+        with (plt.rc_context(self.theme.to_rc_params()),):
             fig, ax = draw_precision_recall_curve(
                 precision=precision,
                 recall=recall,
@@ -744,10 +735,7 @@ class MedpipeDisplayer:
         if strategy == "spline":
             style_kwargs.setdefault("marker", None)
 
-        with (
-            plt.style.context(self.theme.style_sheet),
-            plt.rc_context(self.theme.to_rc_params()),
-        ):
+        with (plt.rc_context(self.theme.to_rc_params()),):
             fig, ax = draw_reliability_diagram(
                 prob_true=prob_true,
                 prob_pred=prob_pred,
@@ -862,10 +850,7 @@ class MedpipeDisplayer:
         row_labels = ["All strata"] + list(strata)
 
         # 3. Stateless Drawing Delegate
-        with (
-            plt.style.context(self.theme.style_sheet),
-            plt.rc_context(self.theme.to_rc_params()),
-        ):
+        with (plt.rc_context(self.theme.to_rc_params()),):
             fig, ax = draw_strata_heatmap(
                 plot_data=plot_data,
                 text_data=text_data,
@@ -937,10 +922,7 @@ class MedpipeDisplayer:
 
         display_label = label or "Model"
 
-        with (
-            plt.style.context(self.theme.style_sheet),
-            plt.rc_context(self.theme.to_rc_params()),
-        ):
+        with (plt.rc_context(self.theme.to_rc_params()),):
             fig, ax = draw_dca_curve(
                 thresholds=thresh,
                 net_benefit_model=nb_model,

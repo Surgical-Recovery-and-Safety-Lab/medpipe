@@ -27,7 +27,6 @@ class MedpipeTheme:
         Opacity level for confidence interval shaded fills, bounded in [0.0, 1.0].
     linewidth : float, default=2.0
         Line width in points for main plotted curves.
-    style_sheet : str, default="seaborn-v0_8-whitegrid"
         Base Matplotlib style sheet name applied to figure contexts.
     dpi : int, default=300
         Dots per inch (resolution) for saved rasterized images.
@@ -62,7 +61,6 @@ class MedpipeTheme:
     )
     ci_alpha: float = 0.3
     linewidth: float = 2.0
-    style_sheet: str = "seaborn-v0_8-whitegrid"
     dpi: int = 300
     font_family: str = "sans-serif"
     title_fontsize: int = 12
