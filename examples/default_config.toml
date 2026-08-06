@@ -1,6 +1,6 @@
 [meta]
 project_name = "medpipe_demo"
-run_mode = "cv"
+run_mode = "audit"
 verbose = 1
 
 [data]
