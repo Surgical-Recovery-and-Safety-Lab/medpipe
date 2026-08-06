@@ -57,8 +57,34 @@ class MedpipeDisplayer:
 
     Methods
     -------
-    plot_roc_curve(y_true, probas, outcome="default", label=None, n_bootstraps=1000, save=True, show=False, **style_kwargs)
-        Compute ROC statistics, render curve with optional bootstrap CIs, and save output.
+    plot_roc_curve(y_true, probas, outcome="default", label=None,
+    n_bootstraps=1000, save=True, show=False, **style_kwargs)
+        Compute ROC statistics, render curve with optional bootstrap CIs,
+        and save output.
+    plot_precision_recall_curve(y_true, probas, outcome="default",
+    label=None, n_bootstraps=1000, save=True, show=False, **style_kwargs)
+        Compute PR statistics, render curve with optional bootstrap CIs,
+        and save output.
+    plot_probability_distribution(probas, outcome="default", n_bins=10,
+    label=None, save=True, show=False, **style_kwargs)
+        Render predicted probability distribution histogram and save output.
+    plot_reliability_diagram(y_true, probas, outcome="default", n_bins=10,
+    strategy="uniform", label=None, n_bootstraps=1000, save=True,
+    show=False, **style_kwargs)
+        Compute calibration metrics (binned or spline), render reliability
+        diagram with optional CIs, and save output.
+    plot_strata_heatmap(outcomes, metric, strata, scores, strata_scores,
+    save=True, show=False, **style_kwargs)
+        Validate subgroup inputs, compute delta matrix, render strata heatmap,
+        and save output.
+    plot_dca_curve(y_true, probas, outcome="default", thresholds=None,
+    label=None, save=True, show=False, **style_kwargs)
+        Compute Net Benefit across decision thresholds, render DCA plot,
+        and save output.
+    plot_all(y_true, probas, outcome="default", n_bootstraps=1000, save=True,
+    show=False, **style_kwargs)
+        Execute all core model evaluation visualization routines
+        (ROC, PR, distribution, reliability, DCA) for a given outcome.
     """
 
     def __init__(
@@ -321,7 +347,7 @@ class MedpipeDisplayer:
         return prob_true, prob_pred, lower_ci, upper_ci
 
     def _save_figure(
-        self, fig: Figure, filename: str, outcome: Optional[str] = None
+        self, fig: Figure | SubFigure, filename: str, outcome: Optional[str] = None
     ) -> Path:
         """Persist figure artifact to disk in the run directory structure.
 
@@ -438,10 +464,11 @@ class MedpipeDisplayer:
 
         Returns
         -------
-        fig : Figure
+        fig : Figure | SubFigure
             Rendered Matplotlib figure object.
         ax : Axes
             Matplotlib axes containing the plotted histogram.
+
         """
         display_label = label or "Predicted Probabilities"
 
@@ -507,7 +534,7 @@ class MedpipeDisplayer:
 
         Returns
         -------
-        fig : Figure
+        fig : Figure | SubFigure
             Rendered Matplotlib figure object.
         ax : Axes
             Matplotlib axes containing the plotted elements.
@@ -584,7 +611,7 @@ class MedpipeDisplayer:
 
         Returns
         -------
-        fig : Figure
+        fig : Figure | SubFigure
             Rendered Matplotlib figure object.
         ax : Axes
             Matplotlib axes containing the plotted elements.
@@ -646,7 +673,7 @@ class MedpipeDisplayer:
         save: bool = True,
         show: bool = False,
         **style_kwargs: Any,
-    ) -> Tuple[Figure, Axes]:
+    ) -> Tuple[Figure | SubFigure, Axes]:
         """Compute calibration data, render reliability diagram with CIs, and save figure.
 
         Parameters
@@ -674,10 +701,11 @@ class MedpipeDisplayer:
 
         Returns
         -------
-        fig : Figure
+        fig : Figure | SubFigure
             Rendered Matplotlib figure object.
         ax : Axes
             Matplotlib axes containing the plotted elements.
+
         """
         prob_true, prob_pred, lower_ci, upper_ci = self._compute_reliability_data(
             y_true=y_true,
@@ -733,7 +761,7 @@ class MedpipeDisplayer:
         save: bool = True,
         show: bool = False,
         **style_kwargs: Any,
-    ) -> Tuple[Figure, Axes]:
+    ) -> Tuple[Figure | SubFigure, Axes]:
         """Validate strata data, compute delta matrix, and render heatmap.
 
         Parameters
@@ -757,7 +785,7 @@ class MedpipeDisplayer:
 
         Returns
         -------
-        fig : Figure
+        fig : Figure | SubFigure
             Rendered Matplotlib figure object.
         ax : Axes
             Matplotlib axes containing the heatmap plot.
@@ -766,6 +794,7 @@ class MedpipeDisplayer:
         ------
         ValueError
             If matrix dimensions do not match the provided strata, outcomes, or scores.
+
         """
         scores_arr = np.asarray(scores)
         strata_scores_arr = np.asarray(strata_scores)
@@ -844,7 +873,7 @@ class MedpipeDisplayer:
         save: bool = True,
         show: bool = False,
         **style_kwargs: Any,
-    ) -> Tuple[Figure, Axes]:
+    ) -> Tuple[Figure | SubFigure, Axes]:
         """Compute Decision Curve Analysis metrics, render plot, and save figure artifact.
 
         Parameters
@@ -868,7 +897,7 @@ class MedpipeDisplayer:
 
         Returns
         -------
-        fig : Figure
+        fig : Figure | SubFigure
             Rendered Matplotlib figure object.
         ax : Axes
             Matplotlib axes containing the DCA plot.
