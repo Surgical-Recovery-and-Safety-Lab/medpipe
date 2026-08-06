@@ -229,3 +229,134 @@ def draw_roc_curve(
     ax.legend(loc="lower right", frameon=False)
 
     return fig, ax
+
+
+def draw_precision_recall_curve(
+    precision: np.ndarray,
+    recall: np.ndarray,
+    lower_ci: Optional[np.ndarray] = None,
+    upper_ci: Optional[np.ndarray] = None,
+    baseline: Optional[float] = None,
+    label: str = "Model",
+    ax: Optional[Axes] = None,
+    color: str = _DEFAULT_THEME.primary_color,
+    ci_color: Optional[str] = None,
+    ci_alpha: float = _DEFAULT_THEME.ci_alpha,
+    linestyle: str = "-",
+    linewidth: float = _DEFAULT_THEME.linewidth,
+    baseline_linestyle: str = "--",
+    baseline_color: str = "black",
+    title: Optional[str] = None,
+    show_spines: bool = _DEFAULT_THEME.show_spines,
+    **line_kwargs: Any,
+) -> Tuple[Figure | SubFigure, Axes]:
+    """Render a Precision-Recall (PR) curve with optional CI bounds and baseline.
+
+    Parameters
+    ----------
+    precision : np.ndarray
+        Precision values across thresholds.
+    recall : np.ndarray
+        Recall values across thresholds.
+    lower_ci : np.ndarray, optional
+        Lower bound array of precision values for 95% confidence interval shading.
+    upper_ci : np.ndarray, optional
+        Upper bound array of precision values for 95% confidence interval shading.
+    baseline : float, optional
+        Horizontal baseline value representing chance performance (positive class ratio).
+    label : str, default="Model"
+        Legend label for the plotted PR curve.
+    ax : matplotlib.axes.Axes, optional
+        Pre-existing Matplotlib axes instance. If None, a new figure and axes are created.
+    color : str, default=_DEFAULT_THEME.primary_color
+        Color specifier for the main PR curve and default confidence interval fill.
+    ci_color : str, optional
+        Custom color specifier for confidence interval shading. Defaults to `color`.
+    ci_alpha : float, default=_DEFAULT_THEME.ci_alpha
+        Opacity level for confidence interval shaded region [0.0, 1.0].
+    linestyle : str, default="-"
+        Line style specification for the PR curve.
+    linewidth : float, default=_DEFAULT_THEME.linewidth
+        Width in points for the PR curve line.
+    baseline_linestyle : str, default="--"
+        Line style specification for the baseline reference line.
+    baseline_color : str, default="black"
+        Color specifier for the baseline reference line.
+    title : str, optional
+        Axes title text.
+    show_spines : bool, default=_DEFAULT_THEME.show_spines
+        Whether to keep the top and right border spines visible.
+    **line_kwargs : Any
+        Additional Matplotlib keyword arguments forwarded to `ax.plot` for the PR curve.
+
+    Returns
+    -------
+    fig : matplotlib.figure.Figure or matplotlib.figure.SubFigure
+        Parent Matplotlib figure containing the axes.
+    ax : matplotlib.axes.Axes
+        Matplotlib axes containing all rendered PR elements.
+
+    Raises
+    ------
+    ValueError
+        If ax is provided but not attached to a Figure.
+
+    """
+    if ax is None:
+        fig, ax = plt.subplots(figsize=(6, 6))
+    else:
+        fig = ax.get_figure()
+        if fig is None:
+            raise ValueError("The provided Axes instance is not attached to a Figure")
+
+    # Draw horizontal baseline (prevalence / chance level) if provided
+    if baseline is not None:
+        ax.axhline(
+            y=baseline,
+            linestyle=baseline_linestyle,
+            color=baseline_color,
+            label=f"Baseline ({baseline:.2f})",
+        )
+
+    # Clean line_kwargs to prevent parameter collisions
+    for key in ("color", "linestyle", "linewidth", "label"):
+        line_kwargs.pop(key, None)
+
+    # Draw main PR curve line (Recall on X-axis, Precision on Y-axis)
+    ax.plot(
+        recall,
+        precision,
+        color=color,
+        linestyle=linestyle,
+        linewidth=linewidth,
+        label=label,
+        **line_kwargs,
+    )
+
+    # Draw confidence interval shading if bounds are supplied
+    if lower_ci is not None and upper_ci is not None:
+        ax.fill_between(
+            recall,
+            lower_ci,
+            upper_ci,
+            color=ci_color or color,
+            alpha=ci_alpha,
+            label=f"{label} 95% CI",
+        )
+
+    # Format axis bounds and labels
+    ax.set_xlabel("Recall (Sensitivity)", fontweight="bold")
+    ax.set_ylabel("Precision (PPV)", fontweight="bold")
+    ax.set_xlim(xmin=-0.02, xmax=1.02)
+    ax.set_ylim(ymin=-0.02, ymax=1.02)
+
+    if title:
+        ax.set_title(title, fontweight="bold")
+
+    if not show_spines:
+        ax.spines["top"].set_visible(False)
+        ax.spines["right"].set_visible(False)
+
+    ax.legend(loc="lower left", frameon=False)
+
+    return fig, ax

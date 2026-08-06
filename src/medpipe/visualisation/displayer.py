@@ -9,11 +9,20 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure, SubFigure
-from sklearn.metrics import auc, roc_curve
+from sklearn.metrics import (
+    auc,
+    average_precision_score,
+    precision_recall_curve,
+    roc_curve,
+)
 
 from medpipe.pipeline.orchestrator import MedpipeOrchestrator
 from medpipe.utils.logger import get_console_logger
-from medpipe.visualisation.plots import draw_probability_distribution, draw_roc_curve
+from medpipe.visualisation.plots import (
+    draw_precision_recall_curve,
+    draw_probability_distribution,
+    draw_roc_curve,
+)
 from medpipe.visualisation.themes import MedpipeTheme
 
 
@@ -127,8 +136,86 @@ class MedpipeDisplayer:
 
         return fpr, tpr, roc_auc, lower_ci, upper_ci
 
+    def _compute_precision_recall_data(
+        self,
+        y_true: np.ndarray,
+        probas: np.ndarray,
+        n_bootstraps: int = 1000,
+        random_state: Optional[int] = 42,
+    ) -> Tuple[
+        np.ndarray,
+        np.ndarray,
+        float,
+        float,
+        Optional[np.ndarray],
+        Optional[np.ndarray],
+    ]:
+        """Compute Precision-Recall metrics, Average Precision, and bootstrap CIs.
+
+        Parameters
+        ----------
+        y_true : np.ndarray
+            Ground truth binary target labels of shape (n_samples,).
+        probas : np.ndarray
+            Predicted probabilities of shape (n_samples, 2) or (n_samples,).
+        n_bootstraps : int, default=1000
+            Number of bootstrap iterations for 95% confidence interval estimation.
+        random_state : int, optional, default=42
+            Random seed for bootstrap resampling reproducibility.
+
+        Returns
+        -------
+        precision : np.ndarray
+            Precision values across decision thresholds.
+        recall : np.ndarray
+            Recall values across decision thresholds.
+        ap_score : float
+            Average Precision (AP) score.
+        baseline : float
+            Prevalence / fraction of positive ground truth samples.
+        lower_ci : np.ndarray or None
+            Lower 2.5% percentile bound of precision across bootstraps, if n_bootstraps > 0.
+        upper_ci : np.ndarray or None
+            Upper 97.5% percentile bound of precision across bootstraps, if n_bootstraps > 0.
+        """
+        if probas.ndim == 2:
+            probas = probas[:, 1]
+
+        y_true = np.asarray(y_true).squeeze()
+
+        precision, recall, _ = precision_recall_curve(y_true, probas)
+        ap_score = float(average_precision_score(y_true, probas))
+        baseline = float(np.mean(y_true))
+
+        if n_bootstraps <= 0:
+            return precision, recall, ap_score, baseline, None, None
+
+        rng = np.random.default_rng(random_state)
+        n_samples = len(y_true)
+        boots = []
+
+        # Scikit-learn precision_recall_curve outputs recall in descending order
+        rev_recall = recall[::-1]
+
+        for _ in range(n_bootstraps):
+            idx = rng.choice(n_samples, size=n_samples, replace=True)
+            if len(np.unique(y_true[idx])) < 2:
+                continue
+
+            prec_b, rec_b, _ = precision_recall_curve(y_true[idx], probas[idx])
+            interp_prec = np.interp(rev_recall, rec_b[::-1], prec_b[::-1])
+            boots.append(interp_prec[::-1])
+
+        if not boots:
+            return precision, recall, ap_score, baseline, None, None
+
+        lower_ci = np.percentile(boots, 2.5, axis=0)
+        upper_ci = np.percentile(boots, 97.5, axis=0)
+
+        return precision, recall, ap_score, baseline, lower_ci, upper_ci
+
     def _save_figure(
-        self, fig: Figure | SubFigure, filename: str, outcome: Optional[str] = None
+        self, fig: Figure, filename: str, outcome: Optional[str] = None
     ) -> Path:
         """Persist figure artifact to disk in the run directory structure.
 
@@ -157,6 +244,7 @@ class MedpipeDisplayer:
         return save_path
 
     # --- High-Level Plotting Methods ---
+
     def plot_probability_distribution(
         self,
         probas: np.ndarray,
@@ -292,6 +380,90 @@ class MedpipeDisplayer:
 
         if save:
             self._save_figure(fig=fig, filename=f"{outcome}_roc_curve", outcome=outcome)
+
+        if show:
+            plt.show()
+        elif save:
+            plt.close(fig)
+
+        return fig, ax
+
+    def plot_precision_recall_curve(
+        self,
+        y_true: np.ndarray,
+        probas: np.ndarray,
+        outcome: str = "default",
+        label: Optional[str] = None,
+        n_bootstraps: int = 1000,
+        save: bool = True,
+        show: bool = False,
+        **style_kwargs: Any,
+    ) -> Tuple[Figure | SubFigure, Axes]:
+        """Compute PR metrics, render curve with confidence intervals, and save figure.
+
+        Parameters
+        ----------
+        y_true : np.ndarray
+            Ground truth binary target labels of shape (n_samples,).
+        probas : np.ndarray
+            Predicted probabilities of shape (n_samples, 2) or (n_samples,).
+        outcome : str, default="default"
+            Outcome identifier used for figure titles and folder structuring.
+        label : str, optional
+            Legend label for the model. If None, defaults to 'Model (AP = X.XX)'.
+        n_bootstraps : int, default=1000
+            Number of bootstrap iterations for confidence intervals. Set to 0 to disable.
+        save : bool, default=True
+            Automatically save the generated plot to the run directory.
+        show : bool, default=False
+            Whether to display the plot interactively before closing.
+        **style_kwargs : Any
+            Additional style parameters forwarded to `draw_precision_recall_curve`.
+
+        Returns
+        -------
+        fig : Figure
+            Rendered Matplotlib figure object.
+        ax : Axes
+            Matplotlib axes containing the plotted elements.
+
+        """
+        (
+            precision,
+            recall,
+            ap_score,
+            baseline,
+            lower_ci,
+            upper_ci,
+        ) = self._compute_precision_recall_data(
+            y_true=y_true,
+            probas=probas,
+            n_bootstraps=n_bootstraps,
+        )
+
+        display_label = label or f"Model (AP = {ap_score:.3f})"
+
+        with (
+            plt.style.context(self.theme.style_sheet),
+            plt.rc_context(self.theme.to_rc_params()),
+        ):
+            fig, ax = draw_precision_recall_curve(
+                precision=precision,
+                recall=recall,
+                lower_ci=lower_ci,
+                upper_ci=upper_ci,
+                baseline=baseline,
+                label=display_label,
+                color=style_kwargs.pop("color", self.theme.primary_color),
+                ci_alpha=style_kwargs.pop("ci_alpha", self.theme.ci_alpha),
+                linewidth=style_kwargs.pop("linewidth", self.theme.linewidth),
+                show_spines=style_kwargs.pop("show_spines", self.theme.show_spines),
+                title=f"Precision-Recall Curve - {outcome.capitalize()}",
+                **style_kwargs,
+            )
+
+        if save:
+            self._save_figure(fig=fig, filename=f"{outcome}_pr_curve", outcome=outcome)
 
         if show:
             plt.show()
