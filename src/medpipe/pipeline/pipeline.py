@@ -8,10 +8,9 @@ model fitting, inference, and TRIPOD+AI compliant evaluation.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
-import numpy.typing as npt
 import pandas as pd
 
 from medpipe.pipeline.evaluator import MedpipeEvaluator
@@ -19,6 +18,13 @@ from medpipe.pipeline.orchestrator import MedpipeOrchestrator
 from medpipe.pipeline.runner import MedpipeRunner
 from medpipe.utils.config import MedpipeConfig
 from medpipe.utils.logger import get_console_logger
+from medpipe.visualisation.displayer import MedpipeDisplayer
+
+if TYPE_CHECKING:
+
+    import numpy.typing as npt
+    from matplotlib.axes import Axes
+    from matplotlib.figure import Figure, SubFigure
 
 
 class Medpipe:
@@ -41,11 +47,16 @@ class Medpipe:
     Attributes
     ----------
     orchestrator : MedpipeOrchestrator
-        Pipeline orchestrator instance driving data preparation and reproducibility artifacts.
+        Pipeline orchestrator instance driving data preparation and
+        reproducibility artifacts.
     runner : MedpipeRunner
-        Pipeline execution engine responsible for model training and cross-validation loops.
+        Pipeline execution engine responsible for model training and
+        cross-validation loops.
     evaluator : MedpipeEvaluator
-        Pipeline evaluation engine computing point estimates and bootstrap confidence intervals.
+        Pipeline evaluation engine computing point estimates and
+        bootstrap confidence intervals.
+    displayer : MedpipeDisplayer
+        Visualisation engine rendering and persisting evaluation figures.
     logger : logging.Logger
         Centralized logger instance configured under `"medpipe"`.
 
@@ -59,8 +70,14 @@ class Medpipe:
         Predict class probabilities for input samples.
     decision_function(X, model=None, outcome=None)
         Compute decision function confidence scores for input samples.
-    evaluate(X, y, outcome=None, model=None, metrics=None, subgroup_specs=None, save_artifacts=True)
-        Evaluate model performance with confidence intervals on full datasets and subgroups.
+    evaluate(X, y, outcome=None, model=None, metrics=None, subgroup_specs=None,
+    save_artifacts=True)
+        Evaluate model performance with confidence intervals on full datasets
+        and subgroups.
+    plot_all(y_true, probas, outcome="default", n_bootstraps=1000, save=True,
+    show=False, **style_kwargs)
+        Generate and persist all standard evaluation figures for
+        a specific outcome.
     run(subgroup_specs=None, groups_train=None)
         Execute full end-to-end pipeline (data preparation, model fitting, and test evaluation).
 
@@ -85,6 +102,7 @@ class Medpipe:
             orchestrator=self.orchestrator,
             runner=self.runner,
         )
+        self.displayer = MedpipeDisplayer(orchestrator=self.orchestrator)
 
         self.logger.info("Medpipe initialisation complete.")
 
@@ -285,20 +303,28 @@ class Medpipe:
         -------
         pipeline_results : dict of str to Any
             Dictionary containing:
-            - `"fitted_models"`: Dictionary mapping outcome target names to fitted model instances.
-            - `"evaluations"`: Dictionary mapping outcome target names to evaluation results dictionaries.
+            - `"fitted_models"`: Dictionary mapping outcome target names
+            to fitted model instances.
+            - `"evaluations"`: Dictionary mapping outcome target names
+            to evaluation results dictionaries.
+            - `"plots"`: (Audit mode only) Nested dictionary mapping outcome
+            target names to figure objects.
 
         """
         self.logger.info("Executing full Medpipe pipeline end-to-end.")
 
+        n_steps = 3
+        if self.mp_config.meta.run_mode == "audit":
+            n_steps = 4
+
         # 1. Prepare data splits via orchestrator
-        self.logger.info("Step 1/3: Ingesting and splitting dataset.")
+        self.logger.info(f"Step 1/{n_steps}: Ingesting and splitting dataset.")
         X_train, y_train, X_recal, y_recal, X_test, y_test, groups_train = (
             self.orchestrator.prepare_data()
         )
 
         # 2. Fit models via runner
-        self.logger.info("Step 2/3: Fitting outcome models.")
+        self.logger.info(f"Step 2/{n_steps}: Fitting outcome models.")
         fitted_models = self.fit(
             X_train=X_train,
             y_train=y_train,
@@ -308,8 +334,11 @@ class Medpipe:
         )
 
         # 3. Evaluate models on test set via evaluator
-        self.logger.info("Step 3/3: Evaluating models on holdout test set.")
+        self.logger.info(
+            f"Step 3/{n_steps}: Evaluating models on holdout test set.",
+        )
         evaluations: Dict[str, Any] = {}
+        plots: Dict[str, Dict[str, Tuple[Figure | SubFigure, Axes]]] = {}
         outcomes = self.orchestrator.config.data.outcomes
         subgroup_specs = self.orchestrator.get_subgroup_specs()
 
@@ -323,9 +352,78 @@ class Medpipe:
                 save_artifacts=True,
             )
 
+        if self.mp_config.meta.run_mode == "audit":
+            self.logger.info(f"Step 4/{n_steps}: Plotting graphs.")
+            for outcome in outcomes:
+                y_true_outcome = y_test[outcome].to_numpy()
+                probas_outcome = self.predict_proba(X=X_test, outcome=outcome)
+
+                plots[outcome] = self.plot_all(
+                    y_true=y_true_outcome,
+                    probas=probas_outcome,
+                    outcome=outcome,
+                    save=True,
+                    show=False,
+                )
+
         self.logger.info("Full Medpipe pipeline execution finished successfully.")
 
-        return {
+        results: Dict[str, Any] = {
             "fitted_models": fitted_models,
             "evaluations": evaluations,
         }
+        if plots:
+            results["plots"] = plots
+
+        return results
+
+    def plot_all(
+        self,
+        y_true: np.ndarray,
+        probas: np.ndarray,
+        outcome: str = "default",
+        n_bootstraps: int = 1000,
+        save: bool = True,
+        show: bool = False,
+        **style_kwargs: Any,
+    ) -> dict[str, Tuple[Figure | SubFigure, Axes]]:
+        """Execute all core evaluation visualization routines for a given outcome.
+
+        Generates and optionally persists the ROC curve, Precision-Recall curve,
+        Probability Distribution histogram, Reliability Diagram, and Decision
+        Curve Analysis (DCA).
+
+        Parameters
+        ----------
+        y_true : numpy.ndarray
+            Ground truth binary target labels of shape (n_samples,).
+        probas : numpy.ndarray
+            Predicted probabilities of shape (n_samples, 2) or (n_samples,).
+        outcome : str, default="default"
+            Outcome identifier used for figure titles and directory structuring.
+        n_bootstraps : int, default=1000
+            Number of bootstrap iterations for confidence interval estimation on ROC,
+            PR, and reliability curves.
+        save : bool, default=True
+            Automatically save all generated plot artifacts to the run directory.
+        show : bool, default=False
+            Whether to display figures interactively before closing.
+        **style_kwargs : Any
+            Additional style parameters forwarded to underlying drawing primitives.
+
+        Returns
+        -------
+        plots : dict of str to tuple of (matplotlib.figure.Figure, matplotlib.axes.Axes)
+            Dictionary mapping plot keys ('roc', 'pr', 'distribution', 'reliability', 'dca')
+            to their rendered (Figure, Axes) Matplotlib objects.
+
+        """
+        return self.displayer.plot_all(
+            y_true=y_true,
+            probas=probas,
+            outcome=outcome,
+            n_bootstraps=n_bootstraps,
+            save=save,
+            show=show,
+            **style_kwargs,
+        )
