@@ -470,6 +470,13 @@ class MedpipeDisplayer:
             Matplotlib axes containing the plotted histogram.
 
         """
+        self.logger.info(
+            f"[{outcome}] Starting predicted probability distribution plotting."
+        )
+        self.logger.debug(
+            f"[{outcome}] Plotting predicted probability distribution with "
+            f"probabilities: {probas.shape}."
+        )
         display_label = label or "Predicted Probabilities"
 
         with (
@@ -540,6 +547,11 @@ class MedpipeDisplayer:
             Matplotlib axes containing the plotted elements.
 
         """
+        self.logger.info(f"[{outcome}] Starting ROC curve plotting.")
+        self.logger.debug(
+            f"[{outcome}] Plotting ROC curve with "
+            f"y: {y_true.shape} and {n_bootstraps} bootstrap iterations."
+        )
         fpr, tpr, roc_auc, lower_ci, upper_ci = self._compute_roc_data(
             y_true=y_true,
             probas=probas,
@@ -617,6 +629,11 @@ class MedpipeDisplayer:
             Matplotlib axes containing the plotted elements.
 
         """
+        self.logger.info(f"[{outcome}] Starting PR curve plotting.")
+        self.logger.debug(
+            f"[{outcome}] Plotting PR curve with "
+            f"y: {y_true.shape} and {n_bootstraps} bootstrap iterations."
+        )
         (
             precision,
             recall,
@@ -707,6 +724,11 @@ class MedpipeDisplayer:
             Matplotlib axes containing the plotted elements.
 
         """
+        self.logger.info(f"[{outcome}] Starting reliability diagram plotting.")
+        self.logger.debug(
+            f"[{outcome}] Plotting reliability diagram with "
+            f"y: {y_true.shape} and {n_bootstraps} bootstrap iterations."
+        )
         prob_true, prob_pred, lower_ci, upper_ci = self._compute_reliability_data(
             y_true=y_true,
             probas=probas,
@@ -903,6 +925,8 @@ class MedpipeDisplayer:
             Matplotlib axes containing the DCA plot.
 
         """
+        self.logger.info(f"[{outcome}] Starting DCA graph plotting.")
+        self.logger.debug(f"[{outcome}] Plotting DCA graph with y: {y_true.shape}.")
         thresh, nb_model, nb_all = self._compute_dca_data(
             y_true=y_true,
             probas=probas,
@@ -979,6 +1003,8 @@ class MedpipeDisplayer:
         """
         plots: dict[str, Tuple[Figure | SubFigure, Axes]] = {}
 
+        self.logger.info(f"--- Starting graphical display for outcome: {outcome} ---")
+
         # Pass copies of style_kwargs to prevent parameter mutation across calls
         plots["roc"] = self.plot_roc_curve(
             y_true=y_true,
@@ -1027,4 +1053,5 @@ class MedpipeDisplayer:
             **style_kwargs.copy(),
         )
 
+        self.logger.info(f"--- Finished graphical display for outcome: {outcome} ---")
         return plots
