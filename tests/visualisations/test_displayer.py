@@ -754,3 +754,63 @@ class TestPlotDcaCurve:
         )
 
         mock_show.assert_called_once()
+
+
+class TestPlotAll:
+    """Tests for the combined `plot_all` method."""
+
+    def test_plot_all_success_and_saves_all_artifacts(
+        self, mock_orchestrator, sample_binary_data, tmp_path: Path
+    ) -> None:
+        """Test that plot_all executes all 5 plotting methods and persists artifacts."""
+        y_true, probas = sample_binary_data
+        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+
+        plots = displayer.plot_all(
+            y_true=y_true,
+            probas=probas,
+            outcome="mortality",
+            n_bootstraps=10,
+            save=True,
+            show=False,
+        )
+
+        # Check dictionary structure
+        expected_keys = {"roc", "pr", "distribution", "reliability", "dca"}
+        assert set(plots.keys()) == expected_keys
+
+        for fig, ax in plots.values():
+            assert isinstance(fig, Figure)
+            assert isinstance(ax, Axes)
+
+        # Check that all 5 artifact files were created on disk
+        plot_dir = tmp_path / "plots" / "mortality"
+        expected_files = [
+            plot_dir / "mortality_roc_curve.png",
+            plot_dir / "mortality_pr_curve.png",
+            plot_dir / "mortality_probability_distribution.png",
+            plot_dir / "mortality_reliability_diagram.png",
+            plot_dir / "mortality_dca_curve.png",
+        ]
+        for file_path in expected_files:
+            assert file_path.exists()
+
+    def test_plot_all_without_saving(
+        self, mock_orchestrator, sample_binary_data, tmp_path: Path
+    ) -> None:
+        """Test plot_all execution when save=False."""
+        y_true, probas = sample_binary_data
+        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+
+        plots = displayer.plot_all(
+            y_true=y_true,
+            probas=probas,
+            outcome="readmission",
+            n_bootstraps=0,
+            save=False,
+            show=False,
+        )
+
+        assert len(plots) == 5
+        plot_dir = tmp_path / "plots" / "readmission"
+        assert not plot_dir.exists()
