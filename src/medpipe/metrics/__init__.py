@@ -4,8 +4,7 @@ medpipe.metrics
 Metrics, scoring registries, and plotting utilities for the Medpipe package.
 
 Provides core metric computation functions, bootstrap confidence interval
-estimation, cross-validation scorer building, metric registries,
-and visualization tools.
+estimation, cross-validation scorer building, and metric registries.
 """
 
 from medpipe.metrics.core import (
@@ -13,12 +12,6 @@ from medpipe.metrics.core import (
     build_scorers,
     compute_metrics,
     ici_score,
-)
-from medpipe.metrics.plots import (
-    plot_probability_distribution,
-    plot_reliability_diagram,
-    plot_ROC_curve,
-    plot_strata_heatmap,
 )
 from medpipe.metrics.registry import MetricRegistry, MetricSpec
 
@@ -31,9 +24,4 @@ __all__ = [
     # Metric registry and specifications
     "MetricRegistry",
     "MetricSpec",
-    # Plotting routines
-    "plot_probability_distribution",
-    "plot_reliability_diagram",
-    "plot_ROC_curve",
-    "plot_strata_heatmap",
 ]
