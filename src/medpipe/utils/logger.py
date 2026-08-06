@@ -25,12 +25,11 @@ class CompactProgressFilter(logging.Filter):
         "Step 1/",
         "Step 2/",
         "Step 3/",
+        "Step 4/",
         "Ingesting data from",
         "Starting model fitting across",
-        "--- Starting execution for outcome",
-        "--- Finished execution for outcome",
-        "--- Starting model evaluation for outcome",
-        "--- Finished model evaluation for outcome",
+        "--- Starting ",
+        "--- Finished ",
         "Full Medpipe pipeline execution finished",
     )
 
