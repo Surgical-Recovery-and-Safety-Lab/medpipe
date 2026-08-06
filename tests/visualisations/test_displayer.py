@@ -438,3 +438,158 @@ class TestPlotPrecisionRecallCurve:
         )
 
         mock_show.assert_called_once()
+
+
+class TestComputeReliabilityData:
+    """Tests for the internal `_compute_reliability_data` helper method."""
+
+    def test_compute_reliability_data_success_and_bootstraps(
+        self, mock_orchestrator, sample_binary_data
+    ) -> None:
+        """Test calculation of calibration points and bootstrap CIs."""
+        y_true, probas = sample_binary_data
+        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+
+        (
+            prob_true,
+            prob_pred,
+            lower_ci,
+            upper_ci,
+        ) = displayer._compute_reliability_data(
+            y_true=y_true, probas=probas, n_bins=5, n_bootstraps=20
+        )
+
+        assert isinstance(prob_true, np.ndarray)
+        assert isinstance(prob_pred, np.ndarray)
+        assert len(prob_true) == len(prob_pred)
+        assert isinstance(lower_ci, np.ndarray)
+        assert isinstance(upper_ci, np.ndarray)
+
+    def test_compute_reliability_data_disabled_bootstraps(
+        self, mock_orchestrator, sample_binary_data
+    ) -> None:
+        """Test that n_bootstraps <= 0 returns None for confidence interval arrays."""
+        y_true, probas = sample_binary_data
+        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+
+        _, _, lower_ci, upper_ci = displayer._compute_reliability_data(
+            y_true=y_true, probas=probas, n_bins=5, n_bootstraps=0
+        )
+
+        assert lower_ci is None
+        assert upper_ci is None
+
+
+class TestPlotReliabilityDiagram:
+    """Tests for the high-level `plot_reliability_diagram` method."""
+
+    def test_plot_reliability_diagram_success_and_saves(
+        self, mock_orchestrator, sample_binary_data, tmp_path: Path
+    ) -> None:
+        """Test successful reliability diagram generation with figure artifact saving."""
+        y_true, probas = sample_binary_data
+        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+
+        fig, ax = displayer.plot_reliability_diagram(
+            y_true=y_true,
+            probas=probas,
+            outcome="mortality",
+            n_bins=5,
+            n_bootstraps=10,
+            save=True,
+            show=False,
+        )
+
+        expected_file = (
+            tmp_path / "plots" / "mortality" / "mortality_reliability_diagram.png"
+        )
+        assert isinstance(fig, Figure)
+        assert isinstance(ax, Axes)
+        assert expected_file.exists()
+
+    def test_plot_reliability_diagram_without_saving(
+        self, mock_orchestrator, sample_binary_data, tmp_path: Path
+    ) -> None:
+        """Test reliability diagram rendering when save=False."""
+        y_true, probas = sample_binary_data
+        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+
+        fig, _ = displayer.plot_reliability_diagram(
+            y_true=y_true,
+            probas=probas,
+            outcome="readmission",
+            save=False,
+            show=False,
+        )
+
+        expected_file = (
+            tmp_path / "plots" / "readmission" / "readmission_reliability_diagram.png"
+        )
+        assert isinstance(fig, Figure)
+        assert not expected_file.exists()
+
+    @patch("matplotlib.pyplot.show")
+    def test_plot_reliability_diagram_show_flag(
+        self, mock_show, mock_orchestrator, sample_binary_data
+    ) -> None:
+        """Test interactive figure display when show=True."""
+        y_true, probas = sample_binary_data
+        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+
+        displayer.plot_reliability_diagram(
+            y_true=y_true,
+            probas=probas,
+            save=False,
+            show=True,
+        )
+
+        mock_show.assert_called_once()
+
+    @patch("splinecalib.SplineCalib")
+    def test_compute_reliability_data_spline_strategy(
+        self, mock_spline_cls, mock_orchestrator, sample_binary_data
+    ) -> None:
+        """Test reliability calculation using the splinecalib SplineCalib strategy."""
+        y_true, probas = sample_binary_data
+        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+
+        mock_sc = MagicMock()
+        mock_sc.calibrate.side_effect = lambda x: x * 0.95
+        mock_spline_cls.return_value = mock_sc
+
+        prob_true, prob_pred, lower_ci, upper_ci = displayer._compute_reliability_data(
+            y_true=y_true, probas=probas, strategy="spline", n_bootstraps=10
+        )
+
+        assert mock_sc.fit.called
+        assert len(prob_pred) == 100
+        assert len(prob_true) == 100
+        assert lower_ci is not None
+        assert upper_ci is not None
+
+    @patch("splinecalib.SplineCalib")
+    def test_plot_reliability_diagram_spline_strategy(
+        self, mock_spline_cls, mock_orchestrator, sample_binary_data
+    ) -> None:
+        """Test plot generation with spline calibration strategy."""
+        y_true, probas = sample_binary_data
+        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+
+        mock_sc = MagicMock()
+        mock_sc.calibrate.side_effect = lambda x: x * 0.95
+        mock_spline_cls.return_value = mock_sc
+
+        fig, ax = displayer.plot_reliability_diagram(
+            y_true=y_true,
+            probas=probas,
+            outcome="icu_admission",
+            strategy="spline",
+            n_bootstraps=0,
+            save=False,
+            show=False,
+        )
+
+        assert isinstance(fig, Figure)
+        # Line for model should not have marker points when strategy='spline'
+        model_line = ax.get_lines()[1]
+        assert model_line.get_marker() in ("", "None", None)

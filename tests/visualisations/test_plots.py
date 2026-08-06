@@ -14,6 +14,7 @@ matplotlib.use("Agg")  # Non-interactive backend for headless testing
 from medpipe.visualisation.plots import (
     draw_precision_recall_curve,
     draw_probability_distribution,
+    draw_reliability_diagram,
     draw_roc_curve,
 )
 
@@ -264,4 +265,71 @@ class TestDrawPrecisionRecallCurve:
         ):
             draw_precision_recall_curve(
                 precision=np.array([1.0]), recall=np.array([0.0]), ax=mock_ax
+            )
+
+
+class TestDrawReliabilityDiagram:
+    """Tests for the stateless `draw_reliability_diagram` rendering function."""
+
+    def test_draw_reliability_diagram_default_axes(self) -> None:
+        """Test drawing calibration curve with default axes creation."""
+        prob_true = np.array([0.1, 0.3, 0.5, 0.7, 0.9])
+        prob_pred = np.array([0.12, 0.28, 0.52, 0.68, 0.88])
+
+        fig, ax = draw_reliability_diagram(
+            prob_true=prob_true, prob_pred=prob_pred, label="Calibrated Model"
+        )
+
+        assert isinstance(fig, (Figure, SubFigure))
+        assert isinstance(ax, Axes)
+        assert ax.get_xlabel() == "Mean Predicted Probability"
+        assert ax.get_ylabel() == "Fraction of Positives"
+
+        labels = [text.get_text() for text in ax.get_legend().get_texts()]
+        assert "Perfectly calibrated" in labels
+        assert "Calibrated Model" in labels
+
+    def test_draw_reliability_diagram_with_ci(self) -> None:
+        """Test drawing calibration curve with pre-computed confidence interval bounds."""
+        prob_true = np.array([0.1, 0.3, 0.5, 0.7, 0.9])
+        prob_pred = np.array([0.1, 0.3, 0.5, 0.7, 0.9])
+        lower_ci = prob_true - 0.05
+        upper_ci = prob_true + 0.05
+
+        fig, ax = draw_reliability_diagram(
+            prob_true=prob_true,
+            prob_pred=prob_pred,
+            lower_ci=lower_ci,
+            upper_ci=upper_ci,
+            label="Model with CI",
+        )
+
+        assert len(ax.collections) == 1  # PolyCollection from fill_between
+        labels = [text.get_text() for text in ax.get_legend().get_texts()]
+        assert "Model with CI 95% CI" in labels
+
+    def test_draw_reliability_diagram_existing_axes(self) -> None:
+        """Test rendering onto an existing Matplotlib axes instance."""
+        existing_fig, existing_ax = plt.subplots()
+        prob_true = np.array([0.2, 0.6])
+        prob_pred = np.array([0.25, 0.55])
+
+        fig, ax = draw_reliability_diagram(
+            prob_true=prob_true, prob_pred=prob_pred, ax=existing_ax
+        )
+
+        assert fig is existing_fig
+        assert ax is existing_ax
+
+    def test_draw_reliability_diagram_detached_axes_raises(self) -> None:
+        """Edge case: raise ValueError when provided Axes is detached from a Figure."""
+        mock_ax = MagicMock(spec=Axes)
+        mock_ax.get_figure.return_value = None
+
+        with pytest.raises(
+            ValueError,
+            match="The provided Axes instance is not attached to a Figure",
+        ):
+            draw_reliability_diagram(
+                prob_true=np.array([0.5]), prob_pred=np.array([0.5]), ax=mock_ax
             )
