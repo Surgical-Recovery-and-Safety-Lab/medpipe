@@ -593,3 +593,85 @@ class TestPlotReliabilityDiagram:
         # Line for model should not have marker points when strategy='spline'
         model_line = ax.get_lines()[1]
         assert model_line.get_marker() in ("", "None", None)
+
+
+class TestPlotStrataHeatmap:
+    """Tests for the high-level `plot_strata_heatmap` method."""
+
+    def test_plot_strata_heatmap_success_and_saves(
+        self, mock_orchestrator, tmp_path: Path
+    ) -> None:
+        """Test successful strata heatmap generation with figure artifact saving."""
+        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+        outcomes = ["Mortality", "Readmission"]
+        strata = ["Male", "Female"]
+        scores = np.array([0.85, 0.78])
+        strata_scores = np.array([[0.83, 0.80], [0.87, 0.76]])
+
+        fig, ax = displayer.plot_strata_heatmap(
+            outcomes=outcomes,
+            metric="auc",
+            strata=strata,
+            scores=scores,
+            strata_scores=strata_scores,
+            save=True,
+            show=False,
+        )
+
+        expected_file = tmp_path / "plots" / "auc_strata_heatmap.png"
+        assert isinstance(fig, Figure)
+        assert isinstance(ax, Axes)
+        assert expected_file.exists()
+
+    def test_plot_strata_heatmap_without_saving(
+        self, mock_orchestrator, tmp_path: Path
+    ) -> None:
+        """Test heatmap plot rendering when save=False."""
+        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+
+        fig, _ = displayer.plot_strata_heatmap(
+            outcomes=["Outcome1"],
+            metric="brier",
+            strata=["Stratum1"],
+            scores=np.array([0.1]),
+            strata_scores=np.array([[0.12]]),
+            save=False,
+            show=False,
+        )
+
+        expected_file = tmp_path / "plots" / "brier_strata_heatmap.png"
+        assert isinstance(fig, Figure)
+        assert not expected_file.exists()
+
+    @patch("matplotlib.pyplot.show")
+    def test_plot_strata_heatmap_show_flag(self, mock_show, mock_orchestrator) -> None:
+        """Test interactive plot display when show=True."""
+        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+
+        displayer.plot_strata_heatmap(
+            outcomes=["Outcome1"],
+            metric="auc",
+            strata=["Stratum1"],
+            scores=np.array([0.8]),
+            strata_scores=np.array([[0.85]]),
+            save=False,
+            show=True,
+        )
+
+        mock_show.assert_called_once()
+
+    def test_plot_strata_heatmap_dimension_mismatch_raises(
+        self, mock_orchestrator
+    ) -> None:
+        """Test that mismatched input matrix dimensions raise ValueError before plotting."""
+        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+
+        with pytest.raises(ValueError, match="matching column count"):
+            displayer.plot_strata_heatmap(
+                outcomes=["Mortality", "Readmission"],
+                metric="auc",
+                strata=["Male"],
+                scores=np.array([0.80, 0.75]),
+                strata_scores=np.array([[0.82]]),  # Missing 2nd column
+                save=False,
+            )

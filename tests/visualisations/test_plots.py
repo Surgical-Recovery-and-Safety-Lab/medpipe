@@ -16,6 +16,7 @@ from medpipe.visualisation.plots import (
     draw_probability_distribution,
     draw_reliability_diagram,
     draw_roc_curve,
+    draw_strata_heatmap,
 )
 
 
@@ -296,7 +297,7 @@ class TestDrawReliabilityDiagram:
         lower_ci = prob_true - 0.05
         upper_ci = prob_true + 0.05
 
-        fig, ax = draw_reliability_diagram(
+        _, ax = draw_reliability_diagram(
             prob_true=prob_true,
             prob_pred=prob_pred,
             lower_ci=lower_ci,
@@ -333,3 +334,26 @@ class TestDrawReliabilityDiagram:
             draw_reliability_diagram(
                 prob_true=np.array([0.5]), prob_pred=np.array([0.5]), ax=mock_ax
             )
+
+
+class TestDrawStrataHeatmap:
+    """Tests for the stateless `draw_strata_heatmap` primitive."""
+
+    def test_draw_strata_heatmap_renders_matrices(self) -> None:
+        """Test drawing heatmap with pre-formatted plot and text matrices."""
+        plot_data = np.array([[0.0, 0.0], [0.02, 0.05]])
+        text_data = np.array([[0.80, 0.75], [0.82, 0.70]])
+        row_labels = ["All strata", "Group A"]
+        col_labels = ["Mortality", "Readmission"]
+
+        fig, ax = draw_strata_heatmap(
+            plot_data=plot_data,
+            text_data=text_data,
+            row_labels=row_labels,
+            col_labels=col_labels,
+            title="Clean Heatmap",
+        )
+
+        assert isinstance(fig, (Figure, SubFigure))
+        assert ax.get_title() == "Clean Heatmap"
+        assert len(ax.texts) == 4  # 2x2 grid = 4 annotations
