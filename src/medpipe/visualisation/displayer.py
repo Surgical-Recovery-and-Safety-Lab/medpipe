@@ -907,3 +907,95 @@ class MedpipeDisplayer:
             plt.close(fig)
 
         return fig, ax
+
+    def plot_all(
+        self,
+        y_true: np.ndarray,
+        probas: np.ndarray,
+        outcome: str = "default",
+        n_bootstraps: int = 1000,
+        save: bool = True,
+        show: bool = False,
+        **style_kwargs: Any,
+    ) -> dict[str, Tuple[Figure | SubFigure, Axes]]:
+        """Execute all core evaluation visualization routines for a given outcome.
+
+        Generates and optionally persists the ROC curve, Precision-Recall curve,
+        Probability Distribution histogram, Reliability Diagram, and Decision
+        Curve Analysis (DCA).
+
+        Parameters
+        ----------
+        y_true : np.ndarray
+            Ground truth binary target labels of shape (n_samples,).
+        probas : np.ndarray
+            Predicted probabilities of shape (n_samples, 2) or (n_samples,).
+        outcome : str, default="default"
+            Outcome identifier used for figure titles and output folder structuring.
+        n_bootstraps : int, default=1000
+            Number of bootstrap iterations for ROC, PR, and reliability curves.
+        save : bool, default=True
+            Automatically save all generated plot artifacts to the run directory.
+        show : bool, default=False
+            Whether to display figures interactively before closing.
+        **style_kwargs : Any
+            Additional style parameters forwarded to underlying drawing functions.
+
+        Returns
+        -------
+        dict[str, Tuple[Figure | SubFigure, Axes]]
+            Dictionary mapping plot identifiers ('roc', 'pr', 'distribution',
+            'reliability', 'dca') to their rendered (Figure, Axes) tuples.
+
+        """
+        plots: dict[str, Tuple[Figure | SubFigure, Axes]] = {}
+
+        # Pass copies of style_kwargs to prevent parameter mutation across calls
+        plots["roc"] = self.plot_roc_curve(
+            y_true=y_true,
+            probas=probas,
+            outcome=outcome,
+            n_bootstraps=n_bootstraps,
+            save=save,
+            show=show,
+            **style_kwargs.copy(),
+        )
+
+        plots["pr"] = self.plot_precision_recall_curve(
+            y_true=y_true,
+            probas=probas,
+            outcome=outcome,
+            n_bootstraps=n_bootstraps,
+            save=save,
+            show=show,
+            **style_kwargs.copy(),
+        )
+
+        plots["distribution"] = self.plot_probability_distribution(
+            probas=probas,
+            outcome=outcome,
+            save=save,
+            show=show,
+            **style_kwargs.copy(),
+        )
+
+        plots["reliability"] = self.plot_reliability_diagram(
+            y_true=y_true,
+            probas=probas,
+            outcome=outcome,
+            n_bootstraps=n_bootstraps,
+            save=save,
+            show=show,
+            **style_kwargs.copy(),
+        )
+
+        plots["dca"] = self.plot_dca_curve(
+            y_true=y_true,
+            probas=probas,
+            outcome=outcome,
+            save=save,
+            show=show,
+            **style_kwargs.copy(),
+        )
+
+        return plots
