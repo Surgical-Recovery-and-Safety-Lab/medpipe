@@ -12,6 +12,7 @@ from matplotlib.figure import Figure, SubFigure
 matplotlib.use("Agg")  # Non-interactive backend for headless testing
 
 from medpipe.visualisation.plots import (
+    draw_dca_curve,
     draw_precision_recall_curve,
     draw_probability_distribution,
     draw_reliability_diagram,
@@ -357,3 +358,46 @@ class TestDrawStrataHeatmap:
         assert isinstance(fig, (Figure, SubFigure))
         assert ax.get_title() == "Clean Heatmap"
         assert len(ax.texts) == 4  # 2x2 grid = 4 annotations
+
+
+class TestDrawDcaCurve:
+    """Tests for the stateless `draw_dca_curve` rendering function."""
+
+    def test_draw_dca_curve_default_axes(self) -> None:
+        """Test drawing DCA plot with default axes creation."""
+        thresholds = np.linspace(0.01, 0.99, 50)
+        net_benefit_model = np.linspace(0.2, 0.0, 50)
+        net_benefit_all = np.linspace(0.15, -0.5, 50)
+
+        fig, ax = draw_dca_curve(
+            thresholds=thresholds,
+            net_benefit_model=net_benefit_model,
+            net_benefit_all=net_benefit_all,
+            label="DCA Model",
+        )
+
+        assert isinstance(fig, (Figure, SubFigure))
+        assert isinstance(ax, Axes)
+        assert ax.get_xlabel() == "Threshold Probability"
+        assert ax.get_ylabel() == "Net Benefit"
+
+        labels = [text.get_text() for text in ax.get_legend().get_texts()]
+        assert "Treat None" in labels
+        assert "Treat All" in labels
+        assert "DCA Model" in labels
+
+    def test_draw_dca_curve_detached_axes_raises(self) -> None:
+        """Edge case: raise ValueError when provided Axes is detached from a Figure."""
+        mock_ax = MagicMock(spec=Axes)
+        mock_ax.get_figure.return_value = None
+
+        with pytest.raises(
+            ValueError,
+            match="The provided Axes instance is not attached to a Figure",
+        ):
+            draw_dca_curve(
+                thresholds=np.array([0.1]),
+                net_benefit_model=np.array([0.1]),
+                net_benefit_all=np.array([0.05]),
+                ax=mock_ax,
+            )

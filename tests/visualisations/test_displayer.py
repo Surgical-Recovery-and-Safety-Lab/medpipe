@@ -675,3 +675,82 @@ class TestPlotStrataHeatmap:
                 strata_scores=np.array([[0.82]]),  # Missing 2nd column
                 save=False,
             )
+
+
+class TestComputeDcaData:
+    """Tests for the internal `_compute_dca_data` helper method."""
+
+    def test_compute_dca_data_success(
+        self, mock_orchestrator, sample_binary_data
+    ) -> None:
+        """Test calculation of Net Benefit metrics without bootstrapping."""
+        y_true, probas = sample_binary_data
+        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+
+        thresh, nb_model, nb_all = displayer._compute_dca_data(
+            y_true=y_true, probas=probas
+        )
+
+        assert len(thresh) == 99
+        assert len(nb_model) == 99
+        assert len(nb_all) == 99
+
+
+class TestPlotDcaCurve:
+    """Tests for the high-level `plot_dca_curve` method."""
+
+    def test_plot_dca_curve_success_and_saves(
+        self, mock_orchestrator, sample_binary_data, tmp_path: Path
+    ) -> None:
+        """Test successful DCA plot generation with figure artifact saving."""
+        y_true, probas = sample_binary_data
+        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+
+        fig, ax = displayer.plot_dca_curve(
+            y_true=y_true,
+            probas=probas,
+            outcome="mortality",
+            save=True,
+            show=False,
+        )
+
+        expected_file = tmp_path / "plots" / "mortality" / "mortality_dca_curve.png"
+        assert isinstance(fig, Figure)
+        assert isinstance(ax, Axes)
+        assert expected_file.exists()
+
+    def test_plot_dca_curve_without_saving(
+        self, mock_orchestrator, sample_binary_data, tmp_path: Path
+    ) -> None:
+        """Test DCA plot rendering when save=False."""
+        y_true, probas = sample_binary_data
+        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+
+        fig, _ = displayer.plot_dca_curve(
+            y_true=y_true,
+            probas=probas,
+            outcome="readmission",
+            save=False,
+            show=False,
+        )
+
+        expected_file = tmp_path / "plots" / "readmission" / "readmission_dca_curve.png"
+        assert isinstance(fig, Figure)
+        assert not expected_file.exists()
+
+    @patch("matplotlib.pyplot.show")
+    def test_plot_dca_curve_show_flag(
+        self, mock_show, mock_orchestrator, sample_binary_data
+    ) -> None:
+        """Test interactive figure display when show=True."""
+        y_true, probas = sample_binary_data
+        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+
+        displayer.plot_dca_curve(
+            y_true=y_true,
+            probas=probas,
+            save=False,
+            show=True,
+        )
+
+        mock_show.assert_called_once()
