@@ -68,6 +68,7 @@ class MedpipeTheme:
     title_fontsize: int = 12
     label_fontsize: int = 10
     show_spines: bool = False
+    show_grid: bool = False
 
     def to_rc_params(self) -> Dict[RcKeyType, Any]:
         """Convert theme attributes into Matplotlib runtime configurations.
@@ -88,6 +89,7 @@ class MedpipeTheme:
             "savefig.dpi": self.dpi,
             "axes.spines.top": self.show_spines,
             "axes.spines.right": self.show_spines,
+            "axes.grid": self.show_grid,
         }
 
     def get_color(self, index: int) -> str:
