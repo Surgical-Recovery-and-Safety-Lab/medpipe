@@ -92,7 +92,7 @@ class TestComputeRocData:
         probas_2d = np.column_stack((1 - probas_1d, probas_1d))
         displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
 
-        fpr, tpr, roc_auc, lower_ci, upper_ci = displayer._compute_roc_data(
+        _, _, roc_auc, lower_ci, upper_ci = displayer._compute_roc_data(
             y_true=y_true, probas=probas_2d, n_bootstraps=10
         )
 
@@ -126,7 +126,7 @@ class TestComputeRocData:
         probas = np.linspace(0.1, 0.9, 10)
         displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
 
-        fpr, tpr, roc_auc, lower_ci, upper_ci = displayer._compute_roc_data(
+        _, _, roc_auc, _, _ = displayer._compute_roc_data(
             y_true=y_true, probas=probas, n_bootstraps=20, random_state=1
         )
 
@@ -197,7 +197,7 @@ class TestPlotProbabilityDistribution:
         _, probas = sample_binary_data
         displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
 
-        fig, ax = displayer.plot_probability_distribution(
+        fig, _ = displayer.plot_probability_distribution(
             probas=probas,
             outcome="readmission",
             save=False,
@@ -298,7 +298,7 @@ class TestPlotRocCurve:
         y_true, probas = sample_binary_data
         displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
 
-        fig, ax = displayer.plot_roc_curve(
+        _, ax = displayer.plot_roc_curve(
             y_true=y_true,
             probas=probas,
             outcome="cardiac",
@@ -328,6 +328,111 @@ class TestPlotRocCurve:
             y_true=y_true,
             probas=probas,
             n_bootstraps=0,
+            save=False,
+            show=True,
+        )
+
+        mock_show.assert_called_once()
+
+
+class TestComputePrecisionRecallData:
+    """Tests for the internal `_compute_precision_recall_data` helper method."""
+
+    def test_compute_pr_data_success_and_bootstraps(
+        self, mock_orchestrator, sample_binary_data
+    ) -> None:
+        """Test calculation of PR curves, AP score, baseline, and bootstrap CIs."""
+        y_true, probas = sample_binary_data
+        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+
+        (
+            precision,
+            recall,
+            ap_score,
+            baseline,
+            lower_ci,
+            upper_ci,
+        ) = displayer._compute_precision_recall_data(
+            y_true=y_true, probas=probas, n_bootstraps=20
+        )
+
+        assert isinstance(precision, np.ndarray)
+        assert isinstance(recall, np.ndarray)
+        assert isinstance(ap_score, float)
+        assert 0.0 <= ap_score <= 1.0
+        assert isinstance(baseline, float)
+        assert isinstance(lower_ci, np.ndarray)
+        assert isinstance(upper_ci, np.ndarray)
+
+    def test_compute_pr_data_disabled_bootstraps(
+        self, mock_orchestrator, sample_binary_data
+    ) -> None:
+        """Test that n_bootstraps <= 0 returns None for confidence interval arrays."""
+        y_true, probas = sample_binary_data
+        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+
+        _, _, _, _, lower_ci, upper_ci = displayer._compute_precision_recall_data(
+            y_true=y_true, probas=probas, n_bootstraps=0
+        )
+
+        assert lower_ci is None
+        assert upper_ci is None
+
+
+class TestPlotPrecisionRecallCurve:
+    """Tests for the high-level `plot_precision_recall_curve` method."""
+
+    def test_plot_pr_curve_success_and_saves(
+        self, mock_orchestrator, sample_binary_data, tmp_path: Path
+    ) -> None:
+        """Test successful PR curve generation with figure artifact saving."""
+        y_true, probas = sample_binary_data
+        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+
+        fig, ax = displayer.plot_precision_recall_curve(
+            y_true=y_true,
+            probas=probas,
+            outcome="sepsis",
+            n_bootstraps=10,
+            save=True,
+            show=False,
+        )
+
+        expected_file = tmp_path / "plots" / "sepsis" / "sepsis_pr_curve.png"
+        assert isinstance(fig, Figure)
+        assert isinstance(ax, Axes)
+        assert expected_file.exists()
+
+    def test_plot_pr_curve_without_saving(
+        self, mock_orchestrator, sample_binary_data, tmp_path: Path
+    ) -> None:
+        """Test PR curve rendering when save=False."""
+        y_true, probas = sample_binary_data
+        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+
+        fig, _ = displayer.plot_precision_recall_curve(
+            y_true=y_true,
+            probas=probas,
+            outcome="aki",
+            save=False,
+            show=False,
+        )
+
+        expected_file = tmp_path / "plots" / "aki" / "aki_pr_curve.png"
+        assert isinstance(fig, Figure)
+        assert not expected_file.exists()
+
+    @patch("matplotlib.pyplot.show")
+    def test_plot_pr_curve_show_flag(
+        self, mock_show, mock_orchestrator, sample_binary_data
+    ) -> None:
+        """Test interactive figure display when show=True."""
+        y_true, probas = sample_binary_data
+        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+
+        displayer.plot_precision_recall_curve(
+            y_true=y_true,
+            probas=probas,
             save=False,
             show=True,
         )

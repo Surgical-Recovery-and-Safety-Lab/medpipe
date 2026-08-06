@@ -11,7 +11,11 @@ from matplotlib.figure import Figure, SubFigure
 
 matplotlib.use("Agg")  # Non-interactive backend for headless testing
 
-from medpipe.visualisation.plots import draw_probability_distribution, draw_roc_curve
+from medpipe.visualisation.plots import (
+    draw_precision_recall_curve,
+    draw_probability_distribution,
+    draw_roc_curve,
+)
 
 
 @pytest.fixture(autouse=True)
@@ -71,7 +75,7 @@ class TestDrawProbabilityDistribution:
         """Test custom color, title, and spine visibility options."""
         probas = np.array([0.15, 0.45, 0.85])
 
-        fig, ax = draw_probability_distribution(
+        _, ax = draw_probability_distribution(
             probas=probas,
             color="#FF0000",
             title="Custom Distribution Title",
@@ -194,3 +198,70 @@ class TestDrawRocCurve:
             match="The provided Axes instance is not attached to a Figure",
         ):
             draw_roc_curve(fpr=fpr, tpr=tpr, ax=mock_ax)
+
+
+class TestDrawPrecisionRecallCurve:
+    """Tests for the stateless `draw_precision_recall_curve` rendering function."""
+
+    def test_draw_precision_recall_curve_default_axes(self) -> None:
+        """Test drawing PR curve with default axes creation."""
+        precision = np.array([1.0, 0.8, 0.6, 0.4])
+        recall = np.array([0.0, 0.3, 0.7, 1.0])
+
+        fig, ax = draw_precision_recall_curve(
+            precision=precision, recall=recall, label="PR Model", baseline=0.25
+        )
+
+        assert isinstance(fig, (Figure, SubFigure))
+        assert isinstance(ax, Axes)
+        assert ax.get_xlabel() == "Recall (Sensitivity)"
+        assert ax.get_ylabel() == "Precision (PPV)"
+
+        labels = [text.get_text() for text in ax.get_legend().get_texts()]
+        assert "Baseline (0.25)" in labels
+        assert "PR Model" in labels
+
+    def test_draw_precision_recall_curve_with_ci(self) -> None:
+        """Test drawing PR curve with pre-computed confidence interval bounds."""
+        precision = np.array([1.0, 0.8, 0.6, 0.4])
+        recall = np.array([0.0, 0.3, 0.7, 1.0])
+        lower_ci = precision - 0.05
+        upper_ci = precision + 0.05
+
+        _, ax = draw_precision_recall_curve(
+            precision=precision,
+            recall=recall,
+            lower_ci=lower_ci,
+            upper_ci=upper_ci,
+            label="Model with CI",
+        )
+
+        assert len(ax.collections) == 1  # PolyCollection from fill_between
+        labels = [text.get_text() for text in ax.get_legend().get_texts()]
+        assert "Model with CI 95% CI" in labels
+
+    def test_draw_precision_recall_curve_existing_axes(self) -> None:
+        """Test rendering onto an existing Matplotlib axes instance."""
+        existing_fig, existing_ax = plt.subplots()
+        precision = np.array([0.9, 0.7, 0.5])
+        recall = np.array([0.1, 0.5, 0.9])
+
+        fig, ax = draw_precision_recall_curve(
+            precision=precision, recall=recall, ax=existing_ax
+        )
+
+        assert fig is existing_fig
+        assert ax is existing_ax
+
+    def test_draw_precision_recall_curve_detached_axes_raises(self) -> None:
+        """Edge case: raise ValueError when provided Axes is detached from a Figure."""
+        mock_ax = MagicMock(spec=Axes)
+        mock_ax.get_figure.return_value = None
+
+        with pytest.raises(
+            ValueError,
+            match="The provided Axes instance is not attached to a Figure",
+        ):
+            draw_precision_recall_curve(
+                precision=np.array([1.0]), recall=np.array([0.0]), ax=mock_ax
+            )
