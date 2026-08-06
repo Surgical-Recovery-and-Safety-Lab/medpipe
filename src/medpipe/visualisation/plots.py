@@ -360,3 +360,134 @@ def draw_precision_recall_curve(
     ax.legend(loc="lower left", frameon=False)
 
     return fig, ax
+
+
+def draw_reliability_diagram(
+    prob_true: np.ndarray,
+    prob_pred: np.ndarray,
+    lower_ci: Optional[np.ndarray] = None,
+    upper_ci: Optional[np.ndarray] = None,
+    label: str = "Model",
+    ax: Optional[Axes] = None,
+    color: str = _DEFAULT_THEME.primary_color,
+    ci_color: Optional[str] = None,
+    ci_alpha: float = _DEFAULT_THEME.ci_alpha,
+    linestyle: str = "-",
+    linewidth: float = _DEFAULT_THEME.linewidth,
+    marker: str = "o",
+    ref_linestyle: str = "--",
+    ref_color: str = "black",
+    title: Optional[str] = None,
+    show_spines: bool = _DEFAULT_THEME.show_spines,
+    **line_kwargs: Any,
+) -> Tuple[Figure | SubFigure, Axes]:
+    """Render a reliability diagram (calibration curve) with optional CI bounds.
+
+    Parameters
+    ----------
+    prob_true : np.ndarray
+        Fraction of positives in each calibration bin.
+    prob_pred : np.ndarray
+        Mean predicted probability in each calibration bin.
+    lower_ci : np.ndarray, optional
+        Lower bound array of true probabilities for 95% confidence interval shading.
+    upper_ci : np.ndarray, optional
+        Upper bound array of true probabilities for 95% confidence interval shading.
+    label : str, default="Model"
+        Legend label for the plotted calibration curve.
+    ax : matplotlib.axes.Axes, optional
+        Pre-existing Matplotlib axes instance. If None, a new figure and axes are created.
+    color : str, default=_DEFAULT_THEME.primary_color
+        Color specifier for the main calibration line and default CI fill.
+    ci_color : str, optional
+        Custom color specifier for confidence interval shading. Defaults to `color`.
+    ci_alpha : float, default=_DEFAULT_THEME.ci_alpha
+        Opacity level for confidence interval shaded region [0.0, 1.0].
+    linestyle : str, default="-"
+        Line style specification for the calibration curve.
+    linewidth : float, default=_DEFAULT_THEME.linewidth
+        Width in points for the calibration line.
+    marker : str, default="o"
+        Marker symbol for binned probability points.
+    ref_linestyle : str, default="--"
+        Line style specification for the diagonal perfect calibration reference line.
+    ref_color : str, default="black"
+        Color specifier for the perfect calibration reference line.
+    title : str, optional
+        Axes title text.
+    show_spines : bool, default=_DEFAULT_THEME.show_spines
+        Whether to keep top and right border spines visible.
+    **line_kwargs : Any
+        Additional Matplotlib keyword arguments forwarded to `ax.plot` for the calibration curve.
+
+    Returns
+    -------
+    fig : matplotlib.figure.Figure or matplotlib.figure.SubFigure
+        Parent Matplotlib figure containing the axes.
+    ax : matplotlib.axes.Axes
+        Matplotlib axes containing all rendered calibration elements.
+
+    Raises
+    ------
+    ValueError
+        If ax is provided but not attached to a Figure.
+    """
+    if ax is None:
+        fig, ax = plt.subplots(figsize=(6, 6))
+    else:
+        fig = ax.get_figure()
+        if fig is None:
+            raise ValueError("The provided Axes instance is not attached to a Figure")
+
+    # Draw perfect calibration diagonal reference line
+    ax.plot(
+        [0, 1],
+        [0, 1],
+        linestyle=ref_linestyle,
+        color=ref_color,
+        label="Perfectly calibrated",
+    )
+
+    # Clean line_kwargs to prevent parameter collisions
+    for key in ("color", "linestyle", "linewidth", "marker", "label"):
+        line_kwargs.pop(key, None)
+
+    # Draw main calibration curve
+    ax.plot(
+        prob_pred,
+        prob_true,
+        color=color,
+        linestyle=linestyle,
+        linewidth=linewidth,
+        marker=marker,
+        label=label,
+        **line_kwargs,
+    )
+
+    # Draw confidence interval shading if bounds are supplied
+    if lower_ci is not None and upper_ci is not None:
+        ax.fill_between(
+            prob_pred,
+            lower_ci,
+            upper_ci,
+            color=ci_color or color,
+            alpha=ci_alpha,
+            label=f"{label} 95% CI",
+        )
+
+    # Format axis bounds and labels
+    ax.set_xlabel("Mean Predicted Probability", fontweight="bold")
+    ax.set_ylabel("Fraction of Positives", fontweight="bold")
+    ax.set_xlim(xmin=-0.02, xmax=1.02)
+    ax.set_ylim(ymin=-0.02, ymax=1.02)
+
+    if title:
+        ax.set_title(title, fontweight="bold")
+
+    if not show_spines:
+        ax.spines["top"].set_visible(False)
+        ax.spines["right"].set_visible(False)
+
+    ax.legend(loc="lower right", frameon=False)
+
+    return fig, ax

@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure, SubFigure
+from sklearn.calibration import calibration_curve
 from sklearn.metrics import (
     auc,
     average_precision_score,
@@ -21,6 +22,7 @@ from medpipe.utils.logger import get_console_logger
 from medpipe.visualisation.plots import (
     draw_precision_recall_curve,
     draw_probability_distribution,
+    draw_reliability_diagram,
     draw_roc_curve,
 )
 from medpipe.visualisation.themes import MedpipeTheme
@@ -177,6 +179,7 @@ class MedpipeDisplayer:
             Lower 2.5% percentile bound of precision across bootstraps, if n_bootstraps > 0.
         upper_ci : np.ndarray or None
             Upper 97.5% percentile bound of precision across bootstraps, if n_bootstraps > 0.
+
         """
         if probas.ndim == 2:
             probas = probas[:, 1]
@@ -213,6 +216,107 @@ class MedpipeDisplayer:
         upper_ci = np.percentile(boots, 97.5, axis=0)
 
         return precision, recall, ap_score, baseline, lower_ci, upper_ci
+
+    def _compute_reliability_data(
+        self,
+        y_true: np.ndarray,
+        probas: np.ndarray,
+        n_bins: int = 10,
+        strategy: str = "uniform",
+        n_bootstraps: int = 1000,
+        random_state: Optional[int] = 42,
+    ) -> Tuple[
+        np.ndarray,
+        np.ndarray,
+        Optional[np.ndarray],
+        Optional[np.ndarray],
+    ]:
+        """Compute calibration curve data (reliability diagram) and bootstrap CIs.
+
+        Parameters
+        ----------
+        y_true : np.ndarray
+            Ground truth binary target labels of shape (n_samples,).
+        probas : np.ndarray
+            Predicted probabilities of shape (n_samples, 2) or (n_samples,).
+        n_bins : int, default=10
+            Number of bins used for 'uniform' or 'quantile' binning strategies.
+        strategy : {'uniform', 'quantile', 'spline'}, default='uniform'
+            Calibration curve estimation strategy.
+        n_bootstraps : int, default=1000
+            Number of bootstrap iterations for 95% confidence interval estimation.
+        random_state : int, optional, default=42
+            Random seed for bootstrap resampling reproducibility.
+
+        Returns
+        -------
+        prob_true : np.ndarray
+            Fraction of positives or spline-calibrated probabilities.
+        prob_pred : np.ndarray
+            Mean predicted probabilities or evaluation grid points.
+        lower_ci : np.ndarray or None
+            Lower 2.5% percentile bound of calibration curve across bootstraps.
+        upper_ci : np.ndarray or None
+            Upper 97.5% percentile bound of calibration curve across bootstraps.
+
+        """
+        if probas.ndim == 2:
+            probas = probas[:, 1]
+
+        y_true = np.asarray(y_true).squeeze()
+
+        if strategy == "spline":
+            from splinecalib import SplineCalib
+
+            sc = SplineCalib()
+            sc.fit(probas, y_true)
+            prob_pred = np.linspace(0.0, 1.0, 100)
+            prob_true = sc.calibrate(prob_pred)
+
+            assert prob_true is not None
+            if prob_true.ndim == 2:
+                prob_true = prob_true[:, 1]
+        else:
+            prob_true, prob_pred = calibration_curve(
+                y_true, probas, n_bins=n_bins, strategy=strategy
+            )
+
+        if n_bootstraps <= 0 or len(prob_pred) == 0:
+            return prob_true, prob_pred, None, None
+
+        rng = np.random.default_rng(random_state)
+        n_samples = len(y_true)
+        boots = []
+
+        for _ in range(n_bootstraps):
+            idx = rng.choice(n_samples, size=n_samples, replace=True)
+            if len(np.unique(y_true[idx])) < 2:
+                continue
+
+            if strategy == "spline":
+                sc_b = SplineCalib()  # type: ignore
+                sc_b.fit(probas[idx], y_true[idx])
+                b_true = sc_b.calibrate(prob_pred)
+
+                assert b_true is not None
+                if b_true.ndim == 2:
+                    b_true = b_true[:, 1]
+                boots.append(b_true)
+            else:
+                b_true, b_pred = calibration_curve(
+                    y_true[idx], probas[idx], n_bins=n_bins, strategy=strategy
+                )
+                if len(b_pred) > 1:
+                    interp_true = np.interp(prob_pred, b_pred, b_true)
+                    boots.append(interp_true)
+
+        if not boots:
+            return prob_true, prob_pred, None, None
+
+        lower_ci = np.percentile(boots, 2.5, axis=0)
+        upper_ci = np.percentile(boots, 97.5, axis=0)
+
+        return prob_true, prob_pred, lower_ci, upper_ci
 
     def _save_figure(
         self, fig: Figure, filename: str, outcome: Optional[str] = None
@@ -464,6 +568,95 @@ class MedpipeDisplayer:
 
         if save:
             self._save_figure(fig=fig, filename=f"{outcome}_pr_curve", outcome=outcome)
+
+        if show:
+            plt.show()
+        elif save:
+            plt.close(fig)
+
+        return fig, ax
+
+    def plot_reliability_diagram(
+        self,
+        y_true: np.ndarray,
+        probas: np.ndarray,
+        outcome: str = "default",
+        n_bins: int = 10,
+        strategy: str = "uniform",
+        label: Optional[str] = None,
+        n_bootstraps: int = 1000,
+        save: bool = True,
+        show: bool = False,
+        **style_kwargs: Any,
+    ) -> Tuple[Figure, Axes]:
+        """Compute calibration data, render reliability diagram with CIs, and save figure.
+
+        Parameters
+        ----------
+        y_true : np.ndarray
+            Ground truth binary target labels of shape (n_samples,).
+        probas : np.ndarray
+            Predicted probabilities of shape (n_samples, 2) or (n_samples,).
+        outcome : str, default="default"
+            Outcome identifier used for figure titles and directory structuring.
+        n_bins : int, default=10
+            Number of calibration bins (ignored if strategy='spline').
+        strategy : {'uniform', 'quantile', 'spline'}, default='uniform'
+            Binning or smoothing strategy for calibration calculation.
+        label : str, optional
+            Legend label for the model curve. Defaults to 'Model'.
+        n_bootstraps : int, default=1000
+            Number of bootstrap iterations for confidence intervals. Set to 0 to disable.
+        save : bool, default=True
+            Automatically save the generated plot to the run directory.
+        show : bool, default=False
+            Whether to display the plot interactively before closing.
+        **style_kwargs : Any
+            Additional style parameters forwarded to `draw_reliability_diagram`.
+
+        Returns
+        -------
+        fig : Figure
+            Rendered Matplotlib figure object.
+        ax : Axes
+            Matplotlib axes containing the plotted elements.
+        """
+        prob_true, prob_pred, lower_ci, upper_ci = self._compute_reliability_data(
+            y_true=y_true,
+            probas=probas,
+            n_bins=n_bins,
+            strategy=strategy,
+            n_bootstraps=n_bootstraps,
+        )
+
+        display_label = label or "Model"
+
+        # Suppress scatter points for smooth continuous spline curves
+        if strategy == "spline":
+            style_kwargs.setdefault("marker", None)
+
+        with (
+            plt.style.context(self.theme.style_sheet),
+            plt.rc_context(self.theme.to_rc_params()),
+        ):
+            fig, ax = draw_reliability_diagram(
+                prob_true=prob_true,
+                prob_pred=prob_pred,
+                lower_ci=lower_ci,
+                upper_ci=upper_ci,
+                label=display_label,
+                color=style_kwargs.pop("color", self.theme.primary_color),
+                ci_alpha=style_kwargs.pop("ci_alpha", self.theme.ci_alpha),
+                linewidth=style_kwargs.pop("linewidth", self.theme.linewidth),
+                show_spines=style_kwargs.pop("show_spines", self.theme.show_spines),
+                title=f"Reliability Diagram - {outcome.capitalize()}",
+                **style_kwargs,
+            )
+
+        if save:
+            self._save_figure(
+                fig=fig, filename=f"{outcome}_reliability_diagram", outcome=outcome
+            )
 
         if show:
             plt.show()
