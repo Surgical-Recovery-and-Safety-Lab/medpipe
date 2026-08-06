@@ -88,7 +88,7 @@ def draw_probability_distribution(
         **hist_kwargs,
     )
 
-    ax.set_xlabel("Predicted Probabilities", fontweight="bold")
+    ax.set_xlabel("Predicted probabilities", fontweight="bold")
     ax.set_ylabel("Count", fontweight="bold")
     ax.set_xlim(xmin=-0.05, xmax=1.05)
 
@@ -161,9 +161,9 @@ def draw_roc_curve(
 
     Returns
     -------
-    fig : matplotlib.figure.Figure
+    fig : Figure | SubFigure
         Parent Matplotlib figure containing the axes.
-    ax : matplotlib.axes.Axes
+    ax : Axes
         Matplotlib axes containing all rendered ROC elements.
 
     Raises
@@ -215,8 +215,8 @@ def draw_roc_curve(
         )
 
     # Format axis bounds and labels
-    ax.set_xlabel("False Positive Rate (1 - Specificity)", fontweight="bold")
-    ax.set_ylabel("True Positive Rate (Sensitivity)", fontweight="bold")
+    ax.set_xlabel("FPR (1 - Specificity)", fontweight="bold")
+    ax.set_ylabel("TPR (Sensitivity)", fontweight="bold")
     ax.set_xlim(xmin=-0.02, xmax=1.02)
     ax.set_ylim(ymin=-0.02, ymax=1.02)
 
@@ -292,9 +292,9 @@ def draw_precision_recall_curve(
 
     Returns
     -------
-    fig : matplotlib.figure.Figure or matplotlib.figure.SubFigure
+    fig : Figure or SubFigure
         Parent Matplotlib figure containing the axes.
-    ax : matplotlib.axes.Axes
+    ax : Axes
         Matplotlib axes containing all rendered PR elements.
 
     Raises
@@ -483,7 +483,7 @@ def draw_reliability_diagram(
         )
 
     # 3. Axis Formatting
-    ax.set_ylabel("Fraction of Positives", fontweight="bold")
+    ax.set_ylabel("Fraction of positives", fontweight="bold")
     ax.set_xlim(xmin=-0.02, xmax=1.02)
     ax.set_ylim(ymin=-0.02, ymax=1.02)
 
@@ -512,7 +512,7 @@ def draw_reliability_diagram(
             color=color,
             edgecolor="black",
         )
-        ax_dist.set_xlabel("Mean Predicted Probability", fontweight="bold")
+        ax_dist.set_xlabel("Mean predicted probability", fontweight="bold")
         ax_dist.set_ylabel("Count", fontweight="bold")
 
         if not show_spines:
@@ -732,8 +732,8 @@ def draw_dca_curve(
     )
 
     # Format axis bounds and labels
-    ax.set_xlabel("Threshold Probability", fontweight="bold")
-    ax.set_ylabel("Net Benefit", fontweight="bold")
+    ax.set_xlabel("Threshold probability", fontweight="bold")
+    ax.set_ylabel("Net benefit", fontweight="bold")
     ax.set_xlim(xmin=-0.02, xmax=1.02)
 
     # Dynamically set y limits based on data range
