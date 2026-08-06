@@ -8,12 +8,12 @@ from typing import Any, Optional, Tuple
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.axes import Axes
-from matplotlib.figure import Figure
+from matplotlib.figure import Figure, SubFigure
 from sklearn.metrics import auc, roc_curve
 
 from medpipe.pipeline.orchestrator import MedpipeOrchestrator
 from medpipe.utils.logger import get_console_logger
-from medpipe.visualisation.plots import draw_roc_curve
+from medpipe.visualisation.plots import draw_probability_distribution, draw_roc_curve
 from medpipe.visualisation.themes import MedpipeTheme
 
 
@@ -128,13 +128,13 @@ class MedpipeDisplayer:
         return fpr, tpr, roc_auc, lower_ci, upper_ci
 
     def _save_figure(
-        self, fig: Figure, filename: str, outcome: Optional[str] = None
+        self, fig: Figure | SubFigure, filename: str, outcome: Optional[str] = None
     ) -> Path:
         """Persist figure artifact to disk in the run directory structure.
 
         Parameters
         ----------
-        fig : plt.Figure
+        fig : Figure | SubFigure
             Matplotlib figure object to be saved.
         filename : str
             Base filename for the saved image file (without extension).
@@ -157,6 +157,71 @@ class MedpipeDisplayer:
         return save_path
 
     # --- High-Level Plotting Methods ---
+    def plot_probability_distribution(
+        self,
+        probas: np.ndarray,
+        outcome: str = "default",
+        n_bins: int = 10,
+        label: Optional[str] = None,
+        save: bool = True,
+        show: bool = False,
+        **style_kwargs: Any,
+    ) -> Tuple[Figure | SubFigure, Axes]:
+        """Render prediction probability histogram and save figure artifact.
+
+        Parameters
+        ----------
+        probas : np.ndarray
+            Predicted probabilities of shape (n_samples, 2) or (n_samples,).
+        outcome : str, default="default"
+            Outcome identifier used for figure titles and directory structuring.
+        n_bins : int, default=10
+            Number of equal-width bins for the histogram.
+        label : str, optional
+            Legend label. Defaults to "Predicted Probabilities".
+        save : bool, default=True
+            Automatically save the generated plot to the run directory.
+        show : bool, default=False
+            Whether to display the plot interactively before closing.
+        **style_kwargs : Any
+            Additional style parameters forwarded to `draw_probability_distribution`.
+
+        Returns
+        -------
+        fig : Figure
+            Rendered Matplotlib figure object.
+        ax : Axes
+            Matplotlib axes containing the plotted histogram.
+        """
+        display_label = label or "Predicted Probabilities"
+
+        with (
+            plt.style.context(self.theme.style_sheet),
+            plt.rc_context(self.theme.to_rc_params()),
+        ):
+            fig, ax = draw_probability_distribution(
+                probas=probas,
+                n_bins=n_bins,
+                label=display_label,
+                color=style_kwargs.pop("color", self.theme.primary_color),
+                show_spines=style_kwargs.pop("show_spines", self.theme.show_spines),
+                title=f"Probability Distribution - {outcome.capitalize()}",
+                **style_kwargs,
+            )
+
+        if save:
+            self._save_figure(
+                fig=fig,
+                filename=f"{outcome}_probability_distribution",
+                outcome=outcome,
+            )
+
+        if show:
+            plt.show()
+        elif save:
+            plt.close(fig)
+
+        return fig, ax
 
     def plot_roc_curve(
         self,
@@ -168,7 +233,7 @@ class MedpipeDisplayer:
         save: bool = True,
         show: bool = False,
         **style_kwargs: Any,
-    ) -> Tuple[Figure, Axes]:
+    ) -> Tuple[Figure | SubFigure, Axes]:
         """Compute ROC metrics, render curve with confidence intervals, and save figure.
 
         Parameters

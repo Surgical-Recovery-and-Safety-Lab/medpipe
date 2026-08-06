@@ -15,6 +15,94 @@ from medpipe.visualisation.themes import MedpipeTheme
 _DEFAULT_THEME = MedpipeTheme()
 
 
+def draw_probability_distribution(
+    probas: np.ndarray,
+    n_bins: int = 10,
+    label: str = "Predicted Probabilities",
+    ax: Optional[Axes] = None,
+    color: str = _DEFAULT_THEME.primary_color,
+    edgecolor: str = "black",
+    title: Optional[str] = None,
+    show_spines: bool = _DEFAULT_THEME.show_spines,
+    **hist_kwargs: Any,
+) -> Tuple[Figure | SubFigure, Axes]:
+    """Render a predicted probability distribution histogram.
+
+    Parameters
+    ----------
+    probas : np.ndarray
+        Predicted probabilities of shape (n_samples, 2) or (n_samples,).
+    n_bins : int, default=10
+        Number of equal-width bins across the [0, 1] probability range.
+    label : str, default="Predicted Probabilities"
+        Legend label for the histogram series.
+    ax : matplotlib.axes.Axes, optional
+        Pre-existing Matplotlib axes instance. If None, a new figure and axes are created.
+    color : str, default=_DEFAULT_THEME.primary_color
+        Fill color for histogram bars.
+    edgecolor : str, default="black"
+        Border color for histogram bars.
+    title : str, optional
+        Axes title text.
+    show_spines : bool, default=_DEFAULT_THEME.show_spines
+        Whether to keep the top and right border spines visible.
+    **hist_kwargs : Any
+        Additional Matplotlib keyword arguments forwarded to `ax.hist`.
+
+    Returns
+    -------
+    fig : matplotlib.figure.Figure or matplotlib.figure.SubFigure
+        Parent Matplotlib figure containing the axes.
+    ax : matplotlib.axes.Axes
+        Matplotlib axes containing the rendered histogram.
+
+    Raises
+    ------
+    ValueError
+        If ax is provided but not attached to a Figure.
+
+    """
+    if ax is None:
+        fig, ax = plt.subplots(figsize=(6, 6))
+    else:
+        fig = ax.get_figure()
+        if fig is None:
+            raise ValueError("The provided Axes instance is not attached to a Figure")
+
+    if probas.ndim == 2:
+        probas = probas[:, 1]
+
+    bins = np.linspace(0.0, 1.0, n_bins + 1).tolist()
+
+    # Clean hist_kwargs to prevent parameter collisions
+    for key in ("color", "edgecolor", "bins", "label"):
+        hist_kwargs.pop(key, None)
+
+    ax.hist(
+        probas,
+        bins=bins,
+        color=color,
+        edgecolor=edgecolor,
+        label=label,
+        **hist_kwargs,
+    )
+
+    ax.set_xlabel("Predicted Probabilities", fontweight="bold")
+    ax.set_ylabel("Count", fontweight="bold")
+    ax.set_xlim(xmin=-0.05, xmax=1.05)
+
+    if title:
+        ax.set_title(title, fontweight="bold")
+
+    if not show_spines:
+        ax.spines["top"].set_visible(False)
+        ax.spines["right"].set_visible(False)
+
+    ax.legend(loc="upper right", frameon=False)
+
+    return fig, ax
+
+
 def draw_roc_curve(
     fpr: np.ndarray,
     tpr: np.ndarray,
