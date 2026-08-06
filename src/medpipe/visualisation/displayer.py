@@ -691,13 +691,14 @@ class MedpipeDisplayer:
         show: bool = False,
         **style_kwargs: Any,
     ) -> Tuple[Figure | SubFigure, Axes]:
-        """Compute calibration data, render reliability diagram with CIs, and save figure.
+        """Compute calibration data, render a reliability diagram with a
+        probability distribution subplot, and save figure.
 
         Parameters
         ----------
-        y_true : np.ndarray
+        y_true : numpy.ndarray
             Ground truth binary target labels of shape (n_samples,).
-        probas : np.ndarray
+        probas : numpy.ndarray
             Predicted probabilities of shape (n_samples, 2) or (n_samples,).
         outcome : str, default="default"
             Outcome identifier used for figure titles and directory structuring.
@@ -718,10 +719,10 @@ class MedpipeDisplayer:
 
         Returns
         -------
-        fig : Figure | SubFigure
+        fig : matplotlib.figure.Figure or matplotlib.figure.SubFigure
             Rendered Matplotlib figure object.
-        ax : Axes
-            Matplotlib axes containing the plotted elements.
+        ax : matplotlib.axes.Axes
+            Matplotlib axes containing the main reliability diagram.
 
         """
         self.logger.info(f"[{outcome}] Starting reliability diagram plotting.")
@@ -750,6 +751,7 @@ class MedpipeDisplayer:
             fig, ax = draw_reliability_diagram(
                 prob_true=prob_true,
                 prob_pred=prob_pred,
+                probas=probas,  # Pass raw probabilities for bottom histogram
                 lower_ci=lower_ci,
                 upper_ci=upper_ci,
                 label=display_label,
