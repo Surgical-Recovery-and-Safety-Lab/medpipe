@@ -165,6 +165,89 @@ class TestSaveFigure:
         assert saved_path.exists()
 
 
+class TestPlotProbabilityDistribution:
+    """Tests for the high-level `plot_probability_distribution` method."""
+
+    def test_plot_probability_distribution_success_and_saves(
+        self, mock_orchestrator, sample_binary_data, tmp_path: Path
+    ) -> None:
+        """Test successful distribution plot generation with artifact saving."""
+        _, probas = sample_binary_data
+        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+
+        fig, ax = displayer.plot_probability_distribution(
+            probas=probas,
+            outcome="mortality",
+            n_bins=12,
+            save=True,
+            show=False,
+        )
+
+        expected_file = (
+            tmp_path / "plots" / "mortality" / "mortality_probability_distribution.png"
+        )
+        assert isinstance(fig, Figure)
+        assert isinstance(ax, Axes)
+        assert expected_file.exists()
+
+    def test_plot_probability_distribution_without_saving(
+        self, mock_orchestrator, sample_binary_data, tmp_path: Path
+    ) -> None:
+        """Test distribution plotting when save=False."""
+        _, probas = sample_binary_data
+        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+
+        fig, ax = displayer.plot_probability_distribution(
+            probas=probas,
+            outcome="readmission",
+            save=False,
+            show=False,
+        )
+
+        expected_file = (
+            tmp_path
+            / "plots"
+            / "readmission"
+            / "readmission_probability_distribution.png"
+        )
+        assert isinstance(fig, Figure)
+        assert not expected_file.exists()
+
+    def test_plot_probability_distribution_2d_probas(
+        self, mock_orchestrator, sample_binary_data
+    ) -> None:
+        """Test handling of 2D probability matrices passed to displayer method."""
+        _, probas_1d = sample_binary_data
+        probas_2d = np.column_stack((1 - probas_1d, probas_1d))
+        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+
+        fig, ax = displayer.plot_probability_distribution(
+            probas=probas_2d,
+            outcome="icu_admission",
+            save=False,
+            show=False,
+        )
+
+        assert isinstance(fig, Figure)
+        assert "icu_admission" in ax.get_title().lower()
+
+    @patch("matplotlib.pyplot.show")
+    def test_plot_probability_distribution_show_flag(
+        self, mock_show, mock_orchestrator, sample_binary_data
+    ) -> None:
+        """Test interactive plot display when show=True."""
+        _, probas = sample_binary_data
+        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+
+        displayer.plot_probability_distribution(
+            probas=probas,
+            save=False,
+            show=True,
+        )
+
+        mock_show.assert_called_once()
+
+
 class TestPlotRocCurve:
     """Tests for the high-level `plot_roc_curve` method."""
 

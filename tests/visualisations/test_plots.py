@@ -7,11 +7,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 from matplotlib.axes import Axes
-from matplotlib.figure import Figure
+from matplotlib.figure import Figure, SubFigure
 
 matplotlib.use("Agg")  # Non-interactive backend for headless testing
 
-from medpipe.visualisation.plots import draw_roc_curve
+from medpipe.visualisation.plots import draw_probability_distribution, draw_roc_curve
 
 
 @pytest.fixture(autouse=True)
@@ -27,6 +27,71 @@ def dummy_roc_data():
     fpr = np.array([0.0, 0.2, 0.5, 0.8, 1.0])
     tpr = np.array([0.0, 0.4, 0.7, 0.9, 1.0])
     return fpr, tpr
+
+
+class TestDrawProbabilityDistribution:
+    """Tests for the stateless `draw_probability_distribution` rendering function."""
+
+    def test_draw_probability_distribution_default_axes(self) -> None:
+        """Test drawing histogram with 1D probas and default axes creation."""
+        probas = np.array([0.1, 0.25, 0.4, 0.75, 0.9])
+
+        fig, ax = draw_probability_distribution(
+            probas=probas, n_bins=10, label="Predictions"
+        )
+
+        assert isinstance(fig, (Figure, SubFigure))
+        assert isinstance(ax, Axes)
+        assert ax.get_xlabel() == "Predicted Probabilities"
+        assert ax.get_ylabel() == "Count"
+        # 10 bins should produce 10 rectangle patches
+        assert len(ax.patches) == 10
+
+    def test_draw_probability_distribution_2d_probas(self) -> None:
+        """Test probability distribution plotting with 2D array input (n_samples, 2)."""
+        probas_1d = np.array([0.1, 0.3, 0.6, 0.8])
+        probas_2d = np.column_stack((1 - probas_1d, probas_1d))
+
+        fig, ax = draw_probability_distribution(probas=probas_2d, n_bins=5)
+
+        assert isinstance(fig, (Figure, SubFigure))
+        assert isinstance(ax, Axes)
+
+    def test_draw_probability_distribution_existing_axes(self) -> None:
+        """Test drawing onto a pre-existing Matplotlib axes instance."""
+        existing_fig, existing_ax = plt.subplots(figsize=(8, 8))
+        probas = np.array([0.2, 0.5, 0.8])
+
+        fig, ax = draw_probability_distribution(probas=probas, ax=existing_ax)
+
+        assert fig is existing_fig
+        assert ax is existing_ax
+
+    def test_draw_probability_distribution_custom_styling(self) -> None:
+        """Test custom color, title, and spine visibility options."""
+        probas = np.array([0.15, 0.45, 0.85])
+
+        fig, ax = draw_probability_distribution(
+            probas=probas,
+            color="#FF0000",
+            title="Custom Distribution Title",
+            show_spines=True,
+        )
+
+        assert ax.get_title() == "Custom Distribution Title"
+        assert ax.spines["top"].get_visible() is True
+        assert ax.spines["right"].get_visible() is True
+
+    def test_draw_probability_distribution_detached_axes_raises(self) -> None:
+        """Edge case: raise ValueError when provided Axes is detached from a Figure."""
+        mock_ax = MagicMock(spec=Axes)
+        mock_ax.get_figure.return_value = None
+
+        with pytest.raises(
+            ValueError,
+            match="The provided Axes instance is not attached to a Figure",
+        ):
+            draw_probability_distribution(probas=np.array([0.1, 0.2]), ax=mock_ax)
 
 
 class TestDrawRocCurve:
