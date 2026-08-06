@@ -20,6 +20,7 @@ from sklearn.metrics import (
 from medpipe.pipeline.orchestrator import MedpipeOrchestrator
 from medpipe.utils.logger import get_console_logger
 from medpipe.visualisation.plots import (
+    draw_dca_curve,
     draw_precision_recall_curve,
     draw_probability_distribution,
     draw_reliability_diagram,
@@ -347,6 +348,62 @@ class MedpipeDisplayer:
         fig.savefig(save_path, dpi=self.theme.dpi, bbox_inches="tight")
         self.logger.info(f"Saved plot artifact to {save_path}")
         return save_path
+
+    def _compute_dca_data(
+        self,
+        y_true: np.ndarray,
+        probas: np.ndarray,
+        thresholds: Optional[np.ndarray] = None,
+    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """Compute Net Benefit for Model, Treat All, and Treat None.
+
+        Parameters
+        ----------
+        y_true : np.ndarray
+            Ground truth binary target labels of shape (n_samples,).
+        probas : np.ndarray
+            Predicted probabilities of shape (n_samples, 2) or (n_samples,).
+        thresholds : np.ndarray, optional
+            Array of threshold probabilities. Defaults to `np.linspace(0.01, 0.99, 99)`.
+
+        Returns
+        -------
+        thresholds : np.ndarray
+            Evaluated threshold probabilities.
+        net_benefit_model : np.ndarray
+            Model Net Benefit across thresholds.
+        net_benefit_all : np.ndarray
+            Treat All Net Benefit across thresholds.
+        """
+        if probas.ndim == 2:
+            probas = probas[:, 1]
+
+        y_true = np.asarray(y_true).squeeze()
+        n_samples = len(y_true)
+
+        if thresholds is None:
+            thresholds = np.linspace(0.01, 0.99, 99)
+
+        positives = np.sum(y_true == 1)
+        negatives = n_samples - positives
+
+        # Calculate Treat All Net Benefit
+        net_benefit_all = (positives / n_samples) - (negatives / n_samples) * (
+            thresholds / (1.0 - thresholds)
+        )
+
+        # Calculate Model Net Benefit
+        nb_model_list = []
+        for p_t in thresholds:
+            y_pred = probas >= p_t
+            tp = np.sum((y_pred == 1) & (y_true == 1))
+            fp = np.sum((y_pred == 1) & (y_true == 0))
+            nb = (tp / n_samples) - (fp / n_samples) * (p_t / (1.0 - p_t))
+            nb_model_list.append(nb)
+
+        net_benefit_model = np.array(nb_model_list)
+
+        return thresholds, net_benefit_model, net_benefit_all
 
     # --- High-Level Plotting Methods ---
 
@@ -769,6 +826,80 @@ class MedpipeDisplayer:
 
         if save:
             self._save_figure(fig=fig, filename=f"{metric}_strata_heatmap")
+
+        if show:
+            plt.show()
+        elif save:
+            plt.close(fig)
+
+        return fig, ax
+
+    def plot_dca_curve(
+        self,
+        y_true: np.ndarray,
+        probas: np.ndarray,
+        outcome: str = "default",
+        thresholds: Optional[np.ndarray] = None,
+        label: Optional[str] = None,
+        save: bool = True,
+        show: bool = False,
+        **style_kwargs: Any,
+    ) -> Tuple[Figure, Axes]:
+        """Compute Decision Curve Analysis metrics, render plot, and save figure artifact.
+
+        Parameters
+        ----------
+        y_true : np.ndarray
+            Ground truth binary target labels of shape (n_samples,).
+        probas : np.ndarray
+            Predicted probabilities of shape (n_samples, 2) or (n_samples,).
+        outcome : str, default="default"
+            Outcome identifier used for figure titles and directory structuring.
+        thresholds : np.ndarray, optional
+            Array of threshold probabilities.
+        label : str, optional
+            Legend label for the model curve. Defaults to 'Model'.
+        save : bool, default=True
+            Automatically save the generated plot to the run directory.
+        show : bool, default=False
+            Whether to display the plot interactively before closing.
+        **style_kwargs : Any
+            Additional style parameters forwarded to `draw_dca_curve`.
+
+        Returns
+        -------
+        fig : Figure
+            Rendered Matplotlib figure object.
+        ax : Axes
+            Matplotlib axes containing the DCA plot.
+
+        """
+        thresh, nb_model, nb_all = self._compute_dca_data(
+            y_true=y_true,
+            probas=probas,
+            thresholds=thresholds,
+        )
+
+        display_label = label or "Model"
+
+        with (
+            plt.style.context(self.theme.style_sheet),
+            plt.rc_context(self.theme.to_rc_params()),
+        ):
+            fig, ax = draw_dca_curve(
+                thresholds=thresh,
+                net_benefit_model=nb_model,
+                net_benefit_all=nb_all,
+                label=display_label,
+                color=style_kwargs.pop("color", self.theme.primary_color),
+                linewidth=style_kwargs.pop("linewidth", self.theme.linewidth),
+                show_spines=style_kwargs.pop("show_spines", self.theme.show_spines),
+                title=f"Decision Curve Analysis - {outcome.capitalize()}",
+                **style_kwargs,
+            )
+
+        if save:
+            self._save_figure(fig=fig, filename=f"{outcome}_dca_curve", outcome=outcome)
 
         if show:
             plt.show()

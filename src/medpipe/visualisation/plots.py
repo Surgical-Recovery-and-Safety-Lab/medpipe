@@ -593,3 +593,128 @@ def draw_strata_heatmap(
         ax.set_title(title, fontweight="bold")
 
     return fig, ax
+
+
+def draw_dca_curve(
+    thresholds: np.ndarray,
+    net_benefit_model: np.ndarray,
+    net_benefit_all: np.ndarray,
+    label: str = "Model",
+    ax: Optional[Axes] = None,
+    color: str = _DEFAULT_THEME.primary_color,
+    linestyle: str = "-",
+    linewidth: float = _DEFAULT_THEME.linewidth,
+    all_linestyle: str = ":",
+    all_color: str = "gray",
+    none_linestyle: str = "--",
+    none_color: str = "black",
+    title: Optional[str] = None,
+    show_spines: bool = _DEFAULT_THEME.show_spines,
+    **line_kwargs: Any,
+) -> Tuple[Figure | SubFigure, Axes]:
+    """Render a Decision Curve Analysis (DCA) plot comparing net benefit across thresholds.
+
+    Parameters
+    ----------
+    thresholds : np.ndarray
+        Array of threshold probabilities along the X-axis.
+    net_benefit_model : np.ndarray
+        Computed Net Benefit values for the evaluated model.
+    net_benefit_all : np.ndarray
+        Computed Net Benefit values for the 'Treat All' strategy.
+    label : str, default="Model"
+        Legend label for the model net benefit curve.
+    ax : matplotlib.axes.Axes, optional
+        Pre-existing Matplotlib axes instance. If None, a new figure and axes are created.
+    color : str, default=_DEFAULT_THEME.primary_color
+        Color specifier for the model net benefit line.
+    linestyle : str, default="-"
+        Line style for the model curve.
+    linewidth : float, default=_DEFAULT_THEME.linewidth
+        Width in points for the model curve line.
+    all_linestyle : str, default=":"
+        Line style for the 'Treat All' reference curve.
+    all_color : str, default="gray"
+        Color specifier for the 'Treat All' reference curve.
+    none_linestyle : str, default="--"
+        Line style for the 'Treat None' reference baseline.
+    none_color : str, default="black"
+        Color specifier for the 'Treat None' reference baseline.
+    title : str, optional
+        Axes title text.
+    show_spines : bool, default=_DEFAULT_THEME.show_spines
+        Whether to keep top and right border spines visible.
+    **line_kwargs : Any
+        Additional Matplotlib keyword arguments forwarded to `ax.plot` for the model curve.
+
+    Returns
+    -------
+    fig : matplotlib.figure.Figure or matplotlib.figure.SubFigure
+        Parent Matplotlib figure containing the axes.
+    ax : matplotlib.axes.Axes
+        Matplotlib axes containing the rendered decision curves.
+
+    Raises
+    ------
+    ValueError
+        If ax is provided but not attached to a Figure.
+
+    """
+    if ax is None:
+        fig, ax = plt.subplots(figsize=(6, 6))
+    else:
+        fig = ax.get_figure()
+        if fig is None:
+            raise ValueError("The provided Axes instance is not attached to a Figure")
+
+    # Draw reference strategy curves
+    ax.plot(
+        thresholds,
+        np.zeros_like(thresholds),
+        linestyle=none_linestyle,
+        color=none_color,
+        label="Treat None",
+    )
+    ax.plot(
+        thresholds,
+        net_benefit_all,
+        linestyle=all_linestyle,
+        color=all_color,
+        label="Treat All",
+    )
+
+    # Clean line_kwargs to prevent parameter collisions
+    for key in ("color", "linestyle", "linewidth", "label"):
+        line_kwargs.pop(key, None)
+
+    # Draw main model Net Benefit curve
+    ax.plot(
+        thresholds,
+        net_benefit_model,
+        color=color,
+        linestyle=linestyle,
+        linewidth=linewidth,
+        label=label,
+        **line_kwargs,
+    )
+
+    # Format axis bounds and labels
+    ax.set_xlabel("Threshold Probability", fontweight="bold")
+    ax.set_ylabel("Net Benefit", fontweight="bold")
+    ax.set_xlim(xmin=-0.02, xmax=1.02)
+
+    # Dynamically set y limits based on data range
+    y_min = max(-0.05, min(np.min(net_benefit_model), np.min(net_benefit_all)) - 0.02)
+    y_max = max(np.max(net_benefit_model), np.max(net_benefit_all)) + 0.05
+    ax.set_ylim(ymin=y_min, ymax=y_max)
+
+    if title:
+        ax.set_title(title, fontweight="bold")
+
+    if not show_spines:
+        ax.spines["top"].set_visible(False)
+        ax.spines["right"].set_visible(False)
+
+    ax.legend(loc="upper right", frameon=False)
+
+    return fig, ax
