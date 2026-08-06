@@ -491,3 +491,105 @@ def draw_reliability_diagram(
     ax.legend(loc="lower right", frameon=False)
 
     return fig, ax
+
+
+def draw_strata_heatmap(
+    plot_data: np.ndarray,
+    text_data: np.ndarray,
+    row_labels: list[str],
+    col_labels: list[str],
+    colorbar_label: str = r"|$\Delta$ Score|",
+    vmax: float = 0.1,
+    ax: Optional[Axes] = None,
+    cmap: str = "cividis",
+    title: Optional[str] = None,
+    **heatmap_kwargs: Any,
+) -> Tuple[Figure | SubFigure, Axes]:
+    """Render a pre-computed strata heatmap matrix onto an Axes.
+
+    Parameters
+    ----------
+    plot_data : np.ndarray
+        2D matrix of delta values driving heatmap cell colors.
+    text_data : np.ndarray
+        2D matrix of absolute score values displayed as cell text.
+    row_labels : list of str
+        Y-axis tick labels (e.g., ['All strata', 'Male', 'Female']).
+    col_labels : list of str
+        X-axis tick labels (e.g., ['Mortality', 'Readmission']).
+    colorbar_label : str, default=r"|$\\Delta$ Score|"
+        Label text for the colorbar legend.
+    vmax : float, default=0.1
+        Maximum color scale limit for imshow.
+    ax : matplotlib.axes.Axes, optional
+        Pre-existing Matplotlib axes instance. If None, a new figure and axes are created.
+    cmap : str, default="cividis"
+        Matplotlib colormap identifier.
+    title : str, optional
+        Axes title text.
+    **heatmap_kwargs : Any
+        Additional keyword arguments forwarded to `ax.imshow`.
+
+    Returns
+    -------
+    fig : matplotlib.figure.Figure or matplotlib.figure.SubFigure
+        Parent Matplotlib figure containing the axes.
+    ax : matplotlib.axes.Axes
+        Matplotlib axes containing the rendered heatmap.
+
+    """
+    if ax is None:
+        fig, ax = plt.subplots(figsize=(8, 6))
+    else:
+        fig = ax.get_figure()
+        if fig is None:
+            raise ValueError("The provided Axes instance is not attached to a Figure")
+
+    n_rows, n_cols = plot_data.shape
+
+    # Clean kwargs
+    for key in ("cmap", "aspect", "vmax"):
+        heatmap_kwargs.pop(key, None)
+
+    im = ax.imshow(plot_data, cmap=cmap, aspect="equal", vmax=vmax, **heatmap_kwargs)
+
+    fig.colorbar(im, ax=ax, shrink=0.8, extend="max", label=colorbar_label)
+
+    ax.set_yticks(np.arange(n_rows), labels=row_labels)
+    ax.set_xticks(
+        np.arange(n_cols),
+        labels=col_labels,
+        rotation=-30,
+        rotation_mode="anchor",
+        ha="left",
+    )
+    ax.set_ylabel("Strata", fontweight="bold")
+    ax.set_xlabel("Outcomes", fontweight="bold")
+
+    # Render cell text annotations
+    for i in range(n_cols):
+        for j in range(n_rows):
+            colour = "k" if np.abs(plot_data[j, i]) >= 0.8 * vmax else "w"
+            ax.text(
+                i,
+                j,
+                f"{text_data[j, i]:.2f}",
+                ha="center",
+                va="center",
+                color=colour,
+                fontsize=6,
+                fontweight="bold",
+            )
+
+    ax.spines[:].set_visible(False)
+
+    # Grid divider lines between cells
+    ax.set_yticks(np.arange(n_rows + 1) - 0.5, minor=True)
+    ax.set_xticks(np.arange(n_cols + 1) - 0.5, minor=True)
+    ax.grid(which="minor", color="w", linestyle="-", linewidth=1)
+    ax.tick_params(which="minor", bottom=False, left=False)
+
+    if title:
+        ax.set_title(title, fontweight="bold")
+
+    return fig, ax

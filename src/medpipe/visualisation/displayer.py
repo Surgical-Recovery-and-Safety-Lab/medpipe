@@ -24,6 +24,7 @@ from medpipe.visualisation.plots import (
     draw_probability_distribution,
     draw_reliability_diagram,
     draw_roc_curve,
+    draw_strata_heatmap,
 )
 from medpipe.visualisation.themes import MedpipeTheme
 
@@ -657,6 +658,117 @@ class MedpipeDisplayer:
             self._save_figure(
                 fig=fig, filename=f"{outcome}_reliability_diagram", outcome=outcome
             )
+
+        if show:
+            plt.show()
+        elif save:
+            plt.close(fig)
+
+        return fig, ax
+
+    def plot_strata_heatmap(
+        self,
+        outcomes: list[str],
+        metric: str,
+        strata: list[str],
+        scores: np.ndarray,
+        strata_scores: np.ndarray,
+        save: bool = True,
+        show: bool = False,
+        **style_kwargs: Any,
+    ) -> Tuple[Figure, Axes]:
+        """Validate strata data, compute delta matrix, and render heatmap.
+
+        Parameters
+        ----------
+        outcomes : list of str
+            List of outcome names.
+        metric : str
+            Metric identifier being evaluated (e.g., 'auc', 'ici').
+        strata : list of str
+            List of subgroup strata names.
+        scores : np.ndarray
+            Baseline metric scores for unstratified models of shape (n_outcomes,).
+        strata_scores : np.ndarray
+            Metric scores per stratum and outcome of shape (n_strata, n_outcomes).
+        save : bool, default=True
+            Automatically save the generated plot to the run directory.
+        show : bool, default=False
+            Whether to display the plot interactively before closing.
+        **style_kwargs : Any
+            Additional style parameters forwarded to `draw_strata_heatmap`.
+
+        Returns
+        -------
+        fig : Figure
+            Rendered Matplotlib figure object.
+        ax : Axes
+            Matplotlib axes containing the heatmap plot.
+
+        Raises
+        ------
+        ValueError
+            If matrix dimensions do not match the provided strata, outcomes, or scores.
+        """
+        scores_arr = np.asarray(scores)
+        strata_scores_arr = np.asarray(strata_scores)
+
+        # 1. Validation Logic
+        if strata_scores_arr.ndim != 2:
+            raise ValueError(
+                f"strata_scores must be a 2D array, got shape {strata_scores_arr.shape}"
+            )
+        if len(strata) != strata_scores_arr.shape[0]:
+            raise ValueError(
+                f"Inputs strata and strata_scores must have matching row count, "
+                f"got {len(strata)} and {strata_scores_arr.shape[0]}"
+            )
+        if len(outcomes) != strata_scores_arr.shape[1]:
+            raise ValueError(
+                f"Inputs outcomes and strata_scores must have matching column count, "
+                f"got {len(outcomes)} and {strata_scores_arr.shape[1]}"
+            )
+        if len(scores_arr) != strata_scores_arr.shape[1]:
+            raise ValueError(
+                f"Inputs scores and strata_scores must have matching column count, "
+                f"got {len(scores_arr)} and {strata_scores_arr.shape[1]}"
+            )
+
+        # 2. Data Preparation
+        strata_matrix = np.vstack((scores_arr, strata_scores_arr))
+        plot_data = np.abs(strata_matrix - scores_arr)
+        text_data = strata_matrix.copy()
+
+        is_ici = metric.lower() == "ici"
+        vmax = 0.5 if is_ici else 0.1
+        percent = " (%)" if is_ici else ""
+
+        if is_ici:
+            plot_data *= 100
+            text_data *= 100
+
+        colorbar_label = rf"|$\Delta$ {metric.upper()}|" + percent
+        title = style_kwargs.pop("title", f"Strata Delta - {metric.upper()}{percent}")
+        row_labels = ["All strata"] + list(strata)
+
+        # 3. Stateless Drawing Delegate
+        with (
+            plt.style.context(self.theme.style_sheet),
+            plt.rc_context(self.theme.to_rc_params()),
+        ):
+            fig, ax = draw_strata_heatmap(
+                plot_data=plot_data,
+                text_data=text_data,
+                row_labels=row_labels,
+                col_labels=outcomes,
+                colorbar_label=colorbar_label,
+                vmax=vmax,
+                title=title,
+                **style_kwargs,
+            )
+
+        if save:
+            self._save_figure(fig=fig, filename=f"{metric}_strata_heatmap")
 
         if show:
             plt.show()
