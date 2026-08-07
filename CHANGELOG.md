@@ -10,15 +10,18 @@ and this project adheres to Semantic Versioning ([SemVer](https://semver.org/spe
 * **BREAKING** MedpipeOrchestrator class that handles the loading configuration, data, and creates the ArtifactManager
 * **BREAKING** MedpipeRunner class that handles the creation and fitting of the models
 * **BREAKING** MedpipeEvaluator class that handles the evaluation of the fitted models
+* A visualisation module to handle plotting functions
+* MedpipeDisplayer class that handles plotting and saving graphs
 * BaseRegistry to create model and preprocessing registries
 * PreprocessingRegistry, a dynamic registry to add preprocessing operations
 * ModelRegistry, a dynamic registry to add models
+* MetricRegistry, a dynamic registry to add custom metrics
 * Reproducibility module that contains functions to store configuration and environment information
+* New configuration file called default_config.toml
 * Test suites for the reproducibility module functions and classes
 * Test suites for the logger module functions
 * Test suites for the registries
-* Test suites for the MedpipeOrchestrator, MedpipeRunner, and MedpipeEvaluator classes
-* New configuration file called default_config.toml
+* Test suites for the MedpipeOrchestrator, MedpipeRunner, MedpipeEvaluator, and MedpipeDisplayer classes
 * Stress tests for the Medpipe class
 
 ### Changed
@@ -35,10 +38,10 @@ and this project adheres to Semantic Versioning ([SemVer](https://semver.org/spe
 * Renamed test folder to tests
 
 ### Fixed
-* Typo in plot_ROC_curve docstring
 * Typo in the CATEGORY_LEVEL_1 column of test_data.csv
 
 ### Removed
+* **BREAKING** plot functions in the metrics/ modules
 * Functions to read subconfiguration files in utils/io.py
 * The compute_stata_metrics and print_metrics functions in metrics/core.py
 * The convert_dtypes function in data/utils.py
