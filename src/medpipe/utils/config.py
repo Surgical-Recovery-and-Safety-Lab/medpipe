@@ -308,6 +308,101 @@ class ModelSetup(BaseModel):
     model_config = {"extra": "forbid"}
 
 
+# --- DISPLAY SCHEMAS ---
+class DisplayDefaultsConfig(BaseModel):
+    """Default visualization parameters across all plot types."""
+
+    n_bootstraps: int = Field(default=1000, ge=0)
+    save: bool = True
+    show: bool = False
+    n_bins: int = Field(default=10, ge=1)
+    strategy: Literal["uniform", "quantile", "spline"] = "uniform"
+    model_config = {"extra": "allow"}
+
+
+class DisplayConfig(BaseModel):
+    """Configuration settings for pipeline evaluation graphics and themes."""
+
+    defaults: DisplayDefaultsConfig = Field(default_factory=DisplayDefaultsConfig)
+    overrides: dict[str, dict[str, Any]] = Field(default_factory=dict)
+    outcome_overrides: dict[str, dict[str, dict[str, Any]]] = Field(
+        default_factory=dict
+    )
+    theme: dict[str, Any] | None = Field(default=None)
+
+    model_config = {"extra": "forbid"}
+
+    @model_validator(mode="before")
+    @classmethod
+    def handle_flat_and_legacy_keys(cls, data: Any) -> Any:
+        """Process legacy flat keys (e.g., calibration_strategy) into defaults."""
+        if isinstance(data, dict):
+            data = data.copy()
+            defaults = data.get("defaults", {})
+            if not isinstance(defaults, dict):
+                defaults = {}
+
+            # Backward compatibility for flat calibration_strategy key
+            if "calibration_strategy" in data:
+                defaults.setdefault("strategy", data.pop("calibration_strategy"))
+
+            # Lift any top-level parameter overrides into defaults dict
+            for legacy_key in ("n_bootstraps", "save", "show", "n_bins", "strategy"):
+                if legacy_key in data:
+                    defaults.setdefault(legacy_key, data.pop(legacy_key))
+
+            if defaults:
+                data["defaults"] = defaults
+        return data
+
+    @field_validator("overrides", "outcome_overrides")
+    @classmethod
+    def validate_plot_override_keys(cls, v: dict[str, Any]) -> dict[str, Any]:
+        """Ensure plot override identifiers correspond to valid plot types."""
+        valid_plots = {
+            "calibration",
+            "reliability",
+            "reliability_diagram",
+            "precision_recall",
+            "pr",
+            "pr_curve",
+            "roc",
+            "roc_curve",
+            "distribution",
+            "probability_distribution",
+            "dist",
+            "dca",
+            "dca_curve",
+            "strata_heatmap",
+            "heatmap",
+        }
+
+        for key, val in v.items():
+            if isinstance(val, dict) and any(
+                isinstance(sub_v, dict) for sub_v in val.values()
+            ):
+                # Outcome overrides dictionary: outcome_name -> {plot_type: params}
+                for plot_key in val.keys():
+                    if plot_key.lower() not in valid_plots:
+                        raise ValueError(
+                            f"Unknown plot override type '{plot_key}'. "
+                            f"Valid plot types are: {sorted(list(valid_plots))}"
+                        )
+            else:
+                # Plot type overrides dictionary: plot_type -> params
+                if key.lower() not in valid_plots:
+                    raise ValueError(
+                        f"Unknown plot override type '{key}'. "
+                        f"Valid plot types are: {sorted(list(valid_plots))}"
+                    )
+        return v
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "DisplayConfig":
+        """Instantiate DisplayConfig from parsed TOML dictionary."""
+        return cls.model_validate(data)
+
+
 # --- GLOBAL MEDPIPE CONFIGURATION SCHEMA ---
 class MedpipeConfig(BaseModel):
     """The master schema for a single-file configuration."""
@@ -315,6 +410,7 @@ class MedpipeConfig(BaseModel):
     meta: MetaConfig
     data: DataConfig
     workflow: WorkflowConfig
+    display: DisplayConfig | None = None
 
     # The default setup applied to all outcomes
     default_model: ModelSetup
@@ -402,7 +498,7 @@ class MedpipeConfig(BaseModel):
         return self
 
     @model_validator(mode="after")
-    def validate_evaluation(self) -> "MedpipeConfig":
+    def validate_audit_and_eval_run_mode(self) -> "MedpipeConfig":
         """Check that audit and eval run modes have correct evaluation."""
         run_mode = self.meta.run_mode
         if run_mode == "audit" or run_mode == "eval":
@@ -418,17 +514,31 @@ class MedpipeConfig(BaseModel):
                     "when run_mode is 'audit' or 'eval'"
                 )
                 raise ValueError(expr)
+            if self.display is None:
+                raise ValueError(
+                    "Display parameters must be specified "
+                    "when run_mode is 'audit' or 'eval'"
+                )
         return self
 
     @model_validator(mode="after")
     def validate_outcome_overrides_exist_in_outcomes(self) -> "MedpipeConfig":
         """Ensures all outcome names in outcome_overrides are defined in data.outcomes."""
+        valid_outcomes = set(self.data.outcomes)
+
         if self.outcome_overrides and self.data and self.data.outcomes:
-            valid_outcomes = set(self.data.outcomes)
             for override_outcome in self.outcome_overrides:
                 if override_outcome not in valid_outcomes:
                     raise ValueError(
                         f"Outcome override '{override_outcome}' is not present "
+                        f"in data.outcomes: {self.data.outcomes}"
+                    )
+
+        if self.display and self.display.outcome_overrides:
+            for override_outcome in self.display.outcome_overrides:
+                if override_outcome not in valid_outcomes:
+                    raise ValueError(
+                        f"Display outcome override '{override_outcome}' is not present "
                         f"in data.outcomes: {self.data.outcomes}"
                     )
         return self
