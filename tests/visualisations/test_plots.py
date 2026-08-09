@@ -49,7 +49,7 @@ class TestDrawProbabilityDistribution:
 
         assert isinstance(fig, (Figure, SubFigure))
         assert isinstance(ax, Axes)
-        assert ax.get_xlabel() == "Predicted Probabilities"
+        assert ax.get_xlabel() == "Predicted probabilities"
         assert ax.get_ylabel() == "Count"
         # 10 bins should produce 10 rectangle patches
         assert len(ax.patches) == 10
@@ -112,8 +112,8 @@ class TestDrawRocCurve:
 
         assert isinstance(fig, Figure)
         assert isinstance(ax, Axes)
-        assert ax.get_xlabel() == "False Positive Rate (1 - Specificity)"
-        assert ax.get_ylabel() == "True Positive Rate (Sensitivity)"
+        assert ax.get_xlabel() == "FPR (1 - Specificity)"
+        assert ax.get_ylabel() == "TPR (Sensitivity)"
 
         # Verify chance level and model curve lines exist
         lines = ax.get_lines()
@@ -284,8 +284,8 @@ class TestDrawReliabilityDiagram:
 
         assert isinstance(fig, (Figure, SubFigure))
         assert isinstance(ax, Axes)
-        assert ax.get_xlabel() == "Mean Predicted Probability"
-        assert ax.get_ylabel() == "Fraction of Positives"
+        assert ax.get_xlabel() == "Mean predicted probability"
+        assert ax.get_ylabel() == "Fraction of positives"
 
         labels = [text.get_text() for text in ax.get_legend().get_texts()]
         assert "Perfectly calibrated" in labels
@@ -378,8 +378,8 @@ class TestDrawDcaCurve:
 
         assert isinstance(fig, (Figure, SubFigure))
         assert isinstance(ax, Axes)
-        assert ax.get_xlabel() == "Threshold Probability"
-        assert ax.get_ylabel() == "Net Benefit"
+        assert ax.get_xlabel() == "Threshold probability"
+        assert ax.get_ylabel() == "Net benefit"
 
         labels = [text.get_text() for text in ax.get_legend().get_texts()]
         assert "Treat None" in labels

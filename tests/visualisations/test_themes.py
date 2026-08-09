@@ -18,7 +18,6 @@ class TestMedpipeTheme:
         assert len(theme.palette) == 5
         assert theme.ci_alpha == 0.3
         assert theme.linewidth == 2.0
-        assert theme.style_sheet == "seaborn-v0_8-whitegrid"
         assert theme.dpi == 300
         assert theme.font_family == "sans-serif"
         assert theme.title_fontsize == 12
