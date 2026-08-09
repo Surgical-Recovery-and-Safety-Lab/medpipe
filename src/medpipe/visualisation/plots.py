@@ -19,7 +19,7 @@ _DEFAULT_THEME = MedpipeTheme()
 def draw_probability_distribution(
     probas: np.ndarray,
     n_bins: int = 10,
-    label: str = "Predicted Probabilities",
+    label: str = "Predicted probabilities",
     ax: Optional[Axes] = None,
     color: str = _DEFAULT_THEME.primary_color,
     edgecolor: str = "black",
@@ -519,7 +519,7 @@ def draw_reliability_diagram(
             ax_dist.spines["top"].set_visible(False)
             ax_dist.spines["right"].set_visible(False)
     else:
-        ax.set_xlabel("Mean Predicted Probability", fontweight="bold")
+        ax.set_xlabel("Mean predicted probability", fontweight="bold")
 
     ax.legend(loc="lower right", frameon=False)
 
