@@ -1002,6 +1002,139 @@ class TestModelSetupConfig:
             ModelSetup(algorithm="RF", unexpected_flag=True)  # type: ignore
 
 
+# ==============================================================================
+# DISPLAY CONFIGURATION TESTS
+# ==============================================================================
+
+
+class TestDisplayDefaultsConfig:
+    """Test class for the DisplayDefaultsConfig schema."""
+
+    def test_default_values(self) -> None:
+        """Test default values when no parameters are provided."""
+        config = DisplayDefaultsConfig()
+
+        assert config.n_bootstraps == 1000
+        assert config.save is True
+        assert config.show is False
+        assert config.n_bins == 10
+        assert config.strategy == "uniform"
+
+    def test_custom_values(self) -> None:
+        """Test instantiating with custom values."""
+        config = DisplayDefaultsConfig(
+            n_bootstraps=200,
+            save=False,
+            show=True,
+            n_bins=20,
+            strategy="spline",
+        )
+
+        assert config.n_bootstraps == 200
+        assert config.save is False
+        assert config.show is True
+        assert config.n_bins == 20
+        assert config.strategy == "spline"
+
+    def test_extra_fields_allowed(self) -> None:
+        """Test that extra fields are allowed for flexibility in plot parameters."""
+        config = DisplayDefaultsConfig.model_validate(
+            {"n_bootstraps": 500, "dpi": 300, "custom_color": "blue"}
+        )
+
+        assert config.n_bootstraps == 500
+        assert getattr(config, "dpi", None) == 300
+        assert getattr(config, "custom_color", None) == "blue"
+
+
+class TestDisplayConfig:
+    """Test class for the DisplayConfig schema."""
+
+    def test_valid_config(self) -> None:
+        """Pass a fully defined valid configuration to DisplayConfig."""
+        raw_config = {
+            "defaults": {
+                "n_bootstraps": 1000,
+                "save": True,
+                "show": False,
+                "n_bins": 10,
+                "strategy": "uniform",
+            },
+            "overrides": {
+                "calibration": {
+                    "n_bootstraps": 200,
+                    "strategy": "spline",
+                },
+                "distribution": {"n_bins": 25},
+            },
+            "outcome_overrides": {
+                "MORTALITY_30D": {
+                    "calibration": {
+                        "n_bootstraps": 50,
+                        "strategy": "uniform",
+                    }
+                }
+            },
+            "theme": {"primary_color": "#2D90D8", "show_grid": False},
+        }
+
+        config = DisplayConfig.model_validate(raw_config)
+
+        assert config.defaults.n_bootstraps == 1000
+        assert config.overrides["calibration"]["n_bootstraps"] == 200
+        assert (
+            config.outcome_overrides["MORTALITY_30D"]["calibration"]["strategy"]
+            == "uniform"
+        )
+        assert config.theme["primary_color"] == "#2D90D8"
+
+    def test_flat_and_legacy_keys_transformed_to_defaults(self) -> None:
+        """Test that legacy flat keys get mapped into defaults during pre-validation."""
+        raw_config = {
+            "calibration_strategy": "spline",
+            "n_bootstraps": 500,
+            "save": False,
+        }
+
+        config = DisplayConfig.model_validate(raw_config)
+
+        assert config.defaults.strategy == "spline"
+        assert config.defaults.n_bootstraps == 500
+        assert config.defaults.save is False
+
+    @pytest.mark.parametrize(
+        "invalid_plot_key",
+        ["invalid_plot_name", "unknown_curve", "scatter_plot"],
+    )
+    def test_invalid_override_plot_key(self, invalid_plot_key: str) -> None:
+        """Test that unknown plot override types raise a ValidationError."""
+        raw_config = {
+            "overrides": {
+                invalid_plot_key: {"n_bootstraps": 100},
+            }
+        }
+
+        with pytest.raises(
+            ValidationError, match=f"Unknown plot override type '{invalid_plot_key}'"
+        ):
+            DisplayConfig.model_validate(raw_config)
+
+    def test_invalid_outcome_override_plot_key(self) -> None:
+        """Test that unknown plot types inside outcome_overrides raise a ValidationError."""
+        raw_config = {
+            "outcome_overrides": {
+                "MORTALITY_30D": {
+                    "unsupported_diagram": {"n_bins": 5},
+                }
+            }
+        }
+
+        with pytest.raises(
+            ValidationError, match="Unknown plot override type 'unsupported_diagram'"
+        ):
+            DisplayConfig.model_validate(raw_config)
+
+
 class TestMedpipeConfig:
     """Test class for the MedpipeConfig class"""
 
@@ -1134,6 +1267,26 @@ class TestMedpipeConfig:
         config = self._get_valid_config_dict(tmp_path)
         config["meta"]["run_mode"] = run_mode
         config["workflow"]["evaluation"][params] = None
+
+        with pytest.raises(ValueError, match=match_expr):
+            MedpipeConfig.model_validate(config)
+
+    @pytest.mark.parametrize(
+        "run_mode,params",
+        [
+            ("audit", "calibration"),
+            ("eval", "fairness"),
+        ],
+    )
+    def test_display_config_value_error(
+        self, tmp_path: Path, run_mode: str, params: str
+    ) -> None:
+        """Test case when run_mode and display mismatch."""
+        match_expr = (
+            "Display parameters must be specified when run_mode is 'audit' or 'eval'"
+        )
+        config = self._get_valid_config_dict(tmp_path)
+        config["display"] = None
 
         with pytest.raises(ValueError, match=match_expr):
             MedpipeConfig.model_validate(config)
