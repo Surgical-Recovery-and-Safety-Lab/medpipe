@@ -12,6 +12,7 @@ from matplotlib.figure import Figure
 
 matplotlib.use("Agg")  # Non-interactive backend for headless testing
 
+from medpipe.utils.config import DisplayConfig, DisplayDefaultsConfig
 from medpipe.visualisation.displayer import MedpipeDisplayer
 from medpipe.visualisation.themes import MedpipeTheme
 
@@ -59,6 +60,132 @@ class TestMedpipeDisplayerInit:
 
         assert displayer.theme.primary_color == "#FF0000"
         assert displayer.theme.dpi == 150
+
+
+class TestNormalizePlotType:
+    """Tests for MedpipeDisplayer._normalize_plot_type static helper."""
+
+    @pytest.mark.parametrize(
+        "input_type, expected",
+        [
+            ("calibration", "reliability"),
+            ("reliability_diagram", "reliability"),
+            ("pr", "precision_recall"),
+            ("pr_curve", "precision_recall"),
+            ("roc_curve", "roc"),
+            ("distribution", "probability_distribution"),
+            ("dist", "probability_distribution"),
+            ("dca_curve", "dca"),
+            ("roc", "roc"),
+            ("dca", "dca"),
+            ("custom_plot", "custom_plot"),
+        ],
+    )
+    def test_normalize_plot_type_mappings(self, input_type: str, expected: str) -> None:
+        """Test canonical resolution of plot names and aliases."""
+        assert MedpipeDisplayer._normalize_plot_type(input_type) == expected
+
+    def test_normalize_plot_type_case_insensitive(self) -> None:
+        """Test that normalization handles uppercase inputs."""
+        assert MedpipeDisplayer._normalize_plot_type("CALIBRATION") == "reliability"
+        assert MedpipeDisplayer._normalize_plot_type("PR_CURVE") == "precision_recall"
+
+
+class TestResolvePlotConfig:
+    """Tests for MedpipeDisplayer._resolve_plot_config hierarchical resolution."""
+
+    @pytest.fixture
+    def mock_displayer(self) -> MedpipeDisplayer:
+        """Create a displayer instance with a mock orchestrator configuration."""
+        mock_orchestrator = MagicMock()
+        mock_orchestrator.run_dir = MagicMock()
+
+        # Build a structured DisplayConfig
+        display_config = DisplayConfig(
+            defaults=DisplayDefaultsConfig(
+                n_bootstraps=1000,
+                save=True,
+                show=False,
+                n_bins=10,
+                strategy="uniform",
+            ),
+            overrides={
+                "reliability": {"n_bootstraps": 200, "strategy": "spline"},
+                "probability_distribution": {"n_bins": 25},
+            },
+            outcome_overrides={
+                "MORTALITY_30D": {
+                    "calibration": {"n_bootstraps": 50, "strategy": "uniform"},
+                }
+            },
+        )
+        mock_orchestrator.config.display = display_config
+        return MedpipeDisplayer(orchestrator=mock_orchestrator)
+
+    def test_resolve_default_values(self, mock_displayer: MedpipeDisplayer) -> None:
+        """Test fallback to global defaults when no overrides exist for plot type."""
+        resolved = mock_displayer._resolve_plot_config(plot_type="roc")
+
+        assert resolved["n_bootstraps"] == 1000
+        assert resolved["save"] is True
+        assert resolved["show"] is False
+
+    def test_resolve_global_plot_override(
+        self, mock_displayer: MedpipeDisplayer
+    ) -> None:
+        """Test that plot-level overrides take precedence over global defaults."""
+        resolved = mock_displayer._resolve_plot_config(plot_type="reliability")
+
+        assert resolved["n_bootstraps"] == 200
+        assert resolved["strategy"] == "spline"
+        assert resolved["save"] is True  # Kept from defaults
+
+    def test_resolve_alias_plot_override(
+        self, mock_displayer: MedpipeDisplayer
+    ) -> None:
+        """Test that canonical alias normalization resolves plot-level overrides."""
+        # Config has override for 'reliability', calling with alias 'calibration'
+        resolved = mock_displayer._resolve_plot_config(plot_type="calibration")
+
+        assert resolved["n_bootstraps"] == 200
+        assert resolved["strategy"] == "spline"
+
+    def test_resolve_outcome_override(self, mock_displayer: MedpipeDisplayer) -> None:
+        """Test that outcome-specific overrides take precedence over
+        global plot overrides."""
+        resolved = mock_displayer._resolve_plot_config(
+            plot_type="calibration", outcome="MORTALITY_30D"
+        )
+
+        assert resolved["n_bootstraps"] == 50
+        assert resolved["strategy"] == "uniform"
+
+    def test_resolve_runtime_kwargs_precedence(
+        self, mock_displayer: MedpipeDisplayer
+    ) -> None:
+        """Test that explicit runtime kwargs override all configuration levels."""
+        resolved = mock_displayer._resolve_plot_config(
+            plot_type="calibration",
+            outcome="MORTALITY_30D",
+            n_bootstraps=10,  # Explicit runtime parameter
+            show=True,
+        )
+
+        assert resolved["n_bootstraps"] == 10
+        assert resolved["strategy"] == "uniform"  # Kept from outcome override
+        assert resolved["show"] is True
+
+    def test_resolve_ignores_none_runtime_kwargs(
+        self, mock_displayer: MedpipeDisplayer
+    ) -> None:
+        """Test that None values passed as runtime kwargs do not overwrite configured values."""
+        resolved = mock_displayer._resolve_plot_config(
+            plot_type="calibration",
+            n_bootstraps=None,
+        )
+
+        # Should maintain the global plot override of 200, not overwrite with None
+        assert resolved["n_bootstraps"] == 200
 
 
 class TestComputeRocData:
