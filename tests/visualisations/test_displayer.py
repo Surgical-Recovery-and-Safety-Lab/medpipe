@@ -3,18 +3,17 @@
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 
-matplotlib.use("Agg")  # Non-interactive backend for headless testing
-
 from medpipe.utils.config import DisplayConfig, DisplayDefaultsConfig
 from medpipe.visualisation.displayer import MedpipeDisplayer
 from medpipe.visualisation.themes import MedpipeTheme
+
+# matplotlib.use("Agg")  # Non-interactive backend for headless testing
 
 
 @pytest.fixture(autouse=True)
@@ -29,6 +28,7 @@ def mock_orchestrator(tmp_path: Path):
     """Provides a mock MedpipeOrchestrator with a temporary run_dir."""
     orchestrator = MagicMock()
     orchestrator.run_dir = tmp_path
+    orchestrator.config.display = None
     return orchestrator
 
 
@@ -186,6 +186,17 @@ class TestResolvePlotConfig:
 
         # Should maintain the global plot override of 200, not overwrite with None
         assert resolved["n_bootstraps"] == 200
+
+    def test_resolve_when_display_config_is_none(self, mock_orchestrator) -> None:
+        """Test that _resolve_plot_config falls back to system defaults when display config is None."""
+        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+        resolved = displayer._resolve_plot_config(plot_type="roc")
+
+        assert resolved["n_bootstraps"] == 1000
+        assert resolved["save"] is True
+        assert resolved["show"] is False
+        assert resolved["n_bins"] == 10
+        assert resolved["strategy"] == "uniform"
 
 
 class TestComputeRocData:
@@ -461,6 +472,49 @@ class TestPlotRocCurve:
 
         mock_show.assert_called_once()
 
+    def test_plot_roc_curve_uses_display_config_overrides(
+        self, mock_orchestrator, sample_binary_data
+    ) -> None:
+        """Test that plot_roc_curve respects n_bootstraps from configuration overrides."""
+        display_config = DisplayConfig(overrides={"roc": {"n_bootstraps": 0}})
+        mock_orchestrator.config.display = display_config
+        y_true, probas = sample_binary_data
+        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+
+        fig, ax = displayer.plot_roc_curve(
+            y_true=y_true,
+            probas=probas,
+            outcome="mortality",
+            save=False,
+            show=False,
+        )
+
+        assert isinstance(fig, Figure)
+        # When n_bootstraps=0, confidence interval fill collections are not drawn
+        assert len(ax.collections) == 0
+
+    def test_plot_probability_distribution_uses_display_config_overrides(
+        self, mock_orchestrator, sample_binary_data
+    ) -> None:
+        """Test that plot_probability_distribution respects n_bins from configuration overrides."""
+        display_config = DisplayConfig(
+            overrides={"probability_distribution": {"n_bins": 25}}
+        )
+        mock_orchestrator.config.display = display_config
+        _, probas = sample_binary_data
+        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+
+        fig, ax = displayer.plot_probability_distribution(
+            probas=probas,
+            outcome="mortality",
+            save=False,
+            show=False,
+        )
+
+        assert isinstance(fig, Figure)
+        # 25 histogram bins = 25 patch elements rendered on the axes
+        assert len(ax.patches) == 25
+
 
 class TestComputePrecisionRecallData:
     """Tests for the internal `_compute_precision_recall_data` helper method."""
@@ -565,6 +619,28 @@ class TestPlotPrecisionRecallCurve:
         )
 
         mock_show.assert_called_once()
+
+    def test_plot_pr_curve_uses_display_config_overrides(
+        self, mock_orchestrator, sample_binary_data
+    ) -> None:
+        """Test that plot_precision_recall_curve respects n_bootstraps from configuration overrides."""
+        display_config = DisplayConfig(
+            overrides={"precision_recall": {"n_bootstraps": 0}}
+        )
+        mock_orchestrator.config.display = display_config
+        y_true, probas = sample_binary_data
+        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+
+        fig, ax = displayer.plot_precision_recall_curve(
+            y_true=y_true,
+            probas=probas,
+            outcome="sepsis",
+            save=False,
+            show=False,
+        )
+
+        assert isinstance(fig, Figure)
+        assert len(ax.collections) == 0
 
 
 class TestComputeReliabilityData:
@@ -720,6 +796,26 @@ class TestPlotReliabilityDiagram:
         # Line for model should not have marker points when strategy='spline'
         model_line = ax.get_lines()[1]
         assert model_line.get_marker() in ("", "None", None)
+
+    def test_plot_reliability_diagram_passes_probas_for_histogram(
+        self, mock_orchestrator, sample_binary_data
+    ) -> None:
+        """Test that plot_reliability_diagram renders the probability distribution subplot at the bottom."""
+        y_true, probas = sample_binary_data
+        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+
+        fig, _ = displayer.plot_reliability_diagram(
+            y_true=y_true,
+            probas=probas,
+            outcome="mortality",
+            n_bootstraps=0,
+            save=False,
+            show=False,
+        )
+
+        assert isinstance(fig, Figure)
+        # Verify that two axes (main calibration diagram + bottom histogram) exist on figure
+        assert len(fig.axes) == 2
 
 
 class TestPlotStrataHeatmap:
@@ -881,6 +977,26 @@ class TestPlotDcaCurve:
         )
 
         mock_show.assert_called_once()
+
+    def test_plot_dca_curve_uses_display_config_overrides(
+        self, mock_orchestrator, sample_binary_data, tmp_path: Path
+    ) -> None:
+        """Test that plot_dca_curve respects save=False from configuration overrides."""
+        display_config = DisplayConfig(overrides={"dca": {"save": False}})
+        mock_orchestrator.config.display = display_config
+        y_true, probas = sample_binary_data
+        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+
+        fig, _ = displayer.plot_dca_curve(
+            y_true=y_true,
+            probas=probas,
+            outcome="readmission",
+            show=False,
+        )
+
+        expected_file = tmp_path / "plots" / "readmission" / "readmission_dca_curve.png"
+        assert isinstance(fig, Figure)
+        assert not expected_file.exists()
 
 
 class TestPlotAll:
