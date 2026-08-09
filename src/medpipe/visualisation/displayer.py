@@ -3,7 +3,7 @@ High-level display and visualisation manager module.
 """
 
 from pathlib import Path
-from typing import Any, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -96,6 +96,103 @@ class MedpipeDisplayer:
         self.run_dir = orchestrator.run_dir
         self.theme = theme or MedpipeTheme()
         self.logger = get_console_logger("medpipe.displayer")
+
+    # --- Config Resolution ---
+
+    @staticmethod
+    def _normalize_plot_type(plot_type: str) -> str:
+        """Normalize plot aliases to canonical names.
+
+        Parameters
+        ----------
+        plot_type : str
+            Raw identifier or alias for a specific plot type
+            (e.g., 'calibration', 'pr_curve').
+
+        Returns
+        -------
+        str
+            Canonical plot type identifier used for consistent configuration lookup.
+
+        """
+        mapping = {
+            "calibration": "reliability",
+            "reliability_diagram": "reliability",
+            "pr": "precision_recall",
+            "pr_curve": "precision_recall",
+            "roc_curve": "roc",
+            "distribution": "probability_distribution",
+            "dist": "probability_distribution",
+            "dca_curve": "dca",
+        }
+        return mapping.get(plot_type.lower(), plot_type.lower())
+
+    def _resolve_plot_config(
+        self,
+        plot_type: str,
+        outcome: Optional[str] = None,
+        **runtime_kwargs: Any,
+    ) -> Dict[str, Any]:
+        """Resolve plot parameters hierarchically across configuration levels.
+
+        Applies parameter precedence in the following order (lowest to highest):
+        1. Default global display settings (`display_cfg.defaults`)
+        2. Plot-type overrides (`display_cfg.overrides`)
+        3. Outcome-specific plot overrides (`display_cfg.outcome_overrides`)
+        4. Explicit non-None runtime arguments (`runtime_kwargs`)
+
+        Parameters
+        ----------
+        plot_type : str
+            Plot identifier or alias (e.g., 'calibration', 'roc', 'distribution').
+        outcome : str, optional
+            Outcome key used to retrieve outcome-specific plot overrides.
+        **runtime_kwargs : Any
+            Runtime keyword arguments passed directly to the calling plot method.
+
+        Returns
+        -------
+        dict of {str : Any}
+            Fully resolved dictionary of parameters for the specified plot.
+
+        """
+        display_cfg = getattr(self.orchestrator.config, "display", None)
+
+        if display_cfg is None:
+            config_params: Dict[str, Any] = {
+                "n_bootstraps": 1000,
+                "save": True,
+                "show": False,
+                "n_bins": 10,
+                "strategy": "uniform",
+            }
+            overrides: Dict[str, Any] = {}
+            outcome_overrides: Dict[str, Any] = {}
+        else:
+            config_params = display_cfg.defaults.model_dump()
+            overrides = display_cfg.overrides
+            outcome_overrides = display_cfg.outcome_overrides
+
+        canonical_type = self._normalize_plot_type(plot_type)
+
+        # 1. Apply global plot-type overrides
+        for key in (plot_type.lower(), canonical_type):
+            if key in overrides:
+                config_params.update(overrides[key])
+
+        # 2. Apply outcome-specific plot overrides
+        if outcome and outcome in outcome_overrides:
+            out_cfg = outcome_overrides[outcome]
+            for key in (plot_type.lower(), canonical_type):
+                if key in out_cfg:
+                    config_params.update(out_cfg[key])
+
+        # 3. Apply explicit non-None runtime kwargs overrides
+        for k, v in runtime_kwargs.items():
+            if v is not None:
+                config_params[k] = v
+
+        return config_params
 
     # --- Internal Helpers ---
 
@@ -954,7 +1051,7 @@ class MedpipeDisplayer:
         save: bool = True,
         show: bool = False,
         **style_kwargs: Any,
-    ) -> dict[str, Tuple[Figure | SubFigure, Axes]]:
+    ) -> Dict[str, Tuple[Figure | SubFigure, Axes]]:
         """Execute all core evaluation visualization routines for a given outcome.
 
         Generates and optionally persists the ROC curve, Precision-Recall curve,
@@ -980,12 +1077,12 @@ class MedpipeDisplayer:
 
         Returns
         -------
-        dict[str, Tuple[Figure | SubFigure, Axes]]
+        Dict[str, Tuple[Figure | SubFigure, Axes]]
             Dictionary mapping plot identifiers ('roc', 'pr', 'distribution',
             'reliability', 'dca') to their rendered (Figure, Axes) tuples.
 
         """
-        plots: dict[str, Tuple[Figure | SubFigure, Axes]] = {}
+        plots: Dict[str, Tuple[Figure | SubFigure, Axes]] = {}
 
         self.logger.info(f"--- Starting graphical display for outcome: {outcome} ---")
 
