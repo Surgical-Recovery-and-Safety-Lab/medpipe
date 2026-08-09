@@ -113,6 +113,7 @@ class MedpipeOrchestrator:
             config=config_dict,
             dataset_path=dataset_path,
         )
+        self.artifact_manager.save_resolved_config(config_dict, self.run_dir)
         self.logger.info("Reproducibility artifacts saved successfully.")
 
     def prepare_data(
