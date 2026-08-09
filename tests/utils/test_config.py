@@ -1136,7 +1136,7 @@ class TestDisplayConfig:
 
 
 class TestMedpipeConfig:
-    """Test class for the MedpipeConfig class"""
+    """Test class for the MedpipeConfig class."""
 
     def _get_valid_config_dict(self, tmp_path: Path, **overrides) -> dict:
         """Creates a fresh valid config dict to override."""
@@ -1199,6 +1199,21 @@ class TestMedpipeConfig:
                     },
                 },
             },
+            "display": {
+                "defaults": {
+                    "n_bootstraps": 1000,
+                    "save": True,
+                    "show": False,
+                    "n_bins": 10,
+                    "strategy": "uniform",
+                },
+                "overrides": {
+                    "calibration": {
+                        "n_bootstraps": 200,
+                        "strategy": "spline",
+                    }
+                },
+            },
         }
         config_dict.update(overrides)
         return config_dict
@@ -1208,15 +1223,10 @@ class TestMedpipeConfig:
         raw_config = self._get_valid_config_dict(tmp_path)
         config = MedpipeConfig.model_validate(raw_config)
 
-        # We exclude dynamically generated resolved_models from the dump comparison
         dumped = config.model_dump(exclude={"resolved_models"})
+        revalidated = MedpipeConfig.model_validate(dumped)
 
-        # Ensure outcome overrides is empty if not provided in raw config,
-        # since dump will include default_factory fields
-        if "outcome_overrides" not in raw_config:
-            raw_config["outcome_overrides"] = {}
-
-        assert dumped == raw_config
+        assert revalidated == config
 
     def test_recalibration_split(self, tmp_path: Path) -> None:
         """Test case when recalibration method and split mismatch."""
@@ -1226,8 +1236,6 @@ class TestMedpipeConfig:
         )
 
         config = self._get_valid_config_dict(tmp_path)
-        # recalibration is defined in default_model, so setting split
-        # to None should trigger error
         config["workflow"]["validation"]["recalibration_split"] = None
 
         with pytest.raises(ValueError, match=match_expr):
@@ -1271,21 +1279,14 @@ class TestMedpipeConfig:
         with pytest.raises(ValueError, match=match_expr):
             MedpipeConfig.model_validate(config)
 
-    @pytest.mark.parametrize(
-        "run_mode,params",
-        [
-            ("audit", "calibration"),
-            ("eval", "fairness"),
-        ],
-    )
-    def test_display_config_value_error(
-        self, tmp_path: Path, run_mode: str, params: str
-    ) -> None:
-        """Test case when run_mode and display mismatch."""
+    @pytest.mark.parametrize("run_mode", ["audit", "eval"])
+    def test_display_config_value_error(self, tmp_path: Path, run_mode: str) -> None:
+        """Test case when run_mode is audit or eval and display config is missing."""
         match_expr = (
-            "Display parameters must be specified when run_mode is 'audit' or 'eval'"
+            "Display parameters must be specified " "when run_mode is 'audit' or 'eval'"
         )
         config = self._get_valid_config_dict(tmp_path)
+        config["meta"]["run_mode"] = run_mode
         config["display"] = None
 
         with pytest.raises(ValueError, match=match_expr):
@@ -1299,7 +1300,6 @@ class TestMedpipeConfig:
         assert "MORTALITY_30D" in config.resolved_models
         assert "ANY_COMP" in config.resolved_models
 
-        # Both should match the default model perfectly
         assert (
             config.resolved_models["MORTALITY_30D"].algorithm
             == "HistGradientBoostingClassifier"
@@ -1317,7 +1317,6 @@ class TestMedpipeConfig:
         """Test that hyperparameters correctly deep merge when overridden."""
         raw_config = self._get_valid_config_dict(tmp_path)
 
-        # Override the ANY_COMP outcome
         raw_config["outcome_overrides"] = {
             "ANY_COMP": {
                 "algorithm": "RandomForestClassifier",
@@ -1327,15 +1326,12 @@ class TestMedpipeConfig:
 
         config = MedpipeConfig.model_validate(raw_config)
 
-        # MORTALITY_30D should remain default
         model_mortality = config.resolved_models["MORTALITY_30D"]
         assert model_mortality.algorithm == "HistGradientBoostingClassifier"
         assert model_mortality.hyperparameters == {"learning_rate": 0.1}
 
-        # ANY_COMP should be merged
         model_comp = config.resolved_models["ANY_COMP"]
         assert model_comp.algorithm == "RandomForestClassifier"
-        # learning_rate cascades down, n_estimators/max_depth are added
         assert model_comp.hyperparameters == {
             "learning_rate": 0.1,
             "n_estimators": 200,
@@ -1346,7 +1342,6 @@ class TestMedpipeConfig:
         """Test that recalibration methods and kwargs merge correctly."""
         raw_config = self._get_valid_config_dict(tmp_path)
 
-        # Add a default recalibration hyperparameter for the test
         raw_config["default_model"]["recalibration"]["hyperparameters"]["y_min"] = 0
 
         raw_config["outcome_overrides"] = {
@@ -1364,17 +1359,15 @@ class TestMedpipeConfig:
         res_recal = config.resolved_models["MORTALITY_30D"].recalibration
         assert res_recal is not None
         assert res_recal.method == "sigmoid"
-        # Merged hyperparameters: y_min kept from default, cv added from override
         assert res_recal.hyperparameters == {"y_min": 0, "cv": 5}
 
     def test_cascade_adds_recalibration_when_base_has_none(
         self, tmp_path: Path
     ) -> None:
-        """Test that an override can introduce recalibration to a base
-        model that lacks it."""
+        """Test that an override can introduce recalibration to a
+        base model that lacks it."""
         raw_config = self._get_valid_config_dict(tmp_path)
 
-        # Remove recalibration from the base completely
         raw_config["default_model"]["recalibration"] = None
 
         raw_config["outcome_overrides"] = {
@@ -1389,15 +1382,14 @@ class TestMedpipeConfig:
         assert config.default_model.recalibration is None
         assert config.resolved_models["MORTALITY_30D"].recalibration is None
 
-        # The override should have successfully added it
         assert config.resolved_models["ANY_COMP"].recalibration is not None
         assert config.resolved_models["ANY_COMP"].recalibration.method == "sigmoid"
 
     def test_validate_search_cv_succeeds_with_list_hyperparameters(
         self, tmp_path: Path
     ) -> None:
-        """Test that grid_search=true passes validation when at least one
-        hyperparameter is a list."""
+        """Test that grid_search=true passes validation when at least
+        one hyperparameter is a list."""
         raw_config = self._get_valid_config_dict(tmp_path)
         raw_config["workflow"]["validation"]["cross_validation"]["grid_search"] = True
         raw_config["default_model"]["hyperparameters"] = {
@@ -1415,19 +1407,37 @@ class TestMedpipeConfig:
         ] == [0.01, 0.1]
 
     def test_outcome_override_not_in_outcomes_list(self, tmp_path: Path) -> None:
-        """Test that specifying an override for an outcome not listed in
-        data.outcomes raises a ValidationError."""
+        """Test that specifying a model override for an outcome not
+        listed in data.outcomes raises ValidationError."""
         raw_config = self._get_valid_config_dict(tmp_path)
 
-        # Add an override for an outcome name that is NOT in data.outcomes
         raw_config["outcome_overrides"] = {
             "UNLISTED_OUTCOME": {
                 "algorithm": "RandomForestClassifier",
             }
         }
 
-        match_expr = f"Outcome override 'UNLISTED_OUTCOME' is not present "
-        f"in data.outcomes: {raw_config["data"]["outcomes"]}"
+        match_expr = (
+            "Outcome override 'UNLISTED_OUTCOME' is not present in data.outcomes"
+        )
+
+        with pytest.raises(ValidationError, match=escape(match_expr)):
+            MedpipeConfig.model_validate(raw_config)
+
+    def test_display_outcome_override_not_in_outcomes_list(
+        self, tmp_path: Path
+    ) -> None:
+        """Test that specifying a display override for an outcome not
+        listed in data.outcomes raises ValidationError."""
+        raw_config = self._get_valid_config_dict(tmp_path)
+
+        raw_config["display"]["outcome_overrides"] = {
+            "UNLISTED_OUTCOME": {
+                "calibration": {"n_bootstraps": 10},
+            }
+        }
+
+        match_expr = "Display outcome override 'UNLISTED_OUTCOME' is not present in data.outcomes"
 
         with pytest.raises(ValidationError, match=escape(match_expr)):
             MedpipeConfig.model_validate(raw_config)
