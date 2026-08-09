@@ -811,7 +811,7 @@ class MedpipeDisplayer:
         probas: np.ndarray,
         outcome: str = "default",
         n_bins: int = 10,
-        strategy: str = "uniform",
+        strategy: Optional[str] = None,
         label: Optional[str] = None,
         n_bootstraps: Optional[int] = None,
         save: Optional[bool] = None,
@@ -831,7 +831,7 @@ class MedpipeDisplayer:
             Outcome identifier used for figure titles and directory structuring.
         n_bins : int, default=10
             Number of calibration bins (ignored if strategy='spline').
-        strategy : {'uniform', 'quantile', 'spline'}, default='uniform'
+        strategy : {'uniform', 'quantile', 'spline'}, optional
             Binning or smoothing strategy for calibration calculation.
         label : str, optional
             Legend label for the model curve. Defaults to 'Model'.
@@ -868,7 +868,7 @@ class MedpipeDisplayer:
         n_bootstraps_val = cfg["n_bootstraps"]
         save_val = cfg["save"]
         show_val = cfg["show"]
-
+        breakpoint()
         self.logger.info(f"[{outcome}] Starting reliability diagram plotting.")
         self.logger.debug(
             f"[{outcome}] Plotting reliability diagram with "
