@@ -534,10 +534,10 @@ class MedpipeDisplayer:
         self,
         probas: np.ndarray,
         outcome: str = "default",
-        n_bins: int = 10,
+        n_bins: Optional[int] = None,
         label: Optional[str] = None,
-        save: bool = True,
-        show: bool = False,
+        save: Optional[bool] = None,
+        show: Optional[bool] = None,
         **style_kwargs: Any,
     ) -> Tuple[Figure | SubFigure, Axes]:
         """Render prediction probability histogram and save figure artifact.
@@ -552,9 +552,9 @@ class MedpipeDisplayer:
             Number of equal-width bins for the histogram.
         label : str, optional
             Legend label. Defaults to "Predicted Probabilities".
-        save : bool, default=True
+        save : bool, optional
             Automatically save the generated plot to the run directory.
-        show : bool, default=False
+        show : bool, optional
             Whether to display the plot interactively before closing.
         **style_kwargs : Any
             Additional style parameters forwarded to `draw_probability_distribution`.
@@ -567,19 +567,32 @@ class MedpipeDisplayer:
             Matplotlib axes containing the plotted histogram.
 
         """
+        cfg = self._resolve_plot_config(
+            plot_type="distribution",
+            outcome=outcome,
+            n_bins=n_bins,
+            save=save,
+            show=show,
+            **style_kwargs,
+        )
+
+        n_bins_val = cfg["n_bins"]
+        save_val = cfg["save"]
+        show_val = cfg["show"]
+
         self.logger.info(
             f"[{outcome}] Starting predicted probability distribution plotting."
         )
         self.logger.debug(
             f"[{outcome}] Plotting predicted probability distribution with "
-            f"probabilities: {probas.shape}."
+            f"probabilities: {probas.shape} and {n_bins_val} bins."
         )
         display_label = label or "Predicted Probabilities"
 
         with (plt.rc_context(self.theme.to_rc_params()),):
             fig, ax = draw_probability_distribution(
                 probas=probas,
-                n_bins=n_bins,
+                n_bins=n_bins_val,
                 label=display_label,
                 color=style_kwargs.pop("color", self.theme.primary_color),
                 show_spines=style_kwargs.pop("show_spines", self.theme.show_spines),
@@ -587,16 +600,16 @@ class MedpipeDisplayer:
                 **style_kwargs,
             )
 
-        if save:
+        if save_val:
             self._save_figure(
                 fig=fig,
                 filename=f"{outcome}_probability_distribution",
                 outcome=outcome,
             )
 
-        if show:
+        if show_val:
             plt.show()
-        elif save:
+        elif save_val:
             plt.close(fig)
 
         return fig, ax
@@ -607,9 +620,9 @@ class MedpipeDisplayer:
         probas: np.ndarray,
         outcome: str = "default",
         label: Optional[str] = None,
-        n_bootstraps: int = 1000,
-        save: bool = True,
-        show: bool = False,
+        n_bootstraps: Optional[int] = None,
+        save: Optional[bool] = None,
+        show: Optional[bool] = None,
         **style_kwargs: Any,
     ) -> Tuple[Figure | SubFigure, Axes]:
         """Compute ROC metrics, render curve with confidence intervals, and save figure.
@@ -624,11 +637,11 @@ class MedpipeDisplayer:
             Outcome identifier used for figure titles and folder structuring.
         label : str, optional
             Legend label for the model. If None, defaults to 'Model (AUC = X.XX)'.
-        n_bootstraps : int, default=1000
+        n_bootstraps : int, optional
             Number of bootstrap iterations for confidence intervals. Set to 0 to disable.
-        save : bool, default=True
+        save : bool, optional
             Automatically save the generated plot to the run directory.
-        show : bool, default=False
+        show : bool, optional
             Whether to display the plot interactively before closing.
         **style_kwargs : Any
             Additional style parameters forwarded to `draw_roc_curve`.
@@ -641,15 +654,28 @@ class MedpipeDisplayer:
             Matplotlib axes containing the plotted elements.
 
         """
+        cfg = self._resolve_plot_config(
+            plot_type="roc",
+            outcome=outcome,
+            n_bootstraps=n_bootstraps,
+            save=save,
+            show=show,
+            **style_kwargs,
+        )
+
+        n_bootstraps_val = cfg["n_bootstraps"]
+        save_val = cfg["save"]
+        show_val = cfg["show"]
+
         self.logger.info(f"[{outcome}] Starting ROC curve plotting.")
         self.logger.debug(
             f"[{outcome}] Plotting ROC curve with "
-            f"y: {y_true.shape} and {n_bootstraps} bootstrap iterations."
+            f"y: {y_true.shape} and {n_bootstraps_val} bootstrap iterations."
         )
         fpr, tpr, roc_auc, lower_ci, upper_ci = self._compute_roc_data(
             y_true=y_true,
             probas=probas,
-            n_bootstraps=n_bootstraps,
+            n_bootstraps=n_bootstraps_val,
         )
 
         display_label = label or f"Model (AUC = {roc_auc:.3f})"
@@ -670,12 +696,12 @@ class MedpipeDisplayer:
                 **style_kwargs,
             )
 
-        if save:
+        if save_val:
             self._save_figure(fig=fig, filename=f"{outcome}_roc_curve", outcome=outcome)
 
-        if show:
+        if show_val:
             plt.show()
-        elif save:
+        elif save_val:
             plt.close(fig)
 
         return fig, ax
@@ -686,9 +712,9 @@ class MedpipeDisplayer:
         probas: np.ndarray,
         outcome: str = "default",
         label: Optional[str] = None,
-        n_bootstraps: int = 1000,
-        save: bool = True,
-        show: bool = False,
+        n_bootstraps: Optional[int] = None,
+        save: Optional[bool] = None,
+        show: Optional[bool] = None,
         **style_kwargs: Any,
     ) -> Tuple[Figure | SubFigure, Axes]:
         """Compute PR metrics, render curve with confidence intervals, and save figure.
@@ -703,11 +729,11 @@ class MedpipeDisplayer:
             Outcome identifier used for figure titles and folder structuring.
         label : str, optional
             Legend label for the model. If None, defaults to 'Model (AP = X.XX)'.
-        n_bootstraps : int, default=1000
+        n_bootstraps : int, optional
             Number of bootstrap iterations for confidence intervals. Set to 0 to disable.
-        save : bool, default=True
+        save : bool, optional
             Automatically save the generated plot to the run directory.
-        show : bool, default=False
+        show : bool, optional
             Whether to display the plot interactively before closing.
         **style_kwargs : Any
             Additional style parameters forwarded to `draw_precision_recall_curve`.
@@ -720,10 +746,23 @@ class MedpipeDisplayer:
             Matplotlib axes containing the plotted elements.
 
         """
+        cfg = self._resolve_plot_config(
+            plot_type="precision_recall",
+            outcome=outcome,
+            n_bootstraps=n_bootstraps,
+            save=save,
+            show=show,
+            **style_kwargs,
+        )
+
+        n_bootstraps_val = cfg["n_bootstraps"]
+        save_val = cfg["save"]
+        show_val = cfg["show"]
+
         self.logger.info(f"[{outcome}] Starting PR curve plotting.")
         self.logger.debug(
             f"[{outcome}] Plotting PR curve with "
-            f"y: {y_true.shape} and {n_bootstraps} bootstrap iterations."
+            f"y: {y_true.shape} and {n_bootstraps_val} bootstrap iterations."
         )
         (
             precision,
@@ -735,7 +774,7 @@ class MedpipeDisplayer:
         ) = self._compute_precision_recall_data(
             y_true=y_true,
             probas=probas,
-            n_bootstraps=n_bootstraps,
+            n_bootstraps=n_bootstraps_val,
         )
 
         display_label = label or f"Model (AP = {ap_score:.3f})"
@@ -756,12 +795,12 @@ class MedpipeDisplayer:
                 **style_kwargs,
             )
 
-        if save:
+        if save_val:
             self._save_figure(fig=fig, filename=f"{outcome}_pr_curve", outcome=outcome)
 
-        if show:
+        if show_val:
             plt.show()
-        elif save:
+        elif save_val:
             plt.close(fig)
 
         return fig, ax
@@ -774,9 +813,9 @@ class MedpipeDisplayer:
         n_bins: int = 10,
         strategy: str = "uniform",
         label: Optional[str] = None,
-        n_bootstraps: int = 1000,
-        save: bool = True,
-        show: bool = False,
+        n_bootstraps: Optional[int] = None,
+        save: Optional[bool] = None,
+        show: Optional[bool] = None,
         **style_kwargs: Any,
     ) -> Tuple[Figure | SubFigure, Axes]:
         """Compute calibration data, render a reliability diagram with a
@@ -796,11 +835,11 @@ class MedpipeDisplayer:
             Binning or smoothing strategy for calibration calculation.
         label : str, optional
             Legend label for the model curve. Defaults to 'Model'.
-        n_bootstraps : int, default=1000
+        n_bootstraps : int, optional
             Number of bootstrap iterations for confidence intervals. Set to 0 to disable.
-        save : bool, default=True
+        save : bool, optional
             Automatically save the generated plot to the run directory.
-        show : bool, default=False
+        show : bool, optional
             Whether to display the plot interactively before closing.
         **style_kwargs : Any
             Additional style parameters forwarded to `draw_reliability_diagram`.
@@ -813,17 +852,35 @@ class MedpipeDisplayer:
             Matplotlib axes containing the main reliability diagram.
 
         """
+        cfg = self._resolve_plot_config(
+            plot_type="reliability",
+            outcome=outcome,
+            n_bins=n_bins,
+            strategy=strategy,
+            n_bootstraps=n_bootstraps,
+            save=save,
+            show=show,
+            **style_kwargs,
+        )
+
+        n_bins_val = cfg["n_bins"]
+        strategy_val = cfg["strategy"]
+        n_bootstraps_val = cfg["n_bootstraps"]
+        save_val = cfg["save"]
+        show_val = cfg["show"]
+
         self.logger.info(f"[{outcome}] Starting reliability diagram plotting.")
         self.logger.debug(
             f"[{outcome}] Plotting reliability diagram with "
-            f"y: {y_true.shape} and {n_bootstraps} bootstrap iterations."
+            f"y: {y_true.shape}, {n_bootstraps_val} bootstrap iterations, "
+            f"{n_bins_val} bins, and {strategy_val} strategy."
         )
         prob_true, prob_pred, lower_ci, upper_ci = self._compute_reliability_data(
             y_true=y_true,
             probas=probas,
-            n_bins=n_bins,
-            strategy=strategy,
-            n_bootstraps=n_bootstraps,
+            n_bins=n_bins_val,
+            strategy=strategy_val,
+            n_bootstraps=n_bootstraps_val,
         )
 
         display_label = label or "Model"
@@ -848,14 +905,14 @@ class MedpipeDisplayer:
                 **style_kwargs,
             )
 
-        if save:
+        if save_val:
             self._save_figure(
                 fig=fig, filename=f"{outcome}_reliability_diagram", outcome=outcome
             )
 
-        if show:
+        if show_val:
             plt.show()
-        elif save:
+        elif save_val:
             plt.close(fig)
 
         return fig, ax
@@ -867,8 +924,8 @@ class MedpipeDisplayer:
         strata: list[str],
         scores: np.ndarray,
         strata_scores: np.ndarray,
-        save: bool = True,
-        show: bool = False,
+        save: Optional[bool] = None,
+        show: Optional[bool] = None,
         **style_kwargs: Any,
     ) -> Tuple[Figure | SubFigure, Axes]:
         """Validate strata data, compute delta matrix, and render heatmap.
@@ -885,9 +942,9 @@ class MedpipeDisplayer:
             Baseline metric scores for unstratified models of shape (n_outcomes,).
         strata_scores : np.ndarray
             Metric scores per stratum and outcome of shape (n_strata, n_outcomes).
-        save : bool, default=True
+        save : bool, optional
             Automatically save the generated plot to the run directory.
-        show : bool, default=False
+        show : bool, optional
             Whether to display the plot interactively before closing.
         **style_kwargs : Any
             Additional style parameters forwarded to `draw_strata_heatmap`.
@@ -905,6 +962,15 @@ class MedpipeDisplayer:
             If matrix dimensions do not match the provided strata, outcomes, or scores.
 
         """
+        cfg = self._resolve_plot_config(
+            plot_type="strata_heatmap",
+            save=save,
+            show=show,
+            **style_kwargs,
+        )
+        save_val = cfg["save"]
+        show_val = cfg["show"]
+
         scores_arr = np.asarray(scores)
         strata_scores_arr = np.asarray(strata_scores)
 
@@ -959,12 +1025,12 @@ class MedpipeDisplayer:
                 **style_kwargs,
             )
 
-        if save:
+        if save_val:
             self._save_figure(fig=fig, filename=f"{metric}_strata_heatmap")
 
-        if show:
+        if show_val:
             plt.show()
-        elif save:
+        elif save_val:
             plt.close(fig)
 
         return fig, ax
@@ -976,8 +1042,8 @@ class MedpipeDisplayer:
         outcome: str = "default",
         thresholds: Optional[np.ndarray] = None,
         label: Optional[str] = None,
-        save: bool = True,
-        show: bool = False,
+        save: Optional[bool] = None,
+        show: Optional[bool] = None,
         **style_kwargs: Any,
     ) -> Tuple[Figure | SubFigure, Axes]:
         """Compute Decision Curve Analysis metrics, render plot, and save figure artifact.
@@ -994,9 +1060,9 @@ class MedpipeDisplayer:
             Array of threshold probabilities.
         label : str, optional
             Legend label for the model curve. Defaults to 'Model'.
-        save : bool, default=True
+        save : bool, optional
             Automatically save the generated plot to the run directory.
-        show : bool, default=False
+        show : bool, optional
             Whether to display the plot interactively before closing.
         **style_kwargs : Any
             Additional style parameters forwarded to `draw_dca_curve`.
@@ -1009,6 +1075,15 @@ class MedpipeDisplayer:
             Matplotlib axes containing the DCA plot.
 
         """
+        cfg = self._resolve_plot_config(
+            plot_type="dca",
+            save=save,
+            show=show,
+            **style_kwargs,
+        )
+        save_val = cfg["save"]
+        show_val = cfg["show"]
+
         self.logger.info(f"[{outcome}] Starting DCA graph plotting.")
         self.logger.debug(f"[{outcome}] Plotting DCA graph with y: {y_true.shape}.")
         thresh, nb_model, nb_all = self._compute_dca_data(
@@ -1032,12 +1107,12 @@ class MedpipeDisplayer:
                 **style_kwargs,
             )
 
-        if save:
+        if save_val:
             self._save_figure(fig=fig, filename=f"{outcome}_dca_curve", outcome=outcome)
 
-        if show:
+        if show_val:
             plt.show()
-        elif save:
+        elif save_val:
             plt.close(fig)
 
         return fig, ax
@@ -1047,9 +1122,9 @@ class MedpipeDisplayer:
         y_true: np.ndarray,
         probas: np.ndarray,
         outcome: str = "default",
-        n_bootstraps: int = 1000,
-        save: bool = True,
-        show: bool = False,
+        n_bootstraps: Optional[int] = None,
+        save: Optional[bool] = None,
+        show: Optional[bool] = None,
         **style_kwargs: Any,
     ) -> Dict[str, Tuple[Figure | SubFigure, Axes]]:
         """Execute all core evaluation visualization routines for a given outcome.
@@ -1066,11 +1141,11 @@ class MedpipeDisplayer:
             Predicted probabilities of shape (n_samples, 2) or (n_samples,).
         outcome : str, default="default"
             Outcome identifier used for figure titles and output folder structuring.
-        n_bootstraps : int, default=1000
+        n_bootstraps : int, optional
             Number of bootstrap iterations for ROC, PR, and reliability curves.
-        save : bool, default=True
+        save : bool, optional
             Automatically save all generated plot artifacts to the run directory.
-        show : bool, default=False
+        show : bool, optional
             Whether to display figures interactively before closing.
         **style_kwargs : Any
             Additional style parameters forwarded to underlying drawing functions.
