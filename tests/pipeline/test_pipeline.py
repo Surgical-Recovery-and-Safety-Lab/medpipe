@@ -1,7 +1,9 @@
+import json
 import shutil
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import joblib
 import pandas as pd
 import pytest
 
@@ -85,6 +87,93 @@ class TestMedpipeUnit:
         mp.evaluate(X, y_single)
         _, kwargs = mp.evaluator.evaluate.call_args
         pd.testing.assert_series_equal(kwargs["y"], y_single.iloc[:, 0])
+
+
+class TestMedpipeLoad:
+    """Test suite for the Medpipe.load class factory method."""
+
+    @pytest.fixture
+    def valid_config_dict(self, tmp_path: Path) -> dict:
+        """Provides a minimal valid raw configuration dictionary."""
+        return {
+            "meta": {
+                "project_name": "demo_project",
+                "run_mode": "fast",
+                "verbose": "compact",
+            },
+            "data": {
+                "path": str(tmp_path / "data.csv"),
+                "predictors": ["AGE", "SEX"],
+                "outcomes": ["MORTALITY_30D"],
+            },
+            "default_model": {
+                "algorithm": "HistGradientBoostingClassifier",
+                "hyperparameters": {},
+            },
+            "workflow": {
+                "validation": {
+                    "test_split": {"strategy": "random", "test_size": 0.2},
+                },
+                "evaluation": {
+                    "metrics": {"metrics": ["roc_auc"]},
+                },
+            },
+        }
+
+    def test_load_missing_config_raises_file_not_found(self, tmp_path: Path) -> None:
+        """Test that FileNotFoundError is raised if resolved_config.json is missing."""
+        empty_run_dir = tmp_path / "empty_run"
+        empty_run_dir.mkdir()
+
+        with pytest.raises(
+            FileNotFoundError,
+            match="Cannot load Medpipe instance: Configuration JSON missing",
+        ):
+            Medpipe.load(empty_run_dir)
+
+    def test_load_successful_without_models_directory(
+        self, tmp_path: Path, valid_config_dict: dict
+    ) -> None:
+        """Test successful reconstruction of Medpipe when no models directory is present."""
+        run_dir = tmp_path / "run_2026_08_10"
+        run_dir.mkdir()
+
+        config_path = run_dir / "resolved_config.json"
+        with open(config_path, "w", encoding="utf-8") as f:
+            json.dump(valid_config_dict, f)
+
+        pipe = Medpipe.load(run_dir)
+
+        assert isinstance(pipe, Medpipe)
+        assert pipe.orchestrator.run_dir == run_dir
+        assert pipe.displayer.run_dir == run_dir
+        assert pipe.mp_config.meta.project_name == "demo_project"
+
+    def test_load_successful_with_fitted_models(
+        self, tmp_path: Path, valid_config_dict: dict
+    ) -> None:
+        """Test loading and restoring serialized fitted models into runner."""
+        run_dir = tmp_path / "run_2026_08_10"
+        models_dir = run_dir / "models"
+        models_dir.mkdir(parents=True)
+
+        # Write resolved JSON configuration
+        config_path = run_dir / "resolved_config.json"
+        with open(config_path, "w", encoding="utf-8") as f:
+            json.dump(valid_config_dict, f)
+
+        # Serialize fitted models dictionary matching project_name
+        mock_fitted_models = {"MORTALITY_30D": "fitted_model_placeholder"}
+        model_artifact = models_dir / "demo_project_fitted.joblib"
+        joblib.dump(mock_fitted_models, model_artifact)
+
+        # Pass run_dir as str to test string path resolution
+        pipe = Medpipe.load(str(run_dir))
+
+        assert isinstance(pipe, Medpipe)
+        assert pipe.orchestrator.run_dir == run_dir
+        assert pipe.displayer.run_dir == run_dir
+        assert pipe.runner.fitted_models == mock_fitted_models
 
 
 # ==============================================================================
