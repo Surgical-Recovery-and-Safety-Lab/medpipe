@@ -868,7 +868,7 @@ class MedpipeDisplayer:
         n_bootstraps_val = cfg["n_bootstraps"]
         save_val = cfg["save"]
         show_val = cfg["show"]
-        breakpoint()
+
         self.logger.info(f"[{outcome}] Starting reliability diagram plotting.")
         self.logger.debug(
             f"[{outcome}] Plotting reliability diagram with "
