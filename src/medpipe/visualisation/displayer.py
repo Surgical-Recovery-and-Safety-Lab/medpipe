@@ -2,6 +2,7 @@
 High-level display and visualisation manager module.
 """
 
+import ast
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
 
@@ -198,6 +199,52 @@ class MedpipeDisplayer:
         return config_params
 
     # --- Internal Helpers ---
+    @staticmethod
+    def _format_stratum_label(stratum_var: str, cat_key: Any) -> str:
+        """Format raw stratum variable names and category keys into clean display labels.
+
+        Parses stringified numerical bounds (e.g., '[18, 50]' or '[51, 120]') into
+        readable ranges (e.g., '18–50' or open-ended '≥ 51'). Non-interval keys
+        (e.g., 'F', 'M') are returned with standard variable prefixing.
+
+        Parameters
+        ----------
+        stratum_var : str
+            Name of the subgroup stratum variable (e.g., 'AGE', 'SEX').
+        cat_key : Any
+            Category identifier or raw bin string (e.g., '[18, 50]', 'F').
+
+        Returns
+        -------
+        str
+            Formatted stratum label suitable for heatmap visual displays.
+
+        Examples
+        --------
+        >>> MedpipeDisplayer._format_stratum_label("AGE", "[18, 50]")
+        'AGE: 18–50'
+        >>> MedpipeDisplayer._format_stratum_label("AGE", "[51, 120]")
+        'AGE: ≥ 51'
+        >>> MedpipeDisplayer._format_stratum_label("SEX", "F")
+        'SEX: F'
+
+        """
+        cat_str = str(cat_key).strip()
+
+        if cat_str.startswith("[") and cat_str.endswith("]"):
+            try:
+                parsed = ast.literal_eval(cat_str)
+                if isinstance(parsed, (list, tuple)) and len(parsed) == 2:
+                    low, high = parsed[0], parsed[1]
+
+                    if isinstance(high, (int, float)) and high >= 100:
+                        return f"{stratum_var}: ≥ {low}"
+
+                    return f"{stratum_var}: {low}–{high}"
+            except (ValueError, SyntaxError):
+                pass
+
+        return f"{stratum_var}: {cat_str}"
 
     def _compute_roc_data(
         self,
@@ -1177,7 +1224,10 @@ class MedpipeDisplayer:
         for stratum_var, cat_dict in strata_dict.items():
             for cat_key in cat_dict.keys():
                 strata_tuples.append((stratum_var, cat_key))
-                strata_row_labels.append(f"{stratum_var}: {cat_key}")
+                # Use helper to transform raw cat_key into clean label
+                strata_row_labels.append(
+                    self._format_stratum_label(stratum_var, cat_key)
+                )
 
         if not strata_tuples:
             self.logger.warning(
