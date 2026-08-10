@@ -17,6 +17,7 @@ from sklearn.metrics import (
     roc_curve,
 )
 
+from medpipe.metrics.registry import MetricRegistry
 from medpipe.pipeline.orchestrator import MedpipeOrchestrator
 from medpipe.utils.logger import get_console_logger
 from medpipe.visualisation.plots import (
@@ -1000,6 +1001,14 @@ class MedpipeDisplayer:
         plot_data = np.abs(strata_matrix - scores_arr)
         text_data = strata_matrix.copy()
 
+        try:
+            spec = MetricRegistry.get(metric)
+            display_name = (
+                getattr(spec, "display_name", None) or metric.replace("_", " ").upper()
+            )
+        except Exception:
+            display_name = metric.replace("_", " ").upper()
+
         is_ici = metric.lower() == "ici"
         vmax = 0.5 if is_ici else 0.1
         percent = " (%)" if is_ici else ""
@@ -1008,8 +1017,8 @@ class MedpipeDisplayer:
             plot_data *= 100
             text_data *= 100
 
-        colorbar_label = rf"|$\Delta$ {metric.upper()}|" + percent
-        title = style_kwargs.pop("title", f"Strata Delta - {metric.upper()}{percent}")
+        colorbar_label = rf"|$\Delta$ {display_name}|" + percent
+        title = style_kwargs.pop("title", f"Strata delta - {display_name}{percent}")
         row_labels = ["All strata"] + list(strata)
 
         # 3. Stateless Drawing Delegate
