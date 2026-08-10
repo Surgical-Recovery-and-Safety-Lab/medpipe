@@ -1,18 +1,18 @@
+from typing import Type
+
 import ngboost
 import sklearn.ensemble
 import sklearn.isotonic
 import sklearn.linear_model
+from sklearn.base import BaseEstimator
 
 from medpipe.utils.registry import BaseRegistry
 
 
-class ModelRegistry(BaseRegistry):
+class ModelRegistry(BaseRegistry[Type[BaseEstimator]]):
     """
     Registry for managing and resolving machine learning estimators.
     """
-
-    # Explicitly create a new dictionary for models
-    _registry = {}
 
     _fallback_modules = [
         sklearn.ensemble,
