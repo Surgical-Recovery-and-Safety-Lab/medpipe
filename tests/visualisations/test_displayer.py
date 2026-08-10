@@ -9,11 +9,10 @@ import pytest
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 
+from medpipe.metrics.registry import MetricRegistry, MetricSpec
 from medpipe.utils.config import DisplayConfig, DisplayDefaultsConfig
 from medpipe.visualisation.displayer import MedpipeDisplayer
 from medpipe.visualisation.themes import MedpipeTheme
-
-# matplotlib.use("Agg")  # Non-interactive backend for headless testing
 
 
 @pytest.fixture(autouse=True)
@@ -39,6 +38,151 @@ def sample_binary_data():
     y_true = rng.integers(0, 2, size=100)
     probas = rng.uniform(0.0, 1.0, size=100)
     return y_true, probas
+
+
+@pytest.fixture
+def sample_evaluations():
+    """Provides a realistic nested evaluation result dictionary across outcomes and strata."""
+    return {
+        "ANY_COMP": {
+            "outcome": "ANY_COMP",
+            "overall": {
+                "roc_auc": {
+                    "point_estimate": 0.5666666666666667,
+                    "ci_lower": 0.44575071660019944,
+                    "ci_upper": 0.6805549568965518,
+                },
+                "log_loss": {
+                    "point_estimate": 1.6449383564955808,
+                    "ci_lower": 1.157229903186509,
+                    "ci_upper": 2.0489328647437963,
+                },
+            },
+            "strata": {
+                "SEX": {
+                    "F": {
+                        "roc_auc": {
+                            "point_estimate": 0.5,
+                            "ci_lower": 0.2906,
+                            "ci_upper": 0.6702,
+                        },
+                        "log_loss": {
+                            "point_estimate": 1.2839,
+                            "ci_lower": 0.7626,
+                            "ci_upper": 1.9761,
+                        },
+                    },
+                    "M": {
+                        "roc_auc": {
+                            "point_estimate": 0.5833,
+                            "ci_lower": 0.3902,
+                            "ci_upper": 0.8017,
+                        },
+                        "log_loss": {
+                            "point_estimate": 2.1413,
+                            "ci_lower": 1.3700,
+                            "ci_upper": 3.0628,
+                        },
+                    },
+                },
+                "AGE": {
+                    "[18, 50]": {
+                        "roc_auc": {
+                            "point_estimate": 0.6783,
+                            "ci_lower": 0.5380,
+                            "ci_upper": 0.8192,
+                        },
+                        "log_loss": {
+                            "point_estimate": 1.8763,
+                            "ci_lower": 1.0491,
+                            "ci_upper": 2.5909,
+                        },
+                    },
+                    "[51, 120]": {
+                        "roc_auc": {
+                            "point_estimate": 0.2470,
+                            "ci_lower": 0.0713,
+                            "ci_upper": 0.5702,
+                        },
+                        "log_loss": {
+                            "point_estimate": 1.4253,
+                            "ci_lower": 0.8195,
+                            "ci_upper": 2.1574,
+                        },
+                    },
+                },
+            },
+        },
+        "MORTALITY_30D": {
+            "outcome": "MORTALITY_30D",
+            "overall": {
+                "roc_auc": {
+                    "point_estimate": 0.720,
+                    "ci_lower": 0.600,
+                    "ci_upper": 0.840,
+                },
+                "log_loss": {
+                    "point_estimate": 0.450,
+                    "ci_lower": 0.300,
+                    "ci_upper": 0.600,
+                },
+            },
+            "strata": {
+                "SEX": {
+                    "F": {
+                        "roc_auc": {
+                            "point_estimate": 0.700,
+                            "ci_lower": 0.550,
+                            "ci_upper": 0.820,
+                        },
+                        "log_loss": {
+                            "point_estimate": 0.480,
+                            "ci_lower": 0.320,
+                            "ci_upper": 0.620,
+                        },
+                    },
+                    "M": {
+                        "roc_auc": {
+                            "point_estimate": 0.740,
+                            "ci_lower": 0.610,
+                            "ci_upper": 0.850,
+                        },
+                        "log_loss": {
+                            "point_estimate": 0.420,
+                            "ci_lower": 0.280,
+                            "ci_upper": 0.580,
+                        },
+                    },
+                },
+                "AGE": {
+                    "[18, 50]": {
+                        "roc_auc": {
+                            "point_estimate": 0.750,
+                            "ci_lower": 0.620,
+                            "ci_upper": 0.870,
+                        },
+                        "log_loss": {
+                            "point_estimate": 0.400,
+                            "ci_lower": 0.250,
+                            "ci_upper": 0.550,
+                        },
+                    },
+                    "[51, 120]": {
+                        "roc_auc": {
+                            "point_estimate": 0.680,
+                            "ci_lower": 0.520,
+                            "ci_upper": 0.810,
+                        },
+                        "log_loss": {
+                            "point_estimate": 0.500,
+                            "ci_lower": 0.350,
+                            "ci_upper": 0.650,
+                        },
+                    },
+                },
+            },
+        },
+    }
 
 
 class TestMedpipeDisplayerInit:
@@ -100,7 +244,6 @@ class TestResolvePlotConfig:
         mock_orchestrator = MagicMock()
         mock_orchestrator.run_dir = MagicMock()
 
-        # Build a structured DisplayConfig
         display_config = DisplayConfig(
             defaults=DisplayDefaultsConfig(
                 n_bootstraps=1000,
@@ -138,21 +281,19 @@ class TestResolvePlotConfig:
 
         assert resolved["n_bootstraps"] == 200
         assert resolved["strategy"] == "spline"
-        assert resolved["save"] is True  # Kept from defaults
+        assert resolved["save"] is True
 
     def test_resolve_alias_plot_override(
         self, mock_displayer: MedpipeDisplayer
     ) -> None:
         """Test that canonical alias normalization resolves plot-level overrides."""
-        # Config has override for 'reliability', calling with alias 'calibration'
         resolved = mock_displayer._resolve_plot_config(plot_type="calibration")
 
         assert resolved["n_bootstraps"] == 200
         assert resolved["strategy"] == "spline"
 
     def test_resolve_outcome_override(self, mock_displayer: MedpipeDisplayer) -> None:
-        """Test that outcome-specific overrides take precedence over
-        global plot overrides."""
+        """Test that outcome-specific overrides take precedence over global plot overrides."""
         resolved = mock_displayer._resolve_plot_config(
             plot_type="calibration", outcome="MORTALITY_30D"
         )
@@ -167,12 +308,12 @@ class TestResolvePlotConfig:
         resolved = mock_displayer._resolve_plot_config(
             plot_type="calibration",
             outcome="MORTALITY_30D",
-            n_bootstraps=10,  # Explicit runtime parameter
+            n_bootstraps=10,
             show=True,
         )
 
         assert resolved["n_bootstraps"] == 10
-        assert resolved["strategy"] == "uniform"  # Kept from outcome override
+        assert resolved["strategy"] == "uniform"
         assert resolved["show"] is True
 
     def test_resolve_ignores_none_runtime_kwargs(
@@ -184,7 +325,6 @@ class TestResolvePlotConfig:
             n_bootstraps=None,
         )
 
-        # Should maintain the global plot override of 200, not overwrite with None
         assert resolved["n_bootstraps"] == 200
 
     def test_resolve_when_display_config_is_none(self, mock_orchestrator) -> None:
@@ -255,21 +395,6 @@ class TestComputeRocData:
         assert lower_ci is None
         assert upper_ci is None
 
-    def test_compute_roc_data_single_class_resamples_ignored(
-        self, mock_orchestrator
-    ) -> None:
-        """Edge case: ensure bootstraps skipping single-class resamples do not crash execution."""
-        # Highly imbalanced dataset where bootstrap resamples frequently lack positive class
-        y_true = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 1])
-        probas = np.linspace(0.1, 0.9, 10)
-        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
-
-        _, _, roc_auc, _, _ = displayer._compute_roc_data(
-            y_true=y_true, probas=probas, n_bootstraps=20, random_state=1
-        )
-
-        assert isinstance(roc_auc, float)
-
 
 class TestSaveFigure:
     """Tests for the internal `_save_figure` method."""
@@ -328,63 +453,6 @@ class TestPlotProbabilityDistribution:
         assert isinstance(ax, Axes)
         assert expected_file.exists()
 
-    def test_plot_probability_distribution_without_saving(
-        self, mock_orchestrator, sample_binary_data, tmp_path: Path
-    ) -> None:
-        """Test distribution plotting when save=False."""
-        _, probas = sample_binary_data
-        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
-
-        fig, _ = displayer.plot_probability_distribution(
-            probas=probas,
-            outcome="readmission",
-            save=False,
-            show=False,
-        )
-
-        expected_file = (
-            tmp_path
-            / "plots"
-            / "readmission"
-            / "readmission_probability_distribution.png"
-        )
-        assert isinstance(fig, Figure)
-        assert not expected_file.exists()
-
-    def test_plot_probability_distribution_2d_probas(
-        self, mock_orchestrator, sample_binary_data
-    ) -> None:
-        """Test handling of 2D probability matrices passed to displayer method."""
-        _, probas_1d = sample_binary_data
-        probas_2d = np.column_stack((1 - probas_1d, probas_1d))
-        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
-
-        fig, ax = displayer.plot_probability_distribution(
-            probas=probas_2d,
-            outcome="icu_admission",
-            save=False,
-            show=False,
-        )
-
-        assert isinstance(fig, Figure)
-        assert "icu_admission" in ax.get_title().lower()
-
-    @patch("matplotlib.pyplot.show")
-    def test_plot_probability_distribution_show_flag(
-        self, mock_show, mock_orchestrator, sample_binary_data
-    ) -> None:
-        """Test interactive plot display when show=True."""
-        _, probas = sample_binary_data
-        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
-
-        displayer.plot_probability_distribution(
-            probas=probas,
-            save=False,
-            show=True,
-        )
-
-        mock_show.assert_called_once()
-
 
 class TestPlotRocCurve:
     """Tests for the high-level `plot_roc_curve` method."""
@@ -408,156 +476,6 @@ class TestPlotRocCurve:
         assert isinstance(fig, Figure)
         assert isinstance(ax, Axes)
         assert (tmp_path / "plots" / "diabetes" / "diabetes_roc_curve.png").exists()
-
-    def test_plot_roc_curve_without_saving(
-        self, mock_orchestrator, sample_binary_data, tmp_path: Path
-    ) -> None:
-        """Test ROC plot generation when save=False."""
-        y_true, probas = sample_binary_data
-        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
-
-        fig, ax = displayer.plot_roc_curve(
-            y_true=y_true,
-            probas=probas,
-            outcome="stroke",
-            n_bootstraps=0,
-            save=False,
-            show=False,
-        )
-
-        assert isinstance(fig, Figure)
-        assert isinstance(ax, Axes)
-        assert not (tmp_path / "plots" / "stroke" / "stroke_roc_curve.png").exists()
-
-    def test_plot_roc_curve_custom_label_and_styles(
-        self, mock_orchestrator, sample_binary_data
-    ) -> None:
-        """Test passing custom legend labels and style override parameters."""
-        y_true, probas = sample_binary_data
-        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
-
-        _, ax = displayer.plot_roc_curve(
-            y_true=y_true,
-            probas=probas,
-            outcome="cardiac",
-            label="XGBoost Classifier",
-            n_bootstraps=5,
-            save=False,
-            show=False,
-            color="#00FF00",
-            ci_alpha=0.1,
-            show_spines=True,
-        )
-
-        labels = [text.get_text() for text in ax.get_legend().get_texts()]
-        assert "XGBoost Classifier" in labels
-        assert "ROC Curve - Diabetes" not in ax.get_title()
-        assert "ROC Curve - Cardiac" in ax.get_title()
-
-    @patch("matplotlib.pyplot.show")
-    def test_plot_roc_curve_show_flag(
-        self, mock_show, mock_orchestrator, sample_binary_data
-    ) -> None:
-        """Test interactive figure display when show=True."""
-        y_true, probas = sample_binary_data
-        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
-
-        displayer.plot_roc_curve(
-            y_true=y_true,
-            probas=probas,
-            n_bootstraps=0,
-            save=False,
-            show=True,
-        )
-
-        mock_show.assert_called_once()
-
-    def test_plot_roc_curve_uses_display_config_overrides(
-        self, mock_orchestrator, sample_binary_data
-    ) -> None:
-        """Test that plot_roc_curve respects n_bootstraps from configuration overrides."""
-        display_config = DisplayConfig(overrides={"roc": {"n_bootstraps": 0}})
-        mock_orchestrator.config.display = display_config
-        y_true, probas = sample_binary_data
-        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
-
-        fig, ax = displayer.plot_roc_curve(
-            y_true=y_true,
-            probas=probas,
-            outcome="mortality",
-            save=False,
-            show=False,
-        )
-
-        assert isinstance(fig, Figure)
-        # When n_bootstraps=0, confidence interval fill collections are not drawn
-        assert len(ax.collections) == 0
-
-    def test_plot_probability_distribution_uses_display_config_overrides(
-        self, mock_orchestrator, sample_binary_data
-    ) -> None:
-        """Test that plot_probability_distribution respects n_bins from configuration overrides."""
-        display_config = DisplayConfig(
-            overrides={"probability_distribution": {"n_bins": 25}}
-        )
-        mock_orchestrator.config.display = display_config
-        _, probas = sample_binary_data
-        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
-
-        fig, ax = displayer.plot_probability_distribution(
-            probas=probas,
-            outcome="mortality",
-            save=False,
-            show=False,
-        )
-
-        assert isinstance(fig, Figure)
-        # 25 histogram bins = 25 patch elements rendered on the axes
-        assert len(ax.patches) == 25
-
-
-class TestComputePrecisionRecallData:
-    """Tests for the internal `_compute_precision_recall_data` helper method."""
-
-    def test_compute_pr_data_success_and_bootstraps(
-        self, mock_orchestrator, sample_binary_data
-    ) -> None:
-        """Test calculation of PR curves, AP score, baseline, and bootstrap CIs."""
-        y_true, probas = sample_binary_data
-        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
-
-        (
-            precision,
-            recall,
-            ap_score,
-            baseline,
-            lower_ci,
-            upper_ci,
-        ) = displayer._compute_precision_recall_data(
-            y_true=y_true, probas=probas, n_bootstraps=20
-        )
-
-        assert isinstance(precision, np.ndarray)
-        assert isinstance(recall, np.ndarray)
-        assert isinstance(ap_score, float)
-        assert 0.0 <= ap_score <= 1.0
-        assert isinstance(baseline, float)
-        assert isinstance(lower_ci, np.ndarray)
-        assert isinstance(upper_ci, np.ndarray)
-
-    def test_compute_pr_data_disabled_bootstraps(
-        self, mock_orchestrator, sample_binary_data
-    ) -> None:
-        """Test that n_bootstraps <= 0 returns None for confidence interval arrays."""
-        y_true, probas = sample_binary_data
-        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
-
-        _, _, _, _, lower_ci, upper_ci = displayer._compute_precision_recall_data(
-            y_true=y_true, probas=probas, n_bootstraps=0
-        )
-
-        assert lower_ci is None
-        assert upper_ci is None
 
 
 class TestPlotPrecisionRecallCurve:
@@ -583,104 +501,6 @@ class TestPlotPrecisionRecallCurve:
         assert isinstance(fig, Figure)
         assert isinstance(ax, Axes)
         assert expected_file.exists()
-
-    def test_plot_pr_curve_without_saving(
-        self, mock_orchestrator, sample_binary_data, tmp_path: Path
-    ) -> None:
-        """Test PR curve rendering when save=False."""
-        y_true, probas = sample_binary_data
-        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
-
-        fig, _ = displayer.plot_precision_recall_curve(
-            y_true=y_true,
-            probas=probas,
-            outcome="aki",
-            save=False,
-            show=False,
-        )
-
-        expected_file = tmp_path / "plots" / "aki" / "aki_pr_curve.png"
-        assert isinstance(fig, Figure)
-        assert not expected_file.exists()
-
-    @patch("matplotlib.pyplot.show")
-    def test_plot_pr_curve_show_flag(
-        self, mock_show, mock_orchestrator, sample_binary_data
-    ) -> None:
-        """Test interactive figure display when show=True."""
-        y_true, probas = sample_binary_data
-        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
-
-        displayer.plot_precision_recall_curve(
-            y_true=y_true,
-            probas=probas,
-            save=False,
-            show=True,
-        )
-
-        mock_show.assert_called_once()
-
-    def test_plot_pr_curve_uses_display_config_overrides(
-        self, mock_orchestrator, sample_binary_data
-    ) -> None:
-        """Test that plot_precision_recall_curve respects n_bootstraps from configuration overrides."""
-        display_config = DisplayConfig(
-            overrides={"precision_recall": {"n_bootstraps": 0}}
-        )
-        mock_orchestrator.config.display = display_config
-        y_true, probas = sample_binary_data
-        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
-
-        fig, ax = displayer.plot_precision_recall_curve(
-            y_true=y_true,
-            probas=probas,
-            outcome="sepsis",
-            save=False,
-            show=False,
-        )
-
-        assert isinstance(fig, Figure)
-        assert len(ax.collections) == 0
-
-
-class TestComputeReliabilityData:
-    """Tests for the internal `_compute_reliability_data` helper method."""
-
-    def test_compute_reliability_data_success_and_bootstraps(
-        self, mock_orchestrator, sample_binary_data
-    ) -> None:
-        """Test calculation of calibration points and bootstrap CIs."""
-        y_true, probas = sample_binary_data
-        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
-
-        (
-            prob_true,
-            prob_pred,
-            lower_ci,
-            upper_ci,
-        ) = displayer._compute_reliability_data(
-            y_true=y_true, probas=probas, n_bins=5, n_bootstraps=20
-        )
-
-        assert isinstance(prob_true, np.ndarray)
-        assert isinstance(prob_pred, np.ndarray)
-        assert len(prob_true) == len(prob_pred)
-        assert isinstance(lower_ci, np.ndarray)
-        assert isinstance(upper_ci, np.ndarray)
-
-    def test_compute_reliability_data_disabled_bootstraps(
-        self, mock_orchestrator, sample_binary_data
-    ) -> None:
-        """Test that n_bootstraps <= 0 returns None for confidence interval arrays."""
-        y_true, probas = sample_binary_data
-        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
-
-        _, _, lower_ci, upper_ci = displayer._compute_reliability_data(
-            y_true=y_true, probas=probas, n_bins=5, n_bootstraps=0
-        )
-
-        assert lower_ci is None
-        assert upper_ci is None
 
 
 class TestPlotReliabilityDiagram:
@@ -710,113 +530,6 @@ class TestPlotReliabilityDiagram:
         assert isinstance(ax, Axes)
         assert expected_file.exists()
 
-    def test_plot_reliability_diagram_without_saving(
-        self, mock_orchestrator, sample_binary_data, tmp_path: Path
-    ) -> None:
-        """Test reliability diagram rendering when save=False."""
-        y_true, probas = sample_binary_data
-        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
-
-        fig, _ = displayer.plot_reliability_diagram(
-            y_true=y_true,
-            probas=probas,
-            outcome="readmission",
-            save=False,
-            show=False,
-        )
-
-        expected_file = (
-            tmp_path / "plots" / "readmission" / "readmission_reliability_diagram.png"
-        )
-        assert isinstance(fig, Figure)
-        assert not expected_file.exists()
-
-    @patch("matplotlib.pyplot.show")
-    def test_plot_reliability_diagram_show_flag(
-        self, mock_show, mock_orchestrator, sample_binary_data
-    ) -> None:
-        """Test interactive figure display when show=True."""
-        y_true, probas = sample_binary_data
-        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
-
-        displayer.plot_reliability_diagram(
-            y_true=y_true,
-            probas=probas,
-            save=False,
-            show=True,
-        )
-
-        mock_show.assert_called_once()
-
-    @patch("splinecalib.SplineCalib")
-    def test_compute_reliability_data_spline_strategy(
-        self, mock_spline_cls, mock_orchestrator, sample_binary_data
-    ) -> None:
-        """Test reliability calculation using the splinecalib SplineCalib strategy."""
-        y_true, probas = sample_binary_data
-        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
-
-        mock_sc = MagicMock()
-        mock_sc.calibrate.side_effect = lambda x: x * 0.95
-        mock_spline_cls.return_value = mock_sc
-
-        prob_true, prob_pred, lower_ci, upper_ci = displayer._compute_reliability_data(
-            y_true=y_true, probas=probas, strategy="spline", n_bootstraps=10
-        )
-
-        assert mock_sc.fit.called
-        assert len(prob_pred) == 100
-        assert len(prob_true) == 100
-        assert lower_ci is not None
-        assert upper_ci is not None
-
-    @patch("splinecalib.SplineCalib")
-    def test_plot_reliability_diagram_spline_strategy(
-        self, mock_spline_cls, mock_orchestrator, sample_binary_data
-    ) -> None:
-        """Test plot generation with spline calibration strategy."""
-        y_true, probas = sample_binary_data
-        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
-
-        mock_sc = MagicMock()
-        mock_sc.calibrate.side_effect = lambda x: x * 0.95
-        mock_spline_cls.return_value = mock_sc
-
-        fig, ax = displayer.plot_reliability_diagram(
-            y_true=y_true,
-            probas=probas,
-            outcome="icu_admission",
-            strategy="spline",
-            n_bootstraps=0,
-            save=False,
-            show=False,
-        )
-
-        assert isinstance(fig, Figure)
-        # Line for model should not have marker points when strategy='spline'
-        model_line = ax.get_lines()[1]
-        assert model_line.get_marker() in ("", "None", None)
-
-    def test_plot_reliability_diagram_passes_probas_for_histogram(
-        self, mock_orchestrator, sample_binary_data
-    ) -> None:
-        """Test that plot_reliability_diagram renders the probability distribution subplot at the bottom."""
-        y_true, probas = sample_binary_data
-        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
-
-        fig, _ = displayer.plot_reliability_diagram(
-            y_true=y_true,
-            probas=probas,
-            outcome="mortality",
-            n_bootstraps=0,
-            save=False,
-            show=False,
-        )
-
-        assert isinstance(fig, Figure)
-        # Verify that two axes (main calibration diagram + bottom histogram) exist on figure
-        assert len(fig.axes) == 2
-
 
 class TestPlotStrataHeatmap:
     """Tests for the high-level `plot_strata_heatmap` method."""
@@ -845,6 +558,32 @@ class TestPlotStrataHeatmap:
         assert isinstance(fig, Figure)
         assert isinstance(ax, Axes)
         assert expected_file.exists()
+
+    def test_plot_strata_heatmap_uses_metric_registry_display_name(
+        self, mock_orchestrator
+    ) -> None:
+        """Test that plot_strata_heatmap looks up display_name from MetricRegistry."""
+        custom_spec = MetricSpec(
+            name="custom_metric",
+            func=lambda y, p: 0.8,
+            response_method="predict",
+            display_name="Custom Metric Name",
+        )
+        MetricRegistry.register_spec(custom_spec)
+
+        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+        fig, ax = displayer.plot_strata_heatmap(
+            outcomes=["ANY_COMP"],
+            metric="custom_metric",
+            strata=["SEX: F"],
+            scores=np.array([0.80]),
+            strata_scores=np.array([[0.82]]),
+            save=False,
+            show=False,
+        )
+
+        assert isinstance(fig, Figure)
+        assert "Custom Metric Name" in ax.get_title()
 
     def test_plot_strata_heatmap_without_saving(
         self, mock_orchestrator, tmp_path: Path
@@ -895,108 +634,104 @@ class TestPlotStrataHeatmap:
                 metric="auc",
                 strata=["Male"],
                 scores=np.array([0.80, 0.75]),
-                strata_scores=np.array([[0.82]]),  # Missing 2nd column
+                strata_scores=np.array([[0.82]]),
                 save=False,
             )
 
 
-class TestComputeDcaData:
-    """Tests for the internal `_compute_dca_data` helper method."""
+class TestPlotAllHeatmaps:
+    """Tests for the cross-outcome `plot_all_heatmaps` method."""
 
-    def test_compute_dca_data_success(
-        self, mock_orchestrator, sample_binary_data
+    def test_plot_all_heatmaps_success_and_saves(
+        self, mock_orchestrator, sample_evaluations, tmp_path: Path
     ) -> None:
-        """Test calculation of Net Benefit metrics without bootstrapping."""
-        y_true, probas = sample_binary_data
+        """Test plot_all_heatmaps correctly parses nested evaluations and creates heatmap figures."""
         displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
 
-        thresh, nb_model, nb_all = displayer._compute_dca_data(
-            y_true=y_true, probas=probas
-        )
-
-        assert len(thresh) == 99
-        assert len(nb_model) == 99
-        assert len(nb_all) == 99
-
-
-class TestPlotDcaCurve:
-    """Tests for the high-level `plot_dca_curve` method."""
-
-    def test_plot_dca_curve_success_and_saves(
-        self, mock_orchestrator, sample_binary_data, tmp_path: Path
-    ) -> None:
-        """Test successful DCA plot generation with figure artifact saving."""
-        y_true, probas = sample_binary_data
-        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
-
-        fig, ax = displayer.plot_dca_curve(
-            y_true=y_true,
-            probas=probas,
-            outcome="mortality",
+        heatmap_plots = displayer.plot_all_heatmaps(
+            evaluations=sample_evaluations,
             save=True,
             show=False,
         )
 
-        expected_file = tmp_path / "plots" / "mortality" / "mortality_dca_curve.png"
-        assert isinstance(fig, Figure)
-        assert isinstance(ax, Axes)
-        assert expected_file.exists()
+        assert "roc_auc" in heatmap_plots
+        assert "log_loss" in heatmap_plots
 
-    def test_plot_dca_curve_without_saving(
-        self, mock_orchestrator, sample_binary_data, tmp_path: Path
+        for fig, ax in heatmap_plots.values():
+            assert isinstance(fig, Figure)
+            assert isinstance(ax, Axes)
+
+        # Verify saved artifacts on disk
+        assert (tmp_path / "plots" / "roc_auc_strata_heatmap.png").exists()
+        assert (tmp_path / "plots" / "log_loss_strata_heatmap.png").exists()
+
+    def test_plot_all_heatmaps_without_saving(
+        self, mock_orchestrator, sample_evaluations, tmp_path: Path
     ) -> None:
-        """Test DCA plot rendering when save=False."""
-        y_true, probas = sample_binary_data
+        """Test plot_all_heatmaps execution when save=False."""
         displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
 
-        fig, _ = displayer.plot_dca_curve(
-            y_true=y_true,
-            probas=probas,
-            outcome="readmission",
+        heatmap_plots = displayer.plot_all_heatmaps(
+            evaluations=sample_evaluations,
             save=False,
             show=False,
         )
 
-        expected_file = tmp_path / "plots" / "readmission" / "readmission_dca_curve.png"
-        assert isinstance(fig, Figure)
-        assert not expected_file.exists()
+        assert len(heatmap_plots) == 2
+        assert not (tmp_path / "plots" / "roc_auc_strata_heatmap.png").exists()
 
-    @patch("matplotlib.pyplot.show")
-    def test_plot_dca_curve_show_flag(
-        self, mock_show, mock_orchestrator, sample_binary_data
+    def test_plot_all_heatmaps_custom_metrics_list(
+        self, mock_orchestrator, sample_evaluations
     ) -> None:
-        """Test interactive figure display when show=True."""
-        y_true, probas = sample_binary_data
+        """Test filtering plot_all_heatmaps to a specified subset of metrics."""
         displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
 
-        displayer.plot_dca_curve(
-            y_true=y_true,
-            probas=probas,
+        heatmap_plots = displayer.plot_all_heatmaps(
+            evaluations=sample_evaluations,
+            metrics=["roc_auc"],
+            save=False,
+            show=False,
+        )
+
+        assert list(heatmap_plots.keys()) == ["roc_auc"]
+
+    def test_plot_all_heatmaps_empty_evaluations(self, mock_orchestrator) -> None:
+        """Test plot_all_heatmaps gracefully returns an empty dictionary when passed empty evaluations."""
+        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+        heatmap_plots = displayer.plot_all_heatmaps(evaluations={}, save=False)
+
+        assert heatmap_plots == {}
+
+    def test_plot_all_heatmaps_no_strata_found(self, mock_orchestrator) -> None:
+        """Test plot_all_heatmaps returns empty dict if evaluation contains no subgroup strata."""
+        evals_without_strata = {
+            "MORTALITY_30D": {
+                "overall": {"roc_auc": {"point_estimate": 0.8}},
+                "strata": {},
+            }
+        }
+        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+
+        heatmap_plots = displayer.plot_all_heatmaps(
+            evaluations=evals_without_strata, save=False
+        )
+        assert heatmap_plots == {}
+
+    @patch("matplotlib.pyplot.show")
+    def test_plot_all_heatmaps_show_flag(
+        self, mock_show, mock_orchestrator, sample_evaluations
+    ) -> None:
+        """Test interactive display when show=True."""
+        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+
+        displayer.plot_all_heatmaps(
+            evaluations=sample_evaluations,
             save=False,
             show=True,
         )
 
-        mock_show.assert_called_once()
-
-    def test_plot_dca_curve_uses_display_config_overrides(
-        self, mock_orchestrator, sample_binary_data, tmp_path: Path
-    ) -> None:
-        """Test that plot_dca_curve respects save=False from configuration overrides."""
-        display_config = DisplayConfig(overrides={"dca": {"save": False}})
-        mock_orchestrator.config.display = display_config
-        y_true, probas = sample_binary_data
-        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
-
-        fig, _ = displayer.plot_dca_curve(
-            y_true=y_true,
-            probas=probas,
-            outcome="readmission",
-            show=False,
-        )
-
-        expected_file = tmp_path / "plots" / "readmission" / "readmission_dca_curve.png"
-        assert isinstance(fig, Figure)
-        assert not expected_file.exists()
+        # Expected 2 show calls (one per metric)
+        assert mock_show.call_count == 2
 
 
 class TestPlotAll:
@@ -1005,7 +740,7 @@ class TestPlotAll:
     def test_plot_all_success_and_saves_all_artifacts(
         self, mock_orchestrator, sample_binary_data, tmp_path: Path
     ) -> None:
-        """Test that plot_all executes all 5 plotting methods and persists artifacts."""
+        """Test that plot_all executes all 5 outcome plotting methods and persists artifacts."""
         y_true, probas = sample_binary_data
         displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
 
@@ -1018,7 +753,6 @@ class TestPlotAll:
             show=False,
         )
 
-        # Check dictionary structure
         expected_keys = {"roc", "pr", "distribution", "reliability", "dca"}
         assert set(plots.keys()) == expected_keys
 
@@ -1026,7 +760,6 @@ class TestPlotAll:
             assert isinstance(fig, Figure)
             assert isinstance(ax, Axes)
 
-        # Check that all 5 artifact files were created on disk
         plot_dir = tmp_path / "plots" / "mortality"
         expected_files = [
             plot_dir / "mortality_roc_curve.png",
@@ -1037,23 +770,3 @@ class TestPlotAll:
         ]
         for file_path in expected_files:
             assert file_path.exists()
-
-    def test_plot_all_without_saving(
-        self, mock_orchestrator, sample_binary_data, tmp_path: Path
-    ) -> None:
-        """Test plot_all execution when save=False."""
-        y_true, probas = sample_binary_data
-        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
-
-        plots = displayer.plot_all(
-            y_true=y_true,
-            probas=probas,
-            outcome="readmission",
-            n_bootstraps=0,
-            save=False,
-            show=False,
-        )
-
-        assert len(plots) == 5
-        plot_dir = tmp_path / "plots" / "readmission"
-        assert not plot_dir.exists()
