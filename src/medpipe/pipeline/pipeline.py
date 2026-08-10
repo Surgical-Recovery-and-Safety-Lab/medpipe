@@ -365,6 +365,12 @@ class Medpipe:
                     save=True,
                     show=False,
                 )
+            # Generate cross-outcome strata heatmaps per metric
+            self.logger.info("Generating subgroup strata heatmaps across outcomes.")
+            strata_heatmaps = self.displayer.plot_all_heatmaps(
+                evaluations=evaluations,
+            )
+            plots["strata_heatmaps"] = strata_heatmaps
 
         self.logger.info("Full Medpipe pipeline execution finished successfully.")
 
