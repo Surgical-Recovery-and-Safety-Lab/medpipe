@@ -24,6 +24,8 @@ and this project adheres to Semantic Versioning ([SemVer](https://semver.org/spe
 * Test suites for the registries
 * Test suites for the Medpipe classes
 * Stress tests for the Medpipe class
+* DataLoaderRegistry to accept unsupported types of data
+* New data types supported (.tsv, .txt, .pq, .feather, .xls, .xlsx, .json, .jsonl, .pickle, .pkl)
 
 ### Changed
 * **BREAKING** Refactored the logger module
