@@ -12,6 +12,7 @@ and this project adheres to Semantic Versioning ([SemVer](https://semver.org/spe
 * **BREAKING** MedpipeEvaluator class that handles the evaluation of the fitted models
 * A visualisation module to handle plotting functions
 * MedpipeDisplayer class that handles plotting and saving graphs
+* MedpipeTheme to manage graph parameters
 * BaseRegistry to create model and preprocessing registries
 * PreprocessingRegistry, a dynamic registry to add preprocessing operations
 * ModelRegistry, a dynamic registry to add models
@@ -21,13 +22,13 @@ and this project adheres to Semantic Versioning ([SemVer](https://semver.org/spe
 * Test suites for the reproducibility module functions and classes
 * Test suites for the logger module functions
 * Test suites for the registries
-* Test suites for the MedpipeOrchestrator, MedpipeRunner, MedpipeEvaluator, and MedpipeDisplayer classes
+* Test suites for the Medpipe classes
 * Stress tests for the Medpipe class
 
 ### Changed
 * **BREAKING** Refactored the logger module
 * **BREAKING** Refactored configuration structure to be in a single file
-* **BREAKING** Split the MedpipePipeline into four components Medpipe, MedpipeOrchestrator, MedpipeRunner, and MedpipeEvaluator
+* **BREAKING** Split the MedpipePipeline into five components Medpipe, MedpipeOrchestrator, MedpipeRunner, MedpipeEvaluator, and MedpipeDisplayer
 * Updated the pyproject.toml according to modern PEP 517/518 and PEP 621 Python packaging standards
 * Updated __init__.py for all modules
 * Updated tests for the configuration schemas
