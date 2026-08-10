@@ -423,8 +423,8 @@ class MedpipeRunner:
             )
             self.logger.debug(
                 f"[{outcome}] Skipping recalibration (X_recal present: {X_recal is not None}, "
-                f"Config present: {recal_config is not None}) "
-                f"Recalibration flag: {recal_flag}."
+                f"Config present: {recal_config is not None}, "
+                f"Recalibration flag: {recal_flag})."
             )
             return best_pipeline
 
