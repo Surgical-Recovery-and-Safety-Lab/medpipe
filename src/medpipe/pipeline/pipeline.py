@@ -366,8 +366,6 @@ class Medpipe:
                     y_true=y_true_outcome,
                     probas=probas_outcome,
                     outcome=outcome,
-                    save=True,
-                    show=False,
                 )
             # Generate cross-outcome strata heatmaps per metric
             self.logger.info("Generating subgroup strata heatmaps across outcomes.")
