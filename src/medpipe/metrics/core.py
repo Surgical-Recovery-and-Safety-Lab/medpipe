@@ -8,7 +8,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Callable
 
 import numpy as np
-from ml_insights import SplineCalib
 from sklearn.metrics import (
     accuracy_score,
     average_precision_score,
@@ -21,6 +20,7 @@ from sklearn.metrics import (
     roc_auc_score,
     root_mean_squared_error,
 )
+from splinecalib import SplineCalib
 
 from medpipe._types import Labels
 from medpipe.metrics.registry import MetricRegistry, MetricSpec
