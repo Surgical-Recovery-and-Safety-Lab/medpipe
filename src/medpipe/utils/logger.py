@@ -22,6 +22,7 @@ class CompactProgressFilter(logging.Filter):
     # Tuple of message prefixes/substrings to allow through in "compact" mode
     PROGRESS_KEYWORDS = (
         "Initialising Medpipe end-to-end",
+        "Succesfully loaded Medpipe",
         "Step 1/",
         "Step 2/",
         "Step 3/",
