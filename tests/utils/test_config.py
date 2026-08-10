@@ -957,6 +957,7 @@ class TestRecalibrationConfig:
     def _get_valid_config_dict(self, **overrides) -> dict:
         """Creates a fresh valid config dict to override."""
         config_dict = {
+            "recalibrate": True,
             "method": "isotonic",
             "hyperparameters": {},
         }
@@ -970,6 +971,12 @@ class TestRecalibrationConfig:
         config = RecalibrationConfig.model_validate(raw_config)
 
         assert config.model_dump() == raw_config
+
+    @pytest.mark.parametrize("recalibrate_val", [True, False])
+    def test_recalibration_flag_boolean_values(self, recalibrate_val: bool) -> None:
+        """Pass True and False recalibrate flags to RecalibrationConfig."""
+        config = RecalibrationConfig(recalibrate=recalibrate_val, method="isotonic")
+        assert config.recalibrate is recalibrate_val
 
 
 class TestModelSetupConfig:
@@ -988,11 +995,13 @@ class TestModelSetupConfig:
             algorithm="XGBClassifier",
             hyperparameters={"learning_rate": 0.1},
             recalibration={  # type: ignore
+                "recalibrate": True,
                 "method": "isotonic",
                 "hyperparameters": {"out_of_bounds": "clip"},
             },
         )
         assert model.recalibration
+        assert model.recalibration.recalibrate == True
         assert model.recalibration.method == "isotonic"
         assert model.recalibration.hyperparameters["out_of_bounds"] == "clip"
 
@@ -1155,6 +1164,7 @@ class TestMedpipeConfig:
                 "algorithm": "HistGradientBoostingClassifier",
                 "hyperparameters": {"learning_rate": 0.1},
                 "recalibration": {
+                    "recalibrate": True,
                     "method": "isotonic",
                     "hyperparameters": {},
                 },
@@ -1348,6 +1358,7 @@ class TestMedpipeConfig:
             "MORTALITY_30D": {
                 "algorithm": "HistGradientBoostingClassifier",
                 "recalibration": {
+                    "recalibrate": True,
                     "method": "sigmoid",
                     "hyperparameters": {"cv": 5},
                 },
@@ -1373,7 +1384,7 @@ class TestMedpipeConfig:
         raw_config["outcome_overrides"] = {
             "ANY_COMP": {
                 "algorithm": "HistGradientBoostingClassifier",
-                "recalibration": {"method": "sigmoid"},
+                "recalibration": {"recalibrate": True, "method": "sigmoid"},
             }
         }
 
@@ -1441,3 +1452,27 @@ class TestMedpipeConfig:
 
         with pytest.raises(ValidationError, match=escape(match_expr)):
             MedpipeConfig.model_validate(raw_config)
+
+    def test_cascade_disable_recalibration_via_flag(self, tmp_path: Path) -> None:
+        """Test overriding recalibrate=False turns off recalibration for
+        a specific outcome."""
+        raw_config = self._get_valid_config_dict(tmp_path)
+        raw_config["default_model"]["recalibration"] = {
+            "recalibrate": True,
+            "method": "isotonic",
+            "hyperparameters": {},
+        }
+        raw_config["outcome_overrides"] = {
+            "ANY_COMP": {
+                "algorithm": "HistGradientBoostingClassifier",
+                "recalibration": {"recalibrate": False, "method": "isotonic"},
+            }
+        }
+
+        config = MedpipeConfig.model_validate(raw_config)
+
+        # MORTALITY_30D inherits default True, ANY_COMP overrides to False
+        assert config.resolved_models["MORTALITY_30D"].recalibration
+        assert config.resolved_models["ANY_COMP"].recalibration
+        assert config.resolved_models["MORTALITY_30D"].recalibration.recalibrate is True
+        assert config.resolved_models["ANY_COMP"].recalibration.recalibrate is False

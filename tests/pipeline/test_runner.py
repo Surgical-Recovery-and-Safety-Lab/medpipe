@@ -48,7 +48,7 @@ def mock_orchestrator():
         "MORTALITY_30D": {
             "algorithm": "RandomForestClassifier",
             "hyperparameters": {"n_estimators": 5, "max_depth": 3},
-            "recalibration": {"method": "temperature"},
+            "recalibration": {"recalibrate": True, "method": "temperature"},
         }
     }
     return orchestrator
@@ -488,7 +488,7 @@ class TestCalibrateModel:
         _, _, X_recal, y_recal = dummy_data
 
         mock_pipeline = MagicMock(spec=Pipeline)
-        model_config = {"recalibration": {"method": "sigmoid"}}
+        model_config = {"recalibration": {"recalibrate": True, "method": "sigmoid"}}
 
         mock_calibrator_instance = MagicMock()
         mock_calibrated.return_value = mock_calibrator_instance
@@ -514,7 +514,7 @@ class TestCalibrateModel:
         """Test calibration is skipped when X_recal is None."""
         runner = MedpipeRunner(orchestrator=mock_orchestrator)
         mock_pipeline = MagicMock(spec=Pipeline)
-        model_config = {"recalibration": {"method": "sigmoid"}}
+        model_config = {"recalibration": {"recalibrate": True, "method": "sigmoid"}}
 
         result = runner._calibrate_model(
             outcome="MORTALITY_30D",
@@ -530,7 +530,7 @@ class TestCalibrateModel:
         """Test calibration is skipped when X_recal is an empty DataFrame."""
         runner = MedpipeRunner(orchestrator=mock_orchestrator)
         mock_pipeline = MagicMock(spec=Pipeline)
-        model_config = {"recalibration": {"method": "sigmoid"}}
+        model_config = {"recalibration": {"recalibrate": True, "method": "sigmoid"}}
 
         result = runner._calibrate_model(
             outcome="MORTALITY_30D",
@@ -559,6 +559,46 @@ class TestCalibrateModel:
         )
 
         assert result == mock_pipeline
+
+    def test_calibrate_model_skip_recalibrate_flag_false(
+        self, mock_orchestrator, dummy_data
+    ):
+        """Test calibration is skipped when recalibrate is set to False in config."""
+        runner = MedpipeRunner(orchestrator=mock_orchestrator)
+        _, _, X_recal, y_recal = dummy_data
+
+        mock_pipeline = MagicMock(spec=Pipeline)
+        model_config = {"recalibration": {"recalibrate": False, "method": "sigmoid"}}
+
+        result = runner._calibrate_model(
+            outcome="MORTALITY_30D",
+            best_pipeline=mock_pipeline,
+            model_config=model_config,
+            X_recal=X_recal,
+            y_recal=y_recal,
+        )
+
+        assert result == mock_pipeline
+
+    def test_calibrate_model_raises_assertion_on_none_y_recal(
+        self, mock_orchestrator, dummy_data
+    ):
+        """Test assertion error is raised if y_recal is None when
+        recalibration is enabled."""
+        runner = MedpipeRunner(orchestrator=mock_orchestrator)
+        _, _, X_recal, _ = dummy_data
+
+        mock_pipeline = MagicMock(spec=Pipeline)
+        model_config = {"recalibration": {"recalibrate": True, "method": "sigmoid"}}
+
+        with pytest.raises(AssertionError):
+            runner._calibrate_model(
+                outcome="MORTALITY_30D",
+                best_pipeline=mock_pipeline,
+                model_config=model_config,
+                X_recal=X_recal,
+                y_recal=None,
+            )
 
 
 class TestFitOutcome:
@@ -655,7 +695,7 @@ class TestFitOutcome:
         mock_model_setup.algorithm = "RandomForestClassifier"
         mock_model_setup.hyperparameters = {}
         mock_model_setup.model_dump.return_value = {
-            "recalibration": {"method": "isotonic"}
+            "recalibration": {"recalibrate": True, "method": "isotonic"}
         }
         mock_orchestrator.config.resolved_models = {"MORTALITY_30D": mock_model_setup}
 
