@@ -116,9 +116,7 @@ class MedpipeOrchestrator:
         self.artifact_manager.save_resolved_config(config_dict, self.run_dir)
         self.logger.info("Reproducibility artifacts saved successfully.")
 
-    def prepare_data(
-        self,
-    ) -> Tuple[
+    def prepare_data(self, **kwargs) -> Tuple[
         pd.DataFrame,
         pd.DataFrame,
         Optional[pd.DataFrame],
@@ -129,6 +127,12 @@ class MedpipeOrchestrator:
     ]:
         """
         Ingests data, extracts labels, and performs configured train/recal/test splits.
+
+        Parameters
+        ----------
+        **kwargs : Any
+            Additional keyword arguments passed to the underlying Pandas reader function
+            (e.g., `sheet_name` for Excel, `sep` for CSV).
 
         Returns
         -------
@@ -141,7 +145,7 @@ class MedpipeOrchestrator:
         groups_train : Optional[npt.NDArray]
 
         """
-        data = self.ingest_data()
+        data = self.ingest_data(**kwargs)
         outcomes = self.config.data.outcomes
         outcome_columns = pd.Index(outcomes)
 
@@ -246,10 +250,16 @@ class MedpipeOrchestrator:
 
         return X_train, y_train_df, X_recal, y_recal_df, X_test, y_test_df, groups_train
 
-    def ingest_data(self) -> pd.DataFrame:
+    def ingest_data(self, **kwargs) -> pd.DataFrame:
         """
         Loads the raw dataset specified in the configuration and filters it
         to retain only predictors, outcomes, and configured group columns.
+
+        Parameters
+        ----------
+        **kwargs : Any
+            Additional keyword arguments passed to the underlying Pandas reader function
+            (e.g., `sheet_name` for Excel, `sep` for CSV).
 
         Returns
         -------
@@ -267,7 +277,7 @@ class MedpipeOrchestrator:
         dataset_path = self.config.data.path
         self.logger.info(f"Ingesting data from {dataset_path}")
 
-        data = load_data(dataset_path)
+        data = load_data(dataset_path, **kwargs)
         if not isinstance(data, pd.DataFrame):
             raise TypeError(
                 f"Input data should be a pd.DataFrame, but got {type(data)}"
