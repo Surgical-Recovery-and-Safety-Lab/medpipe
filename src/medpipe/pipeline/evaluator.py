@@ -280,7 +280,7 @@ class MedpipeEvaluator:
 
             if isinstance(spec, str) and spec in X.columns:
                 # Column string: discrete categorical groupby
-                for val, group_df in X.groupby(spec):
+                for val, group_df in X.groupby(spec, observed=False):
                     cat_subgroups[str(val)] = group_df.index
 
             elif isinstance(spec, (list, tuple)):
