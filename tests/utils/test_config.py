@@ -1343,13 +1343,39 @@ class TestMedpipeConfig:
         model_comp = config.resolved_models["ANY_COMP"]
         assert model_comp.algorithm == "RandomForestClassifier"
         assert model_comp.hyperparameters == {
-            "learning_rate": 0.1,
             "n_estimators": 200,
             "max_depth": 5,
         }
 
     def test_cascade_recalibration_deep_merge(self, tmp_path: Path) -> None:
         """Test that recalibration methods and kwargs merge correctly."""
+        raw_config = self._get_valid_config_dict(tmp_path)
+
+        raw_config["default_model"]["recalibration"]["hyperparameters"]["y_min"] = 0
+
+        raw_config["outcome_overrides"] = {
+            "MORTALITY_30D": {
+                "algorithm": "HistGradientBoostingClassifier",
+                "recalibration": {
+                    "recalibrate": True,
+                    "method": "isotonic",
+                    "hyperparameters": {"cv": 5},
+                },
+            }
+        }
+
+        config = MedpipeConfig.model_validate(raw_config)
+
+        res_recal = config.resolved_models["MORTALITY_30D"].recalibration
+        assert res_recal is not None
+        assert res_recal.method == "isotonic"
+        assert res_recal.hyperparameters == {"y_min": 0, "cv": 5}
+
+    def test_cascade_recalibration_no_deep_merge_with_different_methods(
+        self, tmp_path: Path
+    ) -> None:
+        """Test that recalibration methods and kwargs do not merge when method is
+        different."""
         raw_config = self._get_valid_config_dict(tmp_path)
 
         raw_config["default_model"]["recalibration"]["hyperparameters"]["y_min"] = 0
@@ -1370,7 +1396,140 @@ class TestMedpipeConfig:
         res_recal = config.resolved_models["MORTALITY_30D"].recalibration
         assert res_recal is not None
         assert res_recal.method == "sigmoid"
-        assert res_recal.hyperparameters == {"y_min": 0, "cv": 5}
+        assert res_recal.hyperparameters == {"cv": 5}
+
+    def test_cascade_same_algorithm_deep_merges_model_hyperparameters(
+        self, tmp_path: Path
+    ) -> None:
+        """Test that model hyperparameters deep-merge when the algorithm
+        is unchanged or omitted."""
+        raw_config = self._get_valid_config_dict(tmp_path)
+        raw_config["default_model"] = {
+            "algorithm": "HistGradientBoostingClassifier",
+            "hyperparameters": {"learning_rate": 0.1, "max_iter": 100},
+        }
+        raw_config["outcome_overrides"] = {
+            "ANY_COMP": {
+                # Algorithm is same, only overriding specific model hyperparameters
+                "algorithm": "HistGradientBoostingClassifier",
+                "hyperparameters": {"learning_rate": 0.05, "max_depth": 5},
+            }
+        }
+
+        config = MedpipeConfig.model_validate(raw_config)
+
+        comp_model = config.resolved_models["ANY_COMP"]
+        assert comp_model.algorithm == "HistGradientBoostingClassifier"
+        # learning_rate is updated, max_iter is retained from base, max_depth is added
+        assert comp_model.hyperparameters == {
+            "learning_rate": 0.05,
+            "max_iter": 100,
+            "max_depth": 5,
+        }
+
+    def test_cascade_algorithm_change_replaces_hyperparameters(
+        self, tmp_path: Path
+    ) -> None:
+        """Test changing algorithm replaces hyperparameters instead of
+        merging incompatible ones."""
+        raw_config = self._get_valid_config_dict(tmp_path)
+        raw_config["default_model"] = {
+            "algorithm": "HistGradientBoostingClassifier",
+            "hyperparameters": {"learning_rate": 0.1, "max_iter": 100},
+        }
+        raw_config["outcome_overrides"] = {
+            "ANY_COMP": {
+                "algorithm": "RandomForestClassifier",
+                "hyperparameters": {"n_estimators": 50},
+            }
+        }
+
+        config = MedpipeConfig.model_validate(raw_config)
+
+        # learning_rate and max_iter should NOT leak into RandomForestClassifier
+        comp_model = config.resolved_models["ANY_COMP"]
+        assert comp_model.algorithm == "RandomForestClassifier"
+        assert comp_model.hyperparameters == {"n_estimators": 50}
+
+    def test_cascade_explicitly_set_recalibration_none(self, tmp_path: Path) -> None:
+        """Test setting recalibration to None in outcome_overrides disables
+        recalibration."""
+        raw_config = self._get_valid_config_dict(tmp_path)
+        raw_config["default_model"]["recalibration"] = {
+            "recalibrate": True,
+            "method": "isotonic",
+            "hyperparameters": {"out_of_bounds": "clip"},
+        }
+        raw_config["outcome_overrides"] = {
+            "ANY_COMP": {
+                "algorithm": "HistGradientBoostingClassifier",
+                "recalibration": None,
+            }
+        }
+
+        config = MedpipeConfig.model_validate(raw_config)
+
+        assert config.resolved_models["MORTALITY_30D"].recalibration is not None
+        assert config.resolved_models["ANY_COMP"].recalibration is None
+
+    def test_cascade_recalibration_different_method_replaces_entirely(
+        self, tmp_path: Path
+    ) -> None:
+        """Test switching recalibration method replaces base hyperparameters completely."""
+        raw_config = self._get_valid_config_dict(tmp_path)
+        raw_config["default_model"]["recalibration"] = {
+            "recalibrate": True,
+            "method": "isotonic",
+            "hyperparameters": {"out_of_bounds": "clip"},
+        }
+        raw_config["outcome_overrides"] = {
+            "ANY_COMP": {
+                "algorithm": "HistGradientBoostingClassifier",
+                "recalibration": {
+                    "recalibrate": True,
+                    "method": "sigmoid",
+                    "hyperparameters": {"cv": 3},
+                },
+            }
+        }
+
+        config = MedpipeConfig.model_validate(raw_config)
+
+        res_recal = config.resolved_models["ANY_COMP"].recalibration
+        assert res_recal is not None
+        assert res_recal.method == "sigmoid"
+        # out_of_bounds should NOT leak from isotonic into sigmoid
+        assert res_recal.hyperparameters == {"cv": 3}
+
+    def test_cascade_recalibration_same_method_deep_merges(
+        self, tmp_path: Path
+    ) -> None:
+        """Test that same recalibration method updates fields and
+        deep-merges hyperparameters."""
+        raw_config = self._get_valid_config_dict(tmp_path)
+        raw_config["default_model"]["recalibration"] = {
+            "recalibrate": True,
+            "method": "isotonic",
+            "hyperparameters": {"out_of_bounds": "clip"},
+        }
+        raw_config["outcome_overrides"] = {
+            "ANY_COMP": {
+                "algorithm": "HistGradientBoostingClassifier",
+                "recalibration": {
+                    "recalibrate": False,
+                    "method": "isotonic",
+                    "hyperparameters": {"n_jobs": 2},
+                },
+            }
+        }
+
+        config = MedpipeConfig.model_validate(raw_config)
+
+        res_recal = config.resolved_models["ANY_COMP"].recalibration
+        assert res_recal is not None
+        assert res_recal.recalibrate is False
+        assert res_recal.method == "isotonic"
+        assert res_recal.hyperparameters == {"out_of_bounds": "clip", "n_jobs": 2}
 
     def test_cascade_adds_recalibration_when_base_has_none(
         self, tmp_path: Path
