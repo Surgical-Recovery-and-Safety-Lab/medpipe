@@ -799,25 +799,6 @@ class TestMetricsConfig:
             )
 
 
-class TestCalibrationConfig:
-    """Test class for the CalibrationConfig class"""
-
-    def _get_valid_config_dict(self, **overrides) -> dict:
-        """Creates a fresh valid config dict to override."""
-        config_dict = {"strategy": "uniform", "n_bootstraps": 200}
-        config_dict.update(overrides)
-
-        return config_dict
-
-    @pytest.mark.parametrize("strategy", ["uniform", "quantile", "spline"])
-    def test_valid_config(self, strategy: str) -> None:
-        """Pass valid configuration to CalibrationConfig."""
-        raw_config = self._get_valid_config_dict(strategy=strategy)
-        config = CalibrationConfig.model_validate(raw_config)
-
-        assert config.model_dump() == raw_config
-
-
 class TestFairnessConfig:
     """Test class for the FairnessConfig class"""
 
@@ -866,7 +847,6 @@ class TestEvaluationSubConfig:
                 "n_bootstraps": 1000,
                 "ci_level": 0.95,
             },
-            "calibration": {"strategy": "uniform", "n_bootstraps": 200},
             "fairness": {
                 "strata": ["AGE", "SEX"],
                 "groups": {"AGE": [[18, 50], [51, 120]]},
@@ -932,7 +912,6 @@ class TestWorkflowConfig:
                     "ci_level": 0.95,
                     "n_bootstraps": 200,
                 },
-                "calibration": {"strategy": "uniform", "n_bootstraps": 200},
                 "fairness": {
                     "strata": ["AGE", "SEX"],
                     "groups": {"AGE": [[18, 50], [51, 120]]},
@@ -1199,10 +1178,6 @@ class TestMedpipeConfig:
                         "n_bootstraps": 200,
                         "ci_level": 0.95,
                     },
-                    "calibration": {
-                        "strategy": "uniform",
-                        "n_bootstraps": 200,
-                    },
                     "fairness": {
                         "strata": ["AGE", "SEX"],
                         "groups": {"AGE": [[18, 50], [51, 120]]},
@@ -1268,23 +1243,18 @@ class TestMedpipeConfig:
             MedpipeConfig.model_validate(config)
 
     @pytest.mark.parametrize(
-        "run_mode,params",
-        [
-            ("audit", "calibration"),
-            ("audit", "fairness"),
-            ("eval", "calibration"),
-            ("eval", "fairness"),
-        ],
+        "run_mode",
+        ["audit", "eval"],
     )
-    def test_evaluation(self, tmp_path: Path, run_mode: str, params: str) -> None:
+    def test_evaluation(self, tmp_path: Path, run_mode: str) -> None:
         """Test case when run_mode and evaluation mismatch."""
         match_expr = (
-            f"Evaluation {params} parameters must be specified "
+            f"Evaluation fairness parameters must be specified "
             "when run_mode is 'audit' or 'eval'"
         )
         config = self._get_valid_config_dict(tmp_path)
         config["meta"]["run_mode"] = run_mode
-        config["workflow"]["evaluation"][params] = None
+        config["workflow"]["evaluation"]["fairness"] = None
 
         with pytest.raises(ValueError, match=match_expr):
             MedpipeConfig.model_validate(config)

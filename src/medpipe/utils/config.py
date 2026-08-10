@@ -250,12 +250,6 @@ class MetricsConfig(BaseModel):
         return self
 
 
-class CalibrationConfig(BaseModel):
-    strategy: Literal["uniform", "quantile", "spline"] = Field(default="uniform")
-    n_bootstraps: int = Field(default=200, ge=0)
-    model_config = {"extra": "forbid"}
-
-
 class FairnessConfig(BaseModel):
     strata: list[str]
     groups: dict[str, list[list[int | float | str]]] | None = None
@@ -275,7 +269,6 @@ class FairnessConfig(BaseModel):
 
 class EvaluationSubConfig(BaseModel):
     metrics: MetricsConfig
-    calibration: CalibrationConfig | None = None
     fairness: FairnessConfig | None = None
     model_config = {"extra": "forbid"}
 
@@ -517,12 +510,6 @@ class MedpipeConfig(BaseModel):
         """Check that audit and eval run modes have correct evaluation."""
         run_mode = self.meta.run_mode
         if run_mode == "audit" or run_mode == "eval":
-            if self.workflow.evaluation.calibration is None:
-                expr = (
-                    "Evaluation calibration parameters must be specified "
-                    "when run_mode is 'audit' or 'eval'"
-                )
-                raise ValueError(expr)
             if self.workflow.evaluation.fairness is None:
                 expr = (
                     "Evaluation fairness parameters must be specified "
