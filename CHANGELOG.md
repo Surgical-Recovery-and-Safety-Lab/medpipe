@@ -6,8 +6,50 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to Semantic Versioning ([SemVer](https://semver.org/spec/v2.0.0.html)).
 
 ## [Unreleased]
+### Added
+* **BREAKING** MedpipeOrchestrator class that handles the loading configuration, data, and creates the ArtifactManager
+* **BREAKING** MedpipeRunner class that handles the creation and fitting of the models
+* **BREAKING** MedpipeEvaluator class that handles the evaluation of the fitted models
+* A visualisation module to handle plotting functions
+* MedpipeDisplayer class that handles plotting and saving graphs
+* MedpipeTheme to manage graph parameters
+* BaseRegistry to create model and preprocessing registries
+* PreprocessingRegistry, a dynamic registry to add preprocessing operations
+* ModelRegistry, a dynamic registry to add models
+* MetricRegistry, a dynamic registry to add custom metrics
+* Reproducibility module that contains functions to store configuration and environment information
+* New configuration file called default_config.toml
+* Test suites for the reproducibility module functions and classes
+* Test suites for the logger module functions
+* Test suites for the registries
+* Test suites for the Medpipe classes
+* Stress tests for the Medpipe class
+* DataLoaderRegistry to accept unsupported types of data
+* New data types supported (.tsv, .txt, .pq, .feather, .xls, .xlsx, .json, .jsonl, .pickle, .pkl)
+
+### Changed
+* **BREAKING** Refactored the logger module
+* **BREAKING** Refactored configuration structure to be in a single file
+* **BREAKING** Split the MedpipePipeline into five components Medpipe, MedpipeOrchestrator, MedpipeRunner, MedpipeEvaluator, and MedpipeDisplayer
+* Updated the pyproject.toml according to modern PEP 517/518 and PEP 621 Python packaging standards
+* Updated __init__.py for all modules
+* Updated tests for the configuration schemas
+* Updated read_toml_configuration function
+* The compute_metrics function raises a ValueError if only one class is present for AUROC and AP calculations
+* Renamed config-examples to examples
+* Updated LICENSE with copyright year and owner name
+* Renamed test folder to tests
+
 ### Fixed
-* Typo in plot_ROC_curve docstring
+* Typo in the CATEGORY_LEVEL_1 column of test_data.csv
+
+### Removed
+* **BREAKING** plot functions in the metrics/ modules
+* Functions to read subconfiguration files in utils/io.py
+* The compute_stata_metrics and print_metrics functions in metrics/core.py
+* The convert_dtypes function in data/utils.py
+* requirements.txt moved to pyproject.toml
+* Old configuration files
 
 ## [0.3.1] - 2026-07-27
 

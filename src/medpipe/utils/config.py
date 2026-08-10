@@ -1,53 +1,48 @@
 """
 Configuration utilities module.
 
-This module provides helper functions for reading configuration files.
+This module provides configuration schemas.
 
-Functions:
-- parse_version_number: Function that parses a version number.
-- read_subconfiguration_file: Reads the contents of a configuration file
-    from a path.
 """
 
 from __future__ import annotations
 
-import tomllib
 from pathlib import Path
-from typing import Literal, TypeAlias
-from warnings import warn
+from typing import Any, Literal, Union
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-from medpipe.metrics.core import METRICS
+# ==============================================================================
+# CUSTOM VERBOSITY TYPES
+# ==============================================================================
+VerbosityMode = Literal[
+    "quiet",
+    "compact",
+    "progress",
+    "info",
+    "detailed",
+    "debug",
+    "warning",
+]
+VerbosityInt = Literal[0, 1, 2, 3]
 
-from .exceptions import file_checks
+VerboseType = Union[VerbosityMode, bool, VerbosityInt]
 
-# Define file specific types
-SubConfig: TypeAlias = "DataConfig | HyperparameterConfig | WorkflowConfig"
-SubConfigTypes: TypeAlias = Literal["data", "workflow", "hyperparameters"]
 
 # ==============================================================================
 # CONFIGURATION SCHEMA (pydantic)
 # ==============================================================================
 # --- TOP-LEVEL MASTER SCHEMAS ---
-
-
 class MetaConfig(BaseModel):
-    version: str
+    """The master schema for the meta section of the configuration file."""
+
     project_name: str
     run_mode: Literal["fast", "eval", "cv", "audit"] = "audit"
+    verbose: VerboseType = Field(
+        default="compact",
+        description="Console logging verbosity: 'quiet' (0), 'compact' (1), 'info' (2), 'debug' (3).",
+    )
     model_config = {"extra": "forbid"}
-
-    @field_validator("version")
-    @classmethod
-    def validate_version_format(cls, v: str) -> str:
-        """Validate version is formatted as vX.Y.Z"""
-        try:
-            v_splits = v.split(".")
-            assert len(v_splits) == 3
-        except:
-            raise ValueError(f"Version should be formatted as vX.Y.Z, but got {v}")
-        return v
 
     @field_validator("project_name")
     @classmethod
@@ -59,48 +54,9 @@ class MetaConfig(BaseModel):
         return name
 
 
-class PathsConfig(BaseModel):
-    config_dir: str
-    model_dir: str
-    figure_dir: str
-    model_config = {"extra": "forbid"}
-
-    @field_validator("config_dir", "model_dir", "figure_dir")
-    @classmethod
-    def validate_paths(cls, dir: str) -> str:
-        """Validate that paths point to directories."""
-        path = Path(dir).expanduser().resolve()
-
-        if path.is_file():
-            raise ValueError(f"{path} points to an existing file")
-
-        path.mkdir(parents=True, exist_ok=True)
-        return dir
-
-
-class ModelConfig(BaseModel):
-    algorithm: str
-    model_config = {"extra": "forbid"}
-
-
-class RecalibrationConfig(BaseModel):
-    method: str | None = None
-    model_config = {"extra": "forbid"}
-
-
-class TopLevelConfig(BaseModel):
-    """The master schema for the top-level configuration file."""
-
-    meta: MetaConfig
-    paths: PathsConfig
-    model: ModelConfig
-    recalibration: RecalibrationConfig | None = None
-    model_config = {"extra": "forbid"}
-
-
-# --- DATA SCHEMAS
+# --- DATA SCHEMAS ---
 class DataConfig(BaseModel):
-    """The master schema for the data subconfiguration file."""
+    """The master schema for the data section of the configuration file."""
 
     path: str
     predictors: list[str]
@@ -135,7 +91,7 @@ class DataConfig(BaseModel):
         return self
 
 
-# --- WORKFLOW SCHEMAS
+# --- WORKFLOW SCHEMAS ---
 class PreprocessOperationConfig(BaseModel):
     name: str  # Matches the exact class name
     columns: list[str]  # The specific columns this transformer applies to
@@ -208,10 +164,10 @@ class SplitRecalibrationConfig(BaseModel):
 
 class CrossValConfig(BaseModel):
     strategy: Literal["random", "group"]
+    grid_search: bool | None = None
     group_column: str | None = None
-    n_splits: int = Field(default=2, ge=2)
+    n_splits: int | None = Field(default=None, ge=2)
     shuffle: bool | None = None
-    random_state: int | None = Field(default=None, ge=0)
     model_config = {"extra": "forbid"}
 
     @model_validator(mode="after")
@@ -274,11 +230,15 @@ class ValidationSubConfig(BaseModel):
 
 class MetricsConfig(BaseModel):
     metrics: list[str] = Field(default=["roc_auc", "ici"])
+    n_bootstraps: int = Field(default=200, ge=0)
+    ci_level: float = Field(default=0.95, ge=0.0, le=1.0)
     model_config = {"extra": "forbid"}
 
     @model_validator(mode="after")
     def validate_metrics(self) -> "MetricsConfig":
         """Validate input metrics."""
+        from medpipe.metrics.core import METRICS
+
         for metric in self.metrics:
             if metric not in METRICS:
                 expr = (
@@ -288,12 +248,6 @@ class MetricsConfig(BaseModel):
                 raise ValueError(expr)
 
         return self
-
-
-class CalibrationConfig(BaseModel):
-    strategy: Literal["uniform", "quantile", "spline"] = Field(default="uniform")
-    n_bootstraps: int = Field(default=200, ge=0)
-    model_config = {"extra": "forbid"}
 
 
 class FairnessConfig(BaseModel):
@@ -315,13 +269,15 @@ class FairnessConfig(BaseModel):
 
 class EvaluationSubConfig(BaseModel):
     metrics: MetricsConfig
-    calibration: CalibrationConfig | None = None
     fairness: FairnessConfig | None = None
     model_config = {"extra": "forbid"}
 
 
 class WorkflowConfig(BaseModel):
     """The master schema for the workflow subconfiguration file."""
+
+    random_state: int | None = Field(default=42, ge=0)
+    n_jobs: int | None = Field(default=1, ge=-1)
 
     preprocessing: PreprocessingConfig | None = None
     validation: ValidationSubConfig
@@ -330,45 +286,205 @@ class WorkflowConfig(BaseModel):
     model_config = {"extra": "forbid"}
 
 
-# --- HYPERPARAMETERS SCHEMAS
-class PredictorConfig(BaseModel):
-    learning_rate: float = Field(default=0.1, gt=0)
-    # Allow extra parameters to be passed as keyword argument to predictor
-    model_config = {"extra": "allow"}
-
-
-class RecalibratorConfig(BaseModel):
-    # Allow extra parameters to be passed as keyword argument to recalibrator
-    model_config = {"extra": "allow"}
-
-
-class ModelHyperparamSubConfig(BaseModel):
-    predictor: PredictorConfig
-    recalibrator: RecalibratorConfig | None = None
-
+# --- MODEL SCHEMAS ---
+class RecalibrationConfig(BaseModel):
+    recalibrate: bool
+    method: Literal["isotonic", "sigmoid", "temperature"] = Field(default="isotonic")
+    hyperparameters: dict[str, Any] = Field(default_factory=dict)
     model_config = {"extra": "forbid"}
 
 
-class HyperparameterConfig(BaseModel):
-    """The master schema for the hyperparameter subconfiguration file."""
+class ModelSetup(BaseModel):
+    """Configuration for a model, recalibrator, and their hyperparameters."""
 
-    hyperparameters: ModelHyperparamSubConfig
+    algorithm: str
+    hyperparameters: dict[str, Any] = Field(default_factory=dict)
+    recalibration: RecalibrationConfig | None = None
     model_config = {"extra": "forbid"}
 
 
+# --- DISPLAY SCHEMAS ---
+class DisplayDefaultsConfig(BaseModel):
+    """Default visualization parameters across all plot types."""
+
+    n_bootstraps: int = Field(default=1000, ge=0)
+    save: bool = True
+    show: bool = False
+    n_bins: int = Field(default=10, ge=1)
+    strategy: Literal["uniform", "quantile", "spline"] = "uniform"
+    model_config = {"extra": "allow"}
+
+
+class DisplayConfig(BaseModel):
+    """Configuration settings for pipeline evaluation graphics and themes."""
+
+    defaults: DisplayDefaultsConfig = Field(default_factory=DisplayDefaultsConfig)
+    overrides: dict[str, dict[str, Any]] = Field(default_factory=dict)
+    outcome_overrides: dict[str, dict[str, dict[str, Any]]] = Field(
+        default_factory=dict
+    )
+    theme: dict[str, Any] | None = Field(default=None)
+
+    model_config = {"extra": "forbid"}
+
+    @model_validator(mode="before")
+    @classmethod
+    def handle_flat_and_legacy_keys(cls, data: Any) -> Any:
+        """Process legacy flat keys (e.g., calibration_strategy) into defaults."""
+        if isinstance(data, dict):
+            data = data.copy()
+            defaults = data.get("defaults", {})
+            if not isinstance(defaults, dict):
+                defaults = {}
+
+            # Backward compatibility for flat calibration_strategy key
+            if "calibration_strategy" in data:
+                defaults.setdefault("strategy", data.pop("calibration_strategy"))
+
+            # Lift any top-level parameter overrides into defaults dict
+            for legacy_key in ("n_bootstraps", "save", "show", "n_bins", "strategy"):
+                if legacy_key in data:
+                    defaults.setdefault(legacy_key, data.pop(legacy_key))
+
+            if defaults:
+                data["defaults"] = defaults
+        return data
+
+    @field_validator("overrides", "outcome_overrides")
+    @classmethod
+    def validate_plot_override_keys(cls, v: dict[str, Any]) -> dict[str, Any]:
+        """Ensure plot override identifiers correspond to valid plot types."""
+        valid_plots = {
+            "calibration",
+            "reliability",
+            "reliability_diagram",
+            "precision_recall",
+            "pr",
+            "pr_curve",
+            "roc",
+            "roc_curve",
+            "distribution",
+            "probability_distribution",
+            "dist",
+            "dca",
+            "dca_curve",
+            "strata_heatmap",
+            "heatmap",
+        }
+
+        for key, val in v.items():
+            if isinstance(val, dict) and any(
+                isinstance(sub_v, dict) for sub_v in val.values()
+            ):
+                # Outcome overrides dictionary: outcome_name -> {plot_type: params}
+                for plot_key in val.keys():
+                    if plot_key.lower() not in valid_plots:
+                        raise ValueError(
+                            f"Unknown plot override type '{plot_key}'. "
+                            f"Valid plot types are: {sorted(list(valid_plots))}"
+                        )
+            else:
+                # Plot type overrides dictionary: plot_type -> params
+                if key.lower() not in valid_plots:
+                    raise ValueError(
+                        f"Unknown plot override type '{key}'. "
+                        f"Valid plot types are: {sorted(list(valid_plots))}"
+                    )
+        return v
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "DisplayConfig":
+        """Instantiate DisplayConfig from parsed TOML dictionary."""
+        return cls.model_validate(data)
+
+
+# --- GLOBAL MEDPIPE CONFIGURATION SCHEMA ---
 class MedpipeConfig(BaseModel):
-    """The master schema for a medpipe pipeline."""
+    """The master schema for a single-file configuration."""
 
-    top_level: TopLevelConfig
+    meta: MetaConfig
     data: DataConfig
     workflow: WorkflowConfig
-    hyperparameters: HyperparameterConfig
+    display: DisplayConfig | None = None
+
+    # The default setup applied to all outcomes
+    default_model: ModelSetup
+
+    # Optional overrides keyed by outcome name
+    outcome_overrides: dict[str, ModelSetup] = Field(default_factory=dict)
+
+    # Dynamically generated during validation: fully resolved configurations per outcome
+    resolved_models: dict[str, ModelSetup] = Field(default_factory=dict, init_var=False)
+
     model_config = {"extra": "forbid"}
+
+    @model_validator(mode="after")
+    def resolve_cascading_models(self) -> "MedpipeConfig":
+        """Cascade default_model settings into outcome_overrides."""
+        resolved = {}
+        for outcome in self.data.outcomes:
+            base_setup = self.default_model.model_dump()
+
+            if outcome in self.outcome_overrides:
+                override_setup = self.outcome_overrides[outcome].model_dump(
+                    exclude_unset=True
+                )
+
+                # 1. Algorithm & Hyperparameters
+                if (
+                    "algorithm" in override_setup
+                    and override_setup["algorithm"] != base_setup["algorithm"]
+                ):
+                    base_setup["algorithm"] = override_setup["algorithm"]
+                    # Algorithm changed: replace hyperparameters entirely
+                    # to prevent collisions
+                    base_setup["hyperparameters"] = override_setup.get(
+                        "hyperparameters", {}
+                    )
+                elif "hyperparameters" in override_setup:
+                    # Same algorithm: deep-merge hyperparameters
+                    base_setup["hyperparameters"].update(
+                        override_setup["hyperparameters"]
+                    )
+
+                # 2. Recalibration
+                if "recalibration" in override_setup:
+                    override_recal = override_setup["recalibration"]
+                    if override_recal is None:
+                        # Explicitly disable recalibration for this outcome
+                        base_setup["recalibration"] = None
+                    elif base_setup.get("recalibration") is None:
+                        base_setup["recalibration"] = override_recal
+                    else:
+                        if (
+                            "method" in override_recal
+                            and override_recal["method"]
+                            != base_setup["recalibration"]["method"]
+                        ):
+                            base_setup["recalibration"] = override_recal
+                        else:
+                            if "recalibrate" in override_recal:
+                                base_setup["recalibration"]["recalibrate"] = (
+                                    override_recal["recalibrate"]
+                                )
+                            if "method" in override_recal:
+                                base_setup["recalibration"]["method"] = override_recal[
+                                    "method"
+                                ]
+                            if "hyperparameters" in override_recal:
+                                base_setup["recalibration"]["hyperparameters"].update(
+                                    override_recal["hyperparameters"]
+                                )
+
+            resolved[outcome] = ModelSetup(**base_setup)
+
+        self.resolved_models = resolved
+        return self
 
     @model_validator(mode="after")
     def validate_recalibration(self) -> "MedpipeConfig":
         """Check recalibration split is specified with recalibration method."""
-        if self.top_level.recalibration:  # Recalibration is present
+        if self.default_model.recalibration:  # Recalibration is present
             if not self.workflow.validation.recalibration_split:
                 expr = (
                     "Recalibration validation split must be "
@@ -381,7 +497,7 @@ class MedpipeConfig(BaseModel):
     def validate_cross_validation(self) -> "MedpipeConfig":
         """Check that a cross-validation config is passed with correct
         run modes."""
-        if self.top_level.meta.run_mode != "fast":
+        if self.meta.run_mode != "fast":
             if self.workflow.validation.cross_validation is None:
                 expr = (
                     "Cross-validation parameters must be specified "
@@ -391,152 +507,41 @@ class MedpipeConfig(BaseModel):
         return self
 
     @model_validator(mode="after")
-    def validate_evaluation(self) -> "MedpipeConfig":
+    def validate_audit_and_eval_run_mode(self) -> "MedpipeConfig":
         """Check that audit and eval run modes have correct evaluation."""
-        run_mode = self.top_level.meta.run_mode
+        run_mode = self.meta.run_mode
         if run_mode == "audit" or run_mode == "eval":
-            if self.workflow.evaluation.calibration is None:
-                expr = (
-                    "Evaluation calibration parameters must be specified "
-                    "when run_mode is 'audit' or 'eval'"
-                )
-                raise ValueError(expr)
             if self.workflow.evaluation.fairness is None:
                 expr = (
                     "Evaluation fairness parameters must be specified "
                     "when run_mode is 'audit' or 'eval'"
                 )
                 raise ValueError(expr)
+            if self.display is None:
+                raise ValueError(
+                    "Display parameters must be specified "
+                    "when run_mode is 'audit' or 'eval'"
+                )
         return self
 
+    @model_validator(mode="after")
+    def validate_outcome_overrides_exist_in_outcomes(self) -> "MedpipeConfig":
+        """Ensures all outcome names in outcome_overrides are defined in data.outcomes."""
+        valid_outcomes = set(self.data.outcomes)
 
-# ==============================================================================
-# CONFIGURATION FUNCTIONS
-# ==============================================================================
+        if self.outcome_overrides and self.data and self.data.outcomes:
+            for override_outcome in self.outcome_overrides:
+                if override_outcome not in valid_outcomes:
+                    raise ValueError(
+                        f"Outcome override '{override_outcome}' is not present "
+                        f"in data.outcomes: {self.data.outcomes}"
+                    )
 
-
-# Define some constants
-SUBCONFIG_REGISTRY: dict[SubConfigTypes, type[SubConfig]] = {
-    "data": DataConfig,
-    "workflow": WorkflowConfig,
-    "hyperparameters": HyperparameterConfig,
-}
-
-
-def read_subconfiguration_file(path: str | Path, subtype: SubConfigTypes) -> SubConfig:
-    """
-    Reads the contents of a configuration file from a path.
-
-    The contents are validated using the pydantic classes defined
-    in _types.py.
-
-    Parameters
-    ----------
-    path: str | Path
-        Path to the configuration file.
-    subtype: SubConfigTypes {"data", "workflow", "hyperparameters"}
-        Subtype of the configuration being read.
-
-    Returns
-    -------
-    config: SubConfig
-        Subconfiguration dictionary.
-
-    Raises
-    ------
-    TypeError
-        If path is not a str or Path.
-    FileNotFoundError
-        If path does not exist.
-    IsADirectoryError
-        If path is not a file.
-    ValueError
-        If path it not a .toml file.
-        If subtype is not in {"data", "workflow", "hyperparameters"}.
-    tomllib.TOMLDecodeError
-        If the file was not read properly.
-
-    """
-    if subtype not in SUBCONFIG_REGISTRY.keys():
-        valid_options = list(SUBCONFIG_REGISTRY.keys())
-        raise ValueError(
-            f"Unexpected subtype {subtype}, expecting one of {valid_options}"
-        )
-
-    file_checks(path, ".toml")
-
-    with open(path, "rb") as file:
-        raw_config = tomllib.load(file)
-    subtype_class = SUBCONFIG_REGISTRY[subtype]
-
-    return subtype_class.model_validate(raw_config)
-
-
-def parse_version_number(version: str) -> list[str]:
-    """
-    Parses a version number.
-
-    Expecting a version number in the format vX.Y.Z, with
-    X the data version,
-    Y the workflow version,
-    Z the hyperparameters version.
-
-    Parameters
-    ----------
-    version : str
-        Version number to parse.
-
-    Returns
-    -------
-    v_list : list[str]
-        List containing data, workflow, hyperparameters numbers.
-
-    Raises
-    ------
-    TypeError
-        If v_number is not a string.
-    ValueError
-        If v_number is an empty string.
-        If v_number does not have 3 elements.
-        If v_number has an empty element.
-
-    Warns
-    -----
-    UserWarning
-        If the version string has more than 3 elements.
-
-    """
-    if not isinstance(version, str):
-        raise TypeError(f"Version should be a string, but got {type(version)}")
-
-    if not version:
-        raise ValueError(
-            "Version is empty. Check the version number is formatted as vX.Y.Z"
-        )
-    v_to_parse = version
-    if version[0] == "v":
-        # Remove v prefix if present
-        v_to_parse = version[1:]
-
-    v_list = v_to_parse.split(".")
-
-    # Safety checks
-    v_len = len(v_list)
-
-    if v_len < 3:
-        raise ValueError(
-            f"Expecting 3 values, but got {v_len}. "
-            "Check the version number is formatted as vX.Y.Z"
-        )
-    elif v_len > 3:
-        warn(f"Expecting 3 values, but got {v_len}. Everything after 3 is ignored.")
-
-    else:  # Check that there are not empty elements
-        for i, v in enumerate(v_list):
-            if not v:
-                raise ValueError(
-                    f"Element {i} in version is empty. "
-                    "Check the version number is formatted as vX.Y.Z"
-                )
-
-    return v_list[:3]
+        if self.display and self.display.outcome_overrides:
+            for override_outcome in self.display.outcome_overrides:
+                if override_outcome not in valid_outcomes:
+                    raise ValueError(
+                        f"Display outcome override '{override_outcome}' is not present "
+                        f"in data.outcomes: {self.data.outcomes}"
+                    )
+        return self

@@ -1,0 +1,509 @@
+from pathlib import Path
+from typing import Any, Dict, Optional, Tuple, Union
+
+import pandas as pd
+from numpy import asarray
+from numpy.typing import NDArray
+from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
+
+from medpipe.data.registry import PreprocessorRegistry
+from medpipe.data.utils import extract_labels, resolve_subgroup_mask, split_data
+from medpipe.utils.config import MedpipeConfig
+from medpipe.utils.io import load_data, read_toml_configuration
+from medpipe.utils.logger import add_file_handler, get_console_logger, set_verbosity
+from medpipe.utils.reproducibility import ArtifactManager
+
+
+class MedpipeOrchestrator:
+    """
+    Handles data ingress, transformation preparation, and reproducibility management.
+
+    This orchestrator acts as the primary entry point for setting up the machine
+    learning pipeline. It establishes the reproducibility environment, configures
+    logging, ingests raw data, builds the scikit-learn preprocessing pipeline,
+    and resolves configuration overrides and data splits.
+
+    Parameters
+    ----------
+    config : Union[str, Path, MedpipeConfig]
+        Path to the TOML configuration file or an instantiated MedpipeConfig object.
+    base_artifact_dir : Union[str, Path], default="artifacts"
+        Root directory where the versioned run artifacts and logs will be saved.
+    verbose_override : Union[bool, int, str, None], default=None
+        Console verbosity setting configuration override.
+
+    Attributes
+    ----------
+    config : MedpipeConfig
+        The resolved configuration object driving the pipeline.
+    artifact_manager : ArtifactManager
+        Manager handling the creation and population of reproducibility artifacts.
+    run_dir : Path
+        The specific, versioned directory path for the current execution run.
+    logger : logging.Logger
+        The configured logger instance for the orchestrator, routing to both
+        console and the artifact directory.
+
+    Methods
+    -------
+    ingest_data()
+        Loads and validates the raw dataset specified in the configuration.
+    prepare_data()
+        Extracts labels and applies sequential splits for test and recalibration sets.
+    extract_stratum_subgroup(X, column, group, y=None)
+        Extract a stratified subgroup from features (and optional target labels).
+    build_preprocessor()
+        Constructs an sklearn Pipeline for data transformation.
+    _save_reproducibility_artifacts()
+        Persists the resolved configuration and environment state.
+    _check_operation(op)
+        Validates and retrieves a preprocessing operation.
+
+    """
+
+    def __init__(
+        self,
+        config: Union[str, Path, MedpipeConfig],
+        base_artifact_dir: Union[str, Path] = "artifacts",
+        verbose_override: Union[bool, int, str, None] = None,
+    ) -> None:
+        if isinstance(config, (str, Path)):
+            self.config = read_toml_configuration(config)
+        elif isinstance(config, MedpipeConfig):
+            self.config = config
+        else:
+            raise ValueError(
+                "A configuration file or a MedpipeConfig must be specified."
+            )
+
+        if verbose_override is not None:
+            set_verbosity(verbose_override)
+        else:
+            set_verbosity(self.config.meta.verbose)
+        self.artifact_manager = ArtifactManager(base_artifact_dir)
+        self.run_dir = self.artifact_manager.create_run_directory()
+
+        self.logger = get_console_logger("medpipe.orchestrator")
+        add_file_handler(self.logger, log_dir=self.run_dir)
+
+        self.logger.info(
+            f"Initialised MedpipeOrchestrator. Run directory: {self.run_dir}"
+        )
+
+        self._save_reproducibility_artifacts()
+
+    def _save_reproducibility_artifacts(self) -> None:
+        """
+        Saves the resolved configuration and environment state to the artifact directory.
+
+        This method extracts the configuration state (handling different Pydantic
+        versions) and writes it to disk alongside the runtime environment metadata.
+
+        """
+        config_dict = (
+            self.config.model_dump()
+            if hasattr(self.config, "model_dump")
+            else dict(self.config)
+        )
+
+        dataset_path = self.config.data.path if hasattr(self.config, "data") else None
+        self.artifact_manager.save_env_state(
+            destination_dir=self.run_dir,
+            config=config_dict,
+            dataset_path=dataset_path,
+        )
+        self.artifact_manager.save_resolved_config(config_dict, self.run_dir)
+        self.logger.info("Reproducibility artifacts saved successfully.")
+
+    def prepare_data(self, **kwargs) -> Tuple[
+        pd.DataFrame,
+        pd.DataFrame,
+        Optional[pd.DataFrame],
+        Optional[pd.DataFrame],
+        pd.DataFrame,
+        pd.DataFrame,
+        Optional[NDArray],
+    ]:
+        """
+        Ingests data, extracts labels, and performs configured train/recal/test splits.
+
+        Parameters
+        ----------
+        **kwargs : Any
+            Additional keyword arguments passed to the underlying Pandas reader function
+            (e.g., `sheet_name` for Excel, `sep` for CSV).
+
+        Returns
+        -------
+        X_train : pd.DataFrame
+        y_train : pd.DataFrame
+        X_recal : Optional[pd.DataFrame]
+        y_recal : Optional[pd.DataFrame]
+        X_test : pd.DataFrame
+        y_test : pd.DataFrame
+        groups_train : Optional[npt.NDArray]
+
+        """
+        data = self.ingest_data(**kwargs)
+        outcomes = self.config.data.outcomes
+        outcome_columns = pd.Index(outcomes)
+
+        X, y_arr = extract_labels(data, outcomes)
+
+        val_config = getattr(self.config.workflow, "validation", None)
+        if not val_config:
+            raise ValueError("Validation configuration is missing from workflow.")
+
+        # 1. Apply Test Split
+        test_cfg = val_config.test_split
+        X_temp, y_temp_arr, X_test, y_test_arr = split_data(
+            features=X,
+            labels=y_arr,
+            strategy=test_cfg.strategy,
+            group_column=getattr(test_cfg, "group_column", None),
+            values=getattr(test_cfg, "values", None),
+            test_size=getattr(test_cfg, "test_size", None),
+        )
+
+        # Re-wrap multi-label arrays into DataFrames aligned with their X indices
+        y_temp_df = pd.DataFrame(
+            y_temp_arr, columns=outcome_columns, index=X_temp.index
+        )
+        y_test_df = pd.DataFrame(
+            y_test_arr, columns=outcome_columns, index=X_test.index
+        )
+
+        # Apply Recalibration Split (Optional)
+        recal_cfg = getattr(val_config, "recalibration_split", None)
+
+        if recal_cfg:
+            X_train, y_train_arr, X_recal, y_recal_arr = split_data(
+                features=X_temp,
+                labels=y_temp_df.to_numpy(),
+                strategy=recal_cfg.strategy,
+                group_column=getattr(recal_cfg, "group_column", None),
+                values=getattr(recal_cfg, "values", None),
+                recalibration_size=getattr(recal_cfg, "recalibration_size", None),
+            )
+            y_train_df = pd.DataFrame(
+                y_train_arr, columns=outcome_columns, index=X_train.index
+            )
+            y_recal_df = pd.DataFrame(
+                y_recal_arr, columns=outcome_columns, index=X_recal.index
+            )
+            self.logger.info(
+                f"Data successfully split into Train ({len(X_train):,}), "
+                f"Test ({len(X_test):,}), and "
+                f"Recalibration ({len(X_recal):,}) sets."
+            )
+            self.logger.debug(f"Train set initial shape: {X_train.shape}")
+            self.logger.debug(f"Test set initial shape: {X_test.shape}")
+            self.logger.debug(f"Recalibration set initial shape: {X_recal.shape}")
+
+        else:
+            X_train = X_temp
+            y_train_df = y_temp_df
+            X_recal = None
+            y_recal_df = None
+
+            self.logger.info(
+                f"Data successfully split into Train ({len(X_train):,}), and "
+                f"Test ({len(X_test):,}) sets."
+            )
+            self.logger.debug(f"Train set initial shape: {X_train.shape}")
+            self.logger.debug(f"Test set initial shape: {X_test.shape}")
+
+        # Extract groups if required
+        groups_train = None
+        cv_cfg = getattr(val_config, "cross_validation", None)
+        if cv_cfg and cv_cfg.group_column:
+            if cv_cfg.group_column in X_train.columns:
+                X_train, groups_train = extract_labels(X_train, [cv_cfg.group_column])
+                groups_train = asarray(groups_train).ravel()
+            else:
+                raise KeyError(
+                    f"Cross-validation group column '{cv_cfg.group_column}' "
+                    f"was not found in dataset columns."
+                )
+
+            self.logger.info("Data successfully prepared with CV groups.")
+            self.logger.debug(
+                f"Train set shape after CV groups removed: {X_train.shape}",
+            )
+
+        val_columns = self._get_validation_columns()
+        if len(val_columns) != 0:
+            # Drop the columns from the validation configuration
+            X_train = X_train.drop(columns=val_columns, errors="ignore")
+            X_test = X_test.drop(columns=val_columns)
+            if X_recal is not None:
+                X_recal = X_recal.drop(columns=val_columns)
+
+            self.logger.info(f"Removed {val_columns} from data.")
+
+        # Final shapes printed to debug
+        self.logger.debug(f"Train set final shape: {X_train.shape}")
+        self.logger.debug(f"Test set final shape: {X_test.shape}")
+        if X_recal is not None:
+            self.logger.debug(f"Recalibration set final shape: {X_recal.shape}")
+
+        return X_train, y_train_df, X_recal, y_recal_df, X_test, y_test_df, groups_train
+
+    def ingest_data(self, **kwargs) -> pd.DataFrame:
+        """
+        Loads the raw dataset specified in the configuration and filters it
+        to retain only predictors, outcomes, and configured group columns.
+
+        Parameters
+        ----------
+        **kwargs : Any
+            Additional keyword arguments passed to the underlying Pandas reader function
+            (e.g., `sheet_name` for Excel, `sep` for CSV).
+
+        Returns
+        -------
+        pd.DataFrame
+            The loaded and filtered dataset.
+
+        Raises
+        ------
+        TypeError
+            If the loaded data is not a pandas DataFrame.
+        KeyError
+            If any configured required columns are missing from the raw dataset.
+
+        """
+        dataset_path = self.config.data.path
+        self.logger.info(f"Ingesting data from {dataset_path}")
+
+        data = load_data(dataset_path, **kwargs)
+        if not isinstance(data, pd.DataFrame):
+            raise TypeError(
+                f"Input data should be a pd.DataFrame, but got {type(data)}"
+            )
+
+        self.logger.debug(f"Loaded data shape: {data.shape}")
+
+        # Collect required columns (predictors & outcomes)
+        required_cols = []
+        if hasattr(self.config, "data"):
+            required_cols.extend(getattr(self.config.data, "predictors", []))
+            required_cols.extend(getattr(self.config.data, "outcomes", []))
+
+        # Collect group columns from validation splits (test, recalibration, cross-validation)
+        required_cols += self._get_validation_columns()
+
+        # Deduplicate while preserving order
+        unique_cols = list(dict.fromkeys(required_cols))
+
+        # Validate column existence
+        missing_cols = [col for col in unique_cols if col not in data.columns]
+        if missing_cols:
+            raise KeyError(
+                f"The following required columns were missing from the dataset: {missing_cols}"
+            )
+
+        # Filter out unneeded columns
+        filtered_data = data[unique_cols].copy()
+        self.logger.info(
+            f"Filtered dataset from {len(data.columns)} down to {len(unique_cols)} required columns."
+        )
+        self.logger.debug(f"Filtered data shape: {filtered_data.shape}")
+
+        return pd.DataFrame(filtered_data)
+
+    def _get_validation_columns(self) -> list[str]:
+        """
+        Collect group columns from validation splits
+        (test, recalibration, cross-validation)
+
+        Returns
+        -------
+        unique_cols : list[str]
+            Unique columns from the validation configuration.
+
+        """
+        val_columns = []
+        # Collect group columns from validation splits (test, recalibration, cross-validation)
+        val_cfg = getattr(getattr(self.config, "workflow", None), "validation", None)
+        if val_cfg:
+            for split_name in ["test_split", "recalibration_split", "cross_validation"]:
+                split = getattr(val_cfg, split_name, None)
+                if split and getattr(split, "group_column", None):
+                    val_columns.append(split.group_column)
+
+        unique_cols = list(dict.fromkeys(val_columns))
+
+        return unique_cols
+
+    def get_subgroup_specs(self) -> Dict[str, Any]:
+        """
+        Parses `workflow.evaluation.fairness` settings into a dictionary
+        compatible with `MedpipeEvaluator.extract_subgroups`.
+
+        Returns
+        -------
+        subgroup_specs : dict of str to Any
+            Maps stratum column names either to column strings
+            (for discrete categorical groupings) or to lists of range bounds
+            defined under `groups`.
+
+        """
+        eval_cfg = getattr(getattr(self.config, "workflow", None), "evaluation", None)
+        fairness_cfg = getattr(eval_cfg, "fairness", None)
+
+        if not fairness_cfg or not getattr(fairness_cfg, "strata", None):
+            return {}
+
+        strata = fairness_cfg.strata
+        custom_groups = getattr(fairness_cfg, "groups", {}) or {}
+
+        subgroup_specs = {}
+        for column in strata:
+            if column in custom_groups:
+                # Custom ranges e.g. {"AGE": [[18, 50], [51, 120]]}
+                subgroup_specs[column] = custom_groups[column]
+            else:
+                # Column name string for discrete categorical groupby (e.g. "SEX")
+                subgroup_specs[column] = column
+
+        return subgroup_specs
+
+    def extract_stratum_subgroup(
+        self,
+        X: pd.DataFrame,
+        column: str,
+        group: Any,
+        y: pd.DataFrame | None = None,
+    ) -> Tuple[pd.DataFrame, pd.DataFrame | None]:
+        """
+        Extract a stratified subgroup from features (and optional target labels).
+
+        Resolves continuous range bounds or discrete categorical identifiers.
+
+        Parameters
+        ----------
+        X : pd.DataFrame
+            Feature matrix containing the stratification column.
+        column : str
+            Name of the column defining the stratum (e.g., 'AGE', 'SEX').
+        group : Any
+            The specific subgroup identifier or range (e.g., 'M', (18, 65), '[18, 65)').
+        y : pd.DataFrame, optional
+            Corresponding ground truth label DataFrame aligned with X. Default is None.
+
+        Returns
+        -------
+        X_subgroup : pd.DataFrame
+            Filtered feature DataFrame for the specified stratum group.
+        y_subgroup : pd.DataFrame or None
+            Filtered label DataFrame matching X_subgroup index, or None if y was not provided.
+
+        """
+        self.logger.info(
+            f"Extracting subgroup for stratum '{column}' matching group: {group}"
+        )
+
+        mask = resolve_subgroup_mask(X, column=column, group=group)
+        n_matched = mask.sum()
+
+        if n_matched == 0:
+            self.logger.warning(
+                f"Subgroup extraction returned 0 samples for column '{column}' and group '{group}'."
+            )
+
+        X_subgroup = X.loc[mask].copy()
+        y_subgroup = y.loc[mask].copy() if y is not None else None
+
+        self.logger.debug(
+            f"{len(mask)} samples in stratum '{column}' matching group: {group}",
+        )
+        return X_subgroup, y_subgroup
+
+    def build_preprocessor(self) -> Optional[Pipeline]:
+        """
+        Constructs an sklearn Pipeline for data transformation based on the configuration.
+
+        Parses the workflow configuration to build a sequence of `ColumnTransformer`
+        objects, mapping specific operations to requested columns.
+
+        Returns
+        -------
+        Optional[Pipeline]
+            A configured scikit-learn `Pipeline` containing the cascaded
+            transformations, or `None` if preprocessing is disabled or omitted.
+
+        """
+        preprocessing_dict = self.config.workflow.preprocessing
+
+        if preprocessing_dict and preprocessing_dict.preprocess:
+            self.logger.info("Constructing preprocessing pipeline.")
+            steps = []
+
+            if preprocessing_dict.operations:
+                ct_columns_dict = {pred: pred for pred in self.config.data.predictors}
+
+                for i, operation in enumerate(preprocessing_dict.operations):
+                    op_type = self._check_operation(operation.name)
+                    op_extras = (
+                        {} if not operation.model_extra else operation.model_extra
+                    )
+
+                    ct_columns = [
+                        ct_columns_dict[column] for column in operation.columns
+                    ]
+
+                    self.logger.debug(
+                        f"Creating operation {i+1}: {operation} on columns {ct_columns}"
+                    )
+                    ct = ColumnTransformer(
+                        [(f"op_{i+1}", op_type(**op_extras), ct_columns)],
+                        remainder="passthrough",
+                    )
+                    ct.set_output(transform="pandas")
+
+                    if i == len(preprocessing_dict.operations) - 1:
+                        ct.set_output(transform="default")
+
+                    steps.append((f"transformer_{i+1}", ct))
+
+                    ct_columns_dict = {
+                        pred: (
+                            f"remainder__{column}"
+                            if column not in ct_columns
+                            else f"op_{i+1}__{column}"
+                        )
+                        for (pred, column) in ct_columns_dict.items()
+                    }
+
+            return Pipeline(steps=steps)
+
+        self.logger.info(
+            "No preprocessing steps specified; skipping pipeline creation."
+        )
+        return None
+
+    def _check_operation(self, op: str) -> type:
+        """
+        Validates whether a requested preprocessing operation exists.
+
+        Delegates the lookup to the `PreprocessorRegistry`.
+
+        Parameters
+        ----------
+        op : str
+            The string name of the operation to validate and retrieve.
+
+        Returns
+        -------
+        type
+            The uninstantiated class for the preprocessing operation.
+
+        Raises
+        ------
+        ValueError
+            If the operation cannot be found in the registry or scikit-learn.
+
+        """
+        return PreprocessorRegistry.get(op)
