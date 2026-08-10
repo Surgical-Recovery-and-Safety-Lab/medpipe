@@ -1,6 +1,5 @@
 [project]
 name = "medpipe"
-version = "0.4.0"
 description = "Clinical AI pipeline developement following TRIPOD+AI guidelines"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -22,6 +21,7 @@ classifiers = [
   "Topic :: Scientific/Engineering :: Artificial Intelligence",
   "Topic :: Scientific/Engineering :: Medical Science Apps.",
 ]
+dynamic = ["version"]
 
 # Core runtime dependencies
 dependencies = [
@@ -59,3 +59,6 @@ testpaths = ["tests"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.dynamic]
+version = { attr = "medpipe.__version__" }
