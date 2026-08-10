@@ -25,6 +25,7 @@ __all__ = [
     # I/O utilities
     "load_data",
     "read_toml_configuration",
+    "DataLoaderRegistry",
     # Logging
     "get_console_logger",
     "add_file_handler",
