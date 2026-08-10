@@ -59,31 +59,33 @@ class MedpipeDisplayer:
     Methods
     -------
     plot_roc_curve(y_true, probas, outcome="default", label=None,
-    n_bootstraps=1000, save=True, show=False, **style_kwargs)
+    n_bootstraps=None, save=None, show=None, **style_kwargs)
         Compute ROC statistics, render curve with optional bootstrap CIs,
         and save output.
     plot_precision_recall_curve(y_true, probas, outcome="default",
-    label=None, n_bootstraps=1000, save=True, show=False, **style_kwargs)
+    label=None, n_bootstraps=None, save=None, show=None, **style_kwargs)
         Compute PR statistics, render curve with optional bootstrap CIs,
         and save output.
-    plot_probability_distribution(probas, outcome="default", n_bins=10,
-    label=None, save=True, show=False, **style_kwargs)
+    plot_probability_distribution(probas, outcome="default", n_bins=None,
+    label=None, save=None, show=None, **style_kwargs)
         Render predicted probability distribution histogram and save output.
-    plot_reliability_diagram(y_true, probas, outcome="default", n_bins=10,
-    strategy="uniform", label=None, n_bootstraps=1000, save=True,
+    plot_reliability_diagram(y_true, probas, outcome="default", n_bins=None,
+    strategy=None, label=None, n_bootstraps=None, save=None,
     show=False, **style_kwargs)
         Compute calibration metrics (binned or spline), render reliability
         diagram with optional CIs, and save output.
     plot_strata_heatmap(outcomes, metric, strata, scores, strata_scores,
-    save=True, show=False, **style_kwargs)
+    save=None, show=None, **style_kwargs)
         Validate subgroup inputs, compute delta matrix, render strata heatmap,
         and save output.
     plot_dca_curve(y_true, probas, outcome="default", thresholds=None,
-    label=None, save=True, show=False, **style_kwargs)
+    label=None, save=None, show=None, **style_kwargs)
         Compute Net Benefit across decision thresholds, render DCA plot,
         and save output.
-    plot_all(y_true, probas, outcome="default", n_bootstraps=1000, save=True,
-    show=False, **style_kwargs)
+    plot_all_heatmaps(evaluations, metrics=None, save=None, show=None, **style_kwargs)
+        Generate subgroup delta heatmaps across outcomes for each evaluated metric.
+    plot_all(y_true, probas, outcome="default", n_bootstraps=None, save=None,
+    show=None, **style_kwargs)
         Execute all core model evaluation visualization routines
         (ROC, PR, distribution, reliability, DCA) for a given outcome.
     """
