@@ -427,3 +427,65 @@ class Medpipe:
             show=show,
             **style_kwargs,
         )
+
+    @classmethod
+    def load(cls, run_dir: Union[str, Path]) -> Medpipe:
+        """Reconstruct a Medpipe instance from a run artifact directory.
+
+        Parses the saved JSON configuration and restores serialized outcome model artifacts
+        into the runner engine.
+
+        Parameters
+        ----------
+        run_dir : str or Path
+            Directory path of a previously executed Medpipe run artifact.
+
+        Returns
+        -------
+        pipe : Medpipe
+            Re-instantiated Medpipe object ready for inference,
+            evaluation, or visualization.
+
+        Raises
+        ------
+        FileNotFoundError
+            If the resolved configuration JSON file is missing from the run directory.
+
+        """
+        run_path = Path(run_dir)
+        config_path = run_path / "resolved_config.json"
+        models_dir = run_path / "models"
+
+        if not config_path.exists():
+            # Fallback check if named resolved_config.json
+            config_path = run_path / "resolved_config.json"
+            if not config_path.exists():
+                raise FileNotFoundError(
+                    "Cannot load Medpipe instance: Configuration JSON missing "
+                    f"in '{run_path}'"
+                )
+
+        # 1. Load JSON dict and instantiate MedpipeConfig
+        import json
+
+        import joblib
+
+        with open(config_path, "r", encoding="utf-8") as f:
+            config_dict = json.load(f)
+
+        mp_config = MedpipeConfig.model_validate(config_dict)
+
+        # 2. Instantiate Medpipe with reconstructed MedpipeConfig
+        pipe = cls(config=mp_config, base_artifact_dir=run_path.parent)
+        pipe.orchestrator.run_dir = run_path
+        pipe.displayer.run_dir = run_path
+
+        # 3. Restore serialized model binaries into runner engine
+        if models_dir.exists():
+            project_name = pipe.mp_config.meta.project_name
+            pipe.runner.fitted_models = joblib.load(
+                models_dir / f"{project_name}_fitted.joblib"
+            )
+        pipe.logger.info(f"Succesfully loaded Medpipe from {run_dir}")
+
+        return pipe
