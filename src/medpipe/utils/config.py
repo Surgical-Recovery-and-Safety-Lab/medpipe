@@ -294,7 +294,8 @@ class WorkflowConfig(BaseModel):
 
 # --- MODEL SCHEMAS ---
 class RecalibrationConfig(BaseModel):
-    method: Literal["isotonic", "sigmoid", "temperature"]
+    recalibrate: bool
+    method: Literal["isotonic", "sigmoid", "temperature"] = Field(default="isotonic")
     hyperparameters: dict[str, Any] = Field(default_factory=dict)
     model_config = {"extra": "forbid"}
 
@@ -462,6 +463,11 @@ class MedpipeConfig(BaseModel):
                             base_setup["recalibration"]["hyperparameters"].update(
                                 override_setup["recalibration"]["hyperparameters"]
                             )
+                        if "recalibrate" in override_setup["recalibration"]:
+                            base_setup["recalibration"]["recalibrate"] = override_setup[
+                                "recalibration"
+                            ]["recalibrate"]
+
                     else:
                         # Base had no recalibration, overwrite entirely
                         base_setup["recalibration"] = override_setup["recalibration"]

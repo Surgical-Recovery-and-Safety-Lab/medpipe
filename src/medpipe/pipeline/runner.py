@@ -394,8 +394,13 @@ class MedpipeRunner:
 
         """
         recal_config = model_config.get("recalibration")
+        recal_flag = False
 
-        if X_recal is not None and not X_recal.empty and recal_config:
+        if recal_config is not None:
+            recal_flag = recal_config["recalibrate"]
+
+        if X_recal is not None and not X_recal.empty and recal_flag:
+            assert recal_config is not None  # Avoid diagnostic error
             assert y_recal is not None  # Avoid diagnostic error
             self.logger.info(f"[{outcome}] Fitting recalibrator on holdout dataset.")
             self.logger.debug(
