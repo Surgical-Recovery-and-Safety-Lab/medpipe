@@ -429,50 +429,59 @@ class MedpipeConfig(BaseModel):
         """Cascade default_model settings into outcome_overrides."""
         resolved = {}
         for outcome in self.data.outcomes:
-            # Start with a copy of the default model setup
             base_setup = self.default_model.model_dump()
 
-            # If the user provided an override for this outcome, update the base
             if outcome in self.outcome_overrides:
                 override_setup = self.outcome_overrides[outcome].model_dump(
                     exclude_unset=True
                 )
 
-                # Update base algorithm
-                if "algorithm" in override_setup:
+                # 1. Algorithm & Hyperparameters
+                if (
+                    "algorithm" in override_setup
+                    and override_setup["algorithm"] != base_setup["algorithm"]
+                ):
                     base_setup["algorithm"] = override_setup["algorithm"]
-
-                # Merge predictor hyperparameters
-                if "hyperparameters" in override_setup:
+                    # Algorithm changed: replace hyperparameters entirely
+                    # to prevent collisions
+                    base_setup["hyperparameters"] = override_setup.get(
+                        "hyperparameters", {}
+                    )
+                elif "hyperparameters" in override_setup:
+                    # Same algorithm: deep-merge hyperparameters
                     base_setup["hyperparameters"].update(
                         override_setup["hyperparameters"]
                     )
 
-                # Handle recalibration merge
-                if (
-                    "recalibration" in override_setup
-                    and override_setup["recalibration"]
-                ):
-                    if base_setup.get("recalibration"):
-                        # Both have recalibration, do a deep merge
-                        if "method" in override_setup["recalibration"]:
-                            base_setup["recalibration"]["method"] = override_setup[
-                                "recalibration"
-                            ]["method"]
-                        if "hyperparameters" in override_setup["recalibration"]:
-                            base_setup["recalibration"]["hyperparameters"].update(
-                                override_setup["recalibration"]["hyperparameters"]
-                            )
-                        if "recalibrate" in override_setup["recalibration"]:
-                            base_setup["recalibration"]["recalibrate"] = override_setup[
-                                "recalibration"
-                            ]["recalibrate"]
-
+                # 2. Recalibration
+                if "recalibration" in override_setup:
+                    override_recal = override_setup["recalibration"]
+                    if override_recal is None:
+                        # Explicitly disable recalibration for this outcome
+                        base_setup["recalibration"] = None
+                    elif base_setup.get("recalibration") is None:
+                        base_setup["recalibration"] = override_recal
                     else:
-                        # Base had no recalibration, overwrite entirely
-                        base_setup["recalibration"] = override_setup["recalibration"]
+                        if (
+                            "method" in override_recal
+                            and override_recal["method"]
+                            != base_setup["recalibration"]["method"]
+                        ):
+                            base_setup["recalibration"] = override_recal
+                        else:
+                            if "recalibrate" in override_recal:
+                                base_setup["recalibration"]["recalibrate"] = (
+                                    override_recal["recalibrate"]
+                                )
+                            if "method" in override_recal:
+                                base_setup["recalibration"]["method"] = override_recal[
+                                    "method"
+                                ]
+                            if "hyperparameters" in override_recal:
+                                base_setup["recalibration"]["hyperparameters"].update(
+                                    override_recal["hyperparameters"]
+                                )
 
-            # Save the fully resolved configuration for this outcome
             resolved[outcome] = ModelSetup(**base_setup)
 
         self.resolved_models = resolved
