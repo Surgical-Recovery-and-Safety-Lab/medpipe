@@ -313,8 +313,12 @@ class Medpipe:
         """
         self.logger.info("Executing full Medpipe pipeline end-to-end.")
 
+        run_mode = self.mp_config.meta.run_mode
+
+        self.logger.debug(f"Executing full Medpipe pipeline in {run_mode} mode.")
+
         n_steps = 3
-        if self.mp_config.meta.run_mode == "audit":
+        if run_mode == "audit" or run_mode == "eval":
             n_steps = 4
 
         # 1. Prepare data splits via orchestrator
@@ -352,7 +356,7 @@ class Medpipe:
                 save_artifacts=True,
             )
 
-        if self.mp_config.meta.run_mode == "audit":
+        if run_mode == "audit" or run_mode == "eval":
             self.logger.info(f"Step 4/{n_steps}: Plotting graphs.")
             for outcome in outcomes:
                 y_true_outcome = y_test[outcome].to_numpy()
