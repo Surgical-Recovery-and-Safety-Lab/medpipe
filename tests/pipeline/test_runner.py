@@ -36,6 +36,7 @@ def mock_orchestrator():
     mock_config.meta.run_mode = "cv"
     mock_config.meta.project_name = "test_project"
     mock_config.data.outcomes = ["MORTALITY_30D"]
+    mock_config.workflow.n_jobs = 4
     mock_config.workflow.validation.cross_validation.strategy = "random"
     mock_config.workflow.validation.cross_validation.n_splits = 2
     mock_config.workflow.validation.cross_validation.random_state = 42
@@ -245,6 +246,7 @@ class TestTrainModelCv:
         assert np.array_equal(call_kwargs["y"], y_train)
         assert call_kwargs["groups"] is None
         assert call_kwargs["cv"] == cv_splitter
+        assert call_kwargs["n_jobs"] == 4
         assert isinstance(call_kwargs["scoring"], dict)
         assert "accuracy" in call_kwargs["scoring"]
 
@@ -308,6 +310,7 @@ class TestTrainModelCv:
         assert call_kwargs["estimator"] == mock_pipeline
         assert call_kwargs["param_grid"] == expected_params
         assert call_kwargs["cv"] == cv_splitter
+        assert call_kwargs["n_jobs"] == 4
         assert isinstance(call_kwargs["scoring"], dict)
         assert call_kwargs["refit"] == "accuracy"
 
@@ -473,6 +476,72 @@ class TestTrainModelCv:
                 groups_train=None,
                 cv_splitter=cv_splitter,
             )
+
+    @pytest.mark.parametrize("n_jobs", [1, 4, -1])
+    @patch("medpipe.pipeline.runner.MedpipeRunner._save_cv_results")
+    @patch("medpipe.pipeline.runner.cross_validate")
+    def test_train_model_cv_standard_cv_passes_n_jobs(
+        self, mock_cv, mock_save_cv_results, mock_orchestrator, dummy_data, n_jobs
+    ):
+        """Test _train_model_cv propagates configured n_jobs to sklearn cross_validate."""
+        mock_orchestrator.config.workflow.n_jobs = n_jobs
+        runner = MedpipeRunner(orchestrator=mock_orchestrator)
+
+        X_train, y_train, _, _ = dummy_data
+
+        runner._train_model_cv(
+            outcome="MORTALITY_30D",
+            pipeline=MagicMock(spec=Pipeline),
+            hyperparams={"max_depth": 3},
+            X_train=X_train,
+            y_train=y_train,
+            groups_train=None,
+            cv_splitter=MagicMock(),
+        )
+
+        mock_cv.assert_called_once()
+        assert mock_cv.call_args[1]["n_jobs"] == n_jobs
+
+    @pytest.mark.parametrize("n_jobs", [1, 4, -1])
+    @patch("medpipe.pipeline.runner.MedpipeRunner._save_cv_results")
+    @patch("medpipe.pipeline.runner.GridSearchCV")
+    def test_train_model_cv_grid_search_passes_n_jobs(
+        self,
+        mock_grid_search,
+        mock_save_cv_results,
+        mock_orchestrator,
+        dummy_data,
+        n_jobs,
+    ):
+        """Test _train_model_cv propagates configured n_jobs to sklearn GridSearchCV."""
+        mock_orchestrator.config.workflow.n_jobs = n_jobs
+        mock_orchestrator.config.workflow.validation.cross_validation.grid_search = True
+        mock_orchestrator.config.workflow.evaluation.metrics.metrics = ["accuracy"]
+
+        runner = MedpipeRunner(orchestrator=mock_orchestrator)
+        X_train, y_train, _, _ = dummy_data
+
+        mock_search_instance = MagicMock()
+        mock_grid_search.return_value = mock_search_instance
+        mock_search_instance.best_estimator_ = "best_model"
+        mock_search_instance.best_score_ = 0.9102
+        mock_search_instance.cv_results_ = {
+            "params": [{"classifier__max_depth": 3}],
+            "mean_test_accuracy": [0.85],
+        }
+
+        runner._train_model_cv(
+            outcome="MORTALITY_30D",
+            pipeline=MagicMock(spec=Pipeline),
+            hyperparams={"max_depth": [3, 5]},
+            X_train=X_train,
+            y_train=y_train,
+            groups_train=None,
+            cv_splitter=MagicMock(),
+        )
+
+        mock_grid_search.assert_called_once()
+        assert mock_grid_search.call_args[1]["n_jobs"] == n_jobs
 
 
 class TestCalibrateModel:

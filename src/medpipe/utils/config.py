@@ -277,6 +277,7 @@ class WorkflowConfig(BaseModel):
     """The master schema for the workflow subconfiguration file."""
 
     random_state: int | None = Field(default=42, ge=0)
+    n_jobs: int | None = Field(default=1, ge=-1)
 
     preprocessing: PreprocessingConfig | None = None
     validation: ValidationSubConfig

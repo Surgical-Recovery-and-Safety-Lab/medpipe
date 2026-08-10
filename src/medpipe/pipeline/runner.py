@@ -275,6 +275,7 @@ class MedpipeRunner:
         except AttributeError:
             configured_metrics = ["roc_auc"]
 
+        n_jobs = self.orchestrator.config.workflow.n_jobs
         cv_cfg = self.orchestrator.config.workflow.validation.cross_validation
         assert cv_cfg
 
@@ -308,13 +309,16 @@ class MedpipeRunner:
             self.logger.debug(
                 f"[{outcome}] GridSearchCV parameter grid: {pipeline_params}"
             )
+            self.logger.debug(
+                f"[{outcome}] GridSearchCV parallel jobs number: {n_jobs}"
+            )
             search = GridSearchCV(
                 estimator=pipeline,
                 param_grid=pipeline_params,
                 cv=cv_splitter,
                 scoring=scorers_dict,
                 refit=configured_metrics[0],  # type: ignore
-                n_jobs=-1,
+                n_jobs=n_jobs,
             )
             search.fit(X_train, y_train, groups=groups_train)
 
@@ -332,6 +336,9 @@ class MedpipeRunner:
         else:
             self.logger.info(f"[{outcome}] Running standard cross-validation.")
 
+            self.logger.debug(
+                f"[{outcome}] Cross-validation parallel jobs number: {n_jobs}"
+            )
             results = cross_validate(
                 estimator=pipeline,
                 X=X_train,
@@ -339,7 +346,7 @@ class MedpipeRunner:
                 groups=groups_train,
                 cv=cv_splitter,
                 scoring=scorers_dict,
-                n_jobs=-1,
+                n_jobs=n_jobs,
             )
 
             # Convert cross_validate dict to DataFrame & save artifacts

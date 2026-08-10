@@ -13,37 +13,6 @@ from pydantic import ValidationError
 from medpipe.metrics.core import METRICS
 from medpipe.utils.config import *
 
-# ------------------------------------------------------------------------------
-# FIXTURES for minimal required nested configurations
-# ------------------------------------------------------------------------------
-
-
-@pytest.fixture
-def valid_workflow_dict():
-    """Provides a minimal valid workflow dictionary to satisfy
-    MedpipeConfig requirements."""
-    return {
-        "validation": {
-            "test_split": {
-                "strategy": "group",
-                "group_column": "OP_YEAR",
-                "values": [2024],
-            },
-            "cross_validation": {
-                "strategy": "group",
-                "grid_search": None,
-                "group_column": "DHB_NAME",
-                "n_splits": 3,
-            },
-        },
-        "evaluation": {
-            "metrics": {"metrics": ["roc_auc"]},
-            "calibration": {"strategy": "uniform", "n_bootstraps": 10},
-            "fairness": {"strata": ["SEX"]},
-        },
-    }
-
-
 # ==============================================================================
 # SCHEMA VALIDATION TESTS
 # ==============================================================================
@@ -871,6 +840,7 @@ class TestWorkflowConfig:
         """Creates a fresh valid config dict to override."""
         config_dict = {
             "random_state": None,
+            "n_jobs": 1,
             "preprocessing": {
                 "preprocess": True,
                 "operations": [
@@ -1150,6 +1120,7 @@ class TestMedpipeConfig:
             },
             "workflow": {
                 "random_state": 42,
+                "n_jobs": 1,
                 "preprocessing": None,
                 "validation": {
                     "cross_validation": {
