@@ -396,6 +396,34 @@ class TestComputeRocData:
         assert upper_ci is None
 
 
+class TestFormatStratumLabel:
+    """Tests for MedpipeDisplayer._format_stratum_label static helper."""
+
+    @pytest.mark.parametrize(
+        "stratum_var, cat_key, expected",
+        [
+            ("AGE", "[18, 50]", "AGE: 18–50"),
+            ("AGE", "[51, 120]", "AGE: ≥ 51"),
+            ("AGE", "[100, 150]", "AGE: ≥ 100"),
+            ("SEX", "F", "SEX: F"),
+            ("SEX", "M", "SEX: M"),
+            ("ETHNICITY", "European", "ETHNICITY: European"),
+            (
+                "AGE",
+                "[18, invalid]",
+                "AGE: [18, invalid]",
+            ),  # Fallback gracefully on syntax error
+            ("STAGE", "Stage 1", "STAGE: Stage 1"),
+        ],
+    )
+    def test_format_stratum_label_cases(
+        self, stratum_var: str, cat_key: str, expected: str
+    ) -> None:
+        """Test formatting of interval strings, open-ended bounds, and categorical keys."""
+        result = MedpipeDisplayer._format_stratum_label(stratum_var, cat_key)
+        assert result == expected
+
+
 class TestSaveFigure:
     """Tests for the internal `_save_figure` method."""
 
@@ -770,3 +798,29 @@ class TestPlotAll:
         ]
         for file_path in expected_files:
             assert file_path.exists()
+
+    def test_plot_all_heatmaps_uses_formatted_stratum_labels(
+        self, mock_orchestrator, sample_evaluations
+    ) -> None:
+        """Verify that rendered heatmaps contain formatted row labels
+        (e.g. 'AGE: 18–50')."""
+        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+
+        heatmap_plots = displayer.plot_all_heatmaps(
+            evaluations=sample_evaluations,
+            metrics=["roc_auc"],
+            save=False,
+            show=False,
+        )
+
+        _, ax = heatmap_plots["roc_auc"]
+
+        # Y-axis labels include "All strata" followed by the formatted row labels
+        rendered_yticklabels = [label.get_text() for label in ax.get_yticklabels()]
+
+        assert "All strata" in rendered_yticklabels
+        assert "SEX: F" in rendered_yticklabels
+        assert "SEX: M" in rendered_yticklabels
+        assert "AGE: 18–50" in rendered_yticklabels
+        assert "AGE: ≥ 51" in rendered_yticklabels
+        assert "AGE: [51, 120]" not in rendered_yticklabels  # Raw string transformed
