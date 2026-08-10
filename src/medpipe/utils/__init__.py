@@ -14,7 +14,7 @@ from medpipe.utils.exceptions import (
     file_checks,
     path_checks,
 )
-from medpipe.utils.io import load_data, read_toml_configuration
+from medpipe.utils.io import DataLoaderRegistry, load_data, read_toml_configuration
 from medpipe.utils.logger import add_file_handler, get_console_logger
 from medpipe.utils.registry import BaseRegistry
 from medpipe.utils.reproducibility import ArtifactManager
