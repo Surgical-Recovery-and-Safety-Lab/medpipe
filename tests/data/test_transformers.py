@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Test functions for the data.transformers module."""
 
 from typing import Any
