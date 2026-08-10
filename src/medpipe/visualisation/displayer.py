@@ -1126,6 +1126,130 @@ class MedpipeDisplayer:
 
         return fig, ax
 
+    def plot_all_heatmaps(
+        self,
+        evaluations: Dict[str, Any],
+        metrics: Optional[list[str]] = None,
+        save: Optional[bool] = None,
+        show: Optional[bool] = None,
+        **style_kwargs: Any,
+    ) -> Dict[str, Tuple[Figure | SubFigure, Axes]]:
+        """Generate subgroup delta heatmaps across outcomes for each evaluated metric.
+
+        Parameters
+        ----------
+        evaluations : dict of str to Any
+            Nested evaluations dictionary mapping outcome keys to their overall and
+            subgroup performance evaluation results.
+        metrics : list of str, optional
+            List of metric names to render heatmaps for (e.g., ['auc', 'ici']).
+            If None, inferred from the first outcome's overall metrics.
+        save : bool, optional
+            Automatically save all generated heatmap figures to disk.
+        show : bool, optional
+            Whether to display figures interactively before closing.
+        **style_kwargs : Any
+            Additional style parameters forwarded to `plot_strata_heatmap`.
+
+        Returns
+        -------
+        heatmap_plots : dict of str to (Figure, Axes)
+            Dictionary mapping metric names to their rendered (Figure, Axes) tuples.
+
+        """
+        outcomes = list(evaluations.keys())
+        if not outcomes:
+            return {}
+
+        first_eval = evaluations[outcomes[0]]
+        overall_dict = first_eval.get("overall", {})
+        strata_dict = first_eval.get("strata", {})
+
+        target_metrics = metrics or list(overall_dict.keys())
+
+        # Flatten nested strata dict structure: stratum_variable -> category -> metric
+        # Example row labels: "SEX: F", "SEX: M", "AGE: [18, 50]"
+        strata_tuples: list[Tuple[str, str]] = []
+        strata_row_labels: list[str] = []
+
+        for stratum_var, cat_dict in strata_dict.items():
+            for cat_key in cat_dict.keys():
+                strata_tuples.append((stratum_var, cat_key))
+                strata_row_labels.append(f"{stratum_var}: {cat_key}")
+
+        if not strata_tuples:
+            self.logger.warning(
+                "No subgroup strata found in evaluation dict; skipping heatmaps."
+            )
+            return {}
+
+        heatmap_plots: Dict[str, Tuple[Figure | SubFigure, Axes]] = {}
+
+        for metric in target_metrics:
+            # Look up MetricSpec display_name
+            try:
+                spec = MetricRegistry.get(metric)
+                disp_name = (
+                    getattr(spec, "display_name", None)
+                    or metric.replace("_", " ").upper()
+                )
+            except Exception:
+                disp_name = metric.replace("_", " ").upper()
+
+            self.logger.info(
+                f"--- Starting heatmap plotting for metric: {disp_name} ---"
+            )
+            # Extract unstratified baseline point estimates across outcomes
+            scores_list = []
+            for out in outcomes:
+                entry = evaluations[out].get("overall", {}).get(metric, {})
+                val = (
+                    entry.get("point_estimate", np.nan)
+                    if isinstance(entry, dict)
+                    else entry
+                )
+                scores_list.append(val)
+            scores = np.array(scores_list)
+
+            # Extract stratum point estimates matrix (shape: n_strata_rows, n_outcomes)
+            strata_scores_list = []
+            for stratum_var, cat_key in strata_tuples:
+                row = []
+                for out in outcomes:
+                    entry = (
+                        evaluations[out]
+                        .get("strata", {})
+                        .get(stratum_var, {})
+                        .get(cat_key, {})
+                        .get(metric, {})
+                    )
+                    val = (
+                        entry.get("point_estimate", np.nan)
+                        if isinstance(entry, dict)
+                        else entry
+                    )
+                    row.append(val)
+                strata_scores_list.append(row)
+
+            strata_scores = np.array(strata_scores_list)
+
+            # Render heatmap for current metric
+            heatmap_plots[metric] = self.plot_strata_heatmap(
+                outcomes=outcomes,
+                metric=metric,
+                strata=strata_row_labels,
+                scores=scores,
+                strata_scores=strata_scores,
+                save=save,
+                show=show,
+                **style_kwargs.copy(),
+            )
+
+            self.logger.info(
+                f"--- Finished heatmap plotting for metric: {disp_name} ---"
+            )
+        return heatmap_plots
+
     def plot_all(
         self,
         y_true: np.ndarray,
