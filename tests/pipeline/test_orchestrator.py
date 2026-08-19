@@ -548,6 +548,62 @@ class TestPrepareData:
 
     @patch("medpipe.pipeline.orchestrator.split_data")
     @patch("medpipe.pipeline.orchestrator.extract_labels")
+    def test_prepare_data_with_extra_kwargs(
+        self,
+        mock_extract_labels,
+        mock_split_data,
+        mock_add_handler,
+        mock_get_logger,
+        mock_artifact_mgr,
+        mock_config,
+    ):
+        """Test data preparation handles missing recalibration and cross-validation configs gracefully."""
+        mock_config.data.outcomes = ["MORTALITY_30D"]
+
+        val_config = MagicMock()
+        val_config.test_split.strategy = "random"
+        val_config.test_split.group_column = None
+        val_config.recalibration_split = None
+        val_config.cross_validation = None
+        mock_config.workflow.validation = val_config
+
+        orchestrator = MedpipeOrchestrator(config=mock_config)
+
+        raw_data = pd.DataFrame({"AGE": [25, 30, 45], "MORTALITY_30D": [0, 1, 0]})
+        orchestrator.ingest_data = MagicMock(return_value=raw_data)
+
+        X_all = pd.DataFrame({"AGE": [25, 30, 45]})
+        y_all_arr = np.array([[0], [1], [0]])
+        mock_extract_labels.return_value = (X_all, y_all_arr)
+
+        X_temp = pd.DataFrame({"AGE": [25, 30]}, index=pd.Index([0, 1]))
+        y_temp_arr = np.array([[0], [1]])
+        X_test_df = pd.DataFrame({"AGE": [45]}, index=pd.Index([2]))
+        y_test_arr = np.array([[0]])
+
+        mock_split_data.return_value = (X_temp, y_temp_arr, X_test_df, y_test_arr)
+
+        X_train, y_train, X_recal, y_recal, X_test, y_test, groups = (
+            orchestrator.prepare_data(**{"extra_arg": 1})
+        )
+
+        # Check that extra arguments were passed
+        orchestrator.ingest_data.assert_called_once_with(extra_arg=1)
+
+        assert mock_split_data.call_count == 1
+        assert mock_extract_labels.call_count == 1
+
+        assert X_recal is None
+        assert y_recal is None
+        assert groups is None
+
+        assert isinstance(X_train, pd.DataFrame)
+        assert isinstance(X_test, pd.DataFrame)
+        assert list(X_train.columns) == ["AGE"]
+        assert list(X_test.columns) == ["AGE"]
+
+    @patch("medpipe.pipeline.orchestrator.split_data")
+    @patch("medpipe.pipeline.orchestrator.extract_labels")
     def test_prepare_data_missing_cv_group_column_raises_key_error(
         self,
         mock_extract_labels,
