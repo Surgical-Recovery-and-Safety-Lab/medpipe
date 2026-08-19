@@ -322,9 +322,10 @@ class Medpipe:
             n_steps = 4
 
         # 1. Prepare data splits via orchestrator
+        data_kwargs = self.mp_config.data.kwargs  # Get extra data arguments
         self.logger.info(f"Step 1/{n_steps}: Ingesting and splitting dataset.")
         X_train, y_train, X_recal, y_recal, X_test, y_test, groups_train = (
-            self.orchestrator.prepare_data()
+            self.orchestrator.prepare_data(**data_kwargs)
         )
 
         # 2. Fit models via runner
