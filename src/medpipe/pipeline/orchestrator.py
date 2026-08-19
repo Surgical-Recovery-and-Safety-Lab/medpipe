@@ -108,13 +108,14 @@ class MedpipeOrchestrator:
         )
 
         dataset_path = self.config.data.path if hasattr(self.config, "data") else None
+        dest_dir = self.run_dir / "env"
 
         self.artifact_manager.save_env_state(
-            destination_dir=self.run_dir / "env",
+            destination_dir=dest_dir,
             config=config_dict,
             dataset_path=dataset_path,
         )
-        self.artifact_manager.save_resolved_config(config_dict, self.run_dir)
+        self.artifact_manager.save_resolved_config(config_dict, dest_dir)
         self.logger.info("Reproducibility artifacts saved successfully.")
 
     def prepare_data(self, **kwargs) -> Tuple[
