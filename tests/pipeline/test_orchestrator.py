@@ -228,7 +228,7 @@ class TestIngestData:
         mock_artifact_mgr,
         mock_config,
     ):
-        """Test successful ingestion reatins predictors, outcomes, and group columns while filtering extra ones."""
+        """Test successful ingestion of predictors, outcomes, and group columns while filtering extra ones."""
         # 1. Configure predictors, outcomes, and group splits
         mock_config.data.predictors = ["AGE", "BMI"]
         mock_config.data.outcomes = ["MORTALITY_30D"]
@@ -271,6 +271,46 @@ class TestIngestData:
             }
         )
         pd.testing.assert_frame_equal(result, expected_df)
+
+    @patch("medpipe.pipeline.orchestrator.load_data")
+    def test_ingest_data_passes_keyword_args(
+        self,
+        mock_load_data,
+        mock_add_handler,
+        mock_get_logger,
+        mock_artifact_mgr,
+        mock_config,
+    ):
+        """Test successful ingestion of keyword arguments."""
+        # 1. Configure predictors, outcomes, and group splits
+        mock_config.data.predictors = ["AGE", "BMI"]
+        mock_config.data.outcomes = ["MORTALITY_30D"]
+
+        val_config = MagicMock()
+        val_config.test_split.group_column = "OP_YEAR"
+        val_config.recalibration_split.group_column = (
+            "OP_YEAR"  # Tests deduplication logic
+        )
+        val_config.cross_validation.group_column = "DHB_NAME"
+        mock_config.workflow.validation = val_config
+
+        # 2. Raw DataFrame containing required columns + an unneeded column
+        raw_df = pd.DataFrame(
+            {
+                "AGE": [25, 30],
+                "BMI": [22.5, 24.1],
+                "MORTALITY_30D": [0, 1],
+                "OP_YEAR": [2023, 2024],
+                "DHB_NAME": ["Auckland", "Wellington"],
+                "UNNEEDED_COLUMN": ["X", "Y"],
+            }
+        )
+        mock_load_data.return_value = raw_df
+
+        orchestrator = MedpipeOrchestrator(config=mock_config)
+        orchestrator.ingest_data(**{"extra_arg": 1})
+
+        mock_load_data.assert_called_once_with("dummy/path/data.csv", extra_arg=1)
 
     @patch("medpipe.pipeline.orchestrator.load_data")
     def test_ingest_data_missing_required_column_raises_key_error(
