@@ -71,12 +71,6 @@ class DataConfig(BaseModel):
         suffix = data_path.suffix
         if suffix == "":
             raise ValueError("path should be a file, but got no suffix")
-
-        if suffix != ".csv":
-            if suffix != ".parquet":
-                raise ValueError(
-                    f"path should be a .csv or .parquet file, but got suffix {suffix}"
-                )
         return file
 
     @model_validator(mode="after")
