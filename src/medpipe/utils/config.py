@@ -61,7 +61,8 @@ class DataConfig(BaseModel):
     path: str
     predictors: list[str]
     outcomes: list[str]
-    model_config = {"extra": "allow"}
+    kwargs: dict[str, Any] = Field(default_factory=dict)
+    model_config = {"extra": "forbid"}
 
     @field_validator("path")
     @classmethod
