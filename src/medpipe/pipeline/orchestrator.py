@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple, Union
 
@@ -13,6 +14,37 @@ from medpipe.utils.config import MedpipeConfig
 from medpipe.utils.io import load_data, read_toml_configuration
 from medpipe.utils.logger import add_file_handler, get_console_logger, set_verbosity
 from medpipe.utils.reproducibility import ArtifactManager
+
+
+@dataclass(frozen=True)
+class DataSplits:
+    """Container holding prepared feature and target splits.
+
+    Attributes
+    ----------
+    X_train : pd.DataFrame
+        Samples used for training.
+    y_train : pd.DataFrame
+        Training labels.
+    X_recal : pd.DataFrame | None
+        Samples used for recalibration, if available.
+    y_recal : pd.DataFrame | None
+        Recalibration labels, if available.
+    X_test : pd.DataFrame
+        Samples used for testing.
+    y_test : pd.DataFrame
+        Testing labels.
+    groups_train : NDArray
+        Groups used for splitting the training set, if available.
+    """
+
+    X_train: pd.DataFrame
+    y_train: pd.DataFrame
+    X_test: pd.DataFrame
+    y_test: pd.DataFrame
+    X_recal: pd.DataFrame | None = None
+    y_recal: pd.DataFrame | None = None
+    groups_train: NDArray | None = None
 
 
 class MedpipeOrchestrator:
