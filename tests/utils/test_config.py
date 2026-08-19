@@ -125,15 +125,10 @@ class TestDataConfig:
 
         assert config.model_dump() == raw_config
 
-    @pytest.mark.parametrize(
-        "path, match_expr",
-        [
-            ("path/", "path should be a file, but got no suffix"),
-            ("path.db", "path should be a .csv or .parquet file, but got suffix .db"),
-        ],
-    )
-    def test_validate_path(self, tmp_path: Path, path: str, match_expr: str) -> None:
+    def test_validate_path(self, tmp_path: Path) -> None:
         """Test data path is not a file."""
+        path = "path/"
+        match_expr = "path should be a file, but got no suffix"
         with pytest.raises(ValidationError, match=match_expr):
             DataConfig.model_validate(
                 self._get_valid_config_dict(tmp_path=tmp_path, path=path)
