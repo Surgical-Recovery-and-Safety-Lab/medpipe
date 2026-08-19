@@ -716,13 +716,19 @@ class TestMedpipeStressIntegration:
 
             # 2. Verify expected artifacts were created on disk
             assert run_dir.exists()
-            assert (run_dir / "env_state.json").exists()
 
             models_dir = run_dir / "models"
+            res_dir = run_dir / "results"
+            env_dir = run_dir / "env"
+
+            assert res_dir.exists()
+            assert env_dir.exists()
             assert models_dir.exists()
+
+            assert (env_dir / "env_state.json").exists()
             for outcome in config.data.outcomes:
                 assert (models_dir / f"{outcome}_model.joblib").exists()
-                assert (run_dir / f"{outcome}_evaluation_results.json").exists()
+                assert (res_dir / f"{outcome}_evaluation_results.json").exists()
 
         finally:
             # 3. Clean up/delete the run directory after verification
@@ -760,7 +766,7 @@ class TestMedpipeStressIntegration:
                     save_artifacts=True,
                 )
                 assert "overall" in eval_dict
-                assert (run_dir / f"{outcome}_evaluation_results.json").exists()
+                assert (run_dir / f"results/{outcome}_evaluation_results.json").exists()
 
         finally:
             if run_dir.exists():

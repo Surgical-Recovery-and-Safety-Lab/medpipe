@@ -131,7 +131,7 @@ class TestSaveReproducibilityArtifacts:
 
         # Verify save_env_state call
         mock_artifact_mgr_instance.save_env_state.assert_called_once_with(
-            destination_dir=orchestrator.run_dir,
+            destination_dir=orchestrator.run_dir / "env",
             config=expected_config_dict,
             dataset_path="dummy/path/data.csv",
         )
@@ -158,7 +158,7 @@ class TestSaveReproducibilityArtifacts:
 
         # Verify save_env_state was called with dataset_path=None
         mock_artifact_mgr_instance.save_env_state.assert_called_once_with(
-            destination_dir=orchestrator.run_dir,
+            destination_dir=orchestrator.run_dir / "env",
             config={"workflow": {}},
             dataset_path=None,
         )
