@@ -510,7 +510,7 @@ class MedpipeEvaluator:
         filename = f"{outcome}_evaluation_results.json"
         saved_path: Optional[Path] = None
 
-        artifacts_dir = self.orchestrator.run_dir
+        artifacts_dir = self.orchestrator.run_dir / "results"
         artifact_mgr = self.orchestrator.artifact_manager
 
         saved_path = artifact_mgr.save_json(results, artifacts_dir, filename)
