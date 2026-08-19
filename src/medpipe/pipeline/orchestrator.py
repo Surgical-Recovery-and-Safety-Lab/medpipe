@@ -36,6 +36,7 @@ class DataSplits:
         Testing labels.
     groups_train : NDArray
         Groups used for splitting the training set, if available.
+
     """
 
     X_train: pd.DataFrame
@@ -123,7 +124,31 @@ class MedpipeOrchestrator:
             f"Initialised MedpipeOrchestrator. Run directory: {self.run_dir}"
         )
 
+        self._splits: DataSplits | None = None  # Holds the data splits
         self._save_reproducibility_artifacts()
+
+    @property
+    def splits(self) -> DataSplits:
+        """Access cached data splits.
+
+        Returns
+        ------
+        DataSplits
+            Access to the DataSplits attributes.
+
+        Raises
+        ------
+        RuntimeError
+            If the splits have not been populated and 'prepare_data()'
+            or 'run()' need to be called.
+
+        """
+        if self._splits is None:
+            raise RuntimeError(
+                "Data has not been prepared yet. Call 'prepare_data()' "
+                "or 'run()' before accessing dataset splits."
+            )
+        return self._splits
 
     def _save_reproducibility_artifacts(self) -> None:
         """
@@ -281,6 +306,16 @@ class MedpipeOrchestrator:
         self.logger.debug(f"Test set final shape: {X_test.shape}")
         if X_recal is not None:
             self.logger.debug(f"Recalibration set final shape: {X_recal.shape}")
+
+        self._splits = DataSplits(  # Populate DataSplit object
+            X_train=X_train,
+            y_train=y_train_df,
+            X_recal=X_recal,
+            y_recal=y_recal_df,
+            X_test=X_test,
+            y_test=y_test_df,
+            groups_train=groups_train,
+        )
 
         return X_train, y_train_df, X_recal, y_recal_df, X_test, y_test_df, groups_train
 
