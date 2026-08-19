@@ -199,6 +199,8 @@ class ArtifactManager:
     ) -> Path:
         """Saves object as a JSON file.
 
+        The destination directory is created if it does not exist.
+
         Parameters
         ----------
         obj : Any
@@ -214,7 +216,10 @@ class ArtifactManager:
             Path to the saved JSON file.
 
         """
-        dest = Path(destination_dir) / filename
+        dest_dir = Path(destination_dir)
+        dest_dir.mkdir(exist_ok=True, parents=True)
+
+        dest = dest_dir / filename
         with open(dest, "w", encoding="utf-8") as f:
             json.dump(obj, f, indent=4, default=str)
         return dest
