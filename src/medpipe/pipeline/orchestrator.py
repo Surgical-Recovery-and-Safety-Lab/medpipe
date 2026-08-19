@@ -108,8 +108,9 @@ class MedpipeOrchestrator:
         )
 
         dataset_path = self.config.data.path if hasattr(self.config, "data") else None
+
         self.artifact_manager.save_env_state(
-            destination_dir=self.run_dir,
+            destination_dir=self.run_dir / "env",
             config=config_dict,
             dataset_path=dataset_path,
         )
