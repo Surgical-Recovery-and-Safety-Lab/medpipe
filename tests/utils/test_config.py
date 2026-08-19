@@ -106,6 +106,7 @@ class TestDataConfig:
             "path": str(tmp_path / "path/to/data.csv"),
             "predictors": ["AGE", "SEX", "OP_SEVERITY"],
             "outcomes": ["MORTALITY_30D"],
+            "kwargs": {},
         }
 
         config_dict.update(overrides)
