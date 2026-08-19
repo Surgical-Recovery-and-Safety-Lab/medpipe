@@ -61,7 +61,7 @@ class DataConfig(BaseModel):
     path: str
     predictors: list[str]
     outcomes: list[str]
-    model_config = {"extra": "forbid"}
+    model_config = {"extra": "allow"}
 
     @field_validator("path")
     @classmethod
