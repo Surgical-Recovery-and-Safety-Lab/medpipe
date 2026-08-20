@@ -17,6 +17,8 @@ markdown_extensions:
   - pymdownx.superfences
 
 plugins:
+  - include-markdown
+  - search
   - mkdocstrings:
       handlers:
         python:
