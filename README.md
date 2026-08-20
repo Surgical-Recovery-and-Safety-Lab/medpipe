@@ -1,8 +1,11 @@
-# medpipe
+# Medpipe
 
-![GitHub License](https://img.shields.io/github/license/Surgical-Recovery-and-Safety-Lab/medpipe)
-[![Python 3.12+](https://img.shields.io/badge/python-3.12+-green.svg)](https://www.python.org/downloads/)
+[![PyPI Version](https://img.shields.io/pypi/v/medpipe.svg)](https://pypi.org/project/medpipe/)
+[![PyPI Python Versions](https://img.shields.io/pypi/pyversions/medpipe.svg)](https://pypi.org/project/medpipe/)
+[![License](https://img.shields.io/github/license/Surgical-Recovery-and-Safety-Lab/medpipe)](https://github.com/Surgical-Recovery-and-Safety-Lab/medpipe/blob/main/LICENSE)
 [![tests](https://github.com/Surgical-Recovery-and-Safety-Lab/medpipe/actions/workflows/run_test.yml/badge.svg)](https://github.com/Surgical-Recovery-and-Safety-Lab/medpipe/actions/workflows/run_test.yml)
+[![Docs](https://img.shields.io/badge/docs-mkdocs-526CFE?style=flat&logo=materialforgithub)](https://Surgical-Recovery-and-Safety-Lab.github.io/medpipe/)
+
 ## Table of content
 1. [Overview](#overview)
 2. [Installation](#installation)
