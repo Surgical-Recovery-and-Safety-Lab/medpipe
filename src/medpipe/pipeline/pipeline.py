@@ -528,13 +528,10 @@ class Medpipe:
         models_dir = run_path / "models/models"
 
         if not config_path.exists():
-            # Fallback check if named resolved_config.json
-            config_path = run_path / "resolved_config.json"
-            if not config_path.exists():
-                raise FileNotFoundError(
-                    "Cannot load Medpipe instance: Configuration JSON missing "
-                    f"in '{run_path}'"
-                )
+            raise FileNotFoundError(
+                "Cannot load Medpipe instance: Configuration JSON missing "
+                f"in '{run_path}'"
+            )
 
         # 1. Load JSON dict and instantiate MedpipeConfig
         import json
@@ -547,9 +544,10 @@ class Medpipe:
         mp_config = MedpipeConfig.model_validate(config_dict)
 
         # 2. Instantiate Medpipe with reconstructed MedpipeConfig
-        pipe = cls(config=mp_config, base_artifact_dir=run_path.parent)
-        pipe._orchestrator.run_dir = run_path
-        pipe._displayer.run_dir = run_path
+        new_run_path = run_path / "eval"
+        pipe = cls(config=mp_config, base_artifact_dir=new_run_path)
+        pipe._orchestrator.run_dir = new_run_path
+        pipe._displayer.run_dir = new_run_path
 
         # 3. Restore serialized model binaries into runner engine
         if models_dir.exists():
