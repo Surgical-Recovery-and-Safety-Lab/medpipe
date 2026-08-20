@@ -48,17 +48,17 @@ class TestMedpipeUnit:
         X = pd.DataFrame({"A": [1, 2]})
 
         mp.predict(X, outcome="MORTALITY")
-        mp.evaluator.predict.assert_called_once_with(
+        mp._evaluator.predict.assert_called_once_with(
             X=X, model=None, outcome="MORTALITY"
         )
 
         mp.predict_proba(X, outcome="MORTALITY")
-        mp.evaluator.predict_proba.assert_called_once_with(
+        mp._evaluator.predict_proba.assert_called_once_with(
             X=X, model=None, outcome="MORTALITY"
         )
 
         mp.decision_function(X, outcome="MORTALITY")
-        mp.evaluator.decision_function.assert_called_once_with(
+        mp._evaluator.decision_function.assert_called_once_with(
             X=X, model=None, outcome="MORTALITY"
         )
 
@@ -80,13 +80,13 @@ class TestMedpipeUnit:
 
         # When outcome matches a column in y_df
         mp.evaluate(X, y_df, outcome="MORTALITY_30D")
-        _, kwargs = mp.evaluator.evaluate.call_args
+        _, kwargs = mp._evaluator.evaluate.call_args
         pd.testing.assert_series_equal(kwargs["y"], y_df["MORTALITY_30D"])
 
         # When y is a single-column DataFrame without outcome specified
         y_single = pd.DataFrame({"TARGET": [0, 1]})
         mp.evaluate(X, y_single)
-        _, kwargs = mp.evaluator.evaluate.call_args
+        _, kwargs = mp._evaluator.evaluate.call_args
         pd.testing.assert_series_equal(kwargs["y"], y_single.iloc[:, 0])
 
 
@@ -112,7 +112,7 @@ class TestMedpipeFit:
 
         # Mock runner return value
         expected_fitted_models = {"MORTALITY_30D": MagicMock()}
-        mp.runner.run.return_value = expected_fitted_models
+        mp._runner.run.return_value = expected_fitted_models
 
         # Execute fit
         result = mp.fit(
@@ -124,7 +124,7 @@ class TestMedpipeFit:
         )
 
         # Assert delegation and argument translation (e.g. y_train -> y_train_df)
-        mp.runner.run.assert_called_once_with(
+        mp._runner.run.assert_called_once_with(
             X_train=X_train,
             y_train_df=y_train,
             X_recal=X_recal,
@@ -146,11 +146,11 @@ class TestMedpipeFit:
         X_train = pd.DataFrame({"AGE": [50, 60]})
         y_train = pd.DataFrame({"MORTALITY_30D": [0, 1]})
 
-        mp.runner.run.return_value = {}
+        mp._runner.run.return_value = {}
 
         result = mp.fit(X_train=X_train, y_train=y_train)
 
-        mp.runner.run.assert_called_once_with(
+        mp._runner.run.assert_called_once_with(
             X_train=X_train,
             y_train_df=y_train,
             X_recal=None,
@@ -174,11 +174,11 @@ class TestMedpipePredict:
         mp = Medpipe(config=MagicMock())
         X = pd.DataFrame({"AGE": [50, 60], "BMI": [22.5, 28.1]})
         expected_preds = np.array([0, 1])
-        mp.evaluator.predict.return_value = expected_preds
+        mp._evaluator.predict.return_value = expected_preds
 
         preds = mp.predict(X, outcome="MORTALITY_30D")
 
-        mp.evaluator.predict.assert_called_once_with(
+        mp._evaluator.predict.assert_called_once_with(
             X=X, model=None, outcome="MORTALITY_30D"
         )
         np.testing.assert_array_equal(preds, expected_preds)
@@ -195,11 +195,11 @@ class TestMedpipePredict:
         X = np.array([[50, 22.5], [60, 28.1]])
         mock_model = MagicMock()
         expected_preds = np.array([1, 0])
-        mp.evaluator.predict.return_value = expected_preds
+        mp._evaluator.predict.return_value = expected_preds
 
         preds = mp.predict(X, model=mock_model)
 
-        mp.evaluator.predict.assert_called_once_with(
+        mp._evaluator.predict.assert_called_once_with(
             X=X, model=mock_model, outcome=None
         )
         np.testing.assert_array_equal(preds, expected_preds)
@@ -219,11 +219,11 @@ class TestMedpipePredictProba:
         mp = Medpipe(config=MagicMock())
         X = pd.DataFrame({"AGE": [50, 60]})
         expected_probas = np.array([[0.8, 0.2], [0.3, 0.7]])
-        mp.evaluator.predict_proba.return_value = expected_probas
+        mp._evaluator.predict_proba.return_value = expected_probas
 
         probas = mp.predict_proba(X, outcome="READMISSION_90D")
 
-        mp.evaluator.predict_proba.assert_called_once_with(
+        mp._evaluator.predict_proba.assert_called_once_with(
             X=X, model=None, outcome="READMISSION_90D"
         )
         np.testing.assert_array_equal(probas, expected_probas)
@@ -239,11 +239,11 @@ class TestMedpipePredictProba:
         mp = Medpipe(config=MagicMock())
         X = pd.DataFrame({"AGE": [50]})
         expected_probas = np.array([0.15])
-        mp.evaluator.predict_proba.return_value = expected_probas
+        mp._evaluator.predict_proba.return_value = expected_probas
 
         probas = mp.predict_proba(X)
 
-        mp.evaluator.predict_proba.assert_called_once_with(
+        mp._evaluator.predict_proba.assert_called_once_with(
             X=X, model=None, outcome=None
         )
         np.testing.assert_array_equal(probas, expected_probas)
@@ -263,11 +263,11 @@ class TestMedpipeDecisionFunction:
         mp = Medpipe(config=MagicMock())
         X = pd.DataFrame({"AGE": [50, 60]})
         expected_scores = np.array([-1.2, 2.4])
-        mp.evaluator.decision_function.return_value = expected_scores
+        mp._evaluator.decision_function.return_value = expected_scores
 
         scores = mp.decision_function(X, outcome="MORTALITY_30D")
 
-        mp.evaluator.decision_function.assert_called_once_with(
+        mp._evaluator.decision_function.assert_called_once_with(
             X=X, model=None, outcome="MORTALITY_30D"
         )
         np.testing.assert_array_equal(scores, expected_scores)
@@ -284,11 +284,11 @@ class TestMedpipeDecisionFunction:
         X = pd.DataFrame({"AGE": [50]})
         mock_model = MagicMock()
         expected_scores = np.array([0.85])
-        mp.evaluator.decision_function.return_value = expected_scores
+        mp._evaluator.decision_function.return_value = expected_scores
 
         scores = mp.decision_function(X, model=mock_model)
 
-        mp.evaluator.decision_function.assert_called_once_with(
+        mp._evaluator.decision_function.assert_called_once_with(
             X=X, model=mock_model, outcome=None
         )
         np.testing.assert_array_equal(scores, expected_scores)
@@ -309,11 +309,11 @@ class TestMedpipeEvaluate:
         X = pd.DataFrame({"AGE": [50, 60]})
         y = pd.Series([0, 1], name="MORTALITY_30D")
         expected_eval = {"overall": {"roc_auc": 0.88}}
-        mp.evaluator.evaluate.return_value = expected_eval
+        mp._evaluator.evaluate.return_value = expected_eval
 
         results = mp.evaluate(X, y, outcome="MORTALITY_30D")
 
-        mp.evaluator.evaluate.assert_called_once_with(
+        mp._evaluator.evaluate.assert_called_once_with(
             X=X,
             y=y,
             outcome="MORTALITY_30D",
@@ -335,11 +335,11 @@ class TestMedpipeEvaluate:
         mp = Medpipe(config=MagicMock())
         X = pd.DataFrame({"AGE": [50, 60]})
         y_df = pd.DataFrame({"MORTALITY_30D": [0, 1], "READMISSION_90D": [1, 0]})
-        mp.evaluator.evaluate.return_value = {}
+        mp._evaluator.evaluate.return_value = {}
 
         mp.evaluate(X, y_df, outcome="READMISSION_90D")
 
-        _, kwargs = mp.evaluator.evaluate.call_args
+        _, kwargs = mp._evaluator.evaluate.call_args
         pd.testing.assert_series_equal(kwargs["y"], y_df["READMISSION_90D"])
 
     @patch("medpipe.pipeline.pipeline.MedpipeDisplayer")
@@ -353,11 +353,11 @@ class TestMedpipeEvaluate:
         mp = Medpipe(config=MagicMock())
         X = pd.DataFrame({"AGE": [50, 60]})
         y_df = pd.DataFrame({"GENERIC_LABEL": [1, 0]})
-        mp.evaluator.evaluate.return_value = {}
+        mp._evaluator.evaluate.return_value = {}
 
         mp.evaluate(X, y_df, outcome="CUSTOM_NAME")
 
-        _, kwargs = mp.evaluator.evaluate.call_args
+        _, kwargs = mp._evaluator.evaluate.call_args
         pd.testing.assert_series_equal(kwargs["y"], y_df.iloc[:, 0])
 
     @patch("medpipe.pipeline.pipeline.MedpipeDisplayer")
@@ -385,7 +385,7 @@ class TestMedpipeEvaluate:
             save_artifacts=False,
         )
 
-        mp.evaluator.evaluate.assert_called_once_with(
+        mp._evaluator.evaluate.assert_called_once_with(
             X=X,
             y=y,
             outcome="MORTALITY",
@@ -410,15 +410,15 @@ class TestMedpipeRun:
         mp = Medpipe(config=MagicMock())
         mp.mp_config.meta.run_mode = "fast"
         mp.mp_config.data.kwargs = {"extra_arg": 0.2}
-        mp.orchestrator.config.data.outcomes = ["MORTALITY_30D"]
-        mp.orchestrator.get_subgroup_specs.return_value = {"age_gt_60": "AGE > 60"}
+        mp._orchestrator.config.data.outcomes = ["MORTALITY_30D"]
+        mp._orchestrator.get_subgroup_specs.return_value = {"age_gt_60": "AGE > 60"}
 
         # Mock split outputs
         X_tr, y_tr = pd.DataFrame({"A": [1, 2]}), pd.DataFrame(
             {"MORTALITY_30D": [0, 1]}
         )
         X_te, y_te = pd.DataFrame({"A": [3]}), pd.DataFrame({"MORTALITY_30D": [1]})
-        mp.orchestrator.prepare_data.return_value = (
+        mp._orchestrator.prepare_data.return_value = (
             X_tr,
             y_tr,
             None,
@@ -433,7 +433,7 @@ class TestMedpipeRun:
 
         results = mp.run(groups_train=None)
 
-        mp.orchestrator.prepare_data.assert_called_once_with(extra_arg=0.2)
+        mp._orchestrator.prepare_data.assert_called_once_with(extra_arg=0.2)
         mp.fit.assert_called_once_with(
             X_train=X_tr,
             y_train=y_tr,
@@ -466,12 +466,12 @@ class TestMedpipeRun:
         mp = Medpipe(config=MagicMock())
         mp.mp_config.meta.run_mode = "audit"
         mp.mp_config.data.kwargs = {}
-        mp.orchestrator.config.data.outcomes = ["MORTALITY_30D"]
-        mp.orchestrator.get_subgroup_specs.return_value = {}
+        mp._orchestrator.config.data.outcomes = ["MORTALITY_30D"]
+        mp._orchestrator.get_subgroup_specs.return_value = {}
 
         X_tr, y_tr = pd.DataFrame({"A": [1]}), pd.DataFrame({"MORTALITY_30D": [0]})
         X_te, y_te = pd.DataFrame({"A": [2]}), pd.DataFrame({"MORTALITY_30D": [1]})
-        mp.orchestrator.prepare_data.return_value = (
+        mp._orchestrator.prepare_data.return_value = (
             X_tr,
             y_tr,
             None,
@@ -485,7 +485,7 @@ class TestMedpipeRun:
         mp.evaluate = MagicMock(return_value={"overall": {}})
         mp.predict_proba = MagicMock(return_value=np.array([0.85]))
         mp.plot_all = MagicMock(return_value={"roc": ("fig_obj", "ax_obj")})
-        mp.displayer.plot_all_heatmaps.return_value = {
+        mp._displayer.plot_all_heatmaps.return_value = {
             "auc_heatmap": ("fig_hm", "ax_hm")
         }
 
@@ -497,7 +497,7 @@ class TestMedpipeRun:
             probas=np.array([0.85]),
             outcome="MORTALITY_30D",
         )
-        mp.displayer.plot_all_heatmaps.assert_called_once_with(
+        mp._displayer.plot_all_heatmaps.assert_called_once_with(
             evaluations={"MORTALITY_30D": {"overall": {}}}
         )
 
@@ -523,7 +523,7 @@ class TestMedpipePlotAll:
         y_true = np.array([0, 1, 0, 1])
         probas = np.array([0.1, 0.8, 0.2, 0.9])
         expected_plots = {"roc": (MagicMock(), MagicMock())}
-        mp.displayer.plot_all.return_value = expected_plots
+        mp._displayer.plot_all.return_value = expected_plots
 
         plots = mp.plot_all(
             y_true=y_true,
@@ -536,7 +536,7 @@ class TestMedpipePlotAll:
             color="red",
         )
 
-        mp.displayer.plot_all.assert_called_once_with(
+        mp._displayer.plot_all.assert_called_once_with(
             y_true=y_true,
             probas=probas,
             outcome="READMISSION_90D",
@@ -605,8 +605,8 @@ class TestMedpipeLoad:
         pipe = Medpipe.load(run_dir)
 
         assert isinstance(pipe, Medpipe)
-        assert pipe.orchestrator.run_dir == run_dir
-        assert pipe.displayer.run_dir == run_dir
+        assert pipe.run_dir == run_dir
+        assert pipe._displayer.run_dir == run_dir
         assert pipe.mp_config.meta.project_name == "demo_project"
 
     def test_load_successful_with_fitted_models(
@@ -631,9 +631,9 @@ class TestMedpipeLoad:
         pipe = Medpipe.load(str(run_dir))
 
         assert isinstance(pipe, Medpipe)
-        assert pipe.orchestrator.run_dir == run_dir
-        assert pipe.displayer.run_dir == run_dir
-        assert pipe.runner.fitted_models == mock_fitted_models
+        assert pipe.run_dir == run_dir
+        assert pipe._displayer.run_dir == run_dir
+        assert pipe.models == mock_fitted_models
 
 
 # ==============================================================================
@@ -703,7 +703,7 @@ class TestMedpipeStressIntegration:
         # Direct artifacts to an isolated temporary directory
         artifact_dir = tmp_path / "artifacts"
         pipeline = Medpipe(config=config, base_artifact_dir=artifact_dir)
-        run_dir = pipeline.orchestrator.run_dir
+        run_dir = pipeline.run_dir
 
         try:
             results = pipeline.run()
@@ -734,9 +734,9 @@ class TestMedpipeStressIntegration:
             # 3. Clean up/delete the run directory after verification
             if run_dir.exists():
                 # Close any active logging handlers attached to the run file to release file locks
-                for handler in list(pipeline.logger.handlers):
+                for handler in list(pipeline._logger.handlers):
                     handler.close()
-                    pipeline.logger.removeHandler(handler)
+                    pipeline._logger.removeHandler(handler)
                 shutil.rmtree(run_dir, ignore_errors=True)
 
             assert not run_dir.exists()
@@ -748,11 +748,11 @@ class TestMedpipeStressIntegration:
         config = build_medpipe_config(run_mode="fast", disable_recal=True)
         artifact_dir = tmp_path / "artifacts"
         pipeline = Medpipe(config=config, base_artifact_dir=artifact_dir)
-        run_dir = pipeline.orchestrator.run_dir
+        run_dir = pipeline.run_dir
 
         try:
             X_train, y_train, X_recal, y_recal, X_test, y_test, groups_train = (
-                pipeline.orchestrator.prepare_data()
+                pipeline._orchestrator.prepare_data()
             )
 
             fitted = pipeline.fit(X_train, y_train, X_recal, y_recal, groups_train)
@@ -770,9 +770,9 @@ class TestMedpipeStressIntegration:
 
         finally:
             if run_dir.exists():
-                for handler in list(pipeline.logger.handlers):
+                for handler in list(pipeline._logger.handlers):
                     handler.close()
-                    pipeline.logger.removeHandler(handler)
+                    pipeline._logger.removeHandler(handler)
                 shutil.rmtree(run_dir, ignore_errors=True)
 
             assert not run_dir.exists()

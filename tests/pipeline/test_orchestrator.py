@@ -6,7 +6,7 @@ import pandas as pd
 import pytest
 from sklearn.pipeline import Pipeline
 
-from medpipe.pipeline.orchestrator import MedpipeOrchestrator
+from medpipe.pipeline.orchestrator import DataSplits, MedpipeOrchestrator
 from medpipe.utils.config import MedpipeConfig
 
 # =============================================================================
@@ -364,6 +364,25 @@ class TestIngestData:
 @patch("medpipe.pipeline.orchestrator.ArtifactManager")
 @patch("medpipe.pipeline.orchestrator.get_console_logger")
 @patch("medpipe.pipeline.orchestrator.add_file_handler")
+class TestSplitsProperty:
+    """Unit tests for the MedpipeOrchestrator.splits property guardrail."""
+
+    def test_splits_uninitialized_raises_runtime_error(
+        self, mock_add_handler, mock_get_logger, mock_artifact_mgr, mock_config
+    ):
+        """Test that accessing .splits before prepare_data() raises RuntimeError."""
+        orchestrator = MedpipeOrchestrator(config=mock_config)
+
+        with pytest.raises(
+            RuntimeError,
+            match="Data has not been prepared yet. Call 'prepare_data\\(\\)'",
+        ):
+            _ = orchestrator.splits
+
+
+@patch("medpipe.pipeline.orchestrator.ArtifactManager")
+@patch("medpipe.pipeline.orchestrator.get_console_logger")
+@patch("medpipe.pipeline.orchestrator.add_file_handler")
 class TestPrepareData:
     """Unit tests for MedpipeOrchestrator.prepare_data."""
 
@@ -660,6 +679,55 @@ class TestPrepareData:
             ValueError, match="Validation configuration is missing from workflow"
         ):
             orchestrator.prepare_data()
+
+    @patch("medpipe.pipeline.orchestrator.split_data")
+    @patch("medpipe.pipeline.orchestrator.extract_labels")
+    def test_prepare_data_populates_splits_property(
+        self,
+        mock_extract_labels,
+        mock_split_data,
+        mock_add_handler,
+        mock_get_logger,
+        mock_artifact_mgr,
+        mock_config,
+    ):
+        """Test that prepare_data properly creates and exposes the DataSplits dataclass."""
+        mock_config.data.outcomes = ["MORTALITY_30D"]
+
+        val_config = MagicMock()
+        val_config.test_split.strategy = "random"
+        val_config.test_split.group_column = None
+        val_config.recalibration_split = None
+        val_config.cross_validation = None
+        mock_config.workflow.validation = val_config
+
+        orchestrator = MedpipeOrchestrator(config=mock_config)
+
+        raw_data = pd.DataFrame({"AGE": [25, 30, 45], "MORTALITY_30D": [0, 1, 0]})
+        orchestrator.ingest_data = MagicMock(return_value=raw_data)
+
+        X_all = pd.DataFrame({"AGE": [25, 30, 45]})
+        y_all_arr = np.array([[0], [1], [0]])
+        mock_extract_labels.return_value = (X_all, y_all_arr)
+
+        X_temp = pd.DataFrame({"AGE": [25, 30]}, index=pd.Index([0, 1]))
+        y_temp_arr = np.array([[0], [1]])
+        X_test_df = pd.DataFrame({"AGE": [45]}, index=pd.Index([2]))
+        y_test_arr = np.array([[0]])
+
+        mock_split_data.return_value = (X_temp, y_temp_arr, X_test_df, y_test_arr)
+
+        # Call prepare_data to trigger _splits population
+        orchestrator.prepare_data()
+
+        # Verify splits property returns a populated DataSplits instance
+        splits = orchestrator.splits
+        assert isinstance(splits, DataSplits)
+        pd.testing.assert_frame_equal(splits.X_train, X_temp)
+        pd.testing.assert_frame_equal(splits.X_test, X_test_df)
+        assert splits.X_recal is None
+        assert splits.y_recal is None
+        assert splits.groups_train is None
 
 
 @patch("medpipe.pipeline.orchestrator.ArtifactManager")
