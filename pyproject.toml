@@ -1,6 +1,6 @@
 [project]
 name = "medpipe"
-description = "Clinical AI pipeline developement following TRIPOD+AI guidelines"
+description = "Configuration-driven, TRIPOD+AI compliant ML pipelines for tabular clinical data."
 readme = "README.md"
 requires-python = ">=3.12"
 license = "Apache-2.0"
