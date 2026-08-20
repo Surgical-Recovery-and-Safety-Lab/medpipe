@@ -48,18 +48,18 @@ class Medpipe:
 
     Attributes
     ----------
-    orchestrator : MedpipeOrchestrator
+    _orchestrator : MedpipeOrchestrator
         Pipeline orchestrator instance driving data preparation and
         reproducibility artifacts.
-    runner : MedpipeRunner
+    _runner : MedpipeRunner
         Pipeline execution engine responsible for model training and
         cross-validation loops.
-    evaluator : MedpipeEvaluator
+    _evaluator : MedpipeEvaluator
         Pipeline evaluation engine computing point estimates and
         bootstrap confidence intervals.
-    displayer : MedpipeDisplayer
+    _displayer : MedpipeDisplayer
         Visualisation engine rendering and persisting evaluation figures.
-    logger : logging.Logger
+    _logger : logging.Logger
         Centralized logger instance configured under `"medpipe"`.
 
     Methods
@@ -91,22 +91,22 @@ class Medpipe:
         base_artifact_dir: Union[str, Path] = "artifacts",
         verbose_override: Union[bool, int, str, None] = None,
     ) -> None:
-        self.logger = get_console_logger("medpipe")
+        self._logger = get_console_logger("medpipe")
 
-        self.logger.info("Initialising Medpipe end-to-end pipeline.")
+        self._logger.info("Initialising Medpipe end-to-end pipeline.")
 
-        self.orchestrator = MedpipeOrchestrator(
+        self._orchestrator = MedpipeOrchestrator(
             config, base_artifact_dir, verbose_override
         )
-        self.mp_config = self.orchestrator.config
-        self.runner = MedpipeRunner(orchestrator=self.orchestrator)
-        self.evaluator = MedpipeEvaluator(
-            orchestrator=self.orchestrator,
-            runner=self.runner,
+        self.mp_config = self._orchestrator.config
+        self._runner = MedpipeRunner(orchestrator=self._orchestrator)
+        self._evaluator = MedpipeEvaluator(
+            orchestrator=self._orchestrator,
+            runner=self._runner,
         )
-        self.displayer = MedpipeDisplayer(orchestrator=self.orchestrator)
+        self._displayer = MedpipeDisplayer(orchestrator=self._orchestrator)
 
-        self.logger.info("Medpipe initialisation complete.")
+        self._logger.info("Medpipe initialisation complete.")
 
     @property
     def models(self) -> Dict[str, Union[Pipeline, CalibratedClassifierCV]]:
@@ -118,7 +118,7 @@ class Medpipe:
             Fitted models from the MedpipeRunner object.
 
         """
-        return self.runner.fitted_models
+        return self._runner.fitted_models
 
     @property
     def is_fitted(self) -> bool:
@@ -130,7 +130,7 @@ class Medpipe:
             True if the models have been fitted, False otherwise.
 
         """
-        return self.runner.fitted_models != {}
+        return self._runner.fitted_models != {}
 
     @property
     def run_dir(self) -> Path:
@@ -142,7 +142,7 @@ class Medpipe:
             Path to the run_dir.
 
         """
-        return self.orchestrator.run_dir
+        return self._orchestrator.run_dir
 
     @property
     def data_split(self) -> DataSplits:
@@ -154,7 +154,19 @@ class Medpipe:
             Any of the DataSplits attributes.
 
         """
-        return self.orchestrator.splits
+        return self._orchestrator.splits
+
+    @property
+    def metrics(self) -> list[str]:
+        """Returns metrics used during evaluation.
+
+        Returns
+        -------
+        metrics : list[str]
+            List of metrics used during evaluation.
+
+        """
+        return self._evaluator.metrics
 
     def fit(
         self,
@@ -186,15 +198,15 @@ class Medpipe:
             Dictionary mapping outcome target names to their finalized fitted models.
 
         """
-        self.logger.info("Starting model fitting across configured target outcomes.")
-        fitted_models = self.runner.run(
+        self._logger.info("Starting model fitting across configured target outcomes.")
+        fitted_models = self._runner.run(
             X_train=X_train,
             y_train_df=y_train,
             X_recal=X_recal,
             y_recal_df=y_recal,
             groups_train=groups_train,
         )
-        self.logger.info("Completed model fitting for all target outcomes.")
+        self._logger.info("Completed model fitting for all target outcomes.")
         return fitted_models
 
     def predict(
@@ -221,7 +233,7 @@ class Medpipe:
             Predicted class labels of shape (n_samples,).
 
         """
-        return self.evaluator.predict(X=X, model=model, outcome=outcome)
+        return self._evaluator.predict(X=X, model=model, outcome=outcome)
 
     def predict_proba(
         self,
@@ -247,7 +259,7 @@ class Medpipe:
             Predicted class probabilities of shape (n_samples, n_classes) or (n_samples,).
 
         """
-        return self.evaluator.predict_proba(X=X, model=model, outcome=outcome)
+        return self._evaluator.predict_proba(X=X, model=model, outcome=outcome)
 
     def decision_function(
         self,
@@ -273,7 +285,7 @@ class Medpipe:
             Confidence scores or decision function values of shape (n_samples,).
 
         """
-        return self.evaluator.decision_function(X=X, model=model, outcome=outcome)
+        return self._evaluator.decision_function(X=X, model=model, outcome=outcome)
 
     def evaluate(
         self,
@@ -301,7 +313,7 @@ class Medpipe:
         model : object, optional
             Explicit fitted model instance. If None, resolved from `runner.fitted_models`.
         metrics : list of str, optional
-            List of metrics to evaluate. If None, defaults to `self.evaluator.metrics`.
+            List of metrics to evaluate. If None, defaults to `self._evaluator.metrics`.
         subgroup_specs : dict of str to (str or callable), optional
             Specifications for extracting demographic or clinical subgroups.
         save_artifacts : bool, default=True
@@ -324,7 +336,7 @@ class Medpipe:
         else:
             y_eval = y
 
-        return self.evaluator.evaluate(
+        return self._evaluator.evaluate(
             X=X,
             y=y_eval,
             outcome=outcome,
@@ -361,11 +373,11 @@ class Medpipe:
             target names to figure objects.
 
         """
-        self.logger.info("Executing full Medpipe pipeline end-to-end.")
+        self._logger.info("Executing full Medpipe pipeline end-to-end.")
 
         run_mode = self.mp_config.meta.run_mode
 
-        self.logger.debug(f"Executing full Medpipe pipeline in {run_mode} mode.")
+        self._logger.debug(f"Executing full Medpipe pipeline in {run_mode} mode.")
 
         n_steps = 3
         if run_mode == "audit" or run_mode == "eval":
@@ -373,13 +385,13 @@ class Medpipe:
 
         # 1. Prepare data splits via orchestrator
         data_kwargs = self.mp_config.data.kwargs  # Get extra data arguments
-        self.logger.info(f"Step 1/{n_steps}: Ingesting and splitting dataset.")
+        self._logger.info(f"Step 1/{n_steps}: Ingesting and splitting dataset.")
         X_train, y_train, X_recal, y_recal, X_test, y_test, groups_train = (
-            self.orchestrator.prepare_data(**data_kwargs)
+            self._orchestrator.prepare_data(**data_kwargs)
         )
 
         # 2. Fit models via runner
-        self.logger.info(f"Step 2/{n_steps}: Fitting outcome models.")
+        self._logger.info(f"Step 2/{n_steps}: Fitting outcome models.")
         fitted_models = self.fit(
             X_train=X_train,
             y_train=y_train,
@@ -389,13 +401,13 @@ class Medpipe:
         )
 
         # 3. Evaluate models on test set via evaluator
-        self.logger.info(
+        self._logger.info(
             f"Step 3/{n_steps}: Evaluating models on holdout test set.",
         )
         evaluations: Dict[str, Any] = {}
         plots: Dict[str, Dict[str, Tuple[Figure | SubFigure, Axes]]] = {}
-        outcomes = self.orchestrator.config.data.outcomes
-        subgroup_specs = self.orchestrator.get_subgroup_specs()
+        outcomes = self._orchestrator.config.data.outcomes
+        subgroup_specs = self._orchestrator.get_subgroup_specs()
 
         for outcome in outcomes:
             y_test_outcome = y_test[outcome]
@@ -408,7 +420,7 @@ class Medpipe:
             )
 
         if run_mode == "audit" or run_mode == "eval":
-            self.logger.info(f"Step 4/{n_steps}: Plotting graphs.")
+            self._logger.info(f"Step 4/{n_steps}: Plotting graphs.")
             for outcome in outcomes:
                 y_true_outcome = y_test[outcome].to_numpy()
                 probas_outcome = self.predict_proba(X=X_test, outcome=outcome)
@@ -419,13 +431,13 @@ class Medpipe:
                     outcome=outcome,
                 )
             # Generate cross-outcome strata heatmaps per metric
-            self.logger.info("Generating subgroup strata heatmaps across outcomes.")
-            strata_heatmaps = self.displayer.plot_all_heatmaps(
+            self._logger.info("Generating subgroup strata heatmaps across outcomes.")
+            strata_heatmaps = self._displayer.plot_all_heatmaps(
                 evaluations=evaluations,
             )
             plots["strata_heatmaps"] = strata_heatmaps
 
-        self.logger.info("Full Medpipe pipeline execution finished successfully.")
+        self._logger.info("Full Medpipe pipeline execution finished successfully.")
 
         results: Dict[str, Any] = {
             "fitted_models": fitted_models,
@@ -477,7 +489,7 @@ class Medpipe:
             to their rendered (Figure, Axes) Matplotlib objects.
 
         """
-        return self.displayer.plot_all(
+        return self._displayer.plot_all(
             y_true=y_true,
             probas=probas,
             outcome=outcome,
@@ -536,15 +548,15 @@ class Medpipe:
 
         # 2. Instantiate Medpipe with reconstructed MedpipeConfig
         pipe = cls(config=mp_config, base_artifact_dir=run_path.parent)
-        pipe.orchestrator.run_dir = run_path
-        pipe.displayer.run_dir = run_path
+        pipe._orchestrator.run_dir = run_path
+        pipe._displayer.run_dir = run_path
 
         # 3. Restore serialized model binaries into runner engine
         if models_dir.exists():
             project_name = pipe.mp_config.meta.project_name
-            pipe.runner.fitted_models = joblib.load(
+            pipe._runner.fitted_models = joblib.load(
                 models_dir / f"{project_name}_fitted.joblib"
             )
-        pipe.logger.info(f"Succesfully loaded Medpipe from {run_dir}")
+        pipe._logger.info(f"Succesfully loaded Medpipe from {run_dir}")
 
         return pipe
