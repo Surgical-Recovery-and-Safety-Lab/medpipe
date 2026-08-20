@@ -9,7 +9,6 @@ authors = [
   { name = "Mathias Roesler", email = "mathias.roesler@auckland.co.nz" },
 ]
 classifiers = [
-  "Development Status :: 4 - Beta",
   "Intended Audience :: Healthcare Industry",
   "Intended Audience :: Science/Research",
   "Operating System :: POSIX :: Linux",
@@ -19,7 +18,7 @@ classifiers = [
   "Programming Language :: Python :: 3.13",
   "Programming Language :: Python :: 3.14",
   "Topic :: Scientific/Engineering :: Artificial Intelligence",
-  "Topic :: Scientific/Engineering :: Medical Science Apps.",
+  "Topic :: Scientific/Engineering :: Medical Science Apps",
 ]
 dynamic = ["version"]
 
