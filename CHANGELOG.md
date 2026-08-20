@@ -74,3 +74,8 @@ and this project adheres to Semantic Versioning ([SemVer](https://semver.org/spe
 
 ### Removed
 * Class imbalance mitigation methods (data sampling, cost-sensitive learning).
+
+
+[Unreleased]: https://github.com/Surgical-Recovery-and-Safety-Lab/medpipe/compare/v0.3.1...HEAD
+[0.3.1]: https://github.com/Surgical-Recovery-and-Safety-Lab/medpipe/compare/v0.3.0...v0.3.1
+[0.3.0]: https://github.com/Surgical-Recovery-and-Safety-Lab/medpipe/releases/tag/v0.3.0
