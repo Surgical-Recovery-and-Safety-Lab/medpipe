@@ -31,10 +31,10 @@ plugins:
 nav:
   - Home: index.md
   - Getting started:
-    - Installation: install.md
-    - Configuration setup: config.md
-    - Usage: usage.md
-    - Examples: examples.md
+    - Installation: start/install.md
+    - Quickstart example: start/quickstart.md
+  - User guides:
+    - Configuration guide: guide/config.md
   - API Reference:
     - Data: api/data.md
     - Metrics: api/metrics.md
