@@ -596,17 +596,18 @@ class TestMedpipeLoad:
     ) -> None:
         """Test successful reconstruction of Medpipe when no models directory is present."""
         run_dir = tmp_path / "run_2026_08_10"
-        run_dir.mkdir()
+        config_dir = run_dir / "env"
+        config_dir.mkdir(parents=True)
 
-        config_path = run_dir / "resolved_config.json"
+        config_path = config_dir / "resolved_config.json"
         with open(config_path, "w", encoding="utf-8") as f:
             json.dump(valid_config_dict, f)
 
         pipe = Medpipe.load(run_dir)
 
         assert isinstance(pipe, Medpipe)
-        assert pipe.run_dir == run_dir
-        assert pipe._displayer.run_dir == run_dir
+        assert pipe.run_dir == run_dir / "eval"
+        assert pipe._displayer.run_dir == run_dir / "eval"
         assert pipe.mp_config.meta.project_name == "demo_project"
 
     def test_load_successful_with_fitted_models(
@@ -615,10 +616,12 @@ class TestMedpipeLoad:
         """Test loading and restoring serialized fitted models into runner."""
         run_dir = tmp_path / "run_2026_08_10"
         models_dir = run_dir / "models"
+        config_dir = run_dir / "env"
         models_dir.mkdir(parents=True)
+        config_dir.mkdir(parents=True)
 
         # Write resolved JSON configuration
-        config_path = run_dir / "resolved_config.json"
+        config_path = config_dir / "resolved_config.json"
         with open(config_path, "w", encoding="utf-8") as f:
             json.dump(valid_config_dict, f)
 
@@ -631,8 +634,8 @@ class TestMedpipeLoad:
         pipe = Medpipe.load(str(run_dir))
 
         assert isinstance(pipe, Medpipe)
-        assert pipe.run_dir == run_dir
-        assert pipe._displayer.run_dir == run_dir
+        assert pipe.run_dir == run_dir / "eval"
+        assert pipe._displayer.run_dir == run_dir / "eval"
         assert pipe.models == mock_fitted_models
 
 
