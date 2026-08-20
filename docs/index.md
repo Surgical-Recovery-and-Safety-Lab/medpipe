@@ -5,12 +5,6 @@ Medpipe is a Python framework designed to streamline and standardize clinical ma
 Built around `scikit-learn` and TRIPOD+AI reporting guidelines, it transforms complex clinical modeling into reproducible, TOML-configured pipelines—covering everything from data preprocessing and multi-outcome model training to probability recalibration, subgroup fairness analysis, and clinical decision support visualizations.
 By automatically logging execution details and persisting models, environment metadata, and evaluation metrics into a standardized artifact hierarchy, Medpipe ensures full transparency and reproducibility from initial experimentation to publication.
 
-[![PyPI Version](https://img.shields.io/pypi/v/medpipe.svg)](https://pypi.org/project/medpipe/)
-[![PyPI Python Versions](https://img.shields.io/pypi/pyversions/medpipe.svg)](https://pypi.org/project/medpipe/)
-[![License](https://img.shields.io/github/license/Surgical-Recovery-and-Safety-Lab/medpipe)](https://github.com/Surgical-Recovery-and-Safety-Lab/medpipe/blob/main/LICENSE)
-[![tests](https://github.com/Surgical-Recovery-and-Safety-Lab/medpipe/actions/workflows/run_test.yml/badge.svg)](https://github.com/Surgical-Recovery-and-Safety-Lab/medpipe/actions/workflows/run_test.yml)
-[![Docs](https://img.shields.io/badge/docs-mkdocs-526CFE?style=flat&logo=materialforgithub)](https://Surgical-Recovery-and-Safety-Lab.github.io/medpipe/)
-
 ---
 
 ## Key features
