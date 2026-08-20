@@ -1,7 +1,5 @@
-# Models Reference
-
-This page documents the `models` sub-package.
+# Models
 
 ---
 
-::: medpipe.models.core
+::: medpipe.models.registry

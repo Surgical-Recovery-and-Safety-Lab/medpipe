@@ -1,9 +1,10 @@
-# Data Reference
-
-This page documents the `data` sub-package.
+# Data
 
 ---
 
-::: medpipe.data.utils
+::: medpipe.data.registry
 
 ::: medpipe.data.transformers
+
+::: medpipe.data.utils
+

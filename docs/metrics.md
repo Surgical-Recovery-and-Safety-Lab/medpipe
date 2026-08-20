@@ -1,12 +1,7 @@
-# Metrics Reference
-
-This page documents the `metrics` sub-package.
+# Metrics
 
 ---
 
-## Plots
-::: medpipe.metrics.plots
-
-## Core
 ::: medpipe.metrics.core
 
+::: medpipe.metrics.registry
