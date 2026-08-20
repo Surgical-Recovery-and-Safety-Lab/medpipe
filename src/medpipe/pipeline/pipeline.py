@@ -524,8 +524,8 @@ class Medpipe:
 
         """
         run_path = Path(run_dir)
-        config_path = run_path / "resolved_config.json"
-        models_dir = run_path / "models"
+        config_path = run_path / "env/resolved_config.json"
+        models_dir = run_path / "models/models"
 
         if not config_path.exists():
             # Fallback check if named resolved_config.json
