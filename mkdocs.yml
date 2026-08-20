@@ -36,9 +36,9 @@ nav:
     - Usage: usage.md
     - Examples: examples.md
   - API Reference:
-    - Data: data.md
-    - Metrics: metrics.md
-    - Models: models.md
-    - Pipeline: pipeline.md
-    - Utils: utils.md
-    - Visualisation: visualisation.md
+    - Data: api/data.md
+    - Metrics: api/metrics.md
+    - Models: api/models.md
+    - Pipeline: api/pipeline.md
+    - Utils: api/utils.md
+    - Visualisation: api/visualisation.md
