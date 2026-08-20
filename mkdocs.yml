@@ -1,4 +1,4 @@
-site_name: Medpipe Documentation
+site_name: Medpipe
 theme:
   name: material
   palette:
@@ -35,7 +35,7 @@ nav:
     - Quickstart example: start/quickstart.md
   - User guides:
     - Configuration guide: guide/config.md
-  - API Reference:
+  - API reference:
     - Data: api/data.md
     - Metrics: api/metrics.md
     - Models: api/models.md
