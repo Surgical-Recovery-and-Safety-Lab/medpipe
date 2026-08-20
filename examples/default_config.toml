@@ -102,15 +102,19 @@ groups = { "AGE" = [[18, 50], [51, 120]] }
 n_bootstraps = 1000
 save = true
 show = false
-n_bins = 10
+n_bins = 10  # For calibration / reliability plots
+dist_n_bins = 25  # For distribution plots
+dist_yscale = "log"  # For distribution plots
 strategy = "uniform"
 
 # Global Plot-Type Overrides
 [display.overrides.calibration]  # Applies to all calibration / reliability plots
 n_bootstraps = 10
+n_bins = 10
 
 [display.overrides.distribution]
-n_bins = 25
+dist_n_bins = 25
+dist_yscale = "linear"
 
 [display.overrides.roc]
 n_bootstraps = 500
