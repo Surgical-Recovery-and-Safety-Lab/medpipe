@@ -60,6 +60,23 @@ pip install -e ".[dev]"
 
 ---
 
+## Contributing
+
+We welcome contributions from the community! Whether you are fixing bugs, improving documentation, or proposing new features:
+
+1. Feel free to open an issue or start a discussion on our **[GitHub Repository](https://github.com/Surgical-Recovery-and-Safety-Lab/medpipe)**.
+
+2. Submit Pull Requests targeting the `main` branch.
+3. Ensure all unit tests pass before submitting (`pytest`).
+
+---
+
+## License
+
+This project is licensed under the Apache-2.0 License. Developed and maintained by the **[Surgical Recovery and Safety Lab](https://github.com/Surgical-Recovery-and-Safety-Lab)**.
+
+---
+
 ## Acknowledgements
 
 This package was developed using Gemini 3.6 Thinking. The code was reviewed and edited by humans.
