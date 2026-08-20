@@ -14,7 +14,7 @@ import numpy as np
 import pandas as pd
 
 from medpipe.pipeline.evaluator import MedpipeEvaluator
-from medpipe.pipeline.orchestrator import MedpipeOrchestrator
+from medpipe.pipeline.orchestrator import DataSplits, MedpipeOrchestrator
 from medpipe.pipeline.runner import MedpipeRunner
 from medpipe.utils.config import MedpipeConfig
 from medpipe.utils.logger import get_console_logger
@@ -25,6 +25,8 @@ if TYPE_CHECKING:
     import numpy.typing as npt
     from matplotlib.axes import Axes
     from matplotlib.figure import Figure, SubFigure
+    from sklearn.calibration import CalibratedClassifierCV
+    from sklearn.pipeline import Pipeline
 
 
 class Medpipe:
@@ -105,6 +107,54 @@ class Medpipe:
         self.displayer = MedpipeDisplayer(orchestrator=self.orchestrator)
 
         self.logger.info("Medpipe initialisation complete.")
+
+    @property
+    def models(self) -> Dict[str, Union[Pipeline, CalibratedClassifierCV]]:
+        """Return the fitted models.
+
+        Returns
+        -------
+        fitted_models : Dict[str, Union[Pipeline, CalibratedClassifierCV]]
+            Fitted models from the MedpipeRunner object.
+
+        """
+        return self.runner.fitted_models
+
+    @property
+    def is_fitted(self) -> bool:
+        """Checks if the Medpipe is fitted by looking at MedpipeRunner.
+
+        Returns
+        -------
+        fitted : bool
+            True if the models have been fitted, False otherwise.
+
+        """
+        return self.runner.fitted_models != {}
+
+    @property
+    def run_dir(self) -> Path:
+        """Returns the run_dir from the MedpipeOrchestrator object.
+
+        Returns
+        -------
+        run_dir : Path
+            Path to the run_dir.
+
+        """
+        return self.orchestrator.run_dir
+
+    @property
+    def data_split(self) -> DataSplits:
+        """Access any of the data splits.
+
+        Return
+        ------
+        DataSplits
+            Any of the DataSplits attributes.
+
+        """
+        return self.orchestrator.splits
 
     def fit(
         self,
