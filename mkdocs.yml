@@ -41,3 +41,4 @@ nav:
     - Models: models.md
     - Pipeline: pipeline.md
     - Utils: utils.md
+    - Visualisation: visualisation.md
