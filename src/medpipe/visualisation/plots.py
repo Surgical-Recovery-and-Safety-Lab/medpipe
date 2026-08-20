@@ -21,6 +21,7 @@ def draw_probability_distribution(
     n_bins: int = 10,
     label: str = "Predicted probabilities",
     ax: Optional[Axes] = None,
+    yscale: str = "linear",
     color: str = _DEFAULT_THEME.primary_color,
     edgecolor: str = "black",
     title: Optional[str] = None,
@@ -39,6 +40,8 @@ def draw_probability_distribution(
         Legend label for the histogram series.
     ax : matplotlib.axes.Axes, optional
         Pre-existing Matplotlib axes instance. If None, a new figure and axes are created.
+    yscale : str, default="linear"
+        Scale to use for the y-axis (e.g. linear, log, etc.)
     color : str, default=_DEFAULT_THEME.primary_color
         Fill color for histogram bars.
     edgecolor : str, default="black"
@@ -90,6 +93,7 @@ def draw_probability_distribution(
 
     ax.set_xlabel("Predicted probabilities", fontweight="bold")
     ax.set_ylabel("Count", fontweight="bold")
+    ax.set_yscale(yscale)
     ax.set_xlim(xmin=-0.05, xmax=1.05)
 
     if title:
@@ -370,7 +374,8 @@ def draw_reliability_diagram(
     lower_ci: Optional[np.ndarray] = None,
     upper_ci: Optional[np.ndarray] = None,
     label: str = "Model",
-    dist_bins: int = 20,
+    dist_n_bins: int = 20,
+    dist_yscale: str = "linear",
     auto_inset: bool = True,
     ax: Optional[Axes] = None,
     color: str = _DEFAULT_THEME.primary_color,
@@ -402,8 +407,10 @@ def draw_reliability_diagram(
         Upper bound array for 95% confidence interval shading.
     label : str, default="Model"
         Legend label for the plotted curve.
-    dist_bins : int, default=20
+    dist_n_bins : int, default=20
         Number of bins for the underlying probability distribution histogram.
+    dist_yscale : str, default="linear"
+        Scale to use for the y-axis (e.g. linear, log, etc.)
     auto_inset : bool, default=True
         Whether to automatically render a zoomed inset box when maximum predicted probability < 0.4.
     ax : matplotlib.axes.Axes, optional
@@ -505,7 +512,7 @@ def draw_reliability_diagram(
         divider = make_axes_locatable(ax)
         ax_dist = divider.append_axes("bottom", size="25%", pad=0.15, sharex=ax)
 
-        bins = np.linspace(0.0, 1.0, dist_bins + 1)
+        bins = np.linspace(0.0, 1.0, dist_n_bins + 1)
         ax_dist.hist(
             probas,
             bins=bins,
@@ -514,6 +521,7 @@ def draw_reliability_diagram(
         )
         ax_dist.set_xlabel("Mean predicted probability", fontweight="bold")
         ax_dist.set_ylabel("Count", fontweight="bold")
+        ax_dist.set_yscale(dist_yscale)
 
         if not show_spines:
             ax_dist.spines["top"].set_visible(False)

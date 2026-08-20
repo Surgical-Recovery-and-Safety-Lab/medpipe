@@ -168,6 +168,8 @@ class MedpipeDisplayer:
                 "save": True,
                 "show": False,
                 "n_bins": 10,
+                "dist_n_bins": 10,
+                "dist_yscale": "linear",
                 "strategy": "uniform",
             }
             overrides: Dict[str, Any] = {}
@@ -585,6 +587,7 @@ class MedpipeDisplayer:
         probas: np.ndarray,
         outcome: str = "default",
         n_bins: Optional[int] = None,
+        yscale: Optional[str] = None,
         label: Optional[str] = None,
         save: Optional[bool] = None,
         show: Optional[bool] = None,
@@ -598,8 +601,10 @@ class MedpipeDisplayer:
             Predicted probabilities of shape (n_samples, 2) or (n_samples,).
         outcome : str, default="default"
             Outcome identifier used for figure titles and directory structuring.
-        n_bins : int, default=10
+        n_bins : int, optional
             Number of equal-width bins for the histogram.
+        yscale : str, optional
+            Scale to use for the y-axis (e.g. linear, log, etc.)
         label : str, optional
             Legend label. Defaults to "Predicted Probabilities".
         save : bool, optional
@@ -620,15 +625,17 @@ class MedpipeDisplayer:
         cfg = self._resolve_plot_config(
             plot_type="distribution",
             outcome=outcome,
-            n_bins=n_bins,
+            dist_n_bins=n_bins,
+            dist_yscale=yscale,
             save=save,
             show=show,
             **style_kwargs,
         )
 
-        n_bins_val = cfg["n_bins"]
+        n_bins_val = cfg["dist_n_bins"]
         save_val = cfg["save"]
         show_val = cfg["show"]
+        dist_yscale_val = cfg["dist_yscale"]
 
         self.logger.info(
             f"[{outcome}] Starting predicted probability distribution plotting."
@@ -644,6 +651,7 @@ class MedpipeDisplayer:
                 probas=probas,
                 n_bins=n_bins_val,
                 label=display_label,
+                yscale=dist_yscale_val,
                 color=style_kwargs.pop("color", self.theme.primary_color),
                 show_spines=style_kwargs.pop("show_spines", self.theme.show_spines),
                 title=f"Probability Distribution - {outcome.capitalize()}",
@@ -860,7 +868,9 @@ class MedpipeDisplayer:
         y_true: np.ndarray,
         probas: np.ndarray,
         outcome: str = "default",
-        n_bins: int = 10,
+        n_bins: Optional[int] = None,
+        dist_n_bins: Optional[int] = None,
+        dist_yscale: Optional[str] = None,
         strategy: Optional[str] = None,
         label: Optional[str] = None,
         n_bootstraps: Optional[int] = None,
@@ -879,8 +889,12 @@ class MedpipeDisplayer:
             Predicted probabilities of shape (n_samples, 2) or (n_samples,).
         outcome : str, default="default"
             Outcome identifier used for figure titles and directory structuring.
-        n_bins : int, default=10
+        n_bins : int, optional
             Number of calibration bins (ignored if strategy='spline').
+        dist_n_bins : int, optional
+            Number of bins for the distribution.
+        dist_yscale : str, optional
+            Scale to use for the y-axis (e.g. linear, log, etc.)
         strategy : {'uniform', 'quantile', 'spline'}, optional
             Binning or smoothing strategy for calibration calculation.
         label : str, optional
@@ -906,6 +920,8 @@ class MedpipeDisplayer:
             plot_type="reliability",
             outcome=outcome,
             n_bins=n_bins,
+            dist_n_bins=dist_n_bins,
+            dist_yscale=dist_yscale,
             strategy=strategy,
             n_bootstraps=n_bootstraps,
             save=save,
@@ -916,6 +932,8 @@ class MedpipeDisplayer:
         n_bins_val = cfg["n_bins"]
         strategy_val = cfg["strategy"]
         n_bootstraps_val = cfg["n_bootstraps"]
+        dist_yscale_val = cfg["dist_yscale"]
+        dist_n_bins_val = cfg["dist_n_bins"]
         save_val = cfg["save"]
         show_val = cfg["show"]
 
@@ -944,6 +962,8 @@ class MedpipeDisplayer:
                 prob_true=prob_true,
                 prob_pred=prob_pred,
                 probas=probas,  # Pass raw probabilities for bottom histogram
+                dist_yscale=dist_yscale_val,
+                dist_n_bins=dist_n_bins_val,
                 lower_ci=lower_ci,
                 upper_ci=upper_ci,
                 label=display_label,
