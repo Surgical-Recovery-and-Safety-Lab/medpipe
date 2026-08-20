@@ -6,6 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to Semantic Versioning ([SemVer](https://semver.org/spec/v2.0.0.html)).
 
 ## [Unreleased]
+
 ### Added
 * **BREAKING** MedpipeOrchestrator class that handles the loading configuration, data, and creates the ArtifactManager
 * **BREAKING** MedpipeRunner class that handles the creation and fitting of the models
@@ -26,6 +27,10 @@ and this project adheres to Semantic Versioning ([SemVer](https://semver.org/spe
 * Stress tests for the Medpipe class
 * DataLoaderRegistry to accept unsupported types of data
 * New data types supported (.tsv, .txt, .pq, .feather, .xls, .xlsx, .json, .jsonl, .pickle, .pkl)
+* Additional plugins for MkDocs to include code snippets from examples and search
+* A docs optional dependencies in the pyproject.toml file
+* Visualisation API reference in MkDocs
+
 
 ### Changed
 * **BREAKING** Refactored the logger module
@@ -39,6 +44,12 @@ and this project adheres to Semantic Versioning ([SemVer](https://semver.org/spe
 * Renamed config-examples to examples
 * Updated LICENSE with copyright year and owner name
 * Renamed test folder to tests
+* Updated README.md
+* pyproject.toml project description
+* MkDocs index page
+* Location for the API references from docs/ to docs/api
+* Site name and layout
+* Moved install.md to docs/start folder
 
 ### Fixed
 * Typo in the CATEGORY_LEVEL_1 column of test_data.csv
