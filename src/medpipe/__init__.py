@@ -1,46 +1,33 @@
 """
-medpipe module
+Medpipe: A Python framework for clinical machine learning pipeline orchestration.
 
-submodules:
-- data: contains data related functions
-- metrics: contains model metric functions
-- models: contains model creation functions
-- pipeline: contains pipeline functions
-- utils: contains utility functions
+Provides unified high-level interfaces for data preparation, model fitting,
+post-hoc calibration, TRIPOD+AI compliant evaluation, and reproducibility tracking.
 """
 
-from .data import extract_labels
-from .metrics import (
-    plot_probability_distribution,
-    plot_reliability_diagram,
-    plot_ROC_curve,
-    plot_strata_heatmap,
-    print_metrics,
+from medpipe.metrics import MetricRegistry
+from medpipe.models import ModelRegistry
+from medpipe.pipeline import (
+    Medpipe,
+    MedpipeEvaluator,
+    MedpipeOrchestrator,
+    MedpipeRunner,
 )
-from .models import load_pipeline, save_pipeline
-from .pipeline.pipeline import MedpipePipeline
-from .utils import (
-    exception_handler,
-    load_data,
-    print_message,
-    read_toml_configuration,
-    setup_logger,
-)
+from medpipe.utils import MedpipeConfig
+
+__version__ = "0.4.0"
 
 __all__ = [
-    "MedpipePipeline",
-    "exception_handler",
-    "load_data",
-    "print_message",
-    "read_toml_configuration",
-    "setup_logger",
-    "load_pipeline",
-    "save_pipeline",
-    "plot_probability_distribution",
-    "plot_reliability_diagram",
-    "plot_ROC_curve",
-    "plot_strata_heatmap",
-    "print_metrics",
-    "extract_labels",
+    # Primary API Entry Point
+    "Medpipe",
+    "MedpipeConfig",
+    # Sub-Orchestrators (for custom/modular workflows)
+    "MedpipeOrchestrator",
+    "MedpipeRunner",
+    "MedpipeEvaluator",
+    # Component Registries (for custom models & metrics)
+    "ModelRegistry",
+    "MetricRegistry",
+    # Package Metadata
+    "__version__",
 ]
-__version__ = "v0.3.0"

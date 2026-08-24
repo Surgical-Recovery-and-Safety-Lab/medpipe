@@ -1,3 +1,0 @@
-log_dir = "/home/mroe734/Documents/AI-risk-score/logs"
-log_message = "Exception raised in "
-print_message = "[ERROR] An exception was raised.\n\nCheck logs "
