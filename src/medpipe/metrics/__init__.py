@@ -1,16 +1,27 @@
 """
-medpipe.metrics module
+medpipe.metrics
+---------------
+Metrics, scoring registries, and plotting utilities for the Medpipe package.
 
-submodules:
-- core: contains functions to compute and print metrics.
-- plots: contains functions to plot results.
+Provides core metric computation functions, bootstrap confidence interval
+estimation, cross-validation scorer building, and metric registries.
 """
 
-from . import core, plots
-from .core import compute_metrics, print_metrics
-from .plots import (
-    plot_probability_distribution,
-    plot_reliability_diagram,
-    plot_ROC_curve,
-    plot_strata_heatmap,
+from medpipe.metrics.core import (
+    bootstrap_confidence_intervals,
+    build_scorers,
+    compute_metrics,
+    ici_score,
 )
+from medpipe.metrics.registry import MetricRegistry, MetricSpec
+
+__all__ = [
+    # Core metric functions
+    "compute_metrics",
+    "build_scorers",
+    "bootstrap_confidence_intervals",
+    "ici_score",
+    # Metric registry and specifications
+    "MetricRegistry",
+    "MetricSpec",
+]
