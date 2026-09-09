@@ -5,7 +5,8 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to Semantic Versioning ([SemVer](https://semver.org/spec/v2.0.0.html)).
 
-## [Unreleased]
+## [0.4.0.dev0] 2026-09-09
+
 ### Added
 * **BREAKING** MedpipeOrchestrator class that handles the loading configuration, data, and creates the ArtifactManager
 * **BREAKING** MedpipeRunner class that handles the creation and fitting of the models
@@ -74,3 +75,7 @@ and this project adheres to Semantic Versioning ([SemVer](https://semver.org/spe
 
 ### Removed
 * Class imbalance mitigation methods (data sampling, cost-sensitive learning).
+
+[Unreleased]: https://github.com/Surgical-Recovery-and-Safety-Lab/medpipe/compare/v0.4.0.dev0...HEAD
+[0.3.1]: https://github.com/Surgical-Recovery-and-Safety-Lab/medpipe/compare/v.0.3.0...v0.3.1
+[0.3.0]: https://github.com/Surgical-Recovery-and-Safety-Lab/medpipe/compare/v.0.2.1...v0.3.0
