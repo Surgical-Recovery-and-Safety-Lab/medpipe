@@ -7,8 +7,10 @@ class BaseRegistry(Generic[T]):
     """
     Abstract base class for creating component registries.
 
-    Subclasses must explicitly define their own `_registry` dictionary
-    and `_fallback_modules` list to prevent cross-contamination.
+    Every subclass automatically gets its own isolated `_registry` dict
+    and `_fallback_modules` list via `__init_subclass__`, so state never
+    leaks between subclasses even if they don't redeclare either
+    attribute themselves.
 
     Parameters
     ----------
@@ -24,6 +26,16 @@ class BaseRegistry(Generic[T]):
         super().__init_subclass__(**kwargs)
         # Automatically isolate dictionary state for each subclass
         cls._registry = {}
+
+        # Isolate fallback module state too: give each subclass its own
+        # copy of whatever list it would otherwise inherit (empty for a
+        # direct BaseRegistry subclass, or the parent's contents for a
+        # deeper subclass), so mutating one subclass's list can never leak
+        # into another. Subclasses that declare their own _fallback_modules
+        # in their class body already own an isolated list and are left
+        # untouched.
+        if "_fallback_modules" not in cls.__dict__:
+            cls._fallback_modules = list(cls._fallback_modules)
 
     @classmethod
     def register(cls, name: Optional[str] = None) -> Callable[[T], T]:
