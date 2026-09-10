@@ -116,10 +116,20 @@ def load_data(data_file: str | Path, **kwargs: Any) -> pd.DataFrame:
     file_path = Path(data_file)
     supported_extensions = DataLoaderRegistry.list_registered()
 
-    # Executes file existence, directory, and extension checks
-    file_checks(file_path, supported_extensions)
+    # Validate the extension case-insensitively, consistent with how
+    # DataLoaderRegistry itself resolves loaders (e.g. '.CSV' == '.csv').
+    normalized_suffix = DataLoaderRegistry._normalize_ext(file_path.suffix)
+    if normalized_suffix not in supported_extensions:
+        raise ValueError(
+            f"File suffix should be one of {supported_extensions}, "
+            f"but got {file_path.suffix}"
+        )
 
-    loader = DataLoaderRegistry.get(file_path.suffix)
+    # Extension already validated above, so this only checks existence
+    # and that the path is a file rather than a directory.
+    file_checks(file_path, file_path.suffix)
+
+    loader = DataLoaderRegistry.get(normalized_suffix)
 
     return cast(pd.DataFrame, loader(file_path, **kwargs))
 
