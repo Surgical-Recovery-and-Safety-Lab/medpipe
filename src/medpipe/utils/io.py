@@ -15,7 +15,7 @@ from typing import Any, Callable, Dict, List, cast
 import pandas as pd
 
 from .config import MedpipeConfig
-from .exceptions import file_checks
+from .validation import file_checks
 
 
 class DataLoaderRegistry:
