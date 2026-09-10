@@ -44,6 +44,7 @@ Repository = "https://github.com/Surgical-Recovery-and-Safety-Lab/medpipe.git"
 # Development and testing dependencies
 [project.optional-dependencies]
 dev = [
+  "openpyxl>=3.1.0",
   "pytest>=8.0.0",
   "pytest-mock>=3.12.0",
 ]
@@ -56,6 +57,13 @@ build-backend = "setuptools.build_meta"
 addopts = "-ra -q"
 minversion = "8.0"
 testpaths = ["tests"]
+filterwarnings = [
+    # pandas' own feather I/O calls pyarrow's deprecated feather.write_feather /
+    # read_feather instead of the new pyarrow.ipc API. This is pandas-internal,
+    # not something medpipe controls, and will resolve itself once pandas
+    # updates its feather backend.
+    "ignore:pyarrow\\.feather\\.(write|read)_feather is deprecated.*:FutureWarning",
+]
 
 [tool.setuptools.packages.find]
 where = ["src"]
