@@ -8,12 +8,7 @@ component registries, reproducibility management, and assertion utilities.
 """
 
 from medpipe.utils.config import MedpipeConfig
-from medpipe.utils.exceptions import (
-    array_check,
-    array_dim_check,
-    file_checks,
-    path_checks,
-)
+from medpipe.utils.exceptions import file_checks, path_checks
 from medpipe.utils.io import DataLoaderRegistry, load_data, read_toml_configuration
 from medpipe.utils.logger import add_file_handler, get_console_logger
 from medpipe.utils.registry import BaseRegistry
@@ -36,6 +31,4 @@ __all__ = [
     # Exception & Validation Checks
     "file_checks",
     "path_checks",
-    "array_check",
-    "array_dim_check",
 ]
