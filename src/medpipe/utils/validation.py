@@ -1,7 +1,8 @@
 """
-Execption functions module.
+Validation functions module.
 
-This module provides functions for execption handling and raising.
+This module provides functions for validating files and paths, raising
+the appropriate exception when a check fails.
 
 Functions:
 - file_checks: Checks if the file is correct.
