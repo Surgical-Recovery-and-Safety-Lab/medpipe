@@ -16,9 +16,9 @@ from typing import TYPE_CHECKING, Any, Literal, cast
 import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split
+from sklearn.utils import check_array, check_consistent_length
 
 from medpipe._types import Labels
-from medpipe.utils.exceptions import array_check, array_dim_check
 
 if TYPE_CHECKING:
     import numpy.typing as npt
@@ -55,7 +55,7 @@ def get_split_idx(
         If values is not a list or a np.ndarray.
 
     """
-    array_check(idx_list)
+    check_array(idx_list, ensure_2d=False)
 
     # Standardize groups to numpy
     if isinstance(column, pd.Series):
@@ -63,7 +63,7 @@ def get_split_idx(
     elif not isinstance(column, np.ndarray):
         raise TypeError(f"column should be pd.Series or np.array, got {type(column)}")
 
-    array_dim_check(idx_list, column, dim=0)  # Ensure dimension match
+    check_consistent_length(idx_list, column)  # Ensure dimension match
 
     # Type checking validation
     if not isinstance(values, (list, np.ndarray)):
