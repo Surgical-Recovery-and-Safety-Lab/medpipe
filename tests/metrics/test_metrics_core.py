@@ -10,13 +10,12 @@ import numpy as np
 import numpy.typing as npt
 import pytest
 
-from medpipe._types import Labels
 from medpipe.metrics.core import METRICS, build_scorers, compute_metrics, ici_score
 from medpipe.metrics.registry import MetricRegistry, MetricSpec
 
 
 @pytest.fixture
-def mock_data() -> tuple[Labels, npt.NDArray]:
+def mock_data() -> tuple[npt.NDArray, npt.NDArray]:
     """Generate some mock labels and predictions for tests."""
     rng = np.random.default_rng(seed=42)
     n_samples = 100
@@ -31,14 +30,18 @@ def mock_data() -> tuple[Labels, npt.NDArray]:
 class TestIciScore:
     """Test class for the ici_score function."""
 
-    def test_ici_score_success(self, mock_data: tuple[Labels, npt.NDArray]) -> None:
+    def test_ici_score_success(
+        self, mock_data: tuple[npt.NDArray, npt.NDArray]
+    ) -> None:
         """Test successful function call."""
         y, y_pred = mock_data
         ici = ici_score(y, y_pred)
 
         assert isinstance(ici, float)
 
-    def test_ici_score_pos_proba(self, mock_data: tuple[Labels, npt.NDArray]) -> None:
+    def test_ici_score_pos_proba(
+        self, mock_data: tuple[npt.NDArray, npt.NDArray]
+    ) -> None:
         """Test successful function call with positive class probabilities only."""
         y, y_pred = mock_data  # Unpack mock data
         y_pred = y_pred[:, 1]
@@ -48,7 +51,7 @@ class TestIciScore:
 
     @patch("medpipe.metrics.core.SplineCalib")
     def test_ici_score_spline_prediction_failure_raises(
-        self, mock_spline_cls: MagicMock, mock_data: tuple[Labels, npt.NDArray]
+        self, mock_spline_cls: MagicMock, mock_data: tuple[npt.NDArray, npt.NDArray]
     ) -> None:
         """Test ValueError handling when spline prediction fails/returns None."""
         y, y_pred = mock_data
@@ -107,7 +110,7 @@ class TestComputeMetrics:
     """Test class for the compute_metrics function."""
 
     def test_compute_metrics_success(
-        self, mock_data: tuple[Labels, npt.NDArray]
+        self, mock_data: tuple[npt.NDArray, npt.NDArray]
     ) -> None:
         """Test metric calculation with 2D probabilities."""
         y, y_pred = mock_data
@@ -116,7 +119,7 @@ class TestComputeMetrics:
         assert len(scores) == len(METRICS)
 
     def test_compute_metrics_success_pos_proba(
-        self, mock_data: tuple[Labels, npt.NDArray]
+        self, mock_data: tuple[npt.NDArray, npt.NDArray]
     ) -> None:
         """Test metric calculation with 1D positive class probabilities."""
         y, y_pred = mock_data
@@ -125,7 +128,7 @@ class TestComputeMetrics:
         assert len(scores) == len(METRICS)
 
     def test_compute_metrics_numpy_array_input_for_metrics(
-        self, mock_data: tuple[Labels, npt.NDArray]
+        self, mock_data: tuple[npt.NDArray, npt.NDArray]
     ) -> None:
         """Test passing metrics as a NumPy array of string identifiers."""
         y, y_pred = mock_data
@@ -211,7 +214,7 @@ class TestComputeMetrics:
             compute_metrics(["accuracy"], y_empty, y_pred_empty)
 
     def test_compute_metrics_custom_metric_dynamic_registration(
-        self, mock_data: tuple[Labels, npt.NDArray]
+        self, mock_data: tuple[npt.NDArray, npt.NDArray]
     ) -> None:
         """
         Test registering a custom metric dynamically at runtime and evaluating it

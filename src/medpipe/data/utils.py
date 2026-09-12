@@ -11,17 +11,13 @@ Functions:
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Literal, cast
+from typing import Any, Literal, cast
 
 import numpy as np
+import numpy.typing as npt
 import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.utils import check_array, check_consistent_length
-
-from medpipe._types import Labels
-
-if TYPE_CHECKING:
-    import numpy.typing as npt
 
 
 def get_split_idx(
@@ -83,14 +79,14 @@ def get_split_idx(
 
 def split_data(
     features: pd.DataFrame,
-    labels: Labels,
+    labels: npt.NDArray,
     strategy: Literal["random", "group"],
     group_column: str | None = None,
     values: list[str] | list[int] | None = None,
     test_size: float | None = None,
     recalibration_size: float | None = None,
     random_state: int | None = None,
-) -> tuple[pd.DataFrame, Labels, pd.DataFrame, Labels]:
+) -> tuple[pd.DataFrame, npt.NDArray, pd.DataFrame, npt.NDArray]:
     """
     Split data into train and test or train and recalibration sets.
 
@@ -102,7 +98,7 @@ def split_data(
     ----------
     features : pd.DataFrame
         Features to split.
-    labels : Labels
+    labels : npt.NDArray
         Labels to split.
     strategy : {"random", "group"}
         Strategy used to split the data.
@@ -122,7 +118,7 @@ def split_data(
     -------
     X_train, X_test : pd.DataFrame
         Train and test / recalibration set.
-    y_train, y_test : Labels
+    y_train, y_test : npt.NDArray
         Train and test / recalibration labels.
 
     Raises
@@ -176,15 +172,15 @@ def split_data(
 
     return (
         cast(pd.DataFrame, X_train),
-        cast(Labels, y_train),
+        cast(npt.NDArray, y_train),
         cast(pd.DataFrame, X_test),
-        cast(Labels, y_test),
+        cast(npt.NDArray, y_test),
     )
 
 
 def extract_labels(
     data: pd.DataFrame, labels: list[str]
-) -> tuple[pd.DataFrame, Labels]:
+) -> tuple[pd.DataFrame, npt.NDArray]:
     """
     Extracts the prediction labels from the training data.
 
@@ -199,7 +195,7 @@ def extract_labels(
     -------
     X : pd.DataFrame
         DataFrame containing the data.
-    y : Labels
+    y : npt.NDArray
         Array containing the prediction labels.
 
     Raises

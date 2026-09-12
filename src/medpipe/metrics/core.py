@@ -23,7 +23,6 @@ from sklearn.metrics import (
 )
 from splinecalib import SplineCalib
 
-from medpipe._types import Labels
 from medpipe.metrics.registry import MetricRegistry, MetricSpec
 
 if TYPE_CHECKING:
@@ -34,7 +33,7 @@ if TYPE_CHECKING:
 # ------------------------------------------------------------------------------
 
 
-def ici_score(y: Labels, y_pred: npt.NDArray) -> float:
+def ici_score(y: npt.NDArray, y_pred: npt.NDArray) -> float:
     """Computes the integrated calibration index using a spline-based curve."""
     if y_pred.ndim == 2:
         y_pred = y_pred[:, 1]
@@ -140,7 +139,7 @@ def build_scorers(metrics: list[str] | npt.NDArray) -> dict[str, Callable]:
 
 
 def compute_metrics(
-    metrics: list[str] | npt.NDArray, y: Labels, y_pred: npt.NDArray
+    metrics: list[str] | npt.NDArray, y: npt.NDArray, y_pred: npt.NDArray
 ) -> npt.NDArray:
     """
     Computes metrics based on predicted data.
@@ -151,7 +150,7 @@ def compute_metrics(
     ----------
     metrics : list[str]
         List of metrics to use.
-    y : Labels
+    y : npt.NDArray
         Ground truth labels.
     y_pred : npt.NDArray
         Predictions from the model of shape
@@ -210,7 +209,7 @@ def compute_metrics(
 
 def bootstrap_confidence_intervals(
     metrics: list[str],
-    y_true: Labels,
+    y_true: npt.NDArray,
     y_pred: npt.NDArray,
     n_bootstraps: int = 1000,
     ci_level: float = 0.95,
@@ -229,7 +228,7 @@ def bootstrap_confidence_intervals(
     metrics : list[str]
         Metric identifier keys registered in `MetricRegistry`
         (e.g., `["roc_auc", "log_loss"]`).
-    y_true : Labels
+    y_true : npt.NDArray
         Ground truth binary target labels of shape (n_samples,).
     y_pred : npt.NDArray
         Predicted probabilities or decision values of shape (n_samples,) or

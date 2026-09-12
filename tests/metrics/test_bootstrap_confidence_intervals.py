@@ -11,12 +11,11 @@ import numpy as np
 import numpy.typing as npt
 import pytest
 
-from medpipe._types import Labels
 from medpipe.metrics.core import bootstrap_confidence_intervals, compute_metrics
 
 
 @pytest.fixture
-def mock_binary_data() -> tuple[Labels, npt.NDArray]:
+def mock_binary_data() -> tuple[npt.NDArray, npt.NDArray]:
     """Generate a moderately sized, well-balanced binary dataset."""
     rng = np.random.default_rng(seed=7)
     n_samples = 60
@@ -30,7 +29,7 @@ class TestBootstrapConfidenceIntervalsStructure:
     """Tests for the shape and content of a successful call's return value."""
 
     def test_returns_expected_structure_per_metric(
-        self, mock_binary_data: tuple[Labels, npt.NDArray]
+        self, mock_binary_data: tuple[npt.NDArray, npt.NDArray]
     ) -> None:
         """Test that every requested metric maps to a dict with the three
         documented keys, each holding a float."""
@@ -50,7 +49,7 @@ class TestBootstrapConfidenceIntervalsStructure:
             assert metric_result["ci_lower"] <= metric_result["ci_upper"]
 
     def test_point_estimate_matches_compute_metrics_on_original_data(
-        self, mock_binary_data: tuple[Labels, npt.NDArray]
+        self, mock_binary_data: tuple[npt.NDArray, npt.NDArray]
     ) -> None:
         """Test that point_estimate equals compute_metrics run directly on
         the un-resampled data, since it should never be affected by
@@ -78,7 +77,7 @@ class TestBootstrapConfidenceIntervalsRandomState:
     """Tests for the random_state / reproducibility behavior."""
 
     def test_reproducible_with_same_integer_seed(
-        self, mock_binary_data: tuple[Labels, npt.NDArray]
+        self, mock_binary_data: tuple[npt.NDArray, npt.NDArray]
     ) -> None:
         """Test that two calls with the same integer random_state produce
         identical results."""
@@ -94,7 +93,7 @@ class TestBootstrapConfidenceIntervalsRandomState:
         assert first == second
 
     def test_different_seeds_produce_different_bounds(
-        self, mock_binary_data: tuple[Labels, npt.NDArray]
+        self, mock_binary_data: tuple[npt.NDArray, npt.NDArray]
     ) -> None:
         """Test that different seeds lead to different resampling and thus
         (with high probability) different confidence bounds."""
@@ -110,7 +109,7 @@ class TestBootstrapConfidenceIntervalsRandomState:
         assert first != second
 
     def test_accepts_a_generator_instance_directly(
-        self, mock_binary_data: tuple[Labels, npt.NDArray]
+        self, mock_binary_data: tuple[npt.NDArray, npt.NDArray]
     ) -> None:
         """Test that passing an np.random.Generator instance is accepted
         and used as-is, rather than being re-seeded."""
@@ -124,7 +123,7 @@ class TestBootstrapConfidenceIntervalsRandomState:
         assert isinstance(results["accuracy"]["point_estimate"], float)
 
     def test_accepts_none_random_state(
-        self, mock_binary_data: tuple[Labels, npt.NDArray]
+        self, mock_binary_data: tuple[npt.NDArray, npt.NDArray]
     ) -> None:
         """Test that omitting random_state (None) still produces a valid,
         if non-reproducible, result."""
@@ -141,7 +140,7 @@ class TestBootstrapConfidenceIntervalsInputShapes:
     """Tests for accepted y_true / y_pred shapes and types."""
 
     def test_2d_y_pred_matches_1d_positive_class_column(
-        self, mock_binary_data: tuple[Labels, npt.NDArray]
+        self, mock_binary_data: tuple[npt.NDArray, npt.NDArray]
     ) -> None:
         """Test that passing (n_samples, 2) probabilities gives identical
         results to passing the positive-class column alone, given the same
@@ -176,7 +175,7 @@ class TestBootstrapConfidenceIntervalsCiLevel:
 
     @pytest.mark.parametrize("ci_level", [0.0, 1.0, -0.1, 1.5])
     def test_invalid_ci_level_raises_value_error(
-        self, mock_binary_data: tuple[Labels, npt.NDArray], ci_level: float
+        self, mock_binary_data: tuple[npt.NDArray, npt.NDArray], ci_level: float
     ) -> None:
         """Test that ci_level outside the open interval (0, 1) raises."""
         y, y_pred = mock_binary_data
@@ -215,7 +214,7 @@ class TestBootstrapConfidenceIntervalsResampling:
             )
 
     def test_iterations_raising_unexpected_errors_are_skipped(
-        self, mock_binary_data: tuple[Labels, npt.NDArray]
+        self, mock_binary_data: tuple[npt.NDArray, npt.NDArray]
     ) -> None:
         """Test the generic except-and-skip branch: bootstrap iterations
         whose compute_metrics call raises some other exception (e.g. a
