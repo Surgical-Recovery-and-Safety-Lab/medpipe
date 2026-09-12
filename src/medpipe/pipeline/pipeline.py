@@ -80,8 +80,8 @@ class Medpipe:
     save_artifacts=True)
         Evaluate model performance with confidence intervals on full datasets
         and subgroups.
-    plot_all(y_true, probas, outcome="default", n_bootstraps=1000, save=True,
-    show=False, **style_kwargs)
+    plot_all(y_true, probas, outcome="default", n_bootstraps=None, save=None,
+    show=None, **style_kwargs)
         Generate and persist all standard evaluation figures for
         a specific outcome.
     run(subgroup_specs=None, groups_train=None)
@@ -480,9 +480,9 @@ class Medpipe:
         y_true: np.ndarray,
         probas: np.ndarray,
         outcome: str = "default",
-        n_bootstraps: int = 1000,
-        save: bool = True,
-        show: bool = False,
+        n_bootstraps: int | None = None,
+        save: bool | None = None,
+        show: bool | None = None,
         **style_kwargs: Any,
     ) -> dict[str, tuple[Figure | SubFigure, Axes]]:
         """Execute all core evaluation visualization routines for a given outcome.
@@ -499,13 +499,16 @@ class Medpipe:
             Predicted probabilities of shape (n_samples, 2) or (n_samples,).
         outcome : str, default="default"
             Outcome identifier used for figure titles and directory structuring.
-        n_bootstraps : int, default=1000
+        n_bootstraps : int, optional
             Number of bootstrap iterations for confidence interval estimation on ROC,
-            PR, and reliability curves.
-        save : bool, default=True
+            PR, and reliability curves. If None, resolved from the display
+            configuration.
+        save : bool, optional
             Automatically save all generated plot artifacts to the run directory.
-        show : bool, default=False
-            Whether to display figures interactively before closing.
+            If None, resolved from the display configuration.
+        show : bool, optional
+            Whether to display figures interactively before closing. If None,
+            resolved from the display configuration.
         **style_kwargs : Any
             Additional style parameters forwarded to underlying drawing primitives.
 

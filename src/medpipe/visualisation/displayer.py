@@ -182,17 +182,18 @@ class MedpipeDisplayer:
 
         canonical_type = self._normalize_plot_type(plot_type)
 
-        # 1. Apply global plot-type overrides
-        for key in (plot_type.lower(), canonical_type):
-            if key in overrides:
-                config_params.update(overrides[key])
+        # 1. Apply global plot-type overrides (matching on any alias that
+        # normalizes to the same canonical plot type as `plot_type`)
+        for key, value in overrides.items():
+            if self._normalize_plot_type(key) == canonical_type:
+                config_params.update(value)
 
         # 2. Apply outcome-specific plot overrides
         if outcome and outcome in outcome_overrides:
             out_cfg = outcome_overrides[outcome]
-            for key in (plot_type.lower(), canonical_type):
-                if key in out_cfg:
-                    config_params.update(out_cfg[key])
+            for key, value in out_cfg.items():
+                if self._normalize_plot_type(key) == canonical_type:
+                    config_params.update(value)
 
         # 3. Apply explicit non-None runtime kwargs overrides
         for k, v in runtime_kwargs.items():
