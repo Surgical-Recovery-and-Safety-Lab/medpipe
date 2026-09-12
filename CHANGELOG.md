@@ -5,6 +5,47 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to Semantic Versioning ([SemVer](https://semver.org/spec/v2.0.0.html)).
 
+## [Unreleased]
+
+### Added
+* Separate files for the `config` tests with increased coverage.
+* Separate files for the `logger` tests with increased coverage.
+* Separate files for the `reproducibility` tests with increased coverage.
+* Separate files for the `io` tests with increased coverage.
+* Separate files for the `visualisation/displayer` tests with increased coverage.
+* The `openpyxl` package as an optional dependency.
+* Ignoring thrid-party warnings about `pyarrow.feather` in tests.
+* Renamed `exceptions.py` to `validation.py` for clarity.
+* Safety check in the `BaseRegistry` _fallback_module.
+* Increased coverage in the `registry` tests.
+* Test coverage for the `metrics/core.py` functions.
+* Test coverage for the `metrics/registry.py` functions.
+* Test coverage for the `data` functions.
+* Test coverage for the `models` functions.
+* Test coverage for the `visualisation` functions.
+* Separate files for the `orchestrator` tests with increased coverage.
+* Separate files for the `runner` tests with increased coverage.
+* Test coverage for the `evaluator` functions.
+* Test coverage for the `pipeline` functions.
+
+### Removed
+* Monolithic `test_config.py` file.
+* Monolithic `test_logger.py` file.
+* Monolithic `test_reproducibility.py` file.
+* Monolithic `test_io.py` file.
+* Monolithic `test_displayer.py` file.
+* The `array_check` and `array_dim_check` functions, replaced with sklearn
+functions instead.
+* The `BoundedLogitTransformer` for regression.
+* Monolithic `test_orchestrator.py` file.
+* Monolithic `test_runner.py` file.
+
+### Fixed
+* Bug in `io.py` that was case-sensitive for the file extensions.
+* Bug in data split which never had `random_state` reach it.
+* Bug with the 'spline' strategy for the calibration curve that did not remove the
+markers when plotting.
+
 ## [0.4.0.dev0] 2026-09-09
 
 ### Added
@@ -77,5 +118,6 @@ and this project adheres to Semantic Versioning ([SemVer](https://semver.org/spe
 * Class imbalance mitigation methods (data sampling, cost-sensitive learning).
 
 [Unreleased]: https://github.com/Surgical-Recovery-and-Safety-Lab/medpipe/compare/v0.4.0.dev0...HEAD
+[v0.4.0.dev0]: https://github.com/Surgical-Recovery-and-Safety-Lab/medpipe/compare/v0.3.1...v0.4.0.dev0
 [0.3.1]: https://github.com/Surgical-Recovery-and-Safety-Lab/medpipe/compare/v.0.3.0...v0.3.1
 [0.3.0]: https://github.com/Surgical-Recovery-and-Safety-Lab/medpipe/compare/v.0.2.1...v0.3.0
