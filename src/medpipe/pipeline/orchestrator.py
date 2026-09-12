@@ -223,6 +223,7 @@ class MedpipeOrchestrator:
             group_column=getattr(test_cfg, "group_column", None),
             values=getattr(test_cfg, "values", None),
             test_size=getattr(test_cfg, "test_size", None),
+            random_state=self.config.workflow.random_state,
         )
 
         # Re-wrap multi-label arrays into DataFrames aligned with their X indices
@@ -244,6 +245,7 @@ class MedpipeOrchestrator:
                 group_column=getattr(recal_cfg, "group_column", None),
                 values=getattr(recal_cfg, "values", None),
                 recalibration_size=getattr(recal_cfg, "recalibration_size", None),
+                random_state=self.config.workflow.random_state,
             )
             y_train_df = pd.DataFrame(
                 y_train_arr, columns=outcome_columns, index=X_train.index
