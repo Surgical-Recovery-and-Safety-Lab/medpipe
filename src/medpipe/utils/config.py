@@ -34,7 +34,18 @@ VerboseType = VerbosityMode | bool | VerbosityInt
 # ==============================================================================
 # --- TOP-LEVEL MASTER SCHEMAS ---
 class MetaConfig(BaseModel):
-    """The master schema for the meta section of the configuration file."""
+    """The master schema for the meta section of the configuration file.
+
+    Attributes
+    ----------
+    project_name : str
+        Name of the project, used for labeling artifacts and logs.
+    run_mode : {"fast", "eval", "cv", "audit"}, default="audit"
+        Execution mode controlling which pipeline stages run.
+    verbose : VerboseType, default="compact"
+        Console logging verbosity level.
+
+    """
 
     project_name: str
     run_mode: Literal["fast", "eval", "cv", "audit"] = "audit"
@@ -50,7 +61,24 @@ class MetaConfig(BaseModel):
     @field_validator("project_name")
     @classmethod
     def validate_project_name(cls, name: str) -> str:
-        """Validate that project name is not empty."""
+        """Validate that project name is not empty.
+
+        Parameters
+        ----------
+        name : str
+            Candidate project name.
+
+        Returns
+        -------
+        str
+            The validated project name.
+
+        Raises
+        ------
+        ValueError
+            If `name` is an empty string.
+
+        """
         if not name:
             raise ValueError("Project name should not be an empty string.")
 
@@ -59,7 +87,20 @@ class MetaConfig(BaseModel):
 
 # --- DATA SCHEMAS ---
 class DataConfig(BaseModel):
-    """The master schema for the data section of the configuration file."""
+    """The master schema for the data section of the configuration file.
+
+    Attributes
+    ----------
+    path : str
+        Path to the dataset file to load.
+    predictors : list of str
+        Column names used as model predictors.
+    outcomes : list of str
+        Column names used as target outcomes.
+    kwargs : dict of str to Any, default={}
+        Additional keyword arguments forwarded to the data loader.
+
+    """
 
     path: str
     predictors: list[str]
@@ -70,7 +111,24 @@ class DataConfig(BaseModel):
     @field_validator("path")
     @classmethod
     def validate_path(cls, file: str) -> str:
-        """Validate that path is a points to a file."""
+        """Validate that path points to a file with a suffix.
+
+        Parameters
+        ----------
+        file : str
+            Candidate file path.
+
+        Returns
+        -------
+        str
+            The validated file path.
+
+        Raises
+        ------
+        ValueError
+            If `file` has no file extension.
+
+        """
         data_path = Path(file)
         suffix = data_path.suffix
         if suffix == "":
@@ -79,6 +137,19 @@ class DataConfig(BaseModel):
 
     @model_validator(mode="after")
     def check_for_target_leakage(self) -> DataConfig:
+        """Validate that no column appears in both predictors and outcomes.
+
+        Returns
+        -------
+        DataConfig
+            The validated configuration instance.
+
+        Raises
+        ------
+        ValueError
+            If any column is listed in both `predictors` and `outcomes`.
+
+        """
         # Check if any outcome intersects with the predictor list
         overlap = set(self.outcomes).intersection(set(self.predictors))
         if overlap:
@@ -91,6 +162,17 @@ class DataConfig(BaseModel):
 
 # --- WORKFLOW SCHEMAS ---
 class PreprocessOperationConfig(BaseModel):
+    """Configuration for a single preprocessing operation.
+
+    Attributes
+    ----------
+    name : str
+        Name of the registered preprocessing operation class to apply.
+    columns : list of str
+        Columns the operation is applied to.
+
+    """
+
     name: str  # Matches the exact class name
     columns: list[str]  # The specific columns this transformer applies to
     model_config = {"extra": "allow"}
@@ -98,25 +180,83 @@ class PreprocessOperationConfig(BaseModel):
     @field_validator("columns")
     @classmethod
     def validate_columns(cls, columns: list[str]) -> list[str]:
-        """Validate that columns are not empty."""
+        """Validate that columns are not empty.
+
+        Parameters
+        ----------
+        columns : list of str
+            Candidate columns the operation applies to.
+
+        Returns
+        -------
+        list of str
+            The validated columns.
+
+        Raises
+        ------
+        ValueError
+            If `columns` is an empty list.
+
+        """
         if not columns:
             raise ValueError("Columns cannot be an empty list")
         return columns
 
 
 class PreprocessingConfig(BaseModel):
+    """Configuration controlling whether and how preprocessing is applied.
+
+    Attributes
+    ----------
+    preprocess : bool or None, default=None
+        Whether preprocessing should be applied.
+    operations : list of PreprocessOperationConfig or None, default=None
+        Ordered preprocessing operations to run when `preprocess` is True.
+
+    """
+
     preprocess: bool | None = None
     operations: list[PreprocessOperationConfig] | None = None
     model_config = {"extra": "forbid"}
 
     @model_validator(mode="after")
     def validate_operations(self) -> PreprocessingConfig:
+        """Validate that operations are specified when preprocessing is
+        enabled.
+
+        Returns
+        -------
+        PreprocessingConfig
+            The validated configuration instance.
+
+        Raises
+        ------
+        ValueError
+            If `preprocess` is True but `operations` is empty or None.
+
+        """
         if self.preprocess and not self.operations:
             raise ValueError("Operations must be specified if preprocess is True")
         return self
 
 
 class SplitTestConfig(BaseModel):
+    """Configuration for the train/test split strategy.
+
+    Attributes
+    ----------
+    strategy : {"random", "group"}, default="random"
+        Strategy used to split the dataset into train and test sets.
+    group_column : str or None, default=None
+        Column identifying groups when `strategy` is "group".
+    values : list of (str or int), or None, default=None
+        Group values assigned to the test split when `strategy` is "group".
+    test_size : float or None, default=None
+        Fraction of the dataset reserved for testing when `strategy` is
+        "random".
+
+    """
+
     strategy: Literal["random", "group"] = "random"
     group_column: str | None = None
     values: list[str | int] | None = None
@@ -125,6 +265,21 @@ class SplitTestConfig(BaseModel):
 
     @model_validator(mode="after")
     def validate_strategy(self) -> SplitTestConfig:
+        """Validate that the chosen split strategy has its required fields
+        set.
+
+        Returns
+        -------
+        SplitTestConfig
+            The validated configuration instance.
+
+        Raises
+        ------
+        ValueError
+            If `strategy` is "random" and `test_size` is not set, or if
+            `strategy` is "group" and `group_column`/`values` are not set.
+
+        """
         if self.strategy == "random" and not self.test_size:
             raise ValueError("The random strategy requires a test size")
 
@@ -139,6 +294,23 @@ class SplitTestConfig(BaseModel):
 
 
 class SplitRecalibrationConfig(BaseModel):
+    """Configuration for the recalibration split strategy.
+
+    Attributes
+    ----------
+    strategy : {"random", "group"} or None, default=None
+        Strategy used to split the recalibration set.
+    group_column : str or None, default=None
+        Column identifying groups when `strategy` is "group".
+    values : list of (str or int), or None, default=None
+        Group values assigned to the recalibration split when `strategy`
+        is "group".
+    recalibration_size : float or None, default=None
+        Fraction of the dataset reserved for recalibration when
+        `strategy` is "random".
+
+    """
+
     strategy: Literal["random", "group"] | None = None
     group_column: str | None = None
     values: list[str | int] | None = None
@@ -147,6 +319,22 @@ class SplitRecalibrationConfig(BaseModel):
 
     @model_validator(mode="after")
     def validate_strategy(self) -> SplitRecalibrationConfig:
+        """Validate that the chosen split strategy has its required fields
+        set.
+
+        Returns
+        -------
+        SplitRecalibrationConfig
+            The validated configuration instance.
+
+        Raises
+        ------
+        ValueError
+            If `strategy` is "random" and `recalibration_size` is not
+            set, or if `strategy` is "group" and `group_column`/`values`
+            are not set.
+
+        """
         if self.strategy == "random" and not self.recalibration_size:
             raise ValueError("The random strategy requires a test size")
 
@@ -161,6 +349,23 @@ class SplitRecalibrationConfig(BaseModel):
 
 
 class CrossValConfig(BaseModel):
+    """Configuration for cross-validation during model fitting.
+
+    Attributes
+    ----------
+    strategy : {"random", "group"}
+        Cross-validation splitting strategy.
+    grid_search : bool or None, default=None
+        Whether to perform a grid search over hyperparameters.
+    group_column : str or None, default=None
+        Column identifying groups when `strategy` is "group".
+    n_splits : int or None, default=None
+        Number of cross-validation folds.
+    shuffle : bool or None, default=None
+        Whether to shuffle samples before splitting.
+
+    """
+
     strategy: Literal["random", "group"]
     grid_search: bool | None = None
     group_column: str | None = None
@@ -170,6 +375,19 @@ class CrossValConfig(BaseModel):
 
     @model_validator(mode="after")
     def validate_strategy(self) -> CrossValConfig:
+        """Validate that the group strategy has a group column set.
+
+        Returns
+        -------
+        CrossValConfig
+            The validated configuration instance.
+
+        Raises
+        ------
+        ValueError
+            If `strategy` is "group" and `group_column` is not set.
+
+        """
         if self.strategy == "group" and not self.group_column:
             raise ValueError(
                 "The group strategy requires a group column to be specified"
@@ -178,6 +396,22 @@ class CrossValConfig(BaseModel):
 
 
 class ValidationSubConfig(BaseModel):
+    """Configuration grouping the test, cross-validation, and
+    recalibration split settings.
+
+    Attributes
+    ----------
+    test_split : SplitTestConfig
+        Configuration for the train/test split.
+    cross_validation : CrossValConfig or None, default=None
+        Configuration for cross-validation, required unless `run_mode`
+        is "fast".
+    recalibration_split : SplitRecalibrationConfig or None, default=None
+        Configuration for the recalibration split, required when a
+        recalibration method is used.
+
+    """
+
     test_split: SplitTestConfig
     cross_validation: CrossValConfig | None = None
     recalibration_split: SplitRecalibrationConfig | None = None
@@ -186,7 +420,20 @@ class ValidationSubConfig(BaseModel):
 
     @model_validator(mode="after")
     def validate_group_strategies(self) -> ValidationSubConfig:
-        """Validate that recalibration and test split have same strategy."""
+        """Validate that recalibration and test split have same strategy.
+
+        Returns
+        -------
+        ValidationSubConfig
+            The validated configuration instance.
+
+        Raises
+        ------
+        ValueError
+            If `recalibration_split` is set and its `strategy` differs
+            from `test_split.strategy`.
+
+        """
         if (
             self.recalibration_split
             and self.recalibration_split.strategy != self.test_split.strategy
@@ -196,7 +443,21 @@ class ValidationSubConfig(BaseModel):
 
     @model_validator(mode="after")
     def validate_group_columns(self) -> ValidationSubConfig:
-        """Validate that recalibration and test split have same group columns."""
+        """Validate that recalibration and test split have same group
+        columns.
+
+        Returns
+        -------
+        ValidationSubConfig
+            The validated configuration instance.
+
+        Raises
+        ------
+        ValueError
+            If both splits use the "group" strategy but their group
+            columns differ.
+
+        """
         # Check only when strategy is group
         if (
             self.recalibration_split
@@ -209,7 +470,21 @@ class ValidationSubConfig(BaseModel):
 
     @model_validator(mode="after")
     def validate_group_values(self) -> ValidationSubConfig:
-        """Validate that recalibration and test split have different values."""
+        """Validate that recalibration and test split have different
+        values.
+
+        Returns
+        -------
+        ValidationSubConfig
+            The validated configuration instance.
+
+        Raises
+        ------
+        ValueError
+            If both splits use the "group" strategy and share any group
+            value.
+
+        """
         if (
             self.recalibration_split
             and self.recalibration_split.values is not None
@@ -225,6 +500,22 @@ class ValidationSubConfig(BaseModel):
 
 
 class MetricsConfig(BaseModel):
+    """Configuration for evaluation metrics and bootstrap confidence
+    intervals.
+
+    Attributes
+    ----------
+    metrics : list of str, default=["roc_auc", "ici"]
+        Metric identifiers to compute, must be registered in
+        `MetricRegistry`.
+    n_bootstraps : int, default=200
+        Number of bootstrap resamples used to compute confidence
+        intervals.
+    ci_level : float, default=0.95
+        Confidence level for the computed interval bounds.
+
+    """
+
     metrics: list[str] = Field(default=["roc_auc", "ici"])
     n_bootstraps: int = Field(default=200, ge=0)
     ci_level: float = Field(default=0.95, ge=0.0, le=1.0)
@@ -232,7 +523,19 @@ class MetricsConfig(BaseModel):
 
     @model_validator(mode="after")
     def validate_metrics(self) -> MetricsConfig:
-        """Validate input metrics."""
+        """Validate that all requested metrics are registered.
+
+        Returns
+        -------
+        MetricsConfig
+            The validated configuration instance.
+
+        Raises
+        ------
+        ValueError
+            If any entry in `metrics` is not a registered metric.
+
+        """
         from medpipe.metrics.core import METRICS
 
         for metric in self.metrics:
@@ -247,13 +550,38 @@ class MetricsConfig(BaseModel):
 
 
 class FairnessConfig(BaseModel):
+    """Configuration for subgroup fairness evaluation.
+
+    Attributes
+    ----------
+    strata : list of str
+        Column names used to stratify the evaluation.
+    groups : dict of str to list of list of (int, float, or str), optional
+        Mapping of stratum column names to the group value combinations
+        to evaluate. Defaults to None.
+
+    """
+
     strata: list[str]
     groups: dict[str, list[list[int | float | str]]] | None = None
     model_config = {"extra": "forbid"}
 
     @model_validator(mode="after")
     def validate_group_keys(self) -> FairnessConfig:
-        """Validate group keys are in strata."""
+        """Validate group keys are in strata.
+
+        Returns
+        -------
+        FairnessConfig
+            The validated configuration instance.
+
+        Raises
+        ------
+        ValueError
+            If a key in `groups` is not present in `strata`, or if its
+            value list is empty.
+
+        """
         if self.groups:
             for key in self.groups:
                 if key not in self.strata:
@@ -264,13 +592,45 @@ class FairnessConfig(BaseModel):
 
 
 class EvaluationSubConfig(BaseModel):
+    """Configuration grouping the metrics and fairness evaluation
+    settings.
+
+    Attributes
+    ----------
+    metrics : MetricsConfig
+        Configuration for evaluation metrics and bootstrap confidence
+        intervals.
+    fairness : FairnessConfig or None, default=None
+        Configuration for subgroup fairness evaluation, required when
+        `run_mode` is "audit" or "eval".
+
+    """
+
     metrics: MetricsConfig
     fairness: FairnessConfig | None = None
     model_config = {"extra": "forbid"}
 
 
 class WorkflowConfig(BaseModel):
-    """The master schema for the workflow subconfiguration file."""
+    """The master schema for the workflow subconfiguration file.
+
+    Attributes
+    ----------
+    random_state : int or None, default=42
+        Seed controlling reproducibility of stochastic operations.
+    n_jobs : int or None, default=1
+        Number of parallel jobs to use during model fitting.
+    preprocessing : PreprocessingConfig or None, default=None
+        Configuration controlling whether and how preprocessing is
+        applied.
+    validation : ValidationSubConfig
+        Configuration grouping the test, cross-validation, and
+        recalibration split settings.
+    evaluation : EvaluationSubConfig
+        Configuration grouping the metrics and fairness evaluation
+        settings.
+
+    """
 
     random_state: int | None = Field(default=42, ge=0)
     n_jobs: int | None = Field(default=1, ge=-1)
@@ -284,6 +644,19 @@ class WorkflowConfig(BaseModel):
 
 # --- MODEL SCHEMAS ---
 class RecalibrationConfig(BaseModel):
+    """Configuration for post-hoc model recalibration.
+
+    Attributes
+    ----------
+    recalibrate : bool
+        Whether to recalibrate the fitted model.
+    method : {"isotonic", "sigmoid", "temperature"}, default="isotonic"
+        Recalibration method to apply.
+    hyperparameters : dict of str to Any, default={}
+        Hyperparameters forwarded to the recalibration method.
+
+    """
+
     recalibrate: bool
     method: Literal["isotonic", "sigmoid", "temperature"] = Field(default="isotonic")
     hyperparameters: dict[str, Any] = Field(default_factory=dict)
@@ -291,7 +664,18 @@ class RecalibrationConfig(BaseModel):
 
 
 class ModelSetup(BaseModel):
-    """Configuration for a model, recalibrator, and their hyperparameters."""
+    """Configuration for a model, recalibrator, and their hyperparameters.
+
+    Attributes
+    ----------
+    algorithm : str
+        Name of the registered model class to instantiate.
+    hyperparameters : dict of str to Any, default={}
+        Hyperparameters forwarded to the model constructor.
+    recalibration : RecalibrationConfig or None, default=None
+        Configuration for post-hoc recalibration of the fitted model.
+
+    """
 
     algorithm: str
     hyperparameters: dict[str, Any] = Field(default_factory=dict)
@@ -301,7 +685,23 @@ class ModelSetup(BaseModel):
 
 # --- DISPLAY SCHEMAS ---
 class DisplayDefaultsConfig(BaseModel):
-    """Default visualization parameters across all plot types."""
+    """Default visualization parameters across all plot types.
+
+    Attributes
+    ----------
+    n_bootstraps : int, default=1000
+        Number of bootstrap resamples used to compute confidence
+        intervals.
+    save : bool, default=True
+        Whether to persist generated plots to disk.
+    show : bool, default=False
+        Whether to display generated plots interactively.
+    n_bins : int, default=10
+        Number of bins used for histogram and calibration plots.
+    strategy : {"uniform", "quantile", "spline"}, default="uniform"
+        Strategy used to compute calibration curves.
+
+    """
 
     n_bootstraps: int = Field(default=1000, ge=0)
     save: bool = True
@@ -312,7 +712,21 @@ class DisplayDefaultsConfig(BaseModel):
 
 
 class DisplayConfig(BaseModel):
-    """Configuration settings for pipeline evaluation graphics and themes."""
+    """Configuration settings for pipeline evaluation graphics and themes.
+
+    Attributes
+    ----------
+    defaults : DisplayDefaultsConfig
+        Default visualization parameters applied across all plot types.
+    overrides : dict of str to dict of str to Any, default={}
+        Plot-type-specific parameter overrides, keyed by plot type.
+    outcome_overrides : dict, default={}
+        Outcome-specific plot parameter overrides, keyed by outcome name
+        then plot type, as ``{outcome: {plot_type: {param: value}}}``.
+    theme : dict of str to Any, or None, default=None
+        Theme parameters forwarded to `MedpipeTheme`.
+
+    """
 
     defaults: DisplayDefaultsConfig = Field(default_factory=DisplayDefaultsConfig)
     overrides: dict[str, dict[str, Any]] = Field(default_factory=dict)
@@ -326,7 +740,21 @@ class DisplayConfig(BaseModel):
     @model_validator(mode="before")
     @classmethod
     def handle_flat_and_legacy_keys(cls, data: Any) -> Any:
-        """Process legacy flat keys (e.g., calibration_strategy) into defaults."""
+        """Process legacy flat keys (e.g., calibration_strategy) into
+        defaults.
+
+        Parameters
+        ----------
+        data : Any
+            Raw input data passed to the model validator.
+
+        Returns
+        -------
+        Any
+            The input data with legacy top-level keys folded into
+            `defaults`.
+
+        """
         if isinstance(data, dict):
             data = data.copy()
             defaults = data.get("defaults", {})
@@ -349,7 +777,25 @@ class DisplayConfig(BaseModel):
     @field_validator("overrides", "outcome_overrides")
     @classmethod
     def validate_plot_override_keys(cls, v: dict[str, Any]) -> dict[str, Any]:
-        """Ensure plot override identifiers correspond to valid plot types."""
+        """Ensure plot override identifiers correspond to valid plot
+        types.
+
+        Parameters
+        ----------
+        v : dict of str to Any
+            Candidate `overrides` or `outcome_overrides` mapping.
+
+        Returns
+        -------
+        dict of str to Any
+            The validated mapping.
+
+        Raises
+        ------
+        ValueError
+            If any plot type key is not a recognized plot type.
+
+        """
         valid_plots = {
             "calibration",
             "reliability",
@@ -390,13 +836,47 @@ class DisplayConfig(BaseModel):
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> DisplayConfig:
-        """Instantiate DisplayConfig from parsed TOML dictionary."""
+        """Instantiate DisplayConfig from parsed TOML dictionary.
+
+        Parameters
+        ----------
+        data : dict of str to Any
+            Parsed TOML data for the display configuration section.
+
+        Returns
+        -------
+        DisplayConfig
+            The constructed configuration instance.
+
+        """
         return cls.model_validate(data)
 
 
 # --- GLOBAL MEDPIPE CONFIGURATION SCHEMA ---
 class MedpipeConfig(BaseModel):
-    """The master schema for a single-file configuration."""
+    """The master schema for a single-file configuration.
+
+    Attributes
+    ----------
+    meta : MetaConfig
+        Project metadata and run-mode configuration.
+    data : DataConfig
+        Dataset location and predictor/outcome column configuration.
+    workflow : WorkflowConfig
+        Preprocessing, validation, and evaluation configuration.
+    display : DisplayConfig or None, default=None
+        Visualization configuration, required when `run_mode` is "audit"
+        or "eval".
+    default_model : ModelSetup
+        Default model, hyperparameter, and recalibration setup applied
+        to all outcomes.
+    outcome_overrides : dict of str to ModelSetup, default={}
+        Per-outcome overrides cascaded onto `default_model`.
+    resolved_models : dict of str to ModelSetup, default={}
+        Fully resolved per-outcome model configurations, generated
+        during validation.
+
+    """
 
     meta: MetaConfig
     data: DataConfig
@@ -416,7 +896,15 @@ class MedpipeConfig(BaseModel):
 
     @model_validator(mode="after")
     def resolve_cascading_models(self) -> MedpipeConfig:
-        """Cascade default_model settings into outcome_overrides."""
+        """Cascade default_model settings into outcome_overrides.
+
+        Returns
+        -------
+        MedpipeConfig
+            The validated configuration instance, with `resolved_models`
+            populated.
+
+        """
         resolved = {}
         for outcome in self.data.outcomes:
             base_setup = self.default_model.model_dump()
@@ -479,7 +967,21 @@ class MedpipeConfig(BaseModel):
 
     @model_validator(mode="after")
     def validate_recalibration(self) -> MedpipeConfig:
-        """Check recalibration split is specified with recalibration method."""
+        """Check recalibration split is specified with recalibration
+        method.
+
+        Returns
+        -------
+        MedpipeConfig
+            The validated configuration instance.
+
+        Raises
+        ------
+        ValueError
+            If `default_model.recalibration` is set but
+            `workflow.validation.recalibration_split` is not.
+
+        """
         if (
             self.default_model.recalibration  # Recalibration is present
             and not self.workflow.validation.recalibration_split
@@ -494,7 +996,20 @@ class MedpipeConfig(BaseModel):
     @model_validator(mode="after")
     def validate_cross_validation(self) -> MedpipeConfig:
         """Check that a cross-validation config is passed with correct
-        run modes."""
+        run modes.
+
+        Returns
+        -------
+        MedpipeConfig
+            The validated configuration instance.
+
+        Raises
+        ------
+        ValueError
+            If `meta.run_mode` is not "fast" and
+            `workflow.validation.cross_validation` is not set.
+
+        """
         if (
             self.meta.run_mode != "fast"
             and self.workflow.validation.cross_validation is None
@@ -508,7 +1023,20 @@ class MedpipeConfig(BaseModel):
 
     @model_validator(mode="after")
     def validate_audit_and_eval_run_mode(self) -> MedpipeConfig:
-        """Check that audit and eval run modes have correct evaluation."""
+        """Check that audit and eval run modes have correct evaluation.
+
+        Returns
+        -------
+        MedpipeConfig
+            The validated configuration instance.
+
+        Raises
+        ------
+        ValueError
+            If `run_mode` is "audit" or "eval" and either
+            `workflow.evaluation.fairness` or `display` is not set.
+
+        """
         run_mode = self.meta.run_mode
         if run_mode == "audit" or run_mode == "eval":
             if self.workflow.evaluation.fairness is None:
@@ -527,7 +1055,21 @@ class MedpipeConfig(BaseModel):
     @model_validator(mode="after")
     def validate_outcome_overrides_exist_in_outcomes(self) -> MedpipeConfig:
         """Ensures all outcome names in outcome_overrides are defined in
-        data.outcomes."""
+        data.outcomes.
+
+        Returns
+        -------
+        MedpipeConfig
+            The validated configuration instance.
+
+        Raises
+        ------
+        ValueError
+            If any key in `outcome_overrides` or
+            `display.outcome_overrides` is not present in
+            `data.outcomes`.
+
+        """
         valid_outcomes = set(self.data.outcomes)
 
         if self.outcome_overrides and self.data and self.data.outcomes:
