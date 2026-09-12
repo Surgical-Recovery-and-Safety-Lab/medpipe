@@ -89,7 +89,8 @@ class MedpipeOrchestrator:
     build_preprocessor()
         Constructs an sklearn Pipeline for data transformation.
     _save_reproducibility_artifacts()
-        Persists the resolved configuration and environment state.
+        Persists the resolved configuration, original TOML file, and
+        environment state.
     _check_operation(op)
         Validates and retrieves a preprocessing operation.
 
@@ -101,8 +102,10 @@ class MedpipeOrchestrator:
         base_artifact_dir: str | Path = "artifacts",
         verbose_override: bool | int | str | None = None,
     ) -> None:
+        self._config_path: Path | None = None
         if isinstance(config, (str, Path)):
             self.config = read_toml_configuration(config)
+            self._config_path = Path(config)
         elif isinstance(config, MedpipeConfig):
             self.config = config
         else:
@@ -152,11 +155,13 @@ class MedpipeOrchestrator:
 
     def _save_reproducibility_artifacts(self) -> None:
         """
-        Saves the resolved configuration and environment state to the artifact
-        directory.
+        Saves the resolved configuration, original TOML file, and
+        environment state to the artifact directory.
 
         This method extracts the configuration state (handling different Pydantic
         versions) and writes it to disk alongside the runtime environment metadata.
+        If the orchestrator was initialized from a TOML file, a copy of that
+        original file is also saved for easy inspection and reuse.
 
         """
         config_dict = (
@@ -174,6 +179,9 @@ class MedpipeOrchestrator:
             dataset_path=dataset_path,
         )
         self.artifact_manager.save_resolved_config(config_dict, dest_dir)
+
+        if self._config_path is not None:
+            self.artifact_manager.save_toml_config(self._config_path, dest_dir)
         self.logger.info("Reproducibility artifacts saved successfully.")
 
     def prepare_data(self, **kwargs) -> tuple[

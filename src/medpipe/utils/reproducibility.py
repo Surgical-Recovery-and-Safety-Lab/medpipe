@@ -10,6 +10,7 @@ for experiment reproducibility.
 import hashlib
 import json
 import platform
+import shutil
 import subprocess
 import sys
 from datetime import UTC, datetime
@@ -149,6 +150,9 @@ class ArtifactManager:
         Saves object as a JSON file.
     saved_resolved_config(config, destination_dir)
         Persist the resolved configuration dictionary as a JSON file.
+    save_toml_config(source_path, destination_dir)
+        Copy the original TOML configuration file into the artifact
+        directory.
     save_env_state(destination_dir, dataset_path)
         Capture and persist the environment state to `env_state.json`.
 
@@ -243,6 +247,34 @@ class ArtifactManager:
 
         """
         return self.save_json(config, destination_dir, "resolved_config.json")
+
+    def save_toml_config(
+        self, source_path: str | Path, destination_dir: str | Path
+    ) -> Path:
+        """Copy the original TOML configuration file into the artifact
+        directory.
+
+        The destination directory is created if it does not exist.
+
+        Parameters
+        ----------
+        source_path : str or Path
+            Path to the original TOML configuration file.
+        destination_dir : str or Path
+            Directory where `config.toml` will be written.
+
+        Returns
+        -------
+        Path
+            Path to the copied TOML file.
+
+        """
+        dest_dir = Path(destination_dir)
+        dest_dir.mkdir(exist_ok=True, parents=True)
+
+        dest = dest_dir / "config.toml"
+        shutil.copy2(source_path, dest)
+        return dest
 
     def save_env_state(
         self,
