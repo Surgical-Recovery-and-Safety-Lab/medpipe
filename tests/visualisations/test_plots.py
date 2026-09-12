@@ -132,7 +132,8 @@ class TestDrawRocCurve:
         assert ax is existing_ax
 
     def test_draw_roc_curve_with_confidence_intervals(self, dummy_roc_data) -> None:
-        """Test rendering with pre-computed lower and upper confidence interval arrays."""
+        """Test rendering with pre-computed lower and upper confidence
+        interval arrays."""
         fpr, tpr = dummy_roc_data
         lower_ci = tpr - 0.05
         upper_ci = tpr + 0.05
@@ -308,7 +309,8 @@ class TestDrawReliabilityDiagram:
         assert "Calibrated Model" in labels
 
     def test_draw_reliability_diagram_with_ci(self) -> None:
-        """Test drawing calibration curve with pre-computed confidence interval bounds."""
+        """Test drawing calibration curve with pre-computed confidence
+        interval bounds."""
         prob_true = np.array([0.1, 0.3, 0.5, 0.7, 0.9])
         prob_pred = np.array([0.1, 0.3, 0.5, 0.7, 0.9])
         lower_ci = prob_true - 0.05

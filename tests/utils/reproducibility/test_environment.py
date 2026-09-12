@@ -50,7 +50,8 @@ class TestGetGitCommitHash:
     def test_get_git_commit_hash_git_executable_missing(
         self, mock_check_output
     ) -> None:
-        """Test git hash fallback when git executable is not installed on system PATH."""
+        """Test git hash fallback when git executable is not installed on
+        system PATH."""
         mock_check_output.side_effect = FileNotFoundError("git binary not found")
 
         assert get_git_commit_hash() is None

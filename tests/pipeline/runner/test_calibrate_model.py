@@ -80,7 +80,8 @@ class TestCalibrateModel:
         assert result == mock_pipeline
 
     def test_calibrate_model_skip_missing_config(self, mock_orchestrator, dummy_data):
-        """Test calibration is skipped when model config lacks recalibration settings."""
+        """Test calibration is skipped when model config lacks recalibration
+        settings."""
         runner = MedpipeRunner(orchestrator=mock_orchestrator)
         _, _, X_recal, y_recal = dummy_data
 

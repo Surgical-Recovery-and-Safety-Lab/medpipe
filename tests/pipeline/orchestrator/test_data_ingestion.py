@@ -75,7 +75,8 @@ class TestIngestData:
         mock_artifact_mgr,
         mock_config,
     ):
-        """Test successful ingestion of predictors, outcomes, and group columns while filtering extra ones."""
+        """Test successful ingestion of predictors, outcomes, and group
+        columns while filtering extra ones."""
         # 1. Configure predictors, outcomes, and group splits
         mock_config.data.predictors = ["AGE", "BMI"]
         mock_config.data.outcomes = ["MORTALITY_30D"]
@@ -168,7 +169,8 @@ class TestIngestData:
         mock_artifact_mgr,
         mock_config,
     ):
-        """Test data ingestion raises KeyError if any configured column is missing from the raw data."""
+        """Test data ingestion raises KeyError if any configured column is
+        missing from the raw data."""
         mock_config.data.predictors = ["AGE", "BMI"]
         mock_config.data.outcomes = ["MORTALITY_30D"]
         mock_config.workflow.validation = None
@@ -199,10 +201,11 @@ class TestIngestData:
         mock_artifact_mgr,
         mock_config,
     ):
-        """Test data ingestion raises TypeError if loaded object is not a pandas DataFrame."""
+        """Test data ingestion raises TypeError if loaded object is not a
+        pandas DataFrame."""
         mock_load_data.return_value = {"AGE": [25, 30]}
 
         orchestrator = MedpipeOrchestrator(config=mock_config)
 
-        with pytest.raises(TypeError, match="Input data should be a pd.DataFrame"):
+        with pytest.raises(TypeError, match=r"Input data should be a pd\.DataFrame"):
             orchestrator.ingest_data()

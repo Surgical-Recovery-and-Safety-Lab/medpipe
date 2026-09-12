@@ -2,7 +2,7 @@
 Shared fixtures for the medpipe.utils.io test suite.
 """
 
-from typing import Generator
+from collections.abc import Generator
 
 import pandas as pd
 import pytest

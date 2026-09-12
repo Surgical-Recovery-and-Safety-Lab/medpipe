@@ -9,7 +9,6 @@ from unittest.mock import MagicMock, patch
 
 import matplotlib.pyplot as plt
 import numpy as np
-import pytest
 
 from medpipe.visualisation.displayer import MedpipeDisplayer
 
@@ -20,7 +19,8 @@ class TestComputeRocData:
     def test_compute_roc_data_success_1d_probas(
         self, mock_orchestrator, sample_binary_data
     ) -> None:
-        """Test ROC data calculation with 1D predicted probabilities and bootstrapping."""
+        """Test ROC data calculation with 1D predicted probabilities and
+        bootstrapping."""
         y_true, probas = sample_binary_data
         displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
 
@@ -104,7 +104,7 @@ class TestComputeRocData:
         fake_rng.choice.return_value = np.array([0, 0])
 
         with patch("numpy.random.default_rng", return_value=fake_rng):
-            fpr, tpr, roc_auc, lower_ci, upper_ci = displayer._compute_roc_data(
+            _fpr, _tpr, roc_auc, lower_ci, upper_ci = displayer._compute_roc_data(
                 y_true=y_true, probas=probas, n_bootstraps=5
             )
 
@@ -119,7 +119,8 @@ class TestComputePrecisionRecallData:
     def test_compute_precision_recall_data_success_1d_probas(
         self, mock_orchestrator, sample_binary_data
     ) -> None:
-        """Test PR data calculation with 1D predicted probabilities and bootstrapping."""
+        """Test PR data calculation with 1D predicted probabilities and
+        bootstrapping."""
         y_true, probas = sample_binary_data
         displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
 
@@ -151,7 +152,7 @@ class TestComputePrecisionRecallData:
         probas_2d = np.column_stack((1 - probas_1d, probas_1d))
         displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
 
-        _, _, ap_score, baseline, lower_ci, upper_ci = (
+        _, _, ap_score, _baseline, lower_ci, upper_ci = (
             displayer._compute_precision_recall_data(
                 y_true=y_true, probas=probas_2d, n_bootstraps=10
             )
@@ -168,7 +169,7 @@ class TestComputePrecisionRecallData:
         y_true, probas = sample_binary_data
         displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
 
-        _, _, ap_score, baseline, lower_ci, upper_ci = (
+        _, _, ap_score, _baseline, lower_ci, upper_ci = (
             displayer._compute_precision_recall_data(
                 y_true=y_true, probas=probas, n_bootstraps=0
             )
@@ -187,7 +188,7 @@ class TestComputePrecisionRecallData:
         probas = np.array([0.1, 0.2, 0.3, 0.4, 0.9])
         displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
 
-        _, _, ap_score, baseline, lower_ci, upper_ci = (
+        _, _, ap_score, _baseline, lower_ci, upper_ci = (
             displayer._compute_precision_recall_data(
                 y_true=y_true, probas=probas, n_bootstraps=30, random_state=0
             )
@@ -211,7 +212,7 @@ class TestComputePrecisionRecallData:
         fake_rng.choice.return_value = np.array([0, 0])
 
         with patch("numpy.random.default_rng", return_value=fake_rng):
-            _, _, ap_score, baseline, lower_ci, upper_ci = (
+            _, _, ap_score, _baseline, lower_ci, upper_ci = (
                 displayer._compute_precision_recall_data(
                     y_true=y_true, probas=probas, n_bootstraps=5
                 )
@@ -284,7 +285,7 @@ class TestComputeReliabilityData:
         fake_instance.calibrate.return_value = two_d_output
 
         with patch("splinecalib.SplineCalib", return_value=fake_instance):
-            prob_true, prob_pred, lower_ci, upper_ci = (
+            prob_true, _prob_pred, lower_ci, upper_ci = (
                 displayer._compute_reliability_data(
                     y_true=y_true, probas=probas, strategy="spline", n_bootstraps=5
                 )
@@ -303,8 +304,14 @@ class TestComputeReliabilityData:
         y_true, probas = sample_binary_data
         displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
 
-        prob_true, prob_pred, lower_ci, upper_ci = displayer._compute_reliability_data(
-            y_true=y_true, probas=probas, n_bins=5, strategy="quantile", n_bootstraps=10
+        prob_true, prob_pred, _lower_ci, _upper_ci = (
+            displayer._compute_reliability_data(
+                y_true=y_true,
+                probas=probas,
+                n_bins=5,
+                strategy="quantile",
+                n_bootstraps=10,
+            )
         )
 
         assert isinstance(prob_true, np.ndarray)
@@ -335,8 +342,10 @@ class TestComputeReliabilityData:
         y_true, probas = sample_binary_data
         displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
 
-        prob_true, prob_pred, lower_ci, upper_ci = displayer._compute_reliability_data(
-            y_true=y_true, probas=probas, n_bootstraps=0
+        _prob_true, _prob_pred, lower_ci, upper_ci = (
+            displayer._compute_reliability_data(
+                y_true=y_true, probas=probas, n_bootstraps=0
+            )
         )
 
         assert lower_ci is None
@@ -356,7 +365,7 @@ class TestComputeReliabilityData:
             y_true = np.array([0, 1, 0, 1])
             probas = np.array([0.2, 0.8, 0.3, 0.7])
 
-            prob_true, prob_pred, lower_ci, upper_ci = (
+            _prob_true, prob_pred, lower_ci, upper_ci = (
                 displayer._compute_reliability_data(
                     y_true=y_true, probas=probas, n_bootstraps=10
                 )
@@ -375,8 +384,14 @@ class TestComputeReliabilityData:
         probas = np.array([0.1, 0.2, 0.3, 0.4, 0.9])
         displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
 
-        prob_true, prob_pred, lower_ci, upper_ci = displayer._compute_reliability_data(
-            y_true=y_true, probas=probas, n_bins=3, n_bootstraps=30, random_state=0
+        _prob_true, _prob_pred, lower_ci, upper_ci = (
+            displayer._compute_reliability_data(
+                y_true=y_true,
+                probas=probas,
+                n_bins=3,
+                n_bootstraps=30,
+                random_state=0,
+            )
         )
 
         assert lower_ci is not None
@@ -396,7 +411,7 @@ class TestComputeReliabilityData:
         fake_rng.choice.return_value = np.array([0, 0])
 
         with patch("numpy.random.default_rng", return_value=fake_rng):
-            prob_true, prob_pred, lower_ci, upper_ci = (
+            _prob_true, _prob_pred, lower_ci, upper_ci = (
                 displayer._compute_reliability_data(
                     y_true=y_true, probas=probas, n_bootstraps=5
                 )
@@ -432,7 +447,7 @@ class TestComputeReliabilityData:
             "medpipe.visualisation.displayer.calibration_curve",
             side_effect=flaky_calibration_curve,
         ):
-            prob_true, prob_pred, lower_ci, upper_ci = (
+            prob_true, _prob_pred, lower_ci, upper_ci = (
                 displayer._compute_reliability_data(
                     y_true=y_true, probas=probas, n_bootstraps=5
                 )

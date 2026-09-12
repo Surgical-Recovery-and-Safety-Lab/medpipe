@@ -3,7 +3,8 @@ Tests for the BaseRegistry class of the medpipe.utils.registry module.
 """
 
 import types
-from typing import Generator
+from collections.abc import Generator
+from typing import ClassVar
 
 import pytest
 
@@ -240,10 +241,10 @@ class TestFallbackModulesIsolation:
         does not leak mutations into a sibling subclass."""
 
         class SubA(BaseRegistry):
-            _fallback_modules: list = []
+            _fallback_modules: ClassVar[list] = []
 
         class SubB(BaseRegistry):
-            _fallback_modules: list = []
+            _fallback_modules: ClassVar[list] = []
 
         SubA._fallback_modules.append(types.SimpleNamespace(Thing="a"))
 
@@ -278,7 +279,7 @@ class TestFallbackModulesIsolation:
         parent_module = types.SimpleNamespace(Inherited="inherited_value")
 
         class Parent(BaseRegistry):
-            _fallback_modules = [parent_module]
+            _fallback_modules: ClassVar[list] = [parent_module]
 
         class Child(Parent):
             pass

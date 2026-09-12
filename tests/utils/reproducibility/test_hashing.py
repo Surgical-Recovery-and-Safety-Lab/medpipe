@@ -79,7 +79,8 @@ class TestComputeConfigHash:
     """Tests for the compute_config_hash utility function."""
 
     def test_compute_config_hash_deterministic(self, sample_config: dict) -> None:
-        """Test that dictionaries with differently ordered keys produce the same hash."""
+        """Test that dictionaries with differently ordered keys produce the
+        same hash."""
         shuffled_config = {
             "data": {"test_size": 0.2, "target": "outcome"},
             "model": {"params": {"n_estimators": 100}, "name": "RandomForest"},

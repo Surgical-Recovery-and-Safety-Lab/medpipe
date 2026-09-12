@@ -177,7 +177,8 @@ class TestDisplayConfig:
             DisplayConfig.model_validate(raw_config)
 
     def test_invalid_outcome_override_plot_key(self) -> None:
-        """Test that unknown plot types inside outcome_overrides raise a ValidationError."""
+        """Test that unknown plot types inside outcome_overrides raise a
+        ValidationError."""
         raw_config = {
             "outcome_overrides": {
                 "MORTALITY_30D": {

@@ -160,7 +160,7 @@ class TestArtifactManagerSaveJson:
         assert saved_path.name == "eval_results.json"
         assert saved_path.parent == run_dir
 
-        with open(saved_path, "r", encoding="utf-8") as f:
+        with open(saved_path, encoding="utf-8") as f:
             loaded_data = json.load(f)
 
         assert loaded_data == payload
@@ -183,7 +183,7 @@ class TestArtifactManagerSaveJson:
         )
         assert saved_path.exists()
 
-        with open(saved_path, "r", encoding="utf-8") as f:
+        with open(saved_path, encoding="utf-8") as f:
             loaded = json.load(f)
 
         # Path is not natively JSON-serializable, so default=str stringifies it.
@@ -225,7 +225,7 @@ class TestArtifactManagerSaveJson:
         manager.save_json({"version": 1}, run_dir, "state.json")
         saved_path = manager.save_json({"version": 2}, run_dir, "state.json")
 
-        with open(saved_path, "r", encoding="utf-8") as f:
+        with open(saved_path, encoding="utf-8") as f:
             loaded = json.load(f)
 
         assert loaded == {"version": 2}
@@ -245,7 +245,7 @@ class TestArtifactManagerSaveResolvedConfig:
         assert saved_path.exists()
         assert saved_path.name == "resolved_config.json"
 
-        with open(saved_path, "r", encoding="utf-8") as f:
+        with open(saved_path, encoding="utf-8") as f:
             loaded_config = json.load(f)
         assert loaded_config == sample_config
 
@@ -262,7 +262,7 @@ class TestArtifactManagerSaveResolvedConfig:
         saved_path = manager.save_resolved_config(complex_config, run_dir)
         assert saved_path.exists()
 
-        with open(saved_path, "r", encoding="utf-8") as f:
+        with open(saved_path, encoding="utf-8") as f:
             loaded = json.load(f)
 
         assert loaded["file_path"] == "/usr/bin/data.csv"
@@ -286,7 +286,7 @@ class TestArtifactManagerSaveEnvState:
         assert saved_path.exists()
         assert saved_path.name == "env_state.json"
 
-        with open(saved_path, "r", encoding="utf-8") as f:
+        with open(saved_path, encoding="utf-8") as f:
             loaded_state = json.load(f)
 
         expected_keys = {
@@ -310,7 +310,7 @@ class TestArtifactManagerSaveEnvState:
 
         saved_path = manager.save_env_state(run_dir, sample_config)
 
-        with open(saved_path, "r", encoding="utf-8") as f:
+        with open(saved_path, encoding="utf-8") as f:
             loaded_state = json.load(f)
 
         assert loaded_state["dataset_hash"] is None
@@ -333,5 +333,5 @@ class TestArtifactManagerSaveEnvState:
         mock_capture.assert_called_once_with(
             sample_config, dataset_path=dataset_path
         )
-        with open(saved_path, "r", encoding="utf-8") as f:
+        with open(saved_path, encoding="utf-8") as f:
             assert json.load(f) == {"stub": "state"}

@@ -20,7 +20,8 @@ class TestRun:
     def test_run_orchestrates_outcomes_and_saves_final_models(
         self, mock_fit_outcome, mock_save_final_models, mock_orchestrator, dummy_data
     ):
-        """Test that run method iterates outcomes, stores fitted models, and saves final model dictionary."""
+        """Test that run method iterates outcomes, stores fitted models, and
+        saves final model dictionary."""
         mock_orchestrator.config.data.outcomes = ["OUTCOME_1", "OUTCOME_2"]
         runner = MedpipeRunner(orchestrator=mock_orchestrator)
 
@@ -48,7 +49,8 @@ class TestRun:
     def test_run_missing_outcome_in_y_train_raises_keyerror(
         self, mock_orchestrator, dummy_data
     ):
-        """Test that run raises KeyError if configured outcome column is absent in y_train_df."""
+        """Test that run raises KeyError if configured outcome column is
+        absent in y_train_df."""
         mock_orchestrator.config.data.outcomes = ["MISSING_OUTCOME"]
         runner = MedpipeRunner(orchestrator=mock_orchestrator)
 
@@ -106,5 +108,7 @@ class TestRun:
             call.kwargs["outcome"]: call.kwargs
             for call in mock_fit_outcome.call_args_list
         }
-        assert np.array_equal(calls_by_outcome["OUTCOME_1"]["y_recal"], np.array([1, 0]))
+        assert np.array_equal(
+            calls_by_outcome["OUTCOME_1"]["y_recal"], np.array([1, 0])
+        )
         assert calls_by_outcome["OUTCOME_2"]["y_recal"] is None

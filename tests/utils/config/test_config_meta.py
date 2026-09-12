@@ -36,7 +36,8 @@ class TestMetaConfig:
         assert config.run_mode == "audit"
 
     def test_default_verbose(self) -> None:
-        """Test that verbose defaults to 'compact' when omitted from the configuration."""
+        """Test that verbose defaults to 'compact' when omitted from the
+        configuration."""
         raw_config = {"project_name": "demo_project", "run_mode": "cv"}
         config = MetaConfig.model_validate(raw_config)
 
@@ -61,7 +62,8 @@ class TestMetaConfig:
         ],
     )
     def test_valid_verbose_options(self, valid_verbose) -> None:
-        """Test valid verbosity string literals, booleans, and allowed integer levels."""
+        """Test valid verbosity string literals, booleans, and allowed
+        integer levels."""
         raw_config = self._get_valid_config_dict(verbose=valid_verbose)
         config = MetaConfig.model_validate(raw_config)
 
@@ -70,7 +72,7 @@ class TestMetaConfig:
     def test_project_name_empty(self) -> None:
         """Test that project name is not empty."""
         with pytest.raises(
-            ValidationError, match="Project name should not be an empty string."
+            ValidationError, match=r"Project name should not be an empty string\."
         ):
             MetaConfig.model_validate(self._get_valid_config_dict(project_name=""))
 
@@ -87,7 +89,8 @@ class TestMetaConfig:
             MetaConfig(project_name="my_project", verbose="ultra_verbose")  # type: ignore
 
     def test_invalid_verbose_integer_out_of_bounds(self) -> None:
-        """Test that integers outside the allowed [0, 3] range raise a ValidationError."""
+        """Test that integers outside the allowed [0, 3] range raise a
+        ValidationError."""
         with pytest.raises(ValidationError):
             MetaConfig(project_name="my_project", verbose=5)  # type: ignore
 

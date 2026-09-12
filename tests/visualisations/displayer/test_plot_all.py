@@ -16,7 +16,8 @@ class TestPlotAll:
     def test_plot_all_success_and_saves_all_artifacts(
         self, mock_orchestrator, sample_binary_data, tmp_path: Path
     ) -> None:
-        """Test that plot_all executes all 5 outcome plotting methods and persists artifacts."""
+        """Test that plot_all executes all 5 outcome plotting methods and
+        persists artifacts."""
         y_true, probas = sample_binary_data
         displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
 
@@ -97,7 +98,7 @@ class TestPlotAll:
         self, mock_orchestrator, sample_evaluations
     ) -> None:
         """Verify that rendered heatmaps contain formatted row labels
-        (e.g. 'AGE: 18–50')."""
+        (e.g. 'AGE: 18-50')."""
         displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
 
         heatmap_plots = displayer.plot_all_heatmaps(
@@ -115,6 +116,6 @@ class TestPlotAll:
         assert "All strata" in rendered_yticklabels
         assert "SEX: F" in rendered_yticklabels
         assert "SEX: M" in rendered_yticklabels
-        assert "AGE: 18–50" in rendered_yticklabels
+        assert "AGE: 18-50" in rendered_yticklabels
         assert "AGE: ≥ 51" in rendered_yticklabels
         assert "AGE: [51, 120]" not in rendered_yticklabels  # Raw string transformed

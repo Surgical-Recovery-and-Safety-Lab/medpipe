@@ -22,7 +22,9 @@ class TestInstantiateEstimator:
         assert isinstance(estimator, RandomForestClassifier)
         assert estimator.n_estimators == 10
 
-    def test_instantiate_estimator_regressor_returned_unwrapped(self, mock_orchestrator):
+    def test_instantiate_estimator_regressor_returned_unwrapped(
+        self, mock_orchestrator
+    ):
         """Test that regressors are returned as plain estimators, with no
         target-transformation wrapping applied."""
         runner = MedpipeRunner(orchestrator=mock_orchestrator)
@@ -31,7 +33,8 @@ class TestInstantiateEstimator:
         assert isinstance(estimator, LinearRegression)
 
     def test_instantiate_estimator_list_params_filtered(self, mock_orchestrator):
-        """Test that list hyperparameters are reduced to scalars for initial instantiation."""
+        """Test that list hyperparameters are reduced to scalars for initial
+        instantiation."""
         runner = MedpipeRunner(orchestrator=mock_orchestrator)
         params = {"n_estimators": [10, 50, 100], "max_depth": 5}
 

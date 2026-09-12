@@ -13,7 +13,8 @@ class TestGetConsoleLogger:
     """Test class for the get_console_logger function"""
 
     def test_initialization_default(self) -> None:
-        """Test default initialization of the console logger with 'compact' verbosity."""
+        """Test default initialization of the console logger with 'compact'
+        verbosity."""
         logger = get_console_logger(name="medpipe", verbose="compact")
 
         assert logger.name == "medpipe"
@@ -66,7 +67,9 @@ class TestGetConsoleLogger:
         """Test initializing a sub-logger with custom name and 'quiet' threshold."""
         root_logger = logging.getLogger("medpipe")
 
-        custom_logger = get_console_logger(name="medpipe.custom_logger", verbose="quiet")
+        custom_logger = get_console_logger(
+            name="medpipe.custom_logger", verbose="quiet"
+        )
 
         assert custom_logger.name == "medpipe.custom_logger"
         assert len(custom_logger.handlers) == 0
@@ -75,7 +78,8 @@ class TestGetConsoleLogger:
 
         # Quiet mode removes CompactProgressFilter
         assert not any(
-            isinstance(f, CompactProgressFilter) for f in root_logger.handlers[0].filters
+            isinstance(f, CompactProgressFilter)
+            for f in root_logger.handlers[0].filters
         )
 
     def test_detects_preexisting_console_handler(self) -> None:

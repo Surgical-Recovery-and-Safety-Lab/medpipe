@@ -76,7 +76,7 @@ class TestPlotStrataHeatmap:
         an upper-cased, underscore-replaced display name rather than raising."""
         displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
 
-        fig, ax = displayer.plot_strata_heatmap(
+        _fig, ax = displayer.plot_strata_heatmap(
             outcomes=["ANY_COMP"],
             metric="totally_unregistered_metric",
             strata=["SEX: F"],
@@ -220,7 +220,8 @@ class TestPlotAllHeatmaps:
     def test_plot_all_heatmaps_success_and_saves(
         self, mock_orchestrator, sample_evaluations, tmp_path: Path
     ) -> None:
-        """Test plot_all_heatmaps correctly parses nested evaluations and creates heatmap figures."""
+        """Test plot_all_heatmaps correctly parses nested evaluations and
+        creates heatmap figures."""
         displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
 
         heatmap_plots = displayer.plot_all_heatmaps(
@@ -271,14 +272,16 @@ class TestPlotAllHeatmaps:
         assert list(heatmap_plots.keys()) == ["roc_auc"]
 
     def test_plot_all_heatmaps_empty_evaluations(self, mock_orchestrator) -> None:
-        """Test plot_all_heatmaps gracefully returns an empty dictionary when passed empty evaluations."""
+        """Test plot_all_heatmaps gracefully returns an empty dictionary when
+        passed empty evaluations."""
         displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
         heatmap_plots = displayer.plot_all_heatmaps(evaluations={}, save=False)
 
         assert heatmap_plots == {}
 
     def test_plot_all_heatmaps_no_strata_found(self, mock_orchestrator) -> None:
-        """Test plot_all_heatmaps returns empty dict if evaluation contains no subgroup strata."""
+        """Test plot_all_heatmaps returns empty dict if evaluation contains no
+        subgroup strata."""
         evals_without_strata = {
             "MORTALITY_30D": {
                 "overall": {"roc_auc": {"point_estimate": 0.8}},

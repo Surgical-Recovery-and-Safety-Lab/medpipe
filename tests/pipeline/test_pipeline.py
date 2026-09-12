@@ -43,7 +43,8 @@ class TestMedpipeUnit:
     @patch("medpipe.pipeline.pipeline.MedpipeRunner")
     @patch("medpipe.pipeline.pipeline.MedpipeEvaluator")
     def test_inference_delegation(self, mock_eval_cls, mock_runner_cls, mock_orch_cls):
-        """Verify predict, predict_proba, and decision_function delegate to evaluator."""
+        """Verify predict, predict_proba, and decision_function delegate to
+        evaluator."""
         mp = Medpipe(config=MagicMock())
         X = pd.DataFrame({"A": [1, 2]})
 
@@ -175,7 +176,8 @@ class TestMedpipeProperties:
 
 
 class TestMedpipeFit:
-    """Unit tests verifying orchestration delegation and argument routing in Medpipe.fit."""
+    """Unit tests verifying orchestration delegation and argument routing in
+    Medpipe.fit."""
 
     @patch("medpipe.pipeline.pipeline.MedpipeDisplayer")
     @patch("medpipe.pipeline.pipeline.MedpipeEvaluator")
@@ -224,7 +226,8 @@ class TestMedpipeFit:
     def test_fit_delegation_with_defaults(
         self, mock_orch_cls, mock_runner_cls, mock_eval_cls, mock_displayer_cls
     ):
-        """Verify fit() passes None defaults for optional recalibration and group parameters."""
+        """Verify fit() passes None defaults for optional recalibration and
+        group parameters."""
         mp = Medpipe(config=MagicMock())
 
         X_train = pd.DataFrame({"AGE": [50, 60]})
@@ -290,7 +293,8 @@ class TestMedpipePredict:
 
 
 class TestMedpipePredictProba:
-    """Unit tests verifying delegation and parameter passing in Medpipe.predict_proba."""
+    """Unit tests verifying delegation and parameter passing in
+    Medpipe.predict_proba."""
 
     @patch("medpipe.pipeline.pipeline.MedpipeDisplayer")
     @patch("medpipe.pipeline.pipeline.MedpipeEvaluator")
@@ -319,7 +323,8 @@ class TestMedpipePredictProba:
     def test_predict_proba_delegation_with_defaults(
         self, mock_orch_cls, mock_runner_cls, mock_eval_cls, mock_displayer_cls
     ):
-        """Verify predict_proba passes None defaults when model and outcome are omitted."""
+        """Verify predict_proba passes None defaults when model and outcome
+        are omitted."""
         mp = Medpipe(config=MagicMock())
         X = pd.DataFrame({"AGE": [50]})
         expected_probas = np.array([0.15])
@@ -334,7 +339,8 @@ class TestMedpipePredictProba:
 
 
 class TestMedpipeDecisionFunction:
-    """Unit tests verifying delegation and parameter passing in Medpipe.decision_function."""
+    """Unit tests verifying delegation and parameter passing in
+    Medpipe.decision_function."""
 
     @patch("medpipe.pipeline.pipeline.MedpipeDisplayer")
     @patch("medpipe.pipeline.pipeline.MedpipeEvaluator")
@@ -433,7 +439,8 @@ class TestMedpipeEvaluate:
     def test_evaluate_y_single_column_dataframe_fallback(
         self, mock_orch_cls, mock_runner_cls, mock_eval_cls, mock_displayer_cls
     ):
-        """Verify evaluate extracts the first column if y is 1-col DataFrame without matching outcome name."""
+        """Verify evaluate extracts the first column if y is 1-col DataFrame
+        without matching outcome name."""
         mp = Medpipe(config=MagicMock())
         X = pd.DataFrame({"AGE": [50, 60]})
         y_df = pd.DataFrame({"GENERIC_LABEL": [1, 0]})
@@ -471,7 +478,8 @@ class TestMedpipeEvaluate:
     def test_evaluate_explicit_parameters(
         self, mock_orch_cls, mock_runner_cls, mock_eval_cls, mock_displayer_cls
     ):
-        """Verify evaluate forwards custom metrics, subgroup_specs, model, and save_artifacts flag."""
+        """Verify evaluate forwards custom metrics, subgroup_specs, model,
+        and save_artifacts flag."""
         mp = Medpipe(config=MagicMock())
         X = pd.DataFrame({"AGE": [50]})
         y = np.array([1])
@@ -510,7 +518,8 @@ class TestMedpipeRun:
     def test_run_fast_mode_execution_flow(
         self, mock_orch_cls, mock_runner_cls, mock_eval_cls, mock_displayer_cls
     ):
-        """Verify run executes data prep, fit, and test evaluation without generating plots in fast mode."""
+        """Verify run executes data prep, fit, and test evaluation without
+        generating plots in fast mode."""
         mp = Medpipe(config=MagicMock())
         mp.mp_config.meta.run_mode = "fast"
         mp.mp_config.data.kwargs = {"extra_arg": 0.2}
@@ -566,7 +575,8 @@ class TestMedpipeRun:
     def test_run_audit_mode_triggers_visualization_and_heatmaps(
         self, mock_orch_cls, mock_runner_cls, mock_eval_cls, mock_displayer_cls
     ):
-        """Verify run executes plotting routines and generates strata heatmaps in audit/eval mode."""
+        """Verify run executes plotting routines and generates strata
+        heatmaps in audit/eval mode."""
         mp = Medpipe(config=MagicMock())
         mp.mp_config.meta.run_mode = "audit"
         mp.mp_config.data.kwargs = {}
@@ -698,7 +708,8 @@ class TestMedpipeLoad:
     def test_load_successful_without_models_directory(
         self, tmp_path: Path, valid_config_dict: dict
     ) -> None:
-        """Test successful reconstruction of Medpipe when no models directory is present."""
+        """Test successful reconstruction of Medpipe when no models
+        directory is present."""
         run_dir = tmp_path / "run_2026_08_10"
         config_dir = run_dir / "env"
         config_dir.mkdir(parents=True)
@@ -771,7 +782,8 @@ def base_config_path(repo_root: Path) -> Path:
 
 @pytest.fixture
 def build_medpipe_config(test_data_path: Path, base_config_path: Path):
-    """Factory fixture loading default_config.toml and updating data.path dynamically."""
+    """Factory fixture loading default_config.toml and updating data.path
+    dynamically."""
 
     def _factory(run_mode: str = "fast", disable_recal: bool = False) -> MedpipeConfig:
         config = read_toml_configuration(base_config_path)
@@ -797,7 +809,8 @@ class TestMedpipeStressIntegration:
     def test_run_mode_and_recalibration_branches(
         self, build_medpipe_config, tmp_path: Path, run_mode: str, disable_recal: bool
     ) -> None:
-        """Executes pipeline end-to-end, verifies artifact creation, and deletes artifacts."""
+        """Executes pipeline end-to-end, verifies artifact creation, and
+        deletes artifacts."""
         try:
             config = build_medpipe_config(
                 run_mode=run_mode, disable_recal=disable_recal
@@ -840,7 +853,8 @@ class TestMedpipeStressIntegration:
         finally:
             # 3. Clean up/delete the run directory after verification
             if run_dir.exists():
-                # Close any active logging handlers attached to the run file to release file locks
+                # Close any active logging handlers attached to the run file
+                # to release file locks
                 for handler in list(pipeline._logger.handlers):
                     handler.close()
                     pipeline._logger.removeHandler(handler)

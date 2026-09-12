@@ -94,7 +94,7 @@ class TestReadTOMLConfiguration:
         wrong_ext_file = tmp_path / "config.json"
         wrong_ext_file.write_text("{}")
 
-        with pytest.raises(ValueError, match="File suffix should be .toml"):
+        with pytest.raises(ValueError, match=r"File suffix should be \.toml"):
             read_toml_configuration(wrong_ext_file)
 
     def test_read_configuration_malformed_toml_raises_decode_error(

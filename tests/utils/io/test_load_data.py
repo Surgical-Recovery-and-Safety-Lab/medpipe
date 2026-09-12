@@ -199,5 +199,5 @@ class TestLoadDataBehavior:
         unsupported_file = tmp_path / "data.UNSUPPORTED"
         unsupported_file.write_text("dummy data")
 
-        with pytest.raises(ValueError, match="but got .UNSUPPORTED"):
+        with pytest.raises(ValueError, match=r"but got \.UNSUPPORTED"):
             load_data(unsupported_file)

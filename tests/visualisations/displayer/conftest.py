@@ -2,8 +2,8 @@
 Shared fixtures for the MedpipeDisplayer test suite.
 """
 
+from collections.abc import Generator
 from pathlib import Path
-from typing import Generator
 from unittest.mock import MagicMock
 
 import matplotlib.pyplot as plt
@@ -38,7 +38,8 @@ def sample_binary_data() -> tuple[np.ndarray, np.ndarray]:
 
 @pytest.fixture
 def sample_evaluations() -> dict:
-    """Provides a realistic nested evaluation result dictionary across outcomes and strata."""
+    """Provides a realistic nested evaluation result dictionary across
+    outcomes and strata."""
     return {
         "ANY_COMP": {
             "outcome": "ANY_COMP",

@@ -176,7 +176,8 @@ class TestPlotReliabilityDiagram:
     def test_plot_reliability_diagram_success_and_saves(
         self, mock_orchestrator, sample_binary_data, tmp_path: Path
     ) -> None:
-        """Test successful reliability diagram generation with figure artifact saving."""
+        """Test successful reliability diagram generation with figure artifact
+        saving."""
         y_true, probas = sample_binary_data
         displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
 
@@ -242,9 +243,9 @@ class TestPlotReliabilityDiagram:
             show=False,
         )
 
-        model_line = [
+        model_line = next(
             line for line in ax.get_lines() if line.get_label() == "Model"
-        ][0]
+        )
         assert model_line.get_marker() == "None"
 
     def test_plot_reliability_diagram_config_resolved_spline_suppresses_marker(
@@ -273,9 +274,9 @@ class TestPlotReliabilityDiagram:
             y_true=y_true, probas=probas, n_bootstraps=5, save=False, show=False
         )
 
-        model_line = [
+        model_line = next(
             line for line in ax.get_lines() if line.get_label() == "Model"
-        ][0]
+        )
         assert model_line.get_marker() == "None"
 
 
@@ -346,7 +347,7 @@ class TestPlotDcaCurve:
             show=False,
         )
 
-        model_line = [
+        model_line = next(
             line for line in ax.get_lines() if line.get_label() == "Model"
-        ][0]
+        )
         assert len(model_line.get_xdata()) == 10

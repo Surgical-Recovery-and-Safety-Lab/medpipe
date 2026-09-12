@@ -96,7 +96,7 @@ class TestDataLoaderRegistryGet:
     def test_get_unsupported_extension_raises_value_error(self) -> None:
         """Test retrieving an unregistered extension raises ValueError."""
         with pytest.raises(
-            ValueError, match="Unsupported file extension '.unsupported'"
+            ValueError, match=r"Unsupported file extension '\.unsupported'"
         ):
             DataLoaderRegistry.get(".unsupported")
 
@@ -158,7 +158,8 @@ class TestRegisterDataLoader:
     def test_register_data_loader_execution(
         self, tmp_path: Path, sample_df: pd.DataFrame
     ) -> None:
-        """Verify load_data executes custom loader functions registered via register_data_loader."""
+        """Verify load_data executes custom loader functions registered via
+        register_data_loader."""
         custom_file = tmp_path / "test.dat"
         custom_file.write_text("dummy content")
 

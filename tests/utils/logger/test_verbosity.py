@@ -99,7 +99,9 @@ class TestSetVerbosity:
             isinstance(f, CompactProgressFilter) for f in console_handler.filters
         )
 
-    def test_default_argument_is_compact(self, console_handler: logging.Handler) -> None:
+    def test_default_argument_is_compact(
+        self, console_handler: logging.Handler
+    ) -> None:
         """Test that calling set_verbosity with no arguments uses 'compact'."""
         set_verbosity()
 

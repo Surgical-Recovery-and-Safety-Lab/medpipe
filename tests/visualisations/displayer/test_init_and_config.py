@@ -120,7 +120,8 @@ class TestResolvePlotConfig:
         assert resolved["strategy"] == "spline"
 
     def test_resolve_outcome_override(self, mock_displayer: MedpipeDisplayer) -> None:
-        """Test that outcome-specific overrides take precedence over global plot overrides."""
+        """Test that outcome-specific overrides take precedence over global
+        plot overrides."""
         resolved = mock_displayer._resolve_plot_config(
             plot_type="calibration", outcome="MORTALITY_30D"
         )
@@ -146,7 +147,8 @@ class TestResolvePlotConfig:
     def test_resolve_ignores_none_runtime_kwargs(
         self, mock_displayer: MedpipeDisplayer
     ) -> None:
-        """Test that None values passed as runtime kwargs do not overwrite configured values."""
+        """Test that None values passed as runtime kwargs do not overwrite
+        configured values."""
         resolved = mock_displayer._resolve_plot_config(
             plot_type="calibration",
             n_bootstraps=None,
@@ -155,7 +157,8 @@ class TestResolvePlotConfig:
         assert resolved["n_bootstraps"] == 200
 
     def test_resolve_when_display_config_is_none(self, mock_orchestrator) -> None:
-        """Test that _resolve_plot_config falls back to system defaults when display config is None."""
+        """Test that _resolve_plot_config falls back to system defaults when
+        display config is None."""
         displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
         resolved = displayer._resolve_plot_config(plot_type="roc")
 
@@ -172,7 +175,7 @@ class TestFormatStratumLabel:
     @pytest.mark.parametrize(
         "stratum_var, cat_key, expected",
         [
-            ("AGE", "[18, 50]", "AGE: 18–50"),
+            ("AGE", "[18, 50]", "AGE: 18-50"),
             ("AGE", "[51, 120]", "AGE: ≥ 51"),
             ("AGE", "[100, 150]", "AGE: ≥ 100"),
             ("SEX", "F", "SEX: F"),
@@ -189,7 +192,8 @@ class TestFormatStratumLabel:
     def test_format_stratum_label_cases(
         self, stratum_var: str, cat_key: str, expected: str
     ) -> None:
-        """Test formatting of interval strings, open-ended bounds, and categorical keys."""
+        """Test formatting of interval strings, open-ended bounds, and
+        categorical keys."""
         result = MedpipeDisplayer._format_stratum_label(stratum_var, cat_key)
         assert result == expected
 

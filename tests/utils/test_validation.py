@@ -44,14 +44,14 @@ class TestFileChecks:
     @pytest.mark.parametrize("file", [42, 3.14, ("a", 1), {1: "a"}, [1, 2]])
     def test_file_checks_not_str(self, file: Any) -> None:
         """Test case when file is not a string or Path."""
-        match_expr = f"File should be a string or Path"
+        match_expr = "File should be a string or Path"
         with pytest.raises(TypeError, match=match_expr):
             file_checks(file, ".txt")
 
     @pytest.mark.parametrize("extension", [42, 3.14, ("a", 1), {1: "a"}])
     def test_file_checks_extension_type_error(self, extension: Any) -> None:
         """Test case when extension is not a string or list of strings."""
-        match_expr = f"Extension should be a string or list of strings"
+        match_expr = "Extension should be a string or list of strings"
         with pytest.raises(TypeError, match=match_expr):
             file_checks("file.txt", extension)
 

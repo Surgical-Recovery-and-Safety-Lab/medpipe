@@ -127,7 +127,8 @@ class TestPrepareData:
         assert list(y_recal.columns) == ["MORTALITY_30D"]
         assert list(y_test.columns) == ["MORTALITY_30D"]
 
-        # Verify group columns ("OP_YEAR", "DHB_NAME") were dropped from feature matrices
+        # Verify group columns ("OP_YEAR", "DHB_NAME") were dropped from
+        # feature matrices
         assert "OP_YEAR" not in X_train.columns
         assert "DHB_NAME" not in X_train.columns
         assert "OP_YEAR" not in X_test.columns
@@ -154,7 +155,8 @@ class TestPrepareData:
         mock_artifact_mgr,
         mock_config,
     ):
-        """Test data preparation handles missing recalibration and cross-validation configs gracefully."""
+        """Test data preparation handles missing recalibration and
+        cross-validation configs gracefully."""
         mock_config.data.outcomes = ["MORTALITY_30D"]
 
         val_config = MagicMock()
@@ -180,7 +182,7 @@ class TestPrepareData:
 
         mock_split_data.return_value = (X_temp, y_temp_arr, X_test_df, y_test_arr)
 
-        X_train, y_train, X_recal, y_recal, X_test, y_test, groups = (
+        X_train, _y_train, X_recal, y_recal, X_test, _y_test, groups = (
             orchestrator.prepare_data()
         )
 
@@ -245,7 +247,7 @@ class TestPrepareData:
 
         mock_split_data.return_value = (X_temp, y_temp_arr, X_test_df, y_test_arr)
 
-        X_train, y_train, X_recal, y_recal, X_test, y_test, groups = (
+        X_train, _y_train, X_recal, _y_recal, X_test, _y_test, _groups = (
             orchestrator.prepare_data()
         )
 
@@ -326,7 +328,8 @@ class TestPrepareData:
         mock_artifact_mgr,
         mock_config,
     ):
-        """Test that KeyError is raised when the cross_validation group column is missing from training features."""
+        """Test that KeyError is raised when the cross_validation group
+        column is missing from training features."""
         mock_config.data.outcomes = ["MORTALITY_30D"]
 
         val_config = MagicMock()
@@ -354,7 +357,10 @@ class TestPrepareData:
 
         with pytest.raises(
             KeyError,
-            match="Cross-validation group column 'NON_EXISTENT_COLUMN' was not found in dataset columns.",
+            match=(
+                r"Cross-validation group column 'NON_EXISTENT_COLUMN' "
+                r"was not found in dataset columns\."
+            ),
         ):
             orchestrator.prepare_data()
 
@@ -385,7 +391,8 @@ class TestPrepareData:
         mock_artifact_mgr,
         mock_config,
     ):
-        """Test that prepare_data properly creates and exposes the DataSplits dataclass."""
+        """Test that prepare_data properly creates and exposes the
+        DataSplits dataclass."""
         mock_config.data.outcomes = ["MORTALITY_30D"]
 
         val_config = MagicMock()

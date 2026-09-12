@@ -66,7 +66,7 @@ class TestAddFileHandler:
         logger.warning("Warning message.")
 
         log_file = log_dir / "execution.log"
-        with open(log_file, "r", encoding="utf-8") as f:
+        with open(log_file, encoding="utf-8") as f:
             log_contents = f.read()
 
         # File should contain all unfiltered logs
@@ -99,7 +99,9 @@ class TestAddFileHandler:
         logger = get_console_logger()
         log_dir = tmp_path / "v3"
 
-        add_file_handler(logger, log_dir=log_dir, filename="debug.log", level=logging.DEBUG)
+        add_file_handler(
+            logger, log_dir=log_dir, filename="debug.log", level=logging.DEBUG
+        )
         add_file_handler(
             logger, log_dir=log_dir, filename="errors.log", level=logging.ERROR
         )
@@ -109,8 +111,8 @@ class TestAddFileHandler:
         logger.error("System failure")
 
         with (
-            open(log_dir / "debug.log", "r") as f1,
-            open(log_dir / "errors.log", "r") as f2,
+            open(log_dir / "debug.log") as f1,
+            open(log_dir / "errors.log") as f2,
         ):
             assert "System failure" in f1.read()
             assert "System failure" in f2.read()

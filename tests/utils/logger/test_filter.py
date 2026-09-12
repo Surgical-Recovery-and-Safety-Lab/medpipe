@@ -28,7 +28,9 @@ class TestCompactProgressFilter:
     def test_milestone_info_message_passes(self) -> None:
         """Test that an INFO message containing a progress keyword passes."""
         progress_filter = CompactProgressFilter()
-        record = _make_record(logging.INFO, "Step 1/3: Ingesting and splitting dataset.")
+        record = _make_record(
+            logging.INFO, "Step 1/3: Ingesting and splitting dataset."
+        )
 
         assert progress_filter.filter(record) is True
 

@@ -16,7 +16,8 @@ class TestExtractStratumSubgroup:
 
     @pytest.fixture
     def mock_orchestrator(self) -> MedpipeOrchestrator:
-        """Create a lightweight MedpipeOrchestrator instance with mocked dependencies."""
+        """Create a lightweight MedpipeOrchestrator instance with mocked
+        dependencies."""
         orchestrator = object.__new__(MedpipeOrchestrator)
         orchestrator.logger = MagicMock()
         return orchestrator
@@ -47,7 +48,8 @@ class TestExtractStratumSubgroup:
         mock_orchestrator: MedpipeOrchestrator,
         sample_data: tuple[pd.DataFrame, pd.DataFrame],
     ) -> None:
-        """Verify slicing both features (X) and target labels (y) preserves alignment and copy independence."""
+        """Verify slicing both features (X) and target labels (y) preserves
+        alignment and copy independence."""
         X, y = sample_data
 
         X_sub, y_sub = mock_orchestrator.extract_stratum_subgroup(
@@ -103,7 +105,8 @@ class TestExtractStratumSubgroup:
         mock_orchestrator: MedpipeOrchestrator,
         sample_data: tuple[pd.DataFrame, pd.DataFrame],
     ) -> None:
-        """Verify zero matched rows triggers logger warning and returns empty DataFrames."""
+        """Verify zero matched rows triggers logger warning and returns empty
+        DataFrames."""
         X, y = sample_data
 
         X_sub, y_sub = mock_orchestrator.extract_stratum_subgroup(
@@ -125,7 +128,8 @@ class TestExtractStratumSubgroup:
         mock_orchestrator: MedpipeOrchestrator,
         sample_data: tuple[pd.DataFrame, pd.DataFrame],
     ) -> None:
-        """Verify KeyError is raised when the stratification column is missing from X."""
+        """Verify KeyError is raised when the stratification column is
+        missing from X."""
         X, y = sample_data
 
         with pytest.raises(KeyError, match="Stratum column 'INVALID_COL' not found"):

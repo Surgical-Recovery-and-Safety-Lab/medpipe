@@ -103,7 +103,8 @@ class TestTrainModelCv:
     def test_train_model_cv_grid_search(
         self, mock_grid_search, mock_save_cv_results, mock_orchestrator, dummy_data
     ):
-        """Test _train_model_cv triggers GridSearchCV and calls _save_cv_results when strategy is 'search'."""
+        """Test _train_model_cv triggers GridSearchCV and calls
+        _save_cv_results when strategy is 'search'."""
         mock_orchestrator.config.workflow.validation.cross_validation.strategy = (
             "random"
         )
@@ -166,7 +167,8 @@ class TestTrainModelCv:
     def test_train_model_cv_standard_cv_with_custom_metrics(
         self, mock_cv, mock_save_cv_results, mock_orchestrator, dummy_data
     ):
-        """Test _train_model_cv converts built-in & custom metrics (e.g. ici) to scorers."""
+        """Test _train_model_cv converts built-in & custom metrics (e.g. ici)
+        to scorers."""
         mock_orchestrator.config.workflow.evaluation.metrics.metrics = [
             "accuracy",
             "ici",
@@ -208,7 +210,8 @@ class TestTrainModelCv:
     def test_train_model_cv_grid_search_with_custom_registry_metric(
         self, mock_grid_search, mock_save_cv_results, mock_orchestrator, dummy_data
     ):
-        """Test _train_model_cv handles custom metrics registered via MetricRegistry in GridSearchCV."""
+        """Test _train_model_cv handles custom metrics registered via
+        MetricRegistry in GridSearchCV."""
         custom_spec = MetricSpec(
             name="dummy_custom_score",
             func=lambda y, y_pred: 0.95,
@@ -294,7 +297,8 @@ class TestTrainModelCv:
     def test_train_model_cv_group_strategy_without_groups_raises_error(
         self, mock_save_cv_results, mock_orchestrator, dummy_data
     ):
-        """Test that cross-validation with a group strategy raises an error if groups_train is None."""
+        """Test that cross-validation with a group strategy raises an error
+        if groups_train is None."""
         mock_orchestrator.config.workflow.validation.cross_validation.strategy = "group"
         runner = MedpipeRunner(orchestrator=mock_orchestrator)
 
@@ -323,7 +327,8 @@ class TestTrainModelCv:
     def test_train_model_cv_standard_cv_passes_n_jobs(
         self, mock_cv, mock_save_cv_results, mock_orchestrator, dummy_data, n_jobs
     ):
-        """Test _train_model_cv propagates configured n_jobs to sklearn cross_validate."""
+        """Test _train_model_cv propagates configured n_jobs to sklearn
+        cross_validate."""
         mock_orchestrator.config.workflow.n_jobs = n_jobs
         runner = MedpipeRunner(orchestrator=mock_orchestrator)
 

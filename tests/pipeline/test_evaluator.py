@@ -111,7 +111,8 @@ class TestMedpipeEvaluatorGetModel:
         assert resolved == mock_model
 
     def test_get_model_by_outcome_key_error(self, mock_orchestrator, mock_runner):
-        """Test KeyError raised when specified outcome key is absent in fitted_models."""
+        """Test KeyError raised when specified outcome key is absent in
+        fitted_models."""
         evaluator = MedpipeEvaluator(mock_orchestrator, mock_runner)
 
         with pytest.raises(KeyError, match="Outcome 'non_existent' not found"):
@@ -120,7 +121,8 @@ class TestMedpipeEvaluatorGetModel:
     def test_get_model_single_fitted_model_implicit(
         self, mock_orchestrator, mock_runner, mock_model
     ):
-        """Test resolving single fitted model implicitly when outcome and model are None."""
+        """Test resolving single fitted model implicitly when outcome and
+        model are None."""
         evaluator = MedpipeEvaluator(mock_orchestrator, mock_runner)
 
         resolved = evaluator._get_model()
@@ -129,7 +131,8 @@ class TestMedpipeEvaluatorGetModel:
     def test_get_model_multiple_fitted_models_ambiguous_value_error(
         self, mock_orchestrator, mock_runner
     ):
-        """Test ValueError raised when multiple fitted models exist and choice is ambiguous."""
+        """Test ValueError raised when multiple fitted models exist and
+        choice is ambiguous."""
         mock_runner.fitted_models = {
             "MORTALITY_30D": MagicMock(),
             "mortality_90d": MagicMock(),
@@ -217,7 +220,8 @@ class TestMedpipeEvaluatorDecisionFunction:
     def test_decision_function_missing_method_attribute_error(
         self, mock_orchestrator, mock_runner, sample_data
     ):
-        """Test AttributeError raised when target model lacks decision_function method."""
+        """Test AttributeError raised when target model lacks
+        decision_function method."""
         X, _ = sample_data
         bad_model = object()
         evaluator = MedpipeEvaluator(mock_orchestrator, mock_runner)
@@ -332,7 +336,8 @@ class TestMedpipeEvaluatorExtractSubgroups:
     def test_extract_subgroups_fallback_scalar_spec(
         self, mock_orchestrator, mock_runner, sample_data
     ):
-        """Test subgroup extraction falling back to resolve_subgroup_mask for non-column specs."""
+        """Test subgroup extraction falling back to resolve_subgroup_mask for
+        non-column specs."""
         X, _ = sample_data
         evaluator = MedpipeEvaluator(mock_orchestrator, mock_runner)
 
@@ -442,7 +447,8 @@ class TestMedpipeEvaluatorEvaluate:
     def test_evaluate_fallback_to_decision_function(
         self, mock_eval_slice, mock_orchestrator, mock_runner, sample_data
     ):
-        """Test evaluate falls back to decision_function when predict_proba is absent."""
+        """Test evaluate falls back to decision_function when predict_proba is
+        absent."""
         X, y = sample_data
         df_model = MagicMock(spec=["decision_function"])
         df_model.decision_function.return_value = np.array([-1.0, 1.0, 1.0, -1.0])
@@ -487,7 +493,8 @@ class TestMedpipeEvaluatorEvaluate:
         mock_runner,
         sample_data,
     ):
-        """Test subgroup evaluation handling, including skipping empty subgroup slices."""
+        """Test subgroup evaluation handling, including skipping empty
+        subgroup slices."""
         X, y = sample_data
         mock_eval_slice.return_value = {"accuracy": {"point_estimate": 0.8}}
 

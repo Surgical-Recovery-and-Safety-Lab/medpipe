@@ -2,7 +2,6 @@
 Tests for the medpipe.visualisation.theme module.
 """
 
-import pytest
 
 from medpipe.visualisation.themes import MedpipeTheme
 
@@ -105,7 +104,8 @@ class TestMedpipeTheme:
         assert theme == MedpipeTheme()
 
     def test_from_dict_filters_unrecognized_keys(self) -> None:
-        """Test that extra or unknown keys in dictionary input are filtered out without error."""
+        """Test that extra or unknown keys in dictionary input are filtered
+        out without error."""
         config_dict = {
             "primary_color": "#123456",
             "unrecognized_key": "ignored_value",

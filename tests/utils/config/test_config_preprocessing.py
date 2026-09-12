@@ -85,7 +85,7 @@ class TestPreprocessingConfig:
         assert config.operations is None
 
     @pytest.mark.parametrize("operations", [None, []])
-    def test_validate_operations_true_flag(self, operations: None | list) -> None:
+    def test_validate_operations_true_flag(self, operations: list | None) -> None:
         """Test interaction between preprocess flag True and operations."""
         with pytest.raises(
             ValidationError, match="Operations must be specified if preprocess is True"
@@ -98,7 +98,7 @@ class TestPreprocessingConfig:
         "preprocess, operations", [(False, None), (False, []), (None, None), (None, [])]
     )
     def test_validate_operations_false_flag(
-        self, preprocess: None | bool, operations: None | list
+        self, preprocess: bool | None, operations: list | None
     ) -> None:
         """Test interaction between preprocess flag None or False and operations."""
         PreprocessingConfig.model_validate(

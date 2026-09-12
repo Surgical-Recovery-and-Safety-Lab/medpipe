@@ -3,7 +3,7 @@ Shared fixtures for the medpipe.utils.logger test suite.
 """
 
 import logging
-from typing import Generator
+from collections.abc import Generator
 
 import pytest
 

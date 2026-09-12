@@ -162,7 +162,7 @@ class TestMedpipeConfig:
     def test_evaluation(self, tmp_path: Path, run_mode: str) -> None:
         """Test case when run_mode and evaluation mismatch."""
         match_expr = (
-            f"Evaluation fairness parameters must be specified "
+            "Evaluation fairness parameters must be specified "
             "when run_mode is 'audit' or 'eval'"
         )
         config = self._get_valid_config_dict(tmp_path)
@@ -358,7 +358,8 @@ class TestMedpipeConfig:
     def test_cascade_recalibration_different_method_replaces_entirely(
         self, tmp_path: Path
     ) -> None:
-        """Test switching recalibration method replaces base hyperparameters completely."""
+        """Test switching recalibration method replaces base hyperparameters
+        completely."""
         raw_config = self._get_valid_config_dict(tmp_path)
         raw_config["default_model"]["recalibration"] = {
             "recalibrate": True,
@@ -537,7 +538,10 @@ class TestMedpipeConfig:
             }
         }
 
-        match_expr = "Display outcome override 'UNLISTED_OUTCOME' is not present in data.outcomes"
+        match_expr = (
+            "Display outcome override 'UNLISTED_OUTCOME' is not present in "
+            "data.outcomes"
+        )
 
         with pytest.raises(ValidationError, match=escape(match_expr)):
             MedpipeConfig.model_validate(raw_config)

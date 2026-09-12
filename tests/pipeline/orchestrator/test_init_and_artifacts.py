@@ -100,7 +100,8 @@ class TestSaveReproducibilityArtifacts:
     def test_save_artifacts_success(
         self, mock_add_handler, mock_get_logger, mock_artifact_mgr, mock_config
     ):
-        """Test artifact saving when a valid data path and configuration are provided."""
+        """Test artifact saving when a valid data path and configuration are
+        provided."""
         mock_artifact_mgr_instance = mock_artifact_mgr.return_value
         mock_artifact_mgr_instance.create_run_directory.return_value = Path(
             "/tmp/run_1"
@@ -116,7 +117,8 @@ class TestSaveReproducibilityArtifacts:
         }
         mock_config.model_dump.return_value = expected_config_dict
 
-        # Initializing Orchestrator triggers _save_reproducibility_artifacts() in __init__
+        # Initializing Orchestrator triggers _save_reproducibility_artifacts()
+        # in __init__
         orchestrator = MedpipeOrchestrator(config=mock_config)
 
         # Verify save_env_state call
@@ -143,7 +145,8 @@ class TestSaveReproducibilityArtifacts:
         del mock_config_no_data.data
         mock_config_no_data.model_dump.return_value = {"workflow": {}}
 
-        # Initializing Orchestrator triggers _save_reproducibility_artifacts() in __init__
+        # Initializing Orchestrator triggers _save_reproducibility_artifacts()
+        # in __init__
         orchestrator = MedpipeOrchestrator(config=mock_config_no_data)
 
         # Verify save_env_state was called with dataset_path=None
@@ -168,6 +171,6 @@ class TestSplitsProperty:
 
         with pytest.raises(
             RuntimeError,
-            match="Data has not been prepared yet. Call 'prepare_data\\(\\)'",
+            match=r"Data has not been prepared yet\. Call 'prepare_data\(\)'",
         ):
             _ = orchestrator.splits

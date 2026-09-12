@@ -25,7 +25,8 @@ class TestExtractLabels:
 
     @pytest.fixture
     def mock_data(self) -> pd.DataFrame:
-        """Generate mock data for tests including age, sex, bmi, any_comp, and op_year."""
+        """Generate mock data for tests including age, sex, bmi, any_comp,
+        and op_year."""
         return pd.DataFrame(
             {
                 "age": [25, 30, 35, 19, 80, 47, 20, 42, 69],
@@ -81,7 +82,7 @@ class TestExtractLabels:
 
     def test_extract_labels_invalid_label(self, mock_data: pd.DataFrame) -> None:
         """Test case when label is not in data."""
-        with pytest.raises(ValueError, match=f"invalid_label was not found in data"):
+        with pytest.raises(ValueError, match="invalid_label was not found in data"):
             extract_labels(mock_data, ["invalid_label"])
 
 
@@ -327,10 +328,14 @@ class TestSplitData:
             )
 
     def test_split_data_missing_random_args(self) -> None:
-        """Test case when test_size or recalibration_size are missing in random strategy."""
+        """Test case when test_size or recalibration_size are missing in
+        random strategy."""
         with pytest.raises(
             ValueError,
-            match="test_size or recalibration_size must be specified with random strategy",
+            match=(
+                "test_size or recalibration_size must be specified with "
+                "random strategy"
+            ),
         ):
             split_data(pd.DataFrame({}), np.array([]), "random")
 
@@ -347,7 +352,8 @@ class TestResolveSubgroupMask:
 
     @pytest.fixture
     def mock_data(self) -> pd.DataFrame:
-        """Generate mock data for tests including age, sex, bmi, any_comp, and op_year."""
+        """Generate mock data for tests including age, sex, bmi, any_comp,
+        and op_year."""
         return pd.DataFrame(
             {
                 "age": [25, 30, 35, 19, 80, 47, 20, 42, 69],
@@ -401,7 +407,8 @@ class TestResolveSubgroupMask:
     # -------------------------------------------------------------------------
 
     def test_tuple_range_bounds(self, mock_data: pd.DataFrame) -> None:
-        """Verify range tuple (min, max) applies inclusive lower and exclusive upper bounds."""
+        """Verify range tuple (min, max) applies inclusive lower and
+        exclusive upper bounds."""
         # Range [18, 30] -> includes 25, 19, 20, 30; excludes , 35, 80, 47, 42, 69
         mask = resolve_subgroup_mask(mock_data, column="age", group=(18, 30))
 
@@ -419,7 +426,8 @@ class TestResolveSubgroupMask:
 
     def test_list_range_bounds_float(self, mock_data: pd.DataFrame) -> None:
         """Verify floating point range bounds passed as a list using BMI."""
-        # Range [20.0, 30.0] -> includes 22.0, 24.9, 20.0, 28.4, 30.0; excludes 18.5, 35.5, 31.2, NaN
+        # Range [20.0, 30.0] -> includes 22.0, 24.9, 20.0, 28.4, 30.0;
+        # excludes 18.5, 35.5, 31.2, NaN
         mask = resolve_subgroup_mask(mock_data, column="bmi", group=[20.0, 30.0])
 
         assert mask.tolist() == [
@@ -446,7 +454,7 @@ class TestResolveSubgroupMask:
 
         mask = resolve_subgroup_mask(df, column="interval_col", group=target_interval)
 
-        assert mask.iloc[0] == True
+        assert mask.iloc[0]
         assert mask.sum() == 1
 
     # -------------------------------------------------------------------------
@@ -463,7 +471,7 @@ class TestResolveSubgroupMask:
         mask = resolve_subgroup_mask(mock_data, column="bmi", group=(0, 100))
 
         # Index 8 is np.nan in mock_data['bmi']
-        assert mask.iloc[8] == False
+        assert not mask.iloc[8]
 
     def test_no_matching_rows_returns_all_false(self, mock_data: pd.DataFrame) -> None:
         """Verify valid call matching 0 rows returns a Series of all False values."""

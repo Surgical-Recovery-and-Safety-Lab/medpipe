@@ -73,7 +73,8 @@ class TestBuildPreprocessor:
     def test_build_preprocessor_no_operations(
         self, mock_add_handler, mock_get_logger, mock_artifact_mgr, mock_config
     ):
-        """Test that an empty operations list but preprocess=True returns an empty pipeline."""
+        """Test that an empty operations list but preprocess=True returns an
+        empty pipeline."""
         mock_config.workflow.preprocessing.preprocess = True
         mock_config.workflow.preprocessing.operations = []
 
@@ -87,7 +88,8 @@ class TestBuildPreprocessor:
     def test_build_preprocessor_dict_is_none(
         self, mock_add_handler, mock_get_logger, mock_artifact_mgr, mock_config
     ):
-        """Test pipeline building returns None if the preprocessing config block is missing."""
+        """Test pipeline building returns None if the preprocessing config
+        block is missing."""
         mock_config.workflow.preprocessing = None
 
         orchestrator = MedpipeOrchestrator(config=mock_config)
@@ -105,7 +107,7 @@ class TestBuildPreprocessor:
 
         with pytest.raises(
             ValueError,
-            match="was not found in the custom registry or fallback modules.",
+            match=r"was not found in the custom registry or fallback modules\.",
         ):
             orchestrator.build_preprocessor()
 

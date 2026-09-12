@@ -36,7 +36,8 @@ class TestSaveFinalModels:
 
     @patch("medpipe.pipeline.runner.joblib.dump")
     def test_save_final_models(self, mock_dump, mock_orchestrator):
-        """Test that _save_final_models saves the complete model bundle using project_name."""
+        """Test that _save_final_models saves the complete model bundle using
+        project_name."""
         runner = MedpipeRunner(orchestrator=mock_orchestrator)
         mock_model = MagicMock(spec=Pipeline)
         runner.fitted_models = {"MORTALITY_30D": mock_model}
@@ -57,7 +58,8 @@ class TestSaveCvResults:
 
     @patch.object(pd.DataFrame, "to_csv")
     def test_save_cv_results(self, mock_to_csv, mock_orchestrator):
-        """Test that _save_cv_results writes fold results to CSV and summary statistics to JSON."""
+        """Test that _save_cv_results writes fold results to CSV and summary
+        statistics to JSON."""
         mock_artifact_manager = MagicMock()
         mock_orchestrator.artifact_manager = mock_artifact_manager
         runner = MedpipeRunner(orchestrator=mock_orchestrator)

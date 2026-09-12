@@ -188,9 +188,11 @@ class TestFitOutcome:
             captured_pipelines.append(steps)
             original_init(self, steps, **kwargs)
 
-        with patch.object(Pipeline, "__init__", capturing_init):
-            with patch.object(Pipeline, "fit", return_value=MagicMock()):
-                runner.fit_outcome("MORTALITY_30D", X_train, y_train)
+        with (
+            patch.object(Pipeline, "__init__", capturing_init),
+            patch.object(Pipeline, "fit", return_value=MagicMock()),
+        ):
+            runner.fit_outcome("MORTALITY_30D", X_train, y_train)
 
         step_names = [name for name, _ in captured_pipelines[0]]
         assert step_names == ["preprocessor", "classifier"]

@@ -103,7 +103,7 @@ class TestModelSetupConfig:
             },
         )
         assert model.recalibration
-        assert model.recalibration.recalibrate == True
+        assert model.recalibration.recalibrate
         assert model.recalibration.method == "isotonic"
         assert model.recalibration.hyperparameters["out_of_bounds"] == "clip"
 
