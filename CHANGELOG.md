@@ -7,7 +7,11 @@ and this project adheres to Semantic Versioning ([SemVer](https://semver.org/spe
 
 ## [Unreleased]
 
+## [0.4.0.dev1] 2026-09-12
+
 ### Added
+* `ruff` as a dev dependency, with lint configuration (`select` rules,
+line length, target Python version) in `pyproject.toml`.
 * Separate files for the `config` tests with increased coverage.
 * Separate files for the `logger` tests with increased coverage.
 * Separate files for the `reproducibility` tests with increased coverage.
@@ -40,11 +44,22 @@ functions instead.
 * Monolithic `test_orchestrator.py` file.
 * Monolithic `test_runner.py` file.
 
+### Changed
+* Reformatted the package and test suite to satisfy `ruff` lint rules:
+import sorting, modernized type hints (PEP 604/585/695), collapsed
+nested conditionals, and wrapped long lines.
+* Replaced the ambiguous en dash with a hyphen in stratum range labels
+(e.g. `"AGE: 18-50"`).
+
 ### Fixed
 * Bug in `io.py` that was case-sensitive for the file extensions.
 * Bug in data split which never had `random_state` reach it.
 * Bug with the 'spline' strategy for the calibration curve that did not remove the
 markers when plotting.
+* Tightened several `pytest.raises(match=...)` patterns that relied on
+unescaped regex metacharacters (e.g. `.`) to coincidentally match.
+* Added explicit `strict=True` to a `zip()` call in the evaluator's
+bootstrap-CI fallback path.
 
 ## [0.4.0.dev0] 2026-09-09
 
