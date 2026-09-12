@@ -954,7 +954,7 @@ class MedpipeDisplayer:
         display_label = label or "Model"
 
         # Suppress scatter points for smooth continuous spline curves
-        if strategy == "spline":
+        if strategy_val == "spline":
             style_kwargs.setdefault("marker", None)
 
         with (plt.rc_context(self.theme.to_rc_params()),):
