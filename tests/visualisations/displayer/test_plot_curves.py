@@ -1,0 +1,355 @@
+"""
+Tests for MedpipeDisplayer's high-level curve-plotting methods:
+plot_probability_distribution, plot_roc_curve, plot_precision_recall_curve,
+plot_reliability_diagram, and plot_dca_curve.
+"""
+
+from pathlib import Path
+from unittest.mock import patch
+
+import numpy as np
+from matplotlib.axes import Axes
+from matplotlib.figure import Figure
+
+from medpipe.visualisation.displayer import MedpipeDisplayer
+
+
+class TestPlotProbabilityDistribution:
+    """Tests for the high-level `plot_probability_distribution` method."""
+
+    def test_plot_probability_distribution_success_and_saves(
+        self, mock_orchestrator, sample_binary_data, tmp_path: Path
+    ) -> None:
+        """Test successful distribution plot generation with artifact saving."""
+        _, probas = sample_binary_data
+        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+
+        fig, ax = displayer.plot_probability_distribution(
+            probas=probas,
+            outcome="mortality",
+            n_bins=12,
+            save=True,
+            show=False,
+        )
+
+        expected_file = (
+            tmp_path / "plots" / "mortality" / "mortality_probability_distribution.png"
+        )
+        assert isinstance(fig, Figure)
+        assert isinstance(ax, Axes)
+        assert expected_file.exists()
+
+    def test_plot_probability_distribution_no_save(
+        self, mock_orchestrator, sample_binary_data, tmp_path: Path
+    ) -> None:
+        """Test that save=False skips artifact persistence."""
+        _, probas = sample_binary_data
+        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+
+        displayer.plot_probability_distribution(
+            probas=probas, outcome="mortality", save=False, show=False
+        )
+
+        assert not (tmp_path / "plots").exists()
+
+    @patch("matplotlib.pyplot.show")
+    def test_plot_probability_distribution_show_flag(
+        self, mock_show, mock_orchestrator, sample_binary_data
+    ) -> None:
+        """Test interactive display when show=True."""
+        _, probas = sample_binary_data
+        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+
+        displayer.plot_probability_distribution(
+            probas=probas, save=False, show=True
+        )
+
+        mock_show.assert_called_once()
+
+
+class TestPlotRocCurve:
+    """Tests for the high-level `plot_roc_curve` method."""
+
+    def test_plot_roc_curve_success_and_saves(
+        self, mock_orchestrator, sample_binary_data, tmp_path: Path
+    ) -> None:
+        """Test successful ROC plot generation with default artifact saving."""
+        y_true, probas = sample_binary_data
+        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+
+        fig, ax = displayer.plot_roc_curve(
+            y_true=y_true,
+            probas=probas,
+            outcome="diabetes",
+            n_bootstraps=10,
+            save=True,
+            show=False,
+        )
+
+        assert isinstance(fig, Figure)
+        assert isinstance(ax, Axes)
+        assert (tmp_path / "plots" / "diabetes" / "diabetes_roc_curve.png").exists()
+
+    def test_plot_roc_curve_no_save(
+        self, mock_orchestrator, sample_binary_data, tmp_path: Path
+    ) -> None:
+        """Test that save=False skips artifact persistence."""
+        y_true, probas = sample_binary_data
+        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+
+        displayer.plot_roc_curve(
+            y_true=y_true, probas=probas, n_bootstraps=10, save=False, show=False
+        )
+
+        assert not (tmp_path / "plots").exists()
+
+    @patch("matplotlib.pyplot.show")
+    def test_plot_roc_curve_show_flag(
+        self, mock_show, mock_orchestrator, sample_binary_data
+    ) -> None:
+        """Test interactive display when show=True."""
+        y_true, probas = sample_binary_data
+        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+
+        displayer.plot_roc_curve(
+            y_true=y_true, probas=probas, n_bootstraps=10, save=False, show=True
+        )
+
+        mock_show.assert_called_once()
+
+
+class TestPlotPrecisionRecallCurve:
+    """Tests for the high-level `plot_precision_recall_curve` method."""
+
+    def test_plot_pr_curve_success_and_saves(
+        self, mock_orchestrator, sample_binary_data, tmp_path: Path
+    ) -> None:
+        """Test successful PR curve generation with figure artifact saving."""
+        y_true, probas = sample_binary_data
+        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+
+        fig, ax = displayer.plot_precision_recall_curve(
+            y_true=y_true,
+            probas=probas,
+            outcome="sepsis",
+            n_bootstraps=10,
+            save=True,
+            show=False,
+        )
+
+        expected_file = tmp_path / "plots" / "sepsis" / "sepsis_pr_curve.png"
+        assert isinstance(fig, Figure)
+        assert isinstance(ax, Axes)
+        assert expected_file.exists()
+
+    def test_plot_pr_curve_no_save(
+        self, mock_orchestrator, sample_binary_data, tmp_path: Path
+    ) -> None:
+        """Test that save=False skips artifact persistence."""
+        y_true, probas = sample_binary_data
+        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+
+        displayer.plot_precision_recall_curve(
+            y_true=y_true, probas=probas, n_bootstraps=10, save=False, show=False
+        )
+
+        assert not (tmp_path / "plots").exists()
+
+    @patch("matplotlib.pyplot.show")
+    def test_plot_pr_curve_show_flag(
+        self, mock_show, mock_orchestrator, sample_binary_data
+    ) -> None:
+        """Test interactive display when show=True."""
+        y_true, probas = sample_binary_data
+        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+
+        displayer.plot_precision_recall_curve(
+            y_true=y_true, probas=probas, n_bootstraps=10, save=False, show=True
+        )
+
+        mock_show.assert_called_once()
+
+
+class TestPlotReliabilityDiagram:
+    """Tests for the high-level `plot_reliability_diagram` method."""
+
+    def test_plot_reliability_diagram_success_and_saves(
+        self, mock_orchestrator, sample_binary_data, tmp_path: Path
+    ) -> None:
+        """Test successful reliability diagram generation with figure artifact saving."""
+        y_true, probas = sample_binary_data
+        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+
+        fig, ax = displayer.plot_reliability_diagram(
+            y_true=y_true,
+            probas=probas,
+            outcome="mortality",
+            n_bins=5,
+            n_bootstraps=10,
+            save=True,
+            show=False,
+        )
+
+        expected_file = (
+            tmp_path / "plots" / "mortality" / "mortality_reliability_diagram.png"
+        )
+        assert isinstance(fig, Figure)
+        assert isinstance(ax, Axes)
+        assert expected_file.exists()
+
+    def test_plot_reliability_diagram_no_save(
+        self, mock_orchestrator, sample_binary_data, tmp_path: Path
+    ) -> None:
+        """Test that save=False skips artifact persistence."""
+        y_true, probas = sample_binary_data
+        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+
+        displayer.plot_reliability_diagram(
+            y_true=y_true, probas=probas, n_bootstraps=10, save=False, show=False
+        )
+
+        assert not (tmp_path / "plots").exists()
+
+    @patch("matplotlib.pyplot.show")
+    def test_plot_reliability_diagram_show_flag(
+        self, mock_show, mock_orchestrator, sample_binary_data
+    ) -> None:
+        """Test interactive display when show=True."""
+        y_true, probas = sample_binary_data
+        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+
+        displayer.plot_reliability_diagram(
+            y_true=y_true, probas=probas, n_bootstraps=10, save=False, show=True
+        )
+
+        mock_show.assert_called_once()
+
+    def test_plot_reliability_diagram_explicit_spline_strategy_suppresses_marker(
+        self, mock_orchestrator, sample_binary_data
+    ) -> None:
+        """Test that passing strategy='spline' explicitly as a runtime
+        argument suppresses the calibration point marker, as intended for
+        smooth continuous spline curves."""
+        y_true, probas = sample_binary_data
+        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+
+        _, ax = displayer.plot_reliability_diagram(
+            y_true=y_true,
+            probas=probas,
+            strategy="spline",
+            n_bootstraps=5,
+            save=False,
+            show=False,
+        )
+
+        model_line = [
+            line for line in ax.get_lines() if line.get_label() == "Model"
+        ][0]
+        assert model_line.get_marker() == "None"
+
+    def test_plot_reliability_diagram_config_resolved_spline_does_not_suppress_marker(
+        self, mock_orchestrator, sample_binary_data
+    ) -> None:
+        """Pin a real bug: when strategy='spline' is resolved from display
+        config (not passed as an explicit runtime keyword), the marker is
+        NOT suppressed, because the marker-suppression check in
+        plot_reliability_diagram compares against the raw `strategy`
+        parameter (None in this case) instead of the resolved config value.
+
+        The debug log and the actual curve computation both correctly use
+        the spline strategy — only the cosmetic marker suppression misses
+        it. If this is fixed upstream, this test's assertion should flip
+        to marker == 'None' and can replace the explicit-strategy test's
+        role in documenting the discrepancy.
+        """
+        from medpipe.utils.config import DisplayConfig, DisplayDefaultsConfig
+
+        mock_orchestrator.config.display = DisplayConfig(
+            defaults=DisplayDefaultsConfig(
+                strategy="spline", dist_n_bins=10, dist_yscale="linear"
+            )
+        )
+        y_true, probas = sample_binary_data
+        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+
+        _, ax = displayer.plot_reliability_diagram(
+            y_true=y_true, probas=probas, n_bootstraps=5, save=False, show=False
+        )
+
+        model_line = [
+            line for line in ax.get_lines() if line.get_label() == "Model"
+        ][0]
+        assert model_line.get_marker() == "o"  # Not suppressed — current bug
+
+
+class TestPlotDcaCurve:
+    """Tests for the high-level `plot_dca_curve` method."""
+
+    def test_plot_dca_curve_success_and_saves(
+        self, mock_orchestrator, sample_binary_data, tmp_path: Path
+    ) -> None:
+        """Test successful DCA plot generation with figure artifact saving."""
+        y_true, probas = sample_binary_data
+        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+
+        fig, ax = displayer.plot_dca_curve(
+            y_true=y_true,
+            probas=probas,
+            outcome="stroke",
+            save=True,
+            show=False,
+        )
+
+        expected_file = tmp_path / "plots" / "stroke" / "stroke_dca_curve.png"
+        assert isinstance(fig, Figure)
+        assert isinstance(ax, Axes)
+        assert expected_file.exists()
+
+    def test_plot_dca_curve_no_save(
+        self, mock_orchestrator, sample_binary_data, tmp_path: Path
+    ) -> None:
+        """Test that save=False skips artifact persistence."""
+        y_true, probas = sample_binary_data
+        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+
+        displayer.plot_dca_curve(
+            y_true=y_true, probas=probas, save=False, show=False
+        )
+
+        assert not (tmp_path / "plots").exists()
+
+    @patch("matplotlib.pyplot.show")
+    def test_plot_dca_curve_show_flag(
+        self, mock_show, mock_orchestrator, sample_binary_data
+    ) -> None:
+        """Test interactive display when show=True."""
+        y_true, probas = sample_binary_data
+        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+
+        displayer.plot_dca_curve(
+            y_true=y_true, probas=probas, save=False, show=True
+        )
+
+        mock_show.assert_called_once()
+
+    def test_plot_dca_curve_custom_thresholds(
+        self, mock_orchestrator, sample_binary_data
+    ) -> None:
+        """Test that explicit thresholds are forwarded through to the
+        underlying computation and rendering."""
+        y_true, probas = sample_binary_data
+        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+        custom_thresholds = np.linspace(0.1, 0.5, 10)
+
+        _, ax = displayer.plot_dca_curve(
+            y_true=y_true,
+            probas=probas,
+            thresholds=custom_thresholds,
+            save=False,
+            show=False,
+        )
+
+        model_line = [
+            line for line in ax.get_lines() if line.get_label() == "Model"
+        ][0]
+        assert len(model_line.get_xdata()) == 10
