@@ -15,7 +15,7 @@ from medpipe.metrics.core import (
 )
 from medpipe.metrics.registry import MetricRegistry, MetricSpec
 
-__all__ = [
+__all__ = [  # noqa: RUF022 (grouped by category, not alphabetical)
     # Core metric functions
     "compute_metrics",
     "build_scorers",

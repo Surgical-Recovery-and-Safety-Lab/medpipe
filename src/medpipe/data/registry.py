@@ -1,4 +1,6 @@
-from typing import Callable, Type
+from collections.abc import Callable
+from types import ModuleType
+from typing import ClassVar
 
 import sklearn.impute
 import sklearn.preprocessing
@@ -6,12 +8,12 @@ import sklearn.preprocessing
 from medpipe.utils.registry import BaseRegistry
 
 
-class PreprocessorRegistry(BaseRegistry[Type[Callable]]):
+class PreprocessorRegistry(BaseRegistry[type[Callable]]):
     """
     Registry for managing and resolving data preprocessing operations.
     """
 
-    _fallback_modules = [
+    _fallback_modules: ClassVar[list[ModuleType]] = [
         sklearn.preprocessing,
         sklearn.impute,
     ]

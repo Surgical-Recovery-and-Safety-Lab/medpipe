@@ -1,4 +1,5 @@
-from typing import Type
+from types import ModuleType
+from typing import ClassVar
 
 import ngboost
 import sklearn.ensemble
@@ -9,12 +10,12 @@ from sklearn.base import BaseEstimator
 from medpipe.utils.registry import BaseRegistry
 
 
-class ModelRegistry(BaseRegistry[Type[BaseEstimator]]):
+class ModelRegistry(BaseRegistry[type[BaseEstimator]]):
     """
     Registry for managing and resolving machine learning estimators.
     """
 
-    _fallback_modules = [
+    _fallback_modules: ClassVar[list[ModuleType]] = [
         sklearn.ensemble,
         sklearn.linear_model,
         sklearn.isotonic,

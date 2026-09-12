@@ -7,8 +7,9 @@ model fitting, inference, and TRIPOD+AI compliant evaluation.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
@@ -35,14 +36,16 @@ class Medpipe:
 
     Coordinates the complete machine learning lifecycle, delegating data ingress
     and preprocessing setup to `MedpipeOrchestrator`, model cross-validation
-    and fitting to `MedpipeRunner`, and prediction and TRIPOD+AI evaluation to `MedpipeEvaluator`.
+    and fitting to `MedpipeRunner`, and prediction and TRIPOD+AI evaluation to
+    `MedpipeEvaluator`.
 
     Parameters
     ----------
     config : str, Path, or MedpipeConfig
         Path to the TOML configuration file or an instantiated MedpipeConfig object.
     base_artifact_dir : str or Path, default="artifacts"
-        Root directory where versioned execution run artifacts, logs, and models are stored.
+        Root directory where versioned execution run artifacts, logs, and
+        models are stored.
     verbose : Union[bool, int, str, None], default=None
         Console verbosity setting configuration override.
 
@@ -81,15 +84,16 @@ class Medpipe:
         Generate and persist all standard evaluation figures for
         a specific outcome.
     run(subgroup_specs=None, groups_train=None)
-        Execute full end-to-end pipeline (data preparation, model fitting, and test evaluation).
+        Execute full end-to-end pipeline (data preparation, model fitting, and
+        test evaluation).
 
     """
 
     def __init__(
         self,
-        config: Union[str, Path, MedpipeConfig],
-        base_artifact_dir: Union[str, Path] = "artifacts",
-        verbose_override: Union[bool, int, str, None] = None,
+        config: str | Path | MedpipeConfig,
+        base_artifact_dir: str | Path = "artifacts",
+        verbose_override: bool | int | str | None = None,
     ) -> None:
         self._logger = get_console_logger("medpipe")
 
@@ -109,7 +113,7 @@ class Medpipe:
         self._logger.info("Medpipe initialisation complete.")
 
     @property
-    def models(self) -> Dict[str, Union[Pipeline, CalibratedClassifierCV]]:
+    def models(self) -> dict[str, Pipeline | CalibratedClassifierCV]:
         """Return the fitted models.
 
         Returns
@@ -172,10 +176,10 @@ class Medpipe:
         self,
         X_train: pd.DataFrame,
         y_train: pd.DataFrame,
-        X_recal: Optional[pd.DataFrame] = None,
-        y_recal: Optional[pd.DataFrame] = None,
-        groups_train: Optional[np.ndarray] = None,
-    ) -> Dict[str, Any]:
+        X_recal: pd.DataFrame | None = None,
+        y_recal: pd.DataFrame | None = None,
+        groups_train: np.ndarray | None = None,
+    ) -> dict[str, Any]:
         """
         Fit machine learning models across configured target outcomes via MedpipeRunner.
 
@@ -190,7 +194,8 @@ class Medpipe:
         y_recal : pandas.DataFrame, optional
             Recalibration outcome target labels, default=None.
         groups_train : numpy.ndarray, optional
-            Group identifier array for group-based cross-validation splits, default=None.
+            Group identifier array for group-based cross-validation splits,
+            default=None.
 
         Returns
         -------
@@ -211,9 +216,9 @@ class Medpipe:
 
     def predict(
         self,
-        X: Union[pd.DataFrame, npt.NDArray],
-        model: Optional[Any] = None,
-        outcome: Optional[str] = None,
+        X: pd.DataFrame | npt.NDArray,
+        model: Any | None = None,
+        outcome: str | None = None,
     ) -> npt.NDArray:
         """
         Predict class labels for input samples.
@@ -223,7 +228,8 @@ class Medpipe:
         X : pandas.DataFrame or numpy.ndarray
             Features dataset of shape (n_samples, n_features).
         model : object, optional
-            Fitted model instance. If None, resolved via `outcome` or `runner.fitted_models`.
+            Fitted model instance. If None, resolved via `outcome` or
+            `runner.fitted_models`.
         outcome : str, optional
             Outcome name corresponding to an entry in `runner.fitted_models`.
 
@@ -237,9 +243,9 @@ class Medpipe:
 
     def predict_proba(
         self,
-        X: Union[pd.DataFrame, npt.NDArray],
-        model: Optional[Any] = None,
-        outcome: Optional[str] = None,
+        X: pd.DataFrame | npt.NDArray,
+        model: Any | None = None,
+        outcome: str | None = None,
     ) -> npt.NDArray:
         """
         Predict class probabilities for input samples.
@@ -249,23 +255,25 @@ class Medpipe:
         X : pandas.DataFrame or numpy.ndarray
             Features dataset of shape (n_samples, n_features).
         model : object, optional
-            Fitted model instance. If None, resolved via `outcome` or `runner.fitted_models`.
+            Fitted model instance. If None, resolved via `outcome` or
+            `runner.fitted_models`.
         outcome : str, optional
             Outcome name corresponding to an entry in `runner.fitted_models`.
 
         Returns
         -------
         y_proba : numpy.ndarray
-            Predicted class probabilities of shape (n_samples, n_classes) or (n_samples,).
+            Predicted class probabilities of shape (n_samples, n_classes) or
+            (n_samples,).
 
         """
         return self._evaluator.predict_proba(X=X, model=model, outcome=outcome)
 
     def decision_function(
         self,
-        X: Union[pd.DataFrame, npt.NDArray],
-        model: Optional[Any] = None,
-        outcome: Optional[str] = None,
+        X: pd.DataFrame | npt.NDArray,
+        model: Any | None = None,
+        outcome: str | None = None,
     ) -> npt.NDArray:
         """
         Compute decision function confidence scores for input samples.
@@ -275,7 +283,8 @@ class Medpipe:
         X : pandas.DataFrame or numpy.ndarray
             Features dataset of shape (n_samples, n_features).
         model : object, optional
-            Fitted model instance. If None, resolved via `outcome` or `runner.fitted_models`.
+            Fitted model instance. If None, resolved via `outcome` or
+            `runner.fitted_models`.
         outcome : str, optional
             Outcome name corresponding to an entry in `runner.fitted_models`.
 
@@ -290,17 +299,17 @@ class Medpipe:
     def evaluate(
         self,
         X: pd.DataFrame,
-        y: Union[pd.Series, npt.NDArray],
-        outcome: Optional[str] = None,
-        model: Optional[Any] = None,
-        metrics: Optional[List[str]] = None,
-        subgroup_specs: Optional[
-            Dict[str, Union[str, Callable[[pd.DataFrame], pd.Series]]]
-        ] = None,
+        y: pd.Series | npt.NDArray,
+        outcome: str | None = None,
+        model: Any | None = None,
+        metrics: list[str] | None = None,
+        subgroup_specs: dict[str, str | Callable[[pd.DataFrame], pd.Series]]
+        | None = None,
         save_artifacts: bool = True,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
-        Evaluate model performance with confidence intervals on full datasets and subgroups.
+        Evaluate model performance with confidence intervals on full datasets
+        and subgroups.
 
         Parameters
         ----------
@@ -309,20 +318,25 @@ class Medpipe:
         y : pandas.Series or numpy.ndarray
             Ground truth target values of shape (n_samples,).
         outcome : str, optional
-            Outcome key name. Used for logging, model resolution, and artifact saving.
+            Outcome key name. Used for logging, model resolution, and artifact
+            saving.
         model : object, optional
-            Explicit fitted model instance. If None, resolved from `runner.fitted_models`.
+            Explicit fitted model instance. If None, resolved from
+            `runner.fitted_models`.
         metrics : list of str, optional
-            List of metrics to evaluate. If None, defaults to `self._evaluator.metrics`.
+            List of metrics to evaluate. If None, defaults to
+            `self._evaluator.metrics`.
         subgroup_specs : dict of str to (str or callable), optional
             Specifications for extracting demographic or clinical subgroups.
         save_artifacts : bool, default=True
-            Whether to write evaluation summary results to disk via `ArtifactManager`.
+            Whether to write evaluation summary results to disk via
+            `ArtifactManager`.
 
         Returns
         -------
         results : dict of str to Any
-            Nested dictionary containing outcome identifier, overall slice metrics, and subgroup performance.
+            Nested dictionary containing outcome identifier, overall slice
+            metrics, and subgroup performance.
 
         """
         # Resolve single target Series/ndarray if y is supplied as a DataFrame
@@ -348,10 +362,11 @@ class Medpipe:
 
     def run(
         self,
-        groups_train: Optional[np.ndarray] = None,
-    ) -> Dict[str, Any]:
+        groups_train: np.ndarray | None = None,
+    ) -> dict[str, Any]:
         """
-        Execute full end-to-end pipeline (data preparation, model fitting, and test evaluation).
+        Execute full end-to-end pipeline (data preparation, model fitting, and
+        test evaluation).
 
         Automates data ingestion, split creation, model cross-validation and fitting,
         and test evaluation with TRIPOD+AI reporting across all target outcomes.
@@ -359,7 +374,8 @@ class Medpipe:
         Parameters
         ----------
         groups_train : numpy.ndarray, optional
-            Group labels for training samples if group-based cross-validation is configured.
+            Group labels for training samples if group-based cross-validation
+            is configured.
 
         Returns
         -------
@@ -404,8 +420,8 @@ class Medpipe:
         self._logger.info(
             f"Step 3/{n_steps}: Evaluating models on holdout test set.",
         )
-        evaluations: Dict[str, Any] = {}
-        plots: Dict[str, Dict[str, Tuple[Figure | SubFigure, Axes]]] = {}
+        evaluations: dict[str, Any] = {}
+        plots: dict[str, dict[str, tuple[Figure | SubFigure, Axes]]] = {}
         outcomes = self._orchestrator.config.data.outcomes
         subgroup_specs = self._orchestrator.get_subgroup_specs()
 
@@ -439,7 +455,7 @@ class Medpipe:
 
         self._logger.info("Full Medpipe pipeline execution finished successfully.")
 
-        results: Dict[str, Any] = {
+        results: dict[str, Any] = {
             "fitted_models": fitted_models,
             "evaluations": evaluations,
         }
@@ -457,7 +473,7 @@ class Medpipe:
         save: bool = True,
         show: bool = False,
         **style_kwargs: Any,
-    ) -> dict[str, Tuple[Figure | SubFigure, Axes]]:
+    ) -> dict[str, tuple[Figure | SubFigure, Axes]]:
         """Execute all core evaluation visualization routines for a given outcome.
 
         Generates and optionally persists the ROC curve, Precision-Recall curve,
@@ -485,7 +501,8 @@ class Medpipe:
         Returns
         -------
         plots : dict of str to tuple of (matplotlib.figure.Figure, matplotlib.axes.Axes)
-            Dictionary mapping plot keys ('roc', 'pr', 'distribution', 'reliability', 'dca')
+            Dictionary mapping plot keys
+            ('roc', 'pr', 'distribution', 'reliability', 'dca')
             to their rendered (Figure, Axes) Matplotlib objects.
 
         """
@@ -500,11 +517,11 @@ class Medpipe:
         )
 
     @classmethod
-    def load(cls, run_dir: Union[str, Path]) -> Medpipe:
+    def load(cls, run_dir: str | Path) -> Medpipe:
         """Reconstruct a Medpipe instance from a run artifact directory.
 
-        Parses the saved JSON configuration and restores serialized outcome model artifacts
-        into the runner engine.
+        Parses the saved JSON configuration and restores serialized outcome
+        model artifacts into the runner engine.
 
         Parameters
         ----------
@@ -538,7 +555,7 @@ class Medpipe:
 
         import joblib
 
-        with open(config_path, "r", encoding="utf-8") as f:
+        with open(config_path, encoding="utf-8") as f:
             config_dict = json.load(f)
 
         mp_config = MedpipeConfig.model_validate(config_dict)

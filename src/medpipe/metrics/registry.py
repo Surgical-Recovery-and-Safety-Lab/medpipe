@@ -1,7 +1,7 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Callable, Union
 
 from sklearn.metrics import get_scorer, make_scorer
 
@@ -30,7 +30,7 @@ class MetricSpec:
 
     name: str
     func: Callable
-    response_method: Union[str, tuple[str, ...]]
+    response_method: str | tuple[str, ...]
     display_name: str
     sklearn_scorer_name: str | None = None
 

@@ -15,7 +15,7 @@ from medpipe.data.utils import (
     split_data,
 )
 
-__all__ = [
+__all__ = [  # noqa: RUF022 (grouped by category, not alphabetical)
     # Data manipulation & split utilities
     "extract_labels",
     "get_split_idx",

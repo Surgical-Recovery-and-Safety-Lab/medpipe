@@ -4,7 +4,7 @@ High-level display and visualisation manager module.
 
 import ast
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple
+from typing import Any
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -42,7 +42,8 @@ class MedpipeDisplayer:
     Parameters
     ----------
     orchestrator : MedpipeOrchestrator
-        Active pipeline orchestrator instance containing execution context and run directory.
+        Active pipeline orchestrator instance containing execution context and
+        run directory.
     theme : MedpipeTheme, optional
         Aesthetic theme configuration. If None, defaults to `MedpipeTheme()`.
 
@@ -94,7 +95,7 @@ class MedpipeDisplayer:
     def __init__(
         self,
         orchestrator: MedpipeOrchestrator,
-        theme: Optional[MedpipeTheme] = None,
+        theme: MedpipeTheme | None = None,
     ) -> None:
         self.orchestrator = orchestrator
         self.run_dir = orchestrator.run_dir
@@ -134,9 +135,9 @@ class MedpipeDisplayer:
     def _resolve_plot_config(
         self,
         plot_type: str,
-        outcome: Optional[str] = None,
+        outcome: str | None = None,
         **runtime_kwargs: Any,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Resolve plot parameters hierarchically across configuration levels.
 
         Applies parameter precedence in the following order (lowest to highest):
@@ -163,7 +164,7 @@ class MedpipeDisplayer:
         display_cfg = getattr(self.orchestrator.config, "display", None)
 
         if display_cfg is None:
-            config_params: Dict[str, Any] = {
+            config_params: dict[str, Any] = {
                 "n_bootstraps": 1000,
                 "save": True,
                 "show": False,
@@ -172,8 +173,8 @@ class MedpipeDisplayer:
                 "dist_yscale": "linear",
                 "strategy": "uniform",
             }
-            overrides: Dict[str, Any] = {}
-            outcome_overrides: Dict[str, Any] = {}
+            overrides: dict[str, Any] = {}
+            outcome_overrides: dict[str, Any] = {}
         else:
             config_params = display_cfg.defaults.model_dump()
             overrides = display_cfg.overrides
@@ -203,10 +204,11 @@ class MedpipeDisplayer:
     # --- Internal Helpers ---
     @staticmethod
     def _format_stratum_label(stratum_var: str, cat_key: Any) -> str:
-        """Format raw stratum variable names and category keys into clean display labels.
+        """Format raw stratum variable names and category keys into clean
+        display labels.
 
         Parses stringified numerical bounds (e.g., '[18, 50]' or '[51, 120]') into
-        readable ranges (e.g., '18–50' or open-ended '≥ 51'). Non-interval keys
+        readable ranges (e.g., '18-50' or open-ended '≥ 51'). Non-interval keys
         (e.g., 'F', 'M') are returned with standard variable prefixing.
 
         Parameters
@@ -224,7 +226,7 @@ class MedpipeDisplayer:
         Examples
         --------
         >>> MedpipeDisplayer._format_stratum_label("AGE", "[18, 50]")
-        'AGE: 18–50'
+        'AGE: 18-50'
         >>> MedpipeDisplayer._format_stratum_label("AGE", "[51, 120]")
         'AGE: ≥ 51'
         >>> MedpipeDisplayer._format_stratum_label("SEX", "F")
@@ -242,7 +244,7 @@ class MedpipeDisplayer:
                     if isinstance(high, (int, float)) and high >= 100:
                         return f"{stratum_var}: ≥ {low}"
 
-                    return f"{stratum_var}: {low}–{high}"
+                    return f"{stratum_var}: {low}-{high}"
             except (ValueError, SyntaxError):
                 pass
 
@@ -253,9 +255,9 @@ class MedpipeDisplayer:
         y_true: np.ndarray,
         probas: np.ndarray,
         n_bootstraps: int = 1000,
-        random_state: Optional[int] = 42,
-    ) -> Tuple[
-        np.ndarray, np.ndarray, float, Optional[np.ndarray], Optional[np.ndarray]
+        random_state: int | None = 42,
+    ) -> tuple[
+        np.ndarray, np.ndarray, float, np.ndarray | None, np.ndarray | None
     ]:
         """Compute Receiver Operating Characteristic metrics and bootstrap CIs.
 
@@ -320,14 +322,14 @@ class MedpipeDisplayer:
         y_true: np.ndarray,
         probas: np.ndarray,
         n_bootstraps: int = 1000,
-        random_state: Optional[int] = 42,
-    ) -> Tuple[
+        random_state: int | None = 42,
+    ) -> tuple[
         np.ndarray,
         np.ndarray,
         float,
         float,
-        Optional[np.ndarray],
-        Optional[np.ndarray],
+        np.ndarray | None,
+        np.ndarray | None,
     ]:
         """Compute Precision-Recall metrics, Average Precision, and bootstrap CIs.
 
@@ -353,9 +355,11 @@ class MedpipeDisplayer:
         baseline : float
             Prevalence / fraction of positive ground truth samples.
         lower_ci : np.ndarray or None
-            Lower 2.5% percentile bound of precision across bootstraps, if n_bootstraps > 0.
+            Lower 2.5% percentile bound of precision across bootstraps, if
+            n_bootstraps > 0.
         upper_ci : np.ndarray or None
-            Upper 97.5% percentile bound of precision across bootstraps, if n_bootstraps > 0.
+            Upper 97.5% percentile bound of precision across bootstraps, if
+            n_bootstraps > 0.
 
         """
         if probas.ndim == 2:
@@ -401,12 +405,12 @@ class MedpipeDisplayer:
         n_bins: int = 10,
         strategy: str = "uniform",
         n_bootstraps: int = 1000,
-        random_state: Optional[int] = 42,
-    ) -> Tuple[
+        random_state: int | None = 42,
+    ) -> tuple[
         np.ndarray,
         np.ndarray,
-        Optional[np.ndarray],
-        Optional[np.ndarray],
+        np.ndarray | None,
+        np.ndarray | None,
     ]:
         """Compute calibration curve data (reliability diagram) and bootstrap CIs.
 
@@ -496,7 +500,7 @@ class MedpipeDisplayer:
         return prob_true, prob_pred, lower_ci, upper_ci
 
     def _save_figure(
-        self, fig: Figure | SubFigure, filename: str, outcome: Optional[str] = None
+        self, fig: Figure | SubFigure, filename: str, outcome: str | None = None
     ) -> Path:
         """Persist figure artifact to disk in the run directory structure.
 
@@ -528,8 +532,8 @@ class MedpipeDisplayer:
         self,
         y_true: np.ndarray,
         probas: np.ndarray,
-        thresholds: Optional[np.ndarray] = None,
-    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        thresholds: np.ndarray | None = None,
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """Compute Net Benefit for Model, Treat All, and Treat None.
 
         Parameters
@@ -586,13 +590,13 @@ class MedpipeDisplayer:
         self,
         probas: np.ndarray,
         outcome: str = "default",
-        n_bins: Optional[int] = None,
-        yscale: Optional[str] = None,
-        label: Optional[str] = None,
-        save: Optional[bool] = None,
-        show: Optional[bool] = None,
+        n_bins: int | None = None,
+        yscale: str | None = None,
+        label: str | None = None,
+        save: bool | None = None,
+        show: bool | None = None,
         **style_kwargs: Any,
-    ) -> Tuple[Figure | SubFigure, Axes]:
+    ) -> tuple[Figure | SubFigure, Axes]:
         """Render prediction probability histogram and save figure artifact.
 
         Parameters
@@ -677,12 +681,12 @@ class MedpipeDisplayer:
         y_true: np.ndarray,
         probas: np.ndarray,
         outcome: str = "default",
-        label: Optional[str] = None,
-        n_bootstraps: Optional[int] = None,
-        save: Optional[bool] = None,
-        show: Optional[bool] = None,
+        label: str | None = None,
+        n_bootstraps: int | None = None,
+        save: bool | None = None,
+        show: bool | None = None,
         **style_kwargs: Any,
-    ) -> Tuple[Figure | SubFigure, Axes]:
+    ) -> tuple[Figure | SubFigure, Axes]:
         """Compute ROC metrics, render curve with confidence intervals, and save figure.
 
         Parameters
@@ -696,7 +700,8 @@ class MedpipeDisplayer:
         label : str, optional
             Legend label for the model. If None, defaults to 'Model (AUC = X.XX)'.
         n_bootstraps : int, optional
-            Number of bootstrap iterations for confidence intervals. Set to 0 to disable.
+            Number of bootstrap iterations for confidence intervals. Set to 0
+            to disable.
         save : bool, optional
             Automatically save the generated plot to the run directory.
         show : bool, optional
@@ -769,12 +774,12 @@ class MedpipeDisplayer:
         y_true: np.ndarray,
         probas: np.ndarray,
         outcome: str = "default",
-        label: Optional[str] = None,
-        n_bootstraps: Optional[int] = None,
-        save: Optional[bool] = None,
-        show: Optional[bool] = None,
+        label: str | None = None,
+        n_bootstraps: int | None = None,
+        save: bool | None = None,
+        show: bool | None = None,
         **style_kwargs: Any,
-    ) -> Tuple[Figure | SubFigure, Axes]:
+    ) -> tuple[Figure | SubFigure, Axes]:
         """Compute PR metrics, render curve with confidence intervals, and save figure.
 
         Parameters
@@ -788,7 +793,8 @@ class MedpipeDisplayer:
         label : str, optional
             Legend label for the model. If None, defaults to 'Model (AP = X.XX)'.
         n_bootstraps : int, optional
-            Number of bootstrap iterations for confidence intervals. Set to 0 to disable.
+            Number of bootstrap iterations for confidence intervals. Set to 0
+            to disable.
         save : bool, optional
             Automatically save the generated plot to the run directory.
         show : bool, optional
@@ -868,16 +874,16 @@ class MedpipeDisplayer:
         y_true: np.ndarray,
         probas: np.ndarray,
         outcome: str = "default",
-        n_bins: Optional[int] = None,
-        dist_n_bins: Optional[int] = None,
-        dist_yscale: Optional[str] = None,
-        strategy: Optional[str] = None,
-        label: Optional[str] = None,
-        n_bootstraps: Optional[int] = None,
-        save: Optional[bool] = None,
-        show: Optional[bool] = None,
+        n_bins: int | None = None,
+        dist_n_bins: int | None = None,
+        dist_yscale: str | None = None,
+        strategy: str | None = None,
+        label: str | None = None,
+        n_bootstraps: int | None = None,
+        save: bool | None = None,
+        show: bool | None = None,
         **style_kwargs: Any,
-    ) -> Tuple[Figure | SubFigure, Axes]:
+    ) -> tuple[Figure | SubFigure, Axes]:
         """Compute calibration data, render a reliability diagram with a
         probability distribution subplot, and save figure.
 
@@ -900,7 +906,8 @@ class MedpipeDisplayer:
         label : str, optional
             Legend label for the model curve. Defaults to 'Model'.
         n_bootstraps : int, optional
-            Number of bootstrap iterations for confidence intervals. Set to 0 to disable.
+            Number of bootstrap iterations for confidence intervals. Set to 0
+            to disable.
         save : bool, optional
             Automatically save the generated plot to the run directory.
         show : bool, optional
@@ -994,10 +1001,10 @@ class MedpipeDisplayer:
         strata: list[str],
         scores: np.ndarray,
         strata_scores: np.ndarray,
-        save: Optional[bool] = None,
-        show: Optional[bool] = None,
+        save: bool | None = None,
+        show: bool | None = None,
         **style_kwargs: Any,
-    ) -> Tuple[Figure | SubFigure, Axes]:
+    ) -> tuple[Figure | SubFigure, Axes]:
         """Validate strata data, compute delta matrix, and render heatmap.
 
         Parameters
@@ -1088,7 +1095,7 @@ class MedpipeDisplayer:
 
         colorbar_label = rf"|$\Delta$ {display_name}|" + percent
         title = style_kwargs.pop("title", f"Strata delta - {display_name}{percent}")
-        row_labels = ["All strata"] + list(strata)
+        row_labels = ["All strata", *list(strata)]
 
         # 3. Stateless Drawing Delegate
         with (plt.rc_context(self.theme.to_rc_params()),):
@@ -1118,13 +1125,14 @@ class MedpipeDisplayer:
         y_true: np.ndarray,
         probas: np.ndarray,
         outcome: str = "default",
-        thresholds: Optional[np.ndarray] = None,
-        label: Optional[str] = None,
-        save: Optional[bool] = None,
-        show: Optional[bool] = None,
+        thresholds: np.ndarray | None = None,
+        label: str | None = None,
+        save: bool | None = None,
+        show: bool | None = None,
         **style_kwargs: Any,
-    ) -> Tuple[Figure | SubFigure, Axes]:
-        """Compute Decision Curve Analysis metrics, render plot, and save figure artifact.
+    ) -> tuple[Figure | SubFigure, Axes]:
+        """Compute Decision Curve Analysis metrics, render plot, and save
+        figure artifact.
 
         Parameters
         ----------
@@ -1197,12 +1205,12 @@ class MedpipeDisplayer:
 
     def plot_all_heatmaps(
         self,
-        evaluations: Dict[str, Any],
-        metrics: Optional[list[str]] = None,
-        save: Optional[bool] = None,
-        show: Optional[bool] = None,
+        evaluations: dict[str, Any],
+        metrics: list[str] | None = None,
+        save: bool | None = None,
+        show: bool | None = None,
         **style_kwargs: Any,
-    ) -> Dict[str, Tuple[Figure | SubFigure, Axes]]:
+    ) -> dict[str, tuple[Figure | SubFigure, Axes]]:
         """Generate subgroup delta heatmaps across outcomes for each evaluated metric.
 
         Parameters
@@ -1238,11 +1246,11 @@ class MedpipeDisplayer:
 
         # Flatten nested strata dict structure: stratum_variable -> category -> metric
         # Example row labels: "SEX: F", "SEX: M", "AGE: [18, 50]"
-        strata_tuples: list[Tuple[str, str]] = []
+        strata_tuples: list[tuple[str, str]] = []
         strata_row_labels: list[str] = []
 
         for stratum_var, cat_dict in strata_dict.items():
-            for cat_key in cat_dict.keys():
+            for cat_key in cat_dict:
                 strata_tuples.append((stratum_var, cat_key))
                 # Use helper to transform raw cat_key into clean label
                 strata_row_labels.append(
@@ -1255,7 +1263,7 @@ class MedpipeDisplayer:
             )
             return {}
 
-        heatmap_plots: Dict[str, Tuple[Figure | SubFigure, Axes]] = {}
+        heatmap_plots: dict[str, tuple[Figure | SubFigure, Axes]] = {}
 
         for metric in target_metrics:
             # Look up MetricSpec display_name
@@ -1327,11 +1335,11 @@ class MedpipeDisplayer:
         y_true: np.ndarray,
         probas: np.ndarray,
         outcome: str = "default",
-        n_bootstraps: Optional[int] = None,
-        save: Optional[bool] = None,
-        show: Optional[bool] = None,
+        n_bootstraps: int | None = None,
+        save: bool | None = None,
+        show: bool | None = None,
         **style_kwargs: Any,
-    ) -> Dict[str, Tuple[Figure | SubFigure, Axes]]:
+    ) -> dict[str, tuple[Figure | SubFigure, Axes]]:
         """Execute all core evaluation visualization routines for a given outcome.
 
         Generates and optionally persists the ROC curve, Precision-Recall curve,
@@ -1362,7 +1370,7 @@ class MedpipeDisplayer:
             'reliability', 'dca') to their rendered (Figure, Axes) tuples.
 
         """
-        plots: Dict[str, Tuple[Figure | SubFigure, Axes]] = {}
+        plots: dict[str, tuple[Figure | SubFigure, Axes]] = {}
 
         self.logger.info(f"--- Starting graphical display for outcome: {outcome} ---")
 

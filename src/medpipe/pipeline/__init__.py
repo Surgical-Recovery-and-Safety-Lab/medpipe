@@ -14,7 +14,7 @@ from medpipe.pipeline.runner import MedpipeRunner
 
 __all__ = [
     "Medpipe",
+    "MedpipeEvaluator",
     "MedpipeOrchestrator",
     "MedpipeRunner",
-    "MedpipeEvaluator",
 ]

@@ -1,9 +1,8 @@
-from typing import Any, Callable, Dict, Generic, List, Optional, TypeVar
+from collections.abc import Callable
+from typing import Any, ClassVar
 
-T = TypeVar("T")
 
-
-class BaseRegistry(Generic[T]):
+class BaseRegistry[T]:
     """
     Abstract base class for creating component registries.
 
@@ -14,13 +13,13 @@ class BaseRegistry(Generic[T]):
 
     Parameters
     ----------
-    Generic[T]
+    T
         The type of item stored in the registry (e.g., instances or class types).
 
     """
 
-    _registry: Dict[str, T]
-    _fallback_modules: List[Any] = []
+    _registry: dict[str, T]
+    _fallback_modules: ClassVar[list[Any]] = []
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)
@@ -38,7 +37,7 @@ class BaseRegistry(Generic[T]):
             cls._fallback_modules = list(cls._fallback_modules)
 
     @classmethod
-    def register(cls, name: Optional[str] = None) -> Callable[[T], T]:
+    def register(cls, name: str | None = None) -> Callable[[T], T]:
         """Decorator to register a custom item into the specific subclass registry.
 
         Parameters
@@ -93,7 +92,7 @@ class BaseRegistry(Generic[T]):
         )
 
     @classmethod
-    def list_registered(cls) -> List[str]:
+    def list_registered(cls) -> list[str]:
         """Return a list of string keys registered in this custom registry.
 
         Returns

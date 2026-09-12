@@ -5,7 +5,8 @@ Core metric functions module.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Callable
+from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 import numpy as np
 from sklearn.metrics import (
@@ -231,7 +232,8 @@ def bootstrap_confidence_intervals(
     y_true : Labels
         Ground truth binary target labels of shape (n_samples,).
     y_pred : npt.NDArray
-        Predicted probabilities or decision values of shape (n_samples,) or (n_samples, 2).
+        Predicted probabilities or decision values of shape (n_samples,) or
+        (n_samples, 2).
     n_bootstraps : int, default=1000
         Number of bootstrap resampling iterations.
     ci_level : float, default=0.95
@@ -260,10 +262,7 @@ def bootstrap_confidence_intervals(
     y_true_arr = np.asarray(y_true).ravel()
     y_pred_arr = np.asarray(y_pred)
 
-    if y_pred_arr.ndim == 2:
-        y_pred_arr = y_pred_arr[:, 1]
-    else:
-        y_pred_arr = y_pred_arr.ravel()
+    y_pred_arr = y_pred_arr[:, 1] if y_pred_arr.ndim == 2 else y_pred_arr.ravel()
 
     n_samples = len(y_true_arr)
     rng = (

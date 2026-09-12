@@ -1,4 +1,4 @@
-from typing import Any, Dict, Optional, Union
+from typing import Any
 
 import joblib
 import numpy as np
@@ -46,7 +46,8 @@ class MedpipeRunner:
 
     Methods
     -------
-    fit_outcome(outcome, X_train, y_train, X_recal=None, y_recal=None, groups_train=None)
+    fit_outcome(outcome, X_train, y_train, X_recal=None, y_recal=None,
+    groups_train=None)
         Trains, evaluates, and optionally calibrates a model for a single outcome.
     run(X_train, y_train_df, X_recal=None, y_recal_df=None, groups_train=None)
         Executes the pipelines for all configured target outcomes.
@@ -56,10 +57,10 @@ class MedpipeRunner:
     def __init__(self, orchestrator: MedpipeOrchestrator) -> None:
         self.orchestrator = orchestrator
         self.logger = get_console_logger("medpipe.runner")
-        self.fitted_models: Dict[str, Union[Pipeline, CalibratedClassifierCV]] = {}
+        self.fitted_models: dict[str, Pipeline | CalibratedClassifierCV] = {}
 
     def _instantiate_estimator(
-        self, algo_name: str, params: Dict[str, Any]
+        self, algo_name: str, params: dict[str, Any]
     ) -> BaseEstimator:
         """
         Instantiates an estimator using the ModelRegistry.
@@ -95,7 +96,7 @@ class MedpipeRunner:
 
     def _create_cv_splitter(
         self, strategy: str, n_splits: int, random_state: int | None
-    ) -> Union[StratifiedKFold, StratifiedGroupKFold]:
+    ) -> StratifiedKFold | StratifiedGroupKFold:
         """
         Instantiates the appropriate cross-validation splitter.
 
@@ -131,7 +132,7 @@ class MedpipeRunner:
             raise ValueError(f"Strategy must be 'random' or 'group', got {strategy}")
 
     def _save_model(
-        self, model: Union[Pipeline, CalibratedClassifierCV], outcome: str
+        self, model: Pipeline | CalibratedClassifierCV, outcome: str
     ) -> None:
         """
         Saves the fitted model to the orchestrator's run directory.
@@ -217,7 +218,7 @@ class MedpipeRunner:
         X_train: pd.DataFrame,
         y_train: np.ndarray,
         cv_splitter: BaseCrossValidator,
-        groups_train: Optional[np.ndarray],
+        groups_train: np.ndarray | None,
     ) -> Pipeline:
         """
         Handles hyperparameter tuning via GridSearchCV or standard cross-validation.
@@ -269,13 +270,15 @@ class MedpipeRunner:
         scorers_dict = build_scorers(configured_metrics)
 
         self.logger.debug(
-            f"[{outcome}] Cross-validation input dimensions - X_train: {X_train.shape}, "
-            f"y_train: {y_train.shape}, Positives: {int(np.sum(y_train))}"
+            f"[{outcome}] Cross-validation input dimensions - "
+            f"X_train: {X_train.shape}, y_train: {y_train.shape}, "
+            f"Positives: {int(np.sum(y_train))}"
         )
         if groups_train is not None:
             unique_groups = len(np.unique(groups_train))
             self.logger.debug(
-                f"[{outcome}] Group CV enabled with {unique_groups} unique group identifiers."
+                f"[{outcome}] Group CV enabled with {unique_groups} unique "
+                "group identifiers."
             )
 
         self.logger.debug(
@@ -342,7 +345,8 @@ class MedpipeRunner:
                 if col.startswith("test_"):
                     scores = cv_results_df[col].to_numpy()
                     self.logger.debug(
-                        f"[{outcome}] Fold scores for '{col}': {np.round(scores, 4).tolist()}"
+                        f"[{outcome}] Fold scores for '{col}': "
+                        f"{np.round(scores, 4).tolist()}"
                     )
 
             self.logger.info(
@@ -355,11 +359,12 @@ class MedpipeRunner:
         outcome: str,
         best_pipeline: Pipeline,
         model_config: dict,
-        X_recal: Optional[pd.DataFrame],
-        y_recal: Optional[np.ndarray],
-    ) -> Union[Pipeline, CalibratedClassifierCV]:
+        X_recal: pd.DataFrame | None,
+        y_recal: np.ndarray | None,
+    ) -> Pipeline | CalibratedClassifierCV:
         """
-        Wraps the model in a FrozenEstimator and fits a calibrator if holdout data exists.
+        Wraps the model in a FrozenEstimator and fits a calibrator if holdout
+        data exists.
 
         Parameters
         ----------
@@ -410,10 +415,12 @@ class MedpipeRunner:
 
         else:
             self.logger.info(
-                f"[{outcome}] Skipping recalibration (missing dataset or configuration)."
+                f"[{outcome}] Skipping recalibration (missing dataset or "
+                "configuration)."
             )
             self.logger.debug(
-                f"[{outcome}] Skipping recalibration (X_recal present: {X_recal is not None}, "
+                f"[{outcome}] Skipping recalibration "
+                f"(X_recal present: {X_recal is not None}, "
                 f"Config present: {recal_config is not None}, "
                 f"Recalibration flag: {recal_flag})."
             )
@@ -424,10 +431,10 @@ class MedpipeRunner:
         outcome: str,
         X_train: pd.DataFrame,
         y_train: np.ndarray,
-        X_recal: Optional[pd.DataFrame] = None,
-        y_recal: Optional[np.ndarray] = None,
-        groups_train: Optional[np.ndarray] = None,
-    ) -> Union[Pipeline, CalibratedClassifierCV]:
+        X_recal: pd.DataFrame | None = None,
+        y_recal: np.ndarray | None = None,
+        groups_train: np.ndarray | None = None,
+    ) -> Pipeline | CalibratedClassifierCV:
         """
         Trains, evaluates, and optionally calibrates a model for a single outcome.
 
@@ -525,10 +532,10 @@ class MedpipeRunner:
         self,
         X_train: pd.DataFrame,
         y_train_df: pd.DataFrame,
-        X_recal: Optional[pd.DataFrame] = None,
-        y_recal_df: Optional[pd.DataFrame] = None,
-        groups_train: Optional[np.ndarray] = None,
-    ) -> Dict[str, Union[Pipeline, CalibratedClassifierCV]]:
+        X_recal: pd.DataFrame | None = None,
+        y_recal_df: pd.DataFrame | None = None,
+        groups_train: np.ndarray | None = None,
+    ) -> dict[str, Pipeline | CalibratedClassifierCV]:
         """
         Executes the pipelines for all configured target outcomes.
 

@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple, Union
+from typing import Any
 
 import pandas as pd
 from numpy import asarray
@@ -97,9 +97,9 @@ class MedpipeOrchestrator:
 
     def __init__(
         self,
-        config: Union[str, Path, MedpipeConfig],
-        base_artifact_dir: Union[str, Path] = "artifacts",
-        verbose_override: Union[bool, int, str, None] = None,
+        config: str | Path | MedpipeConfig,
+        base_artifact_dir: str | Path = "artifacts",
+        verbose_override: bool | int | str | None = None,
     ) -> None:
         if isinstance(config, (str, Path)):
             self.config = read_toml_configuration(config)
@@ -152,7 +152,8 @@ class MedpipeOrchestrator:
 
     def _save_reproducibility_artifacts(self) -> None:
         """
-        Saves the resolved configuration and environment state to the artifact directory.
+        Saves the resolved configuration and environment state to the artifact
+        directory.
 
         This method extracts the configuration state (handling different Pydantic
         versions) and writes it to disk alongside the runtime environment metadata.
@@ -175,14 +176,14 @@ class MedpipeOrchestrator:
         self.artifact_manager.save_resolved_config(config_dict, dest_dir)
         self.logger.info("Reproducibility artifacts saved successfully.")
 
-    def prepare_data(self, **kwargs) -> Tuple[
+    def prepare_data(self, **kwargs) -> tuple[
         pd.DataFrame,
         pd.DataFrame,
-        Optional[pd.DataFrame],
-        Optional[pd.DataFrame],
+        pd.DataFrame | None,
+        pd.DataFrame | None,
         pd.DataFrame,
         pd.DataFrame,
-        Optional[NDArray],
+        NDArray | None,
     ]:
         """
         Ingests data, extracts labels, and performs configured train/recal/test splits.
@@ -362,7 +363,8 @@ class MedpipeOrchestrator:
             required_cols.extend(getattr(self.config.data, "predictors", []))
             required_cols.extend(getattr(self.config.data, "outcomes", []))
 
-        # Collect group columns from validation splits (test, recalibration, cross-validation)
+        # Collect group columns from validation splits (test, recalibration,
+        # cross-validation)
         required_cols += self._get_validation_columns()
 
         # Deduplicate while preserving order
@@ -372,13 +374,15 @@ class MedpipeOrchestrator:
         missing_cols = [col for col in unique_cols if col not in data.columns]
         if missing_cols:
             raise KeyError(
-                f"The following required columns were missing from the dataset: {missing_cols}"
+                "The following required columns were missing from the "
+                f"dataset: {missing_cols}"
             )
 
         # Filter out unneeded columns
         filtered_data = data[unique_cols].copy()
         self.logger.info(
-            f"Filtered dataset from {len(data.columns)} down to {len(unique_cols)} required columns."
+            f"Filtered dataset from {len(data.columns)} down to "
+            f"{len(unique_cols)} required columns."
         )
         self.logger.debug(f"Filtered data shape: {filtered_data.shape}")
 
@@ -396,7 +400,8 @@ class MedpipeOrchestrator:
 
         """
         val_columns = []
-        # Collect group columns from validation splits (test, recalibration, cross-validation)
+        # Collect group columns from validation splits (test, recalibration,
+        # cross-validation)
         val_cfg = getattr(getattr(self.config, "workflow", None), "validation", None)
         if val_cfg:
             for split_name in ["test_split", "recalibration_split", "cross_validation"]:
@@ -408,7 +413,7 @@ class MedpipeOrchestrator:
 
         return unique_cols
 
-    def get_subgroup_specs(self) -> Dict[str, Any]:
+    def get_subgroup_specs(self) -> dict[str, Any]:
         """
         Parses `workflow.evaluation.fairness` settings into a dictionary
         compatible with `MedpipeEvaluator.extract_subgroups`.
@@ -447,7 +452,7 @@ class MedpipeOrchestrator:
         column: str,
         group: Any,
         y: pd.DataFrame | None = None,
-    ) -> Tuple[pd.DataFrame, pd.DataFrame | None]:
+    ) -> tuple[pd.DataFrame, pd.DataFrame | None]:
         """
         Extract a stratified subgroup from features (and optional target labels).
 
@@ -469,7 +474,8 @@ class MedpipeOrchestrator:
         X_subgroup : pd.DataFrame
             Filtered feature DataFrame for the specified stratum group.
         y_subgroup : pd.DataFrame or None
-            Filtered label DataFrame matching X_subgroup index, or None if y was not provided.
+            Filtered label DataFrame matching X_subgroup index, or None if y
+            was not provided.
 
         """
         self.logger.info(
@@ -481,7 +487,8 @@ class MedpipeOrchestrator:
 
         if n_matched == 0:
             self.logger.warning(
-                f"Subgroup extraction returned 0 samples for column '{column}' and group '{group}'."
+                f"Subgroup extraction returned 0 samples for column '{column}' "
+                f"and group '{group}'."
             )
 
         X_subgroup = X.loc[mask].copy()
@@ -492,9 +499,10 @@ class MedpipeOrchestrator:
         )
         return X_subgroup, y_subgroup
 
-    def build_preprocessor(self) -> Optional[Pipeline]:
+    def build_preprocessor(self) -> Pipeline | None:
         """
-        Constructs an sklearn Pipeline for data transformation based on the configuration.
+        Constructs an sklearn Pipeline for data transformation based on the
+        configuration.
 
         Parses the workflow configuration to build a sequence of `ColumnTransformer`
         objects, mapping specific operations to requested columns.
