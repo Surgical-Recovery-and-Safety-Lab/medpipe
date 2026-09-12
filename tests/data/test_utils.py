@@ -25,7 +25,8 @@ class TestExtractLabels:
 
     @pytest.fixture
     def mock_data(self) -> pd.DataFrame:
-        """Generate mock data for tests including age, sex, bmi, any_comp, and op_year."""
+        """Generate mock data for tests including age, sex, bmi, any_comp,
+        and op_year."""
         return pd.DataFrame(
             {
                 "age": [25, 30, 35, 19, 80, 47, 20, 42, 69],
@@ -81,7 +82,7 @@ class TestExtractLabels:
 
     def test_extract_labels_invalid_label(self, mock_data: pd.DataFrame) -> None:
         """Test case when label is not in data."""
-        with pytest.raises(ValueError, match=f"invalid_label was not found in data"):
+        with pytest.raises(ValueError, match="invalid_label was not found in data"):
             extract_labels(mock_data, ["invalid_label"])
 
 
@@ -150,6 +151,16 @@ class TestGetSplitIdx:
         with pytest.raises(ValueError, match=escape(match_expr)):
             get_split_idx(np.arange(6), column=column, values=values)
 
+    def test_get_split_idx_accepts_ndarray_values(self) -> None:
+        """Test that values may be passed as a np.ndarray, not just a list
+        (both are accepted per the isinstance check)."""
+        idx_list, column, _ = self._generate_mock_data("int")
+
+        train_idx, test_idx = get_split_idx(idx_list, column, np.array([2024]))
+
+        assert (train_idx == np.array([1, 3, 4, 5])).all()
+        assert (test_idx == np.array([0, 2])).all()
+
 
 class TestSplitData:
     """Test class for the split_data function."""
@@ -200,6 +211,37 @@ class TestSplitData:
         assert len(y_train) == train_len
         assert len(X_test) == test_len
         assert len(y_test) == test_len
+
+    def test_split_data_random_state_is_reproducible(self) -> None:
+        """Test that passing the same random_state to the random strategy
+        produces identical splits across calls."""
+        features, labels = self._generate_mock_data()
+
+        X_train_1, y_train_1, X_test_1, y_test_1 = split_data(
+            features, labels, strategy="random", test_size=0.5, random_state=0
+        )
+        X_train_2, y_train_2, X_test_2, y_test_2 = split_data(
+            features, labels, strategy="random", test_size=0.5, random_state=0
+        )
+
+        assert_frame_equal(X_train_1, X_train_2)
+        assert_frame_equal(X_test_1, X_test_2)
+        assert (y_train_1 == y_train_2).all()
+        assert (y_test_1 == y_test_2).all()
+
+    def test_split_data_different_random_states_differ(self) -> None:
+        """Test that different random_state values produce different splits,
+        confirming the seed is actually threaded through to train_test_split."""
+        features, labels = self._generate_mock_data()
+
+        X_train_1, _, _, _ = split_data(
+            features, labels, strategy="random", test_size=0.5, random_state=0
+        )
+        X_train_2, _, _, _ = split_data(
+            features, labels, strategy="random", test_size=0.5, random_state=1
+        )
+
+        assert not X_train_1.index.equals(X_train_2.index)
 
     @pytest.mark.parametrize(
         "column, values, train_len, test_len",
@@ -286,10 +328,14 @@ class TestSplitData:
             )
 
     def test_split_data_missing_random_args(self) -> None:
-        """Test case when test_size or recalibration_size are missing in random strategy."""
+        """Test case when test_size or recalibration_size are missing in
+        random strategy."""
         with pytest.raises(
             ValueError,
-            match="test_size or recalibration_size must be specified with random strategy",
+            match=(
+                "test_size or recalibration_size must be specified with "
+                "random strategy"
+            ),
         ):
             split_data(pd.DataFrame({}), np.array([]), "random")
 
@@ -306,7 +352,8 @@ class TestResolveSubgroupMask:
 
     @pytest.fixture
     def mock_data(self) -> pd.DataFrame:
-        """Generate mock data for tests including age, sex, bmi, any_comp, and op_year."""
+        """Generate mock data for tests including age, sex, bmi, any_comp,
+        and op_year."""
         return pd.DataFrame(
             {
                 "age": [25, 30, 35, 19, 80, 47, 20, 42, 69],
@@ -360,7 +407,8 @@ class TestResolveSubgroupMask:
     # -------------------------------------------------------------------------
 
     def test_tuple_range_bounds(self, mock_data: pd.DataFrame) -> None:
-        """Verify range tuple (min, max) applies inclusive lower and exclusive upper bounds."""
+        """Verify range tuple (min, max) applies inclusive lower and
+        exclusive upper bounds."""
         # Range [18, 30] -> includes 25, 19, 20, 30; excludes , 35, 80, 47, 42, 69
         mask = resolve_subgroup_mask(mock_data, column="age", group=(18, 30))
 
@@ -378,7 +426,8 @@ class TestResolveSubgroupMask:
 
     def test_list_range_bounds_float(self, mock_data: pd.DataFrame) -> None:
         """Verify floating point range bounds passed as a list using BMI."""
-        # Range [20.0, 30.0] -> includes 22.0, 24.9, 20.0, 28.4, 30.0; excludes 18.5, 35.5, 31.2, NaN
+        # Range [20.0, 30.0] -> includes 22.0, 24.9, 20.0, 28.4, 30.0;
+        # excludes 18.5, 35.5, 31.2, NaN
         mask = resolve_subgroup_mask(mock_data, column="bmi", group=[20.0, 30.0])
 
         assert mask.tolist() == [
@@ -405,7 +454,7 @@ class TestResolveSubgroupMask:
 
         mask = resolve_subgroup_mask(df, column="interval_col", group=target_interval)
 
-        assert mask.iloc[0] == True
+        assert mask.iloc[0]
         assert mask.sum() == 1
 
     # -------------------------------------------------------------------------
@@ -422,7 +471,7 @@ class TestResolveSubgroupMask:
         mask = resolve_subgroup_mask(mock_data, column="bmi", group=(0, 100))
 
         # Index 8 is np.nan in mock_data['bmi']
-        assert mask.iloc[8] == False
+        assert not mask.iloc[8]
 
     def test_no_matching_rows_returns_all_false(self, mock_data: pd.DataFrame) -> None:
         """Verify valid call matching 0 rows returns a Series of all False values."""
@@ -438,3 +487,28 @@ class TestResolveSubgroupMask:
 
         assert len(mask) == 0
         assert isinstance(mask, pd.Series)
+
+    @pytest.mark.parametrize(
+        "group",
+        [
+            (25, 30, 35),  # 3-tuple: same length as a 3-row slice, but not a range
+            [15],  # 1-element list
+            (),  # empty tuple
+        ],
+    )
+    def test_group_tuple_or_list_of_wrong_length_raises_clean_value_error(
+        self, mock_data: pd.DataFrame, group: tuple | list
+    ) -> None:
+        """Test that a tuple/list group definition with a length other than
+        2 raises a clear, medpipe-level ValueError naming the problem,
+        instead of silently falling through to a raw (and potentially
+        misleading, positionally-matched, or pandas-cryptic) equality
+        comparison."""
+        with pytest.raises(
+            ValueError,
+            match=escape(
+                "Range group definitions must have exactly 2 elements (min, max), "
+                f"but got {len(group)}"
+            ),
+        ):
+            resolve_subgroup_mask(mock_data, column="age", group=group)

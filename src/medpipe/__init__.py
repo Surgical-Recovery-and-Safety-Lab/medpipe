@@ -15,9 +15,9 @@ from medpipe.pipeline import (
 )
 from medpipe.utils import MedpipeConfig
 
-__version__ = "0.4.0.dev0"
+__version__ = "0.4.0.dev1"
 
-__all__ = [
+__all__ = [  # noqa: RUF022 (grouped by category, not alphabetical)
     # Primary API Entry Point
     "Medpipe",
     "MedpipeConfig",

@@ -8,7 +8,7 @@ This module provides configuration schemas.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Literal, Union
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
@@ -26,7 +26,7 @@ VerbosityMode = Literal[
 ]
 VerbosityInt = Literal[0, 1, 2, 3]
 
-VerboseType = Union[VerbosityMode, bool, VerbosityInt]
+VerboseType = VerbosityMode | bool | VerbosityInt
 
 
 # ==============================================================================
@@ -40,7 +40,10 @@ class MetaConfig(BaseModel):
     run_mode: Literal["fast", "eval", "cv", "audit"] = "audit"
     verbose: VerboseType = Field(
         default="compact",
-        description="Console logging verbosity: 'quiet' (0), 'compact' (1), 'info' (2), 'debug' (3).",
+        description=(
+            "Console logging verbosity: 'quiet' (0), 'compact' (1), "
+            "'info' (2), 'debug' (3)."
+        ),
     )
     model_config = {"extra": "forbid"}
 
@@ -75,7 +78,7 @@ class DataConfig(BaseModel):
         return file
 
     @model_validator(mode="after")
-    def check_for_target_leakage(self) -> "DataConfig":
+    def check_for_target_leakage(self) -> DataConfig:
         # Check if any outcome intersects with the predictor list
         overlap = set(self.outcomes).intersection(set(self.predictors))
         if overlap:
@@ -107,7 +110,7 @@ class PreprocessingConfig(BaseModel):
     model_config = {"extra": "forbid"}
 
     @model_validator(mode="after")
-    def validate_operations(self) -> "PreprocessingConfig":
+    def validate_operations(self) -> PreprocessingConfig:
         if self.preprocess and not self.operations:
             raise ValueError("Operations must be specified if preprocess is True")
         return self
@@ -121,7 +124,7 @@ class SplitTestConfig(BaseModel):
     model_config = {"extra": "forbid"}
 
     @model_validator(mode="after")
-    def validate_strategy(self) -> "SplitTestConfig":
+    def validate_strategy(self) -> SplitTestConfig:
         if self.strategy == "random" and not self.test_size:
             raise ValueError("The random strategy requires a test size")
 
@@ -143,7 +146,7 @@ class SplitRecalibrationConfig(BaseModel):
     model_config = {"extra": "forbid"}
 
     @model_validator(mode="after")
-    def validate_strategy(self) -> "SplitRecalibrationConfig":
+    def validate_strategy(self) -> SplitRecalibrationConfig:
         if self.strategy == "random" and not self.recalibration_size:
             raise ValueError("The random strategy requires a test size")
 
@@ -166,7 +169,7 @@ class CrossValConfig(BaseModel):
     model_config = {"extra": "forbid"}
 
     @model_validator(mode="after")
-    def validate_strategy(self) -> "CrossValConfig":
+    def validate_strategy(self) -> CrossValConfig:
         if self.strategy == "group" and not self.group_column:
             raise ValueError(
                 "The group strategy requires a group column to be specified"
@@ -182,44 +185,42 @@ class ValidationSubConfig(BaseModel):
     model_config = {"extra": "forbid"}
 
     @model_validator(mode="after")
-    def validate_group_strategies(self) -> "ValidationSubConfig":
+    def validate_group_strategies(self) -> ValidationSubConfig:
         """Validate that recalibration and test split have same strategy."""
-        if self.recalibration_split:
-            if self.recalibration_split.strategy != self.test_split.strategy:
-                raise ValueError("Recalibration and test strategies should match")
+        if (
+            self.recalibration_split
+            and self.recalibration_split.strategy != self.test_split.strategy
+        ):
+            raise ValueError("Recalibration and test strategies should match")
         return self
 
     @model_validator(mode="after")
-    def validate_group_columns(self) -> "ValidationSubConfig":
+    def validate_group_columns(self) -> ValidationSubConfig:
         """Validate that recalibration and test split have same group columns."""
-        if self.recalibration_split:
-            # Check only when strategy is group
-            if (
-                self.recalibration_split.strategy == "group"
-                and self.test_split.strategy == "group"
-            ):
-                if (
-                    self.recalibration_split.group_column
-                    != self.test_split.group_column
-                ):
-                    raise ValueError(
-                        "Recalibration and test group columns should match"
-                    )
+        # Check only when strategy is group
+        if (
+            self.recalibration_split
+            and self.recalibration_split.strategy == "group"
+            and self.test_split.strategy == "group"
+            and self.recalibration_split.group_column != self.test_split.group_column
+        ):
+            raise ValueError("Recalibration and test group columns should match")
         return self
 
     @model_validator(mode="after")
-    def validate_group_values(self) -> "ValidationSubConfig":
+    def validate_group_values(self) -> ValidationSubConfig:
         """Validate that recalibration and test split have different values."""
-        if self.recalibration_split and self.recalibration_split.values is not None:
-            if (
-                self.recalibration_split.strategy == "group"
-                and self.test_split.strategy == "group"
-            ):
-                for value in self.recalibration_split.values:
-                    if value in self.test_split.values:  # type: ignore
-                        raise ValueError(
-                            "Recalibration and test values should be different"
-                        )
+        if (
+            self.recalibration_split
+            and self.recalibration_split.values is not None
+            and self.recalibration_split.strategy == "group"
+            and self.test_split.strategy == "group"
+        ):
+            for value in self.recalibration_split.values:
+                if value in self.test_split.values:  # type: ignore
+                    raise ValueError(
+                        "Recalibration and test values should be different"
+                    )
         return self
 
 
@@ -230,7 +231,7 @@ class MetricsConfig(BaseModel):
     model_config = {"extra": "forbid"}
 
     @model_validator(mode="after")
-    def validate_metrics(self) -> "MetricsConfig":
+    def validate_metrics(self) -> MetricsConfig:
         """Validate input metrics."""
         from medpipe.metrics.core import METRICS
 
@@ -251,10 +252,10 @@ class FairnessConfig(BaseModel):
     model_config = {"extra": "forbid"}
 
     @model_validator(mode="after")
-    def validate_group_keys(self) -> "FairnessConfig":
+    def validate_group_keys(self) -> FairnessConfig:
         """Validate group keys are in strata."""
         if self.groups:
-            for key in self.groups.keys():
+            for key in self.groups:
                 if key not in self.strata:
                     raise ValueError(f"{key} should be in the strata list")
                 if not self.groups[key]:
@@ -372,23 +373,23 @@ class DisplayConfig(BaseModel):
                 isinstance(sub_v, dict) for sub_v in val.values()
             ):
                 # Outcome overrides dictionary: outcome_name -> {plot_type: params}
-                for plot_key in val.keys():
+                for plot_key in val:
                     if plot_key.lower() not in valid_plots:
                         raise ValueError(
                             f"Unknown plot override type '{plot_key}'. "
-                            f"Valid plot types are: {sorted(list(valid_plots))}"
+                            f"Valid plot types are: {sorted(valid_plots)}"
                         )
             else:
                 # Plot type overrides dictionary: plot_type -> params
                 if key.lower() not in valid_plots:
                     raise ValueError(
                         f"Unknown plot override type '{key}'. "
-                        f"Valid plot types are: {sorted(list(valid_plots))}"
+                        f"Valid plot types are: {sorted(valid_plots)}"
                     )
         return v
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "DisplayConfig":
+    def from_dict(cls, data: dict[str, Any]) -> DisplayConfig:
         """Instantiate DisplayConfig from parsed TOML dictionary."""
         return cls.model_validate(data)
 
@@ -414,7 +415,7 @@ class MedpipeConfig(BaseModel):
     model_config = {"extra": "forbid"}
 
     @model_validator(mode="after")
-    def resolve_cascading_models(self) -> "MedpipeConfig":
+    def resolve_cascading_models(self) -> MedpipeConfig:
         """Cascade default_model settings into outcome_overrides."""
         resolved = {}
         for outcome in self.data.outcomes:
@@ -477,32 +478,36 @@ class MedpipeConfig(BaseModel):
         return self
 
     @model_validator(mode="after")
-    def validate_recalibration(self) -> "MedpipeConfig":
+    def validate_recalibration(self) -> MedpipeConfig:
         """Check recalibration split is specified with recalibration method."""
-        if self.default_model.recalibration:  # Recalibration is present
-            if not self.workflow.validation.recalibration_split:
-                expr = (
-                    "Recalibration validation split must be "
-                    "specified when a recalibration method is used"
-                )
-                raise ValueError(expr)
+        if (
+            self.default_model.recalibration  # Recalibration is present
+            and not self.workflow.validation.recalibration_split
+        ):
+            expr = (
+                "Recalibration validation split must be "
+                "specified when a recalibration method is used"
+            )
+            raise ValueError(expr)
         return self
 
     @model_validator(mode="after")
-    def validate_cross_validation(self) -> "MedpipeConfig":
+    def validate_cross_validation(self) -> MedpipeConfig:
         """Check that a cross-validation config is passed with correct
         run modes."""
-        if self.meta.run_mode != "fast":
-            if self.workflow.validation.cross_validation is None:
-                expr = (
-                    "Cross-validation parameters must be specified "
-                    "when run_mode is not 'fast'"
-                )
-                raise ValueError(expr)
+        if (
+            self.meta.run_mode != "fast"
+            and self.workflow.validation.cross_validation is None
+        ):
+            expr = (
+                "Cross-validation parameters must be specified "
+                "when run_mode is not 'fast'"
+            )
+            raise ValueError(expr)
         return self
 
     @model_validator(mode="after")
-    def validate_audit_and_eval_run_mode(self) -> "MedpipeConfig":
+    def validate_audit_and_eval_run_mode(self) -> MedpipeConfig:
         """Check that audit and eval run modes have correct evaluation."""
         run_mode = self.meta.run_mode
         if run_mode == "audit" or run_mode == "eval":
@@ -520,8 +525,9 @@ class MedpipeConfig(BaseModel):
         return self
 
     @model_validator(mode="after")
-    def validate_outcome_overrides_exist_in_outcomes(self) -> "MedpipeConfig":
-        """Ensures all outcome names in outcome_overrides are defined in data.outcomes."""
+    def validate_outcome_overrides_exist_in_outcomes(self) -> MedpipeConfig:
+        """Ensures all outcome names in outcome_overrides are defined in
+        data.outcomes."""
         valid_outcomes = set(self.data.outcomes)
 
         if self.outcome_overrides and self.data and self.data.outcomes:

@@ -9,19 +9,20 @@ handling various common I/O tasks.
 from __future__ import annotations
 
 import tomllib
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Callable, Dict, List, cast
+from typing import Any, ClassVar, cast
 
 import pandas as pd
 
 from .config import MedpipeConfig
-from .exceptions import file_checks
+from .validation import file_checks
 
 
 class DataLoaderRegistry:
     """Registry managing file extension mappings to DataFrame reader functions."""
 
-    _registry: Dict[str, Callable[..., Any]] = {
+    _registry: ClassVar[dict[str, Callable[..., Any]]] = {
         ".csv": pd.read_csv,
         ".tsv": lambda filepath, **kwargs: pd.read_csv(filepath, sep="\t", **kwargs),
         ".txt": pd.read_csv,
@@ -55,12 +56,13 @@ class DataLoaderRegistry:
         ext = cls._normalize_ext(extension)
         if ext not in cls._registry:
             raise ValueError(
-                f"Unsupported file extension '{ext}'. Registered extensions: {cls.list_registered()}"
+                f"Unsupported file extension '{ext}'. "
+                f"Registered extensions: {cls.list_registered()}"
             )
         return cls._registry[ext]
 
     @classmethod
-    def list_registered(cls) -> List[str]:
+    def list_registered(cls) -> list[str]:
         """List all supported file extensions."""
         return list(cls._registry.keys())
 
@@ -116,10 +118,20 @@ def load_data(data_file: str | Path, **kwargs: Any) -> pd.DataFrame:
     file_path = Path(data_file)
     supported_extensions = DataLoaderRegistry.list_registered()
 
-    # Executes file existence, directory, and extension checks
-    file_checks(file_path, supported_extensions)
+    # Validate the extension case-insensitively, consistent with how
+    # DataLoaderRegistry itself resolves loaders (e.g. '.CSV' == '.csv').
+    normalized_suffix = DataLoaderRegistry._normalize_ext(file_path.suffix)
+    if normalized_suffix not in supported_extensions:
+        raise ValueError(
+            f"File suffix should be one of {supported_extensions}, "
+            f"but got {file_path.suffix}"
+        )
 
-    loader = DataLoaderRegistry.get(file_path.suffix)
+    # Extension already validated above, so this only checks existence
+    # and that the path is a file rather than a directory.
+    file_checks(file_path, file_path.suffix)
+
+    loader = DataLoaderRegistry.get(normalized_suffix)
 
     return cast(pd.DataFrame, loader(file_path, **kwargs))
 

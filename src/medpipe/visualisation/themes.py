@@ -4,7 +4,7 @@ Themes for displaying graphs.
 """
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List
+from typing import Any
 
 from matplotlib.typing import RcKeyType
 
@@ -50,7 +50,7 @@ class MedpipeTheme:
     """
 
     primary_color: str = "#2D90D8"
-    palette: List[str] = field(
+    palette: list[str] = field(
         default_factory=lambda: [
             "#2D90D8",
             "#33367A",
@@ -68,7 +68,7 @@ class MedpipeTheme:
     show_spines: bool = False
     show_grid: bool = False
 
-    def to_rc_params(self) -> Dict[RcKeyType, Any]:
+    def to_rc_params(self) -> dict[RcKeyType, Any]:
         """Convert theme attributes into Matplotlib runtime configurations.
 
         Returns
@@ -112,7 +112,7 @@ class MedpipeTheme:
         return self.palette[index % len(self.palette)]
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "MedpipeTheme":
+    def from_dict(cls, data: dict[str, Any]) -> "MedpipeTheme":
         """Instantiate a MedpipeTheme configuration from a dictionary.
 
         Filters out unrecognized keys to prevent initialization errors when reading

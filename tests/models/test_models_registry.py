@@ -1,6 +1,8 @@
 import ngboost
 import pytest
 import sklearn.ensemble
+import sklearn.isotonic
+import sklearn.linear_model
 
 from medpipe.models.registry import ModelRegistry
 
@@ -26,10 +28,21 @@ class TestModelRegistry:
         model_cls = ModelRegistry.get("LogisticRegression")
         assert model_cls is sklearn.linear_model.LogisticRegression
 
+    def test_fallback_sklearn_isotonic(self):
+        """Test retrieving a model from the sklearn.isotonic fallback."""
+        model_cls = ModelRegistry.get("IsotonicRegression")
+        assert model_cls is sklearn.isotonic.IsotonicRegression
+
     def test_fallback_ngboost(self):
         """Test retrieving a model from the ngboost fallback."""
         model_cls = ModelRegistry.get("NGBClassifier")
         assert model_cls is ngboost.NGBClassifier
+
+    def test_missing_model_raises_value_error(self):
+        """Test that a name absent from both the registry and its fallback
+        modules raises a ValueError."""
+        with pytest.raises(ValueError, match="'NotARealModel' was not found"):
+            ModelRegistry.get("NotARealModel")
 
     def test_custom_model_registration(self):
         """Test that a custom model can be injected into the ModelRegistry."""

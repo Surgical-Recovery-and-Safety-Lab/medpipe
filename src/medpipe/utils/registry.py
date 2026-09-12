@@ -1,32 +1,43 @@
-from typing import Any, Callable, Dict, Generic, List, Optional, TypeVar
+from collections.abc import Callable
+from typing import Any, ClassVar
 
-T = TypeVar("T")
 
-
-class BaseRegistry(Generic[T]):
+class BaseRegistry[T]:
     """
     Abstract base class for creating component registries.
 
-    Subclasses must explicitly define their own `_registry` dictionary
-    and `_fallback_modules` list to prevent cross-contamination.
+    Every subclass automatically gets its own isolated `_registry` dict
+    and `_fallback_modules` list via `__init_subclass__`, so state never
+    leaks between subclasses even if they don't redeclare either
+    attribute themselves.
 
     Parameters
     ----------
-    Generic[T]
+    T
         The type of item stored in the registry (e.g., instances or class types).
 
     """
 
-    _registry: Dict[str, T]
-    _fallback_modules: List[Any] = []
+    _registry: dict[str, T]
+    _fallback_modules: ClassVar[list[Any]] = []
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)
         # Automatically isolate dictionary state for each subclass
         cls._registry = {}
 
+        # Isolate fallback module state too: give each subclass its own
+        # copy of whatever list it would otherwise inherit (empty for a
+        # direct BaseRegistry subclass, or the parent's contents for a
+        # deeper subclass), so mutating one subclass's list can never leak
+        # into another. Subclasses that declare their own _fallback_modules
+        # in their class body already own an isolated list and are left
+        # untouched.
+        if "_fallback_modules" not in cls.__dict__:
+            cls._fallback_modules = list(cls._fallback_modules)
+
     @classmethod
-    def register(cls, name: Optional[str] = None) -> Callable[[T], T]:
+    def register(cls, name: str | None = None) -> Callable[[T], T]:
         """Decorator to register a custom item into the specific subclass registry.
 
         Parameters
@@ -81,7 +92,7 @@ class BaseRegistry(Generic[T]):
         )
 
     @classmethod
-    def list_registered(cls) -> List[str]:
+    def list_registered(cls) -> list[str]:
         """Return a list of string keys registered in this custom registry.
 
         Returns

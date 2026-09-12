@@ -132,7 +132,8 @@ class TestDrawRocCurve:
         assert ax is existing_ax
 
     def test_draw_roc_curve_with_confidence_intervals(self, dummy_roc_data) -> None:
-        """Test rendering with pre-computed lower and upper confidence interval arrays."""
+        """Test rendering with pre-computed lower and upper confidence
+        interval arrays."""
         fpr, tpr = dummy_roc_data
         lower_ci = tpr - 0.05
         upper_ci = tpr + 0.05
@@ -243,6 +244,22 @@ class TestDrawPrecisionRecallCurve:
         labels = [text.get_text() for text in ax.get_legend().get_texts()]
         assert "Model with CI 95% CI" in labels
 
+    def test_draw_precision_recall_curve_custom_styling(self) -> None:
+        """Test custom title and spine visibility options."""
+        precision = np.array([1.0, 0.8, 0.6, 0.4])
+        recall = np.array([0.0, 0.3, 0.7, 1.0])
+
+        _, ax = draw_precision_recall_curve(
+            precision=precision,
+            recall=recall,
+            title="Custom PR Title",
+            show_spines=True,
+        )
+
+        assert ax.get_title() == "Custom PR Title"
+        assert ax.spines["top"].get_visible() is True
+        assert ax.spines["right"].get_visible() is True
+
     def test_draw_precision_recall_curve_existing_axes(self) -> None:
         """Test rendering onto an existing Matplotlib axes instance."""
         existing_fig, existing_ax = plt.subplots()
@@ -292,7 +309,8 @@ class TestDrawReliabilityDiagram:
         assert "Calibrated Model" in labels
 
     def test_draw_reliability_diagram_with_ci(self) -> None:
-        """Test drawing calibration curve with pre-computed confidence interval bounds."""
+        """Test drawing calibration curve with pre-computed confidence
+        interval bounds."""
         prob_true = np.array([0.1, 0.3, 0.5, 0.7, 0.9])
         prob_pred = np.array([0.1, 0.3, 0.5, 0.7, 0.9])
         lower_ci = prob_true - 0.05
@@ -309,6 +327,82 @@ class TestDrawReliabilityDiagram:
         assert len(ax.collections) == 1  # PolyCollection from fill_between
         labels = [text.get_text() for text in ax.get_legend().get_texts()]
         assert "Model with CI 95% CI" in labels
+
+    def test_draw_reliability_diagram_custom_styling(self) -> None:
+        """Test custom title and spine visibility options."""
+        prob_true = np.array([0.1, 0.3, 0.5])
+        prob_pred = np.array([0.12, 0.28, 0.52])
+
+        _, ax = draw_reliability_diagram(
+            prob_true=prob_true,
+            prob_pred=prob_pred,
+            title="Custom Reliability Title",
+            show_spines=True,
+        )
+
+        assert ax.get_title() == "Custom Reliability Title"
+        assert ax.spines["top"].get_visible() is True
+        assert ax.spines["right"].get_visible() is True
+
+    def test_draw_reliability_diagram_no_marker(self) -> None:
+        """Test that marker=None omits the 'marker' plot kwarg without error."""
+        prob_true = np.array([0.1, 0.3, 0.5])
+        prob_pred = np.array([0.12, 0.28, 0.52])
+
+        _, ax = draw_reliability_diagram(
+            prob_true=prob_true, prob_pred=prob_pred, marker=None
+        )
+
+        # The calibration line itself should still be drawn.
+        assert len(ax.get_lines()) == 2  # Reference line + calibration line
+
+    def test_draw_reliability_diagram_with_probas_distribution(self) -> None:
+        """Test that supplying 1D probas renders the bottom distribution
+        subplot beneath the main calibration axes."""
+        prob_true = np.array([0.1, 0.3, 0.5, 0.7, 0.9])
+        prob_pred = np.array([0.12, 0.28, 0.52, 0.68, 0.88])
+        probas = np.array([0.1, 0.2, 0.3, 0.6, 0.8, 0.9])
+
+        fig, ax = draw_reliability_diagram(
+            prob_true=prob_true,
+            prob_pred=prob_pred,
+            probas=probas,
+            dist_n_bins=5,
+            dist_yscale="log",
+        )
+
+        # Main axes should no longer carry the x-label (moved to the subplot).
+        assert ax.get_xlabel() == ""
+
+        # The distribution subplot should be a sibling axes on the same figure.
+        dist_axes = [a for a in fig.axes if a is not ax]
+        assert len(dist_axes) == 1
+        ax_dist = dist_axes[0]
+        assert ax_dist.get_xlabel() == "Mean predicted probability"
+        assert ax_dist.get_ylabel() == "Count"
+        assert ax_dist.get_yscale() == "log"
+        assert len(ax_dist.patches) == 5  # dist_n_bins=5 histogram bars
+
+    def test_draw_reliability_diagram_with_probas_2d_and_show_spines(self) -> None:
+        """Test that 2D probas are reduced to the positive-class column, and
+        that show_spines=True is honoured on the distribution subplot too."""
+        prob_true = np.array([0.2, 0.6])
+        prob_pred = np.array([0.25, 0.55])
+        probas_1d = np.array([0.1, 0.4, 0.6, 0.9])
+        probas_2d = np.column_stack((1 - probas_1d, probas_1d))
+
+        fig, ax = draw_reliability_diagram(
+            prob_true=prob_true,
+            prob_pred=prob_pred,
+            probas=probas_2d,
+            show_spines=True,
+        )
+
+        dist_axes = [a for a in fig.axes if a is not ax]
+        assert len(dist_axes) == 1
+        ax_dist = dist_axes[0]
+        assert ax_dist.spines["top"].get_visible() is True
+        assert ax_dist.spines["right"].get_visible() is True
 
     def test_draw_reliability_diagram_existing_axes(self) -> None:
         """Test rendering onto an existing Matplotlib axes instance."""
@@ -359,6 +453,54 @@ class TestDrawStrataHeatmap:
         assert ax.get_title() == "Clean Heatmap"
         assert len(ax.texts) == 4  # 2x2 grid = 4 annotations
 
+    def test_draw_strata_heatmap_no_title(self) -> None:
+        """Test that omitting title leaves the axes title empty."""
+        plot_data = np.array([[0.0, 0.0], [0.02, 0.05]])
+        text_data = np.array([[0.80, 0.75], [0.82, 0.70]])
+
+        _, ax = draw_strata_heatmap(
+            plot_data=plot_data,
+            text_data=text_data,
+            row_labels=["All strata", "Group A"],
+            col_labels=["Mortality", "Readmission"],
+        )
+
+        assert ax.get_title() == ""
+
+    def test_draw_strata_heatmap_existing_axes(self) -> None:
+        """Test rendering onto a pre-existing Matplotlib axes instance."""
+        existing_fig, existing_ax = plt.subplots()
+        plot_data = np.array([[0.0, 0.01], [0.03, 0.04]])
+        text_data = np.array([[0.5, 0.6], [0.7, 0.8]])
+
+        fig, ax = draw_strata_heatmap(
+            plot_data=plot_data,
+            text_data=text_data,
+            row_labels=["A", "B"],
+            col_labels=["X", "Y"],
+            ax=existing_ax,
+        )
+
+        assert fig is existing_fig
+        assert ax is existing_ax
+
+    def test_draw_strata_heatmap_detached_axes_raises(self) -> None:
+        """Edge case: raise ValueError when provided Axes is detached from a Figure."""
+        mock_ax = MagicMock(spec=Axes)
+        mock_ax.get_figure.return_value = None
+
+        with pytest.raises(
+            ValueError,
+            match="The provided Axes instance is not attached to a Figure",
+        ):
+            draw_strata_heatmap(
+                plot_data=np.array([[0.0]]),
+                text_data=np.array([[0.5]]),
+                row_labels=["A"],
+                col_labels=["X"],
+                ax=mock_ax,
+            )
+
 
 class TestDrawDcaCurve:
     """Tests for the stateless `draw_dca_curve` rendering function."""
@@ -385,6 +527,41 @@ class TestDrawDcaCurve:
         assert "Treat None" in labels
         assert "Treat All" in labels
         assert "DCA Model" in labels
+
+    def test_draw_dca_curve_existing_axes(self) -> None:
+        """Test rendering onto a pre-existing Matplotlib axes instance."""
+        existing_fig, existing_ax = plt.subplots()
+        thresholds = np.linspace(0.01, 0.99, 10)
+        net_benefit_model = np.linspace(0.2, 0.0, 10)
+        net_benefit_all = np.linspace(0.15, -0.5, 10)
+
+        fig, ax = draw_dca_curve(
+            thresholds=thresholds,
+            net_benefit_model=net_benefit_model,
+            net_benefit_all=net_benefit_all,
+            ax=existing_ax,
+        )
+
+        assert fig is existing_fig
+        assert ax is existing_ax
+
+    def test_draw_dca_curve_custom_styling(self) -> None:
+        """Test custom title and spine visibility options."""
+        thresholds = np.linspace(0.01, 0.99, 10)
+        net_benefit_model = np.linspace(0.2, 0.0, 10)
+        net_benefit_all = np.linspace(0.15, -0.5, 10)
+
+        _, ax = draw_dca_curve(
+            thresholds=thresholds,
+            net_benefit_model=net_benefit_model,
+            net_benefit_all=net_benefit_all,
+            title="Custom DCA Title",
+            show_spines=True,
+        )
+
+        assert ax.get_title() == "Custom DCA Title"
+        assert ax.spines["top"].get_visible() is True
+        assert ax.spines["right"].get_visible() is True
 
     def test_draw_dca_curve_detached_axes_raises(self) -> None:
         """Edge case: raise ValueError when provided Axes is detached from a Figure."""

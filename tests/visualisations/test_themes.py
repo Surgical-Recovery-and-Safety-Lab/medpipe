@@ -2,7 +2,6 @@
 Tests for the medpipe.visualisation.theme module.
 """
 
-import pytest
 
 from medpipe.visualisation.themes import MedpipeTheme
 
@@ -23,6 +22,7 @@ class TestMedpipeTheme:
         assert theme.title_fontsize == 12
         assert theme.label_fontsize == 10
         assert theme.show_spines is False
+        assert theme.show_grid is False
 
     def test_custom_initialisation(self) -> None:
         """Test theme instantiation with custom overrides."""
@@ -30,12 +30,14 @@ class TestMedpipeTheme:
             primary_color="#FF0000",
             dpi=600,
             show_spines=True,
+            show_grid=True,
             palette=["#FF0000", "#00FF00"],
         )
 
         assert theme.primary_color == "#FF0000"
         assert theme.dpi == 600
         assert theme.show_spines is True
+        assert theme.show_grid is True
         assert theme.palette == ["#FF0000", "#00FF00"]
 
     def test_to_rc_params(self) -> None:
@@ -46,6 +48,7 @@ class TestMedpipeTheme:
             label_fontsize=12,
             dpi=150,
             show_spines=True,
+            show_grid=True,
         )
         rc_params = theme.to_rc_params()
 
@@ -58,6 +61,7 @@ class TestMedpipeTheme:
         assert rc_params["savefig.dpi"] == 150
         assert rc_params["axes.spines.top"] is True
         assert rc_params["axes.spines.right"] is True
+        assert rc_params["axes.grid"] is True
 
     def test_get_color_indexing(self) -> None:
         """Test palette color retrieval with exact indexing and cyclic wrapping."""
@@ -92,8 +96,16 @@ class TestMedpipeTheme:
         assert theme.dpi == 400
         assert theme.ci_alpha == 0.5
 
+    def test_from_dict_empty_dict_uses_all_defaults(self) -> None:
+        """Test that an empty dictionary produces a theme identical to the
+        default constructor."""
+        theme = MedpipeTheme.from_dict({})
+
+        assert theme == MedpipeTheme()
+
     def test_from_dict_filters_unrecognized_keys(self) -> None:
-        """Test that extra or unknown keys in dictionary input are filtered out without error."""
+        """Test that extra or unknown keys in dictionary input are filtered
+        out without error."""
         config_dict = {
             "primary_color": "#123456",
             "unrecognized_key": "ignored_value",

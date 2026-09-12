@@ -7,8 +7,9 @@ bootstrap confidence interval estimation, logging, and artifact management.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import numpy.typing as npt
@@ -27,10 +28,11 @@ class MedpipeEvaluator:
     """
     Evaluation engine for Medpipe machine learning models and pipelines.
 
-    Provides standard inference interfaces (`predict`, `predict_proba`, `decision_function`)
-    and structured performance evaluation across full datasets and extracted data subgroups.
-    In compliance with TRIPOD+AI reporting guidelines, evaluation metrics include bootstrap
-    confidence intervals. Results are automatically logged and saved to disk using the
+    Provides standard inference interfaces (`predict`, `predict_proba`,
+    `decision_function`) and structured performance evaluation across full
+    datasets and extracted data subgroups. In compliance with TRIPOD+AI
+    reporting guidelines, evaluation metrics include bootstrap confidence
+    intervals. Results are automatically logged and saved to disk using the
     orchestrator's `ArtifactManager`.
 
     Parameters
@@ -72,7 +74,8 @@ class MedpipeEvaluator:
     extract_subgroups(X, subgroup_specs)
         Extract index subsets for specified data subgroups.
     evaluate(X, y, outcome=None, metrics=None, subgroup_specs=None, save_artifacts=True)
-        Evaluate model performance with confidence intervals across full data and subgroups.
+        Evaluate model performance with confidence intervals across full data
+        and subgroups.
 
     """
 
@@ -85,7 +88,7 @@ class MedpipeEvaluator:
         self.runner = runner
         eval_config = self.orchestrator.config.workflow.evaluation
 
-        self.fitted_models: Dict[str, Any] = getattr(runner, "fitted_models", {})
+        self.fitted_models: dict[str, Any] = getattr(runner, "fitted_models", {})
         self.n_bootstraps = eval_config.metrics.n_bootstraps
         self.ci_level = eval_config.metrics.ci_level
         self.random_state = self.orchestrator.config.workflow.random_state
@@ -94,7 +97,7 @@ class MedpipeEvaluator:
         self.metrics = eval_config.metrics.metrics
 
     def _get_model(
-        self, model: Optional[Any] = None, outcome: Optional[str] = None
+        self, model: Any | None = None, outcome: str | None = None
     ) -> Any:
         """
         Resolve estimator model from argument, outcome key, or fitted dictionary.
@@ -136,9 +139,9 @@ class MedpipeEvaluator:
 
     def predict(
         self,
-        X: Union[pd.DataFrame, npt.NDArray],
-        model: Optional[Any] = None,
-        outcome: Optional[str] = None,
+        X: pd.DataFrame | npt.NDArray,
+        model: Any | None = None,
+        outcome: str | None = None,
     ) -> npt.NDArray:
         """
         Predict class labels for samples in X.
@@ -170,9 +173,9 @@ class MedpipeEvaluator:
 
     def predict_proba(
         self,
-        X: Union[pd.DataFrame, npt.NDArray],
-        model: Optional[Any] = None,
-        outcome: Optional[str] = None,
+        X: pd.DataFrame | npt.NDArray,
+        model: Any | None = None,
+        outcome: str | None = None,
     ) -> npt.NDArray:
         """
         Predict class probabilities for samples in X.
@@ -189,7 +192,8 @@ class MedpipeEvaluator:
         Returns
         -------
         y_proba : numpy.ndarray
-            Predicted class probabilities of shape (n_samples, n_classes) or (n_samples,).
+            Predicted class probabilities of shape (n_samples, n_classes) or
+            (n_samples,).
 
         Raises
         ------
@@ -206,9 +210,9 @@ class MedpipeEvaluator:
 
     def decision_function(
         self,
-        X: Union[pd.DataFrame, npt.NDArray],
-        model: Optional[Any] = None,
-        outcome: Optional[str] = None,
+        X: pd.DataFrame | npt.NDArray,
+        model: Any | None = None,
+        outcome: str | None = None,
     ) -> npt.NDArray:
         """
         Compute decision function scores for samples in X.
@@ -243,8 +247,8 @@ class MedpipeEvaluator:
     def extract_subgroups(
         self,
         X: pd.DataFrame,
-        subgroup_specs: Dict[str, Union[str, Callable[[pd.DataFrame], pd.Series]]],
-    ) -> Dict[str, Dict[str, pd.Index]]:
+        subgroup_specs: dict[str, str | Callable[[pd.DataFrame], pd.Series]],
+    ) -> dict[str, dict[str, pd.Index]]:
         """
         Extract sample index subsets for specified data subgroups.
 
@@ -253,14 +257,17 @@ class MedpipeEvaluator:
         X : pandas.DataFrame
             Input feature dataset.
         subgroup_specs : dict of str to (str or callable)
-            Mapping where keys are subgroup category names (e.g., `'age_group'`) and values are:
+            Mapping where keys are subgroup category names (e.g., `'age_group'`)
+            and values are:
             - Column name (`str`): Groups samples by unique column values.
-            - Predicate (`callable`): Function taking `X` and returning a boolean `pd.Series` mask.
+            - Predicate (`callable`): Function taking `X` and returning a
+              boolean `pd.Series` mask.
 
         Returns
         -------
         subgroups : dict of str to dict of str to pandas.Index
-            Nested dictionary structured as `{category_name: {subgroup_val: row_indices}}`.
+            Nested dictionary structured as
+            `{category_name: {subgroup_val: row_indices}}`.
 
         Raises
         ------
@@ -273,10 +280,10 @@ class MedpipeEvaluator:
         self.logger.debug(
             f"Extracting subgroups for {len(subgroup_specs)} categories.",
         )
-        subgroups: Dict[str, Dict[str, pd.Index]] = {}
+        subgroups: dict[str, dict[str, pd.Index]] = {}
 
         for cat_name, spec in subgroup_specs.items():
-            cat_subgroups: Dict[str, pd.Index] = {}
+            cat_subgroups: dict[str, pd.Index] = {}
 
             if isinstance(spec, str) and spec in X.columns:
                 # Column string: discrete categorical groupby
@@ -316,8 +323,8 @@ class MedpipeEvaluator:
         self,
         y_true: npt.NDArray,
         y_pred: npt.NDArray,
-        metrics: List[str],
-    ) -> Dict[str, Dict[str, float]]:
+        metrics: list[str],
+    ) -> dict[str, dict[str, float]]:
         """
         Evaluate a single slice of data with TRIPOD+AI compliant confidence intervals.
 
@@ -350,7 +357,8 @@ class MedpipeEvaluator:
             )
         except Exception as err:
             self.logger.warning(
-                "Bootstrap CI calculation failed for slice (%s). Falling back to point estimates.",
+                "Bootstrap CI calculation failed for slice (%s). "
+                "Falling back to point estimates.",
                 err,
             )
             try:
@@ -361,7 +369,7 @@ class MedpipeEvaluator:
                         "ci_lower": np.nan,
                         "ci_upper": np.nan,
                     }
-                    for metric, score in zip(metrics, point_scores)
+                    for metric, score in zip(metrics, point_scores, strict=True)
                 }
             except Exception:
                 return {
@@ -376,15 +384,14 @@ class MedpipeEvaluator:
     def evaluate(
         self,
         X: pd.DataFrame,
-        y: Union[pd.Series, npt.NDArray],
-        outcome: Optional[str] = None,
-        model: Optional[Any] = None,
-        metrics: Optional[List[str]] = None,
-        subgroup_specs: Optional[
-            Dict[str, Union[str, Callable[[pd.DataFrame], pd.Series]]]
-        ] = None,
+        y: pd.Series | npt.NDArray,
+        outcome: str | None = None,
+        model: Any | None = None,
+        metrics: list[str] | None = None,
+        subgroup_specs: dict[str, str | Callable[[pd.DataFrame], pd.Series]]
+        | None = None,
         save_artifacts: bool = True,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Evaluate model performance across the full dataset and optional subgroups.
 
@@ -414,7 +421,8 @@ class MedpipeEvaluator:
         results : dict of str to Any
             Nested dictionary containing:
             - `"outcome"`: Name of outcome evaluated.
-            - `"overall"`: Dict mapping metric names to dicts of point estimates and CIs.
+            - `"overall"`: Dict mapping metric names to dicts of point
+              estimates and CIs.
             - `"subgroups"`: Dict mapping subgroup strata to slice metric results.
 
         """
@@ -441,7 +449,7 @@ class MedpipeEvaluator:
             self.n_bootstraps,
             self.ci_level,
         )
-        results: Dict[str, Any] = {
+        results: dict[str, Any] = {
             "outcome": outcome_name,
             "overall": self._evaluate_slice(y_arr, y_pred, eval_metrics),
         }
@@ -449,7 +457,7 @@ class MedpipeEvaluator:
         # 2. Compute subgroup metrics using identical slice evaluation logic
         if subgroup_specs:
             self.logger.info(f"[{outcome_name}] Evaluating performance across strata.")
-            subgroup_results: Dict[str, Dict[str, Dict[str, Dict[str, float]]]] = {}
+            subgroup_results: dict[str, dict[str, dict[str, dict[str, float]]]] = {}
             subgroups = self.extract_subgroups(X, subgroup_specs)
 
             for cat_name, cat_groups in subgroups.items():
@@ -488,7 +496,7 @@ class MedpipeEvaluator:
 
     def _save_evaluation_artifacts(
         self,
-        results: Dict[str, Any],
+        results: dict[str, Any],
         outcome: str,
     ) -> Path:
         """
@@ -508,7 +516,7 @@ class MedpipeEvaluator:
 
         """
         filename = f"{outcome}_evaluation_results.json"
-        saved_path: Optional[Path] = None
+        saved_path: Path | None = None
 
         artifacts_dir = self.orchestrator.run_dir / "results"
         artifact_mgr = self.orchestrator.artifact_manager

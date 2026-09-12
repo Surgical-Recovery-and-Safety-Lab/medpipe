@@ -10,7 +10,6 @@ logs to specific experiment artifact directories.
 import logging
 import sys
 from pathlib import Path
-from typing import Union
 
 
 class CompactProgressFilter(logging.Filter):
@@ -44,7 +43,7 @@ class CompactProgressFilter(logging.Filter):
         return any(keyword in msg for keyword in self.PROGRESS_KEYWORDS)
 
 
-def set_verbosity(verbose: Union[bool, int, str] = "compact") -> None:
+def set_verbosity(verbose: bool | int | str = "compact") -> None:
     """
     Globally configure the console log verbosity level and filters.
 
@@ -106,7 +105,7 @@ def set_verbosity(verbose: Union[bool, int, str] = "compact") -> None:
 
 def get_console_logger(
     name: str = "medpipe",
-    verbose: Union[bool, int, str, None] = None,
+    verbose: bool | int | str | None = None,
 ) -> logging.Logger:
     """
     Initialize and return the base console logger for the package with
@@ -152,7 +151,7 @@ def get_console_logger(
 
 def add_file_handler(
     logger: logging.Logger,
-    log_dir: Union[str, Path],
+    log_dir: str | Path,
     filename: str = "execution.log",
     level: int = logging.DEBUG,
 ) -> None:
@@ -190,7 +189,8 @@ def add_file_handler(
     file_handler.setLevel(level)
 
     formatter = logging.Formatter(
-        fmt="%(asctime)s | %(name)s | %(levelname)s | %(module)s:%(lineno)d | %(message)s"
+        fmt="%(asctime)s | %(name)s | %(levelname)s | "
+        "%(module)s:%(lineno)d | %(message)s"
     )
     file_handler.setFormatter(formatter)
     target_logger.addHandler(file_handler)

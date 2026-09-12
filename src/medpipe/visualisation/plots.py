@@ -2,7 +2,7 @@
 Stateless drawing primitives for Medpipe visualizations.
 """
 
-from typing import Any, Optional, Tuple
+from typing import Any
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -20,14 +20,14 @@ def draw_probability_distribution(
     probas: np.ndarray,
     n_bins: int = 10,
     label: str = "Predicted probabilities",
-    ax: Optional[Axes] = None,
+    ax: Axes | None = None,
     yscale: str = "linear",
     color: str = _DEFAULT_THEME.primary_color,
     edgecolor: str = "black",
-    title: Optional[str] = None,
+    title: str | None = None,
     show_spines: bool = _DEFAULT_THEME.show_spines,
     **hist_kwargs: Any,
-) -> Tuple[Figure | SubFigure, Axes]:
+) -> tuple[Figure | SubFigure, Axes]:
     """Render a predicted probability distribution histogram.
 
     Parameters
@@ -39,7 +39,8 @@ def draw_probability_distribution(
     label : str, default="Predicted Probabilities"
         Legend label for the histogram series.
     ax : matplotlib.axes.Axes, optional
-        Pre-existing Matplotlib axes instance. If None, a new figure and axes are created.
+        Pre-existing Matplotlib axes instance. If None, a new figure and axes
+        are created.
     yscale : str, default="linear"
         Scale to use for the y-axis (e.g. linear, log, etc.)
     color : str, default=_DEFAULT_THEME.primary_color
@@ -111,21 +112,21 @@ def draw_probability_distribution(
 def draw_roc_curve(
     fpr: np.ndarray,
     tpr: np.ndarray,
-    lower_ci: Optional[np.ndarray] = None,
-    upper_ci: Optional[np.ndarray] = None,
+    lower_ci: np.ndarray | None = None,
+    upper_ci: np.ndarray | None = None,
     label: str = "Model",
-    ax: Optional[Axes] = None,
+    ax: Axes | None = None,
     color: str = _DEFAULT_THEME.primary_color,
-    ci_color: Optional[str] = None,
+    ci_color: str | None = None,
     ci_alpha: float = _DEFAULT_THEME.ci_alpha,
     linestyle: str = "-",
     linewidth: float = _DEFAULT_THEME.linewidth,
     chance_linestyle: str = "--",
     chance_color: str = "black",
-    title: Optional[str] = None,
+    title: str | None = None,
     show_spines: bool = _DEFAULT_THEME.show_spines,
     **line_kwargs: Any,
-) -> Tuple[Figure | SubFigure, Axes]:
+) -> tuple[Figure | SubFigure, Axes]:
     """Render a Receiver Operating Characteristic (ROC) curve and optional CI bounds.
 
     Parameters
@@ -141,7 +142,8 @@ def draw_roc_curve(
     label : str, default="Model"
         Legend label for the plotted ROC curve.
     ax : matplotlib.axes.Axes, optional
-        Pre-existing Matplotlib axes instance. If None, a new figure and axes are created.
+        Pre-existing Matplotlib axes instance. If None, a new figure and axes
+        are created.
     color : str, default=_DEFAULT_THEME.primary_color
         Color specifier for the main ROC curve and default confidence interval fill.
     ci_color : str, optional
@@ -161,7 +163,8 @@ def draw_roc_curve(
     show_spines : bool, default=_DEFAULT_THEME.show_spines
         Whether to keep the top and right border spines visible.
     **line_kwargs : Any
-        Additional Matplotlib keyword arguments forwarded to `ax.plot` for the ROC curve.
+        Additional Matplotlib keyword arguments forwarded to `ax.plot` for the
+        ROC curve.
 
     Returns
     -------
@@ -239,22 +242,22 @@ def draw_roc_curve(
 def draw_precision_recall_curve(
     precision: np.ndarray,
     recall: np.ndarray,
-    lower_ci: Optional[np.ndarray] = None,
-    upper_ci: Optional[np.ndarray] = None,
-    baseline: Optional[float] = None,
+    lower_ci: np.ndarray | None = None,
+    upper_ci: np.ndarray | None = None,
+    baseline: float | None = None,
     label: str = "Model",
-    ax: Optional[Axes] = None,
+    ax: Axes | None = None,
     color: str = _DEFAULT_THEME.primary_color,
-    ci_color: Optional[str] = None,
+    ci_color: str | None = None,
     ci_alpha: float = _DEFAULT_THEME.ci_alpha,
     linestyle: str = "-",
     linewidth: float = _DEFAULT_THEME.linewidth,
     baseline_linestyle: str = "--",
     baseline_color: str = "black",
-    title: Optional[str] = None,
+    title: str | None = None,
     show_spines: bool = _DEFAULT_THEME.show_spines,
     **line_kwargs: Any,
-) -> Tuple[Figure | SubFigure, Axes]:
+) -> tuple[Figure | SubFigure, Axes]:
     """Render a Precision-Recall (PR) curve with optional CI bounds and baseline.
 
     Parameters
@@ -268,11 +271,13 @@ def draw_precision_recall_curve(
     upper_ci : np.ndarray, optional
         Upper bound array of precision values for 95% confidence interval shading.
     baseline : float, optional
-        Horizontal baseline value representing chance performance (positive class ratio).
+        Horizontal baseline value representing chance performance (positive
+        class ratio).
     label : str, default="Model"
         Legend label for the plotted PR curve.
     ax : matplotlib.axes.Axes, optional
-        Pre-existing Matplotlib axes instance. If None, a new figure and axes are created.
+        Pre-existing Matplotlib axes instance. If None, a new figure and axes
+        are created.
     color : str, default=_DEFAULT_THEME.primary_color
         Color specifier for the main PR curve and default confidence interval fill.
     ci_color : str, optional
@@ -370,26 +375,26 @@ def draw_precision_recall_curve(
 def draw_reliability_diagram(
     prob_true: np.ndarray,
     prob_pred: np.ndarray,
-    probas: Optional[np.ndarray] = None,
-    lower_ci: Optional[np.ndarray] = None,
-    upper_ci: Optional[np.ndarray] = None,
+    probas: np.ndarray | None = None,
+    lower_ci: np.ndarray | None = None,
+    upper_ci: np.ndarray | None = None,
     label: str = "Model",
     dist_n_bins: int = 20,
     dist_yscale: str = "linear",
     auto_inset: bool = True,
-    ax: Optional[Axes] = None,
+    ax: Axes | None = None,
     color: str = _DEFAULT_THEME.primary_color,
-    ci_color: Optional[str] = None,
+    ci_color: str | None = None,
     ci_alpha: float = _DEFAULT_THEME.ci_alpha,
     linestyle: str = "-",
     linewidth: float = _DEFAULT_THEME.linewidth,
-    marker: Optional[str] = "o",
+    marker: str | None = "o",
     ref_linestyle: str = "--",
     ref_color: str = "black",
-    title: Optional[str] = None,
+    title: str | None = None,
     show_spines: bool = _DEFAULT_THEME.show_spines,
     **line_kwargs: Any,
-) -> Tuple[Figure | SubFigure, Axes]:
+) -> tuple[Figure | SubFigure, Axes]:
     """Render a reliability diagram with optional prediction distribution.
 
     Parameters
@@ -400,7 +405,8 @@ def draw_reliability_diagram(
         Mean predicted probabilities or evaluation grid points.
     probas : np.ndarray, optional
         Raw predicted probabilities of shape (n_samples, 2) or (n_samples,).
-        If provided, renders a histogram of predicted probabilities underneath the graph.
+        If provided, renders a histogram of predicted probabilities underneath
+        the graph.
     lower_ci : np.ndarray, optional
         Lower bound array for 95% confidence interval shading.
     upper_ci : np.ndarray, optional
@@ -412,9 +418,11 @@ def draw_reliability_diagram(
     dist_yscale : str, default="linear"
         Scale to use for the y-axis (e.g. linear, log, etc.)
     auto_inset : bool, default=True
-        Whether to automatically render a zoomed inset box when maximum predicted probability < 0.4.
+        Whether to automatically render a zoomed inset box when maximum
+        predicted probability < 0.4.
     ax : matplotlib.axes.Axes, optional
-        Pre-existing Matplotlib axes instance. If None, a new figure and axes are created.
+        Pre-existing Matplotlib axes instance. If None, a new figure and axes
+        are created.
     color : str, default=_DEFAULT_THEME.primary_color
         Color specifier for main calibration elements and distribution bars.
     ci_color : str, optional
@@ -541,11 +549,11 @@ def draw_strata_heatmap(
     col_labels: list[str],
     colorbar_label: str = r"|$\Delta$ Score|",
     vmax: float = 0.1,
-    ax: Optional[Axes] = None,
+    ax: Axes | None = None,
     cmap: str = "cividis",
-    title: Optional[str] = None,
+    title: str | None = None,
     **heatmap_kwargs: Any,
-) -> Tuple[Figure | SubFigure, Axes]:
+) -> tuple[Figure | SubFigure, Axes]:
     """Render a pre-computed strata heatmap matrix onto an Axes.
 
     Parameters
@@ -563,7 +571,8 @@ def draw_strata_heatmap(
     vmax : float, default=0.1
         Maximum color scale limit for imshow.
     ax : matplotlib.axes.Axes, optional
-        Pre-existing Matplotlib axes instance. If None, a new figure and axes are created.
+        Pre-existing Matplotlib axes instance. If None, a new figure and axes
+        are created.
     cmap : str, default="cividis"
         Matplotlib colormap identifier.
     title : str, optional
@@ -641,7 +650,7 @@ def draw_dca_curve(
     net_benefit_model: np.ndarray,
     net_benefit_all: np.ndarray,
     label: str = "Model",
-    ax: Optional[Axes] = None,
+    ax: Axes | None = None,
     color: str = _DEFAULT_THEME.primary_color,
     linestyle: str = "-",
     linewidth: float = _DEFAULT_THEME.linewidth,
@@ -649,11 +658,12 @@ def draw_dca_curve(
     all_color: str = "gray",
     none_linestyle: str = "--",
     none_color: str = "black",
-    title: Optional[str] = None,
+    title: str | None = None,
     show_spines: bool = _DEFAULT_THEME.show_spines,
     **line_kwargs: Any,
-) -> Tuple[Figure | SubFigure, Axes]:
-    """Render a Decision Curve Analysis (DCA) plot comparing net benefit across thresholds.
+) -> tuple[Figure | SubFigure, Axes]:
+    """Render a Decision Curve Analysis (DCA) plot comparing net benefit
+    across thresholds.
 
     Parameters
     ----------
@@ -666,7 +676,8 @@ def draw_dca_curve(
     label : str, default="Model"
         Legend label for the model net benefit curve.
     ax : matplotlib.axes.Axes, optional
-        Pre-existing Matplotlib axes instance. If None, a new figure and axes are created.
+        Pre-existing Matplotlib axes instance. If None, a new figure and axes
+        are created.
     color : str, default=_DEFAULT_THEME.primary_color
         Color specifier for the model net benefit line.
     linestyle : str, default="-"
@@ -686,7 +697,8 @@ def draw_dca_curve(
     show_spines : bool, default=_DEFAULT_THEME.show_spines
         Whether to keep top and right border spines visible.
     **line_kwargs : Any
-        Additional Matplotlib keyword arguments forwarded to `ax.plot` for the model curve.
+        Additional Matplotlib keyword arguments forwarded to `ax.plot` for the
+        model curve.
 
     Returns
     -------
