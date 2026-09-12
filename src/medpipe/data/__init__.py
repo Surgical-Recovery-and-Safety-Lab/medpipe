@@ -4,11 +4,10 @@ medpipe.data
 Data processing, label extraction, dataset splitting, and transformation utilities.
 
 Provides functions for label manipulation, train/test/recalibration splitting,
-subgroup mask resolution, custom transformers, and preprocessor registry management.
+subgroup mask resolution, and preprocessor registry management.
 """
 
 from medpipe.data.registry import PreprocessorRegistry
-from medpipe.data.transformers import BoundedLogitTransformer
 from medpipe.data.utils import (
     extract_labels,
     get_split_idx,
@@ -22,7 +21,6 @@ __all__ = [
     "get_split_idx",
     "split_data",
     "resolve_subgroup_mask",
-    # Preprocessor registry & transformers
+    # Preprocessor registry
     "PreprocessorRegistry",
-    "BoundedLogitTransformer",
 ]

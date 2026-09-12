@@ -5,7 +5,6 @@ import numpy as np
 import pandas as pd
 import pytest
 from sklearn.calibration import CalibratedClassifierCV
-from sklearn.compose import TransformedTargetRegressor
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LinearRegression
 from sklearn.model_selection import StratifiedGroupKFold, StratifiedKFold
@@ -88,13 +87,13 @@ class TestInstantiateEstimator:
         assert isinstance(estimator, RandomForestClassifier)
         assert estimator.n_estimators == 10
 
-    def test_instantiate_estimator_regressor_wrapped(self, mock_orchestrator):
-        """Test that regressors are automatically wrapped in TransformedTargetRegressor."""
+    def test_instantiate_estimator_regressor_returned_unwrapped(self, mock_orchestrator):
+        """Test that regressors are returned as plain estimators, with no
+        target-transformation wrapping applied."""
         runner = MedpipeRunner(orchestrator=mock_orchestrator)
         estimator = runner._instantiate_estimator("LinearRegression", {})
 
-        assert isinstance(estimator, TransformedTargetRegressor)
-        assert isinstance(estimator.regressor, LinearRegression)
+        assert isinstance(estimator, LinearRegression)
 
     def test_instantiate_estimator_list_params_filtered(self, mock_orchestrator):
         """Test that list hyperparameters are reduced to scalars for initial instantiation."""

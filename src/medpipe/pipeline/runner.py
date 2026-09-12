@@ -1,12 +1,10 @@
 from typing import Any, Dict, Optional, Union
 
 import joblib
-import ngboost
 import numpy as np
 import pandas as pd
-from sklearn.base import BaseEstimator, is_regressor
+from sklearn.base import BaseEstimator
 from sklearn.calibration import CalibratedClassifierCV, FrozenEstimator
-from sklearn.compose import TransformedTargetRegressor
 from sklearn.model_selection import (
     BaseCrossValidator,
     GridSearchCV,
@@ -16,7 +14,6 @@ from sklearn.model_selection import (
 )
 from sklearn.pipeline import Pipeline
 
-from medpipe.data.transformers import BoundedLogitTransformer
 from medpipe.metrics.core import build_scorers
 from medpipe.models.registry import ModelRegistry
 from medpipe.pipeline.orchestrator import MedpipeOrchestrator
@@ -67,9 +64,6 @@ class MedpipeRunner:
         """
         Instantiates an estimator using the ModelRegistry.
 
-        Automatically wraps regressors or ngboost models in a
-        TransformedTargetRegressor to handle bounded logit outputs.
-
         Parameters
         ----------
         algo_name : str
@@ -96,16 +90,6 @@ class MedpipeRunner:
             f"Estimator {estimator_class.__name__} successfully instantiated"
         )
         self.logger.debug(f"Estimator instantiated with parameters {init_params}")
-
-        if is_regressor(estimator) or isinstance(estimator, ngboost.NGBRegressor):
-            self.logger.info(
-                f"Wrapping {estimator_class} in TransformedTargetRegressor"
-            )
-            return TransformedTargetRegressor(
-                regressor=estimator,
-                transformer=BoundedLogitTransformer(),
-                check_inverse=False,
-            )
 
         return estimator
 
