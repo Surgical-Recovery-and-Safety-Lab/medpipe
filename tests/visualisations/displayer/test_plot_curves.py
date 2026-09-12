@@ -247,20 +247,17 @@ class TestPlotReliabilityDiagram:
         ][0]
         assert model_line.get_marker() == "None"
 
-    def test_plot_reliability_diagram_config_resolved_spline_does_not_suppress_marker(
+    def test_plot_reliability_diagram_config_resolved_spline_suppresses_marker(
         self, mock_orchestrator, sample_binary_data
     ) -> None:
-        """Pin a real bug: when strategy='spline' is resolved from display
-        config (not passed as an explicit runtime keyword), the marker is
-        NOT suppressed, because the marker-suppression check in
-        plot_reliability_diagram compares against the raw `strategy`
-        parameter (None in this case) instead of the resolved config value.
+        """Test that strategy='spline' resolved from display config (not
+        passed as an explicit runtime keyword) also suppresses the marker.
 
-        The debug log and the actual curve computation both correctly use
-        the spline strategy — only the cosmetic marker suppression misses
-        it. If this is fixed upstream, this test's assertion should flip
-        to marker == 'None' and can replace the explicit-strategy test's
-        role in documenting the discrepancy.
+        Regression test for a bug where the marker-suppression check
+        compared against the raw `strategy` parameter (None when resolved
+        purely from config) instead of the resolved config value, so
+        config-driven spline plots kept their scatter markers even though
+        the curve itself was correctly computed via spline.
         """
         from medpipe.utils.config import DisplayConfig, DisplayDefaultsConfig
 
@@ -279,7 +276,7 @@ class TestPlotReliabilityDiagram:
         model_line = [
             line for line in ax.get_lines() if line.get_label() == "Model"
         ][0]
-        assert model_line.get_marker() == "o"  # Not suppressed — current bug
+        assert model_line.get_marker() == "None"
 
 
 class TestPlotDcaCurve:
