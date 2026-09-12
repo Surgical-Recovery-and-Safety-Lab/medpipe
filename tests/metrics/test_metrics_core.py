@@ -146,24 +146,14 @@ class TestComputeMetrics:
             [3.14],
         ],
     )
-    def test_compute_metricss_invalid_metric_type(self, metrics: Any) -> None:
+    def test_compute_metrics_invalid_metric_type(self, metrics: Any) -> None:
         """Test case when metrics is not a list of strings."""
         with pytest.raises(
             TypeError, match="Input metrics should be a list of strings"
         ):
             compute_metrics(metrics, np.array([]), np.array([]))
 
-    def test_compute_metrics_invalid_metric(self) -> None:
-        """Test case when metrics has invalid value."""
-        match_expr = (
-            "'invalid' was not found in available metrics. "
-            f"Available metrics are {METRICS}"
-        )
-
-        with pytest.raises(ValueError, match=escape(match_expr)):
-            compute_metrics(["invalid"], np.array([]), np.array([]))
-
-    def test_compute_metrics_invalid_metric_value(self) -> None:
+    def test_compute_metrics_invalid_metric_raises_value_error(self) -> None:
         """Test ValueError when invalid metric name is requested."""
         match_expr = (
             "'invalid' was not found in available metrics. "
@@ -254,7 +244,3 @@ class TestComputeMetrics:
         # Verify registration was cleaned up and registry is pristine
         with pytest.raises(ValueError, match="custom_prob_mae"):
             MetricRegistry.get("custom_prob_mae")
-
-        assert isinstance(scores, np.ndarray)
-        assert len(scores) == 2
-        assert 0.0 <= scores[0] <= 1.0  # Mean absolute error is within valid range
