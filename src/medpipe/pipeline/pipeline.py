@@ -7,6 +7,7 @@ model fitting, inference, and TRIPOD+AI compliant evaluation.
 
 from __future__ import annotations
 
+import time
 from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -370,6 +371,8 @@ class Medpipe:
 
         Automates data ingestion, split creation, model cross-validation and fitting,
         and test evaluation with TRIPOD+AI reporting across all target outcomes.
+        The model fitting duration and total run duration are recorded at
+        the debug log level.
 
         Parameters
         ----------
@@ -390,6 +393,7 @@ class Medpipe:
 
         """
         self._logger.info("Executing full Medpipe pipeline end-to-end.")
+        run_start_time = time.perf_counter()
 
         run_mode = self.mp_config.meta.run_mode
 
@@ -408,6 +412,7 @@ class Medpipe:
 
         # 2. Fit models via runner
         self._logger.info(f"Step 2/{n_steps}: Fitting outcome models.")
+        fit_start_time = time.perf_counter()
         fitted_models = self.fit(
             X_train=X_train,
             y_train=y_train,
@@ -415,6 +420,8 @@ class Medpipe:
             y_recal=y_recal,
             groups_train=groups_train,
         )
+        fit_duration = time.perf_counter() - fit_start_time
+        self._logger.debug(f"Model fitting completed in {fit_duration:.2f} seconds.")
 
         # 3. Evaluate models on test set via evaluator
         self._logger.info(
@@ -453,6 +460,10 @@ class Medpipe:
             )
             plots["strata_heatmaps"] = strata_heatmaps
 
+        run_duration = time.perf_counter() - run_start_time
+        self._logger.debug(
+            f"Full pipeline run completed in {run_duration:.2f} seconds."
+        )
         self._logger.info("Full Medpipe pipeline execution finished successfully.")
 
         results: dict[str, Any] = {
