@@ -286,6 +286,49 @@ class TestMedpipeEvaluatorExtractSubgroups:
             subgroups["elderly"]["false"], pd.Index([102, 104])
         )
 
+    def test_extract_subgroups_callable_spec_returns_non_series_mask(
+        self, mock_orchestrator, mock_runner, sample_data
+    ):
+        """Test that a callable returning a plain numpy array (not a
+        pd.Series) is wrapped correctly before indexing."""
+        X, _ = sample_data
+        evaluator = MedpipeEvaluator(mock_orchestrator, mock_runner)
+
+        specs = {"elderly": lambda df: (df["age"] >= 65).to_numpy()}
+        subgroups = evaluator.extract_subgroups(X, specs)
+
+        assert set(subgroups["elderly"].keys()) == {"true", "false"}
+        pd.testing.assert_index_equal(
+            subgroups["elderly"]["true"], pd.Index([101, 103])
+        )
+        pd.testing.assert_index_equal(
+            subgroups["elderly"]["false"], pd.Index([102, 104])
+        )
+
+    def test_extract_subgroups_list_of_discrete_values(
+        self, mock_orchestrator, mock_runner
+    ):
+        """Test subgroup extraction using a list of discrete category
+        values (not numeric range pairs) — each entry falls back to
+        resolve_subgroup_mask's scalar-equality path, and the resulting key
+        is the plain value itself rather than a "[min, max]" range label."""
+        X = pd.DataFrame(
+            {"ethnicity": ["Maori", "Pacific", "European", "Maori"]},
+            index=pd.Index([101, 102, 103, 104]),
+        )
+        evaluator = MedpipeEvaluator(mock_orchestrator, mock_runner)
+
+        specs = {"ethnicity": ["Maori", "Pacific"]}
+        subgroups = evaluator.extract_subgroups(X, specs)  # type: ignore
+
+        assert set(subgroups["ethnicity"].keys()) == {"Maori", "Pacific"}
+        pd.testing.assert_index_equal(
+            subgroups["ethnicity"]["Maori"], pd.Index([101, 104])
+        )
+        pd.testing.assert_index_equal(
+            subgroups["ethnicity"]["Pacific"], pd.Index([102])
+        )
+
     def test_extract_subgroups_fallback_scalar_spec(
         self, mock_orchestrator, mock_runner, sample_data
     ):
