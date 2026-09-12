@@ -90,6 +90,90 @@ class TestMedpipeUnit:
         pd.testing.assert_series_equal(kwargs["y"], y_single.iloc[:, 0])
 
 
+class TestMedpipeProperties:
+    """Unit tests for Medpipe's thin delegating properties: models,
+    is_fitted, run_dir, data_split, and metrics."""
+
+    @patch("medpipe.pipeline.pipeline.MedpipeDisplayer")
+    @patch("medpipe.pipeline.pipeline.MedpipeEvaluator")
+    @patch("medpipe.pipeline.pipeline.MedpipeRunner")
+    @patch("medpipe.pipeline.pipeline.MedpipeOrchestrator")
+    def test_models_returns_runner_fitted_models(
+        self, mock_orch_cls, mock_runner_cls, mock_eval_cls, mock_displayer_cls
+    ):
+        """Test that models delegates to runner.fitted_models."""
+        mp = Medpipe(config=MagicMock())
+        mp._runner.fitted_models = {"MORTALITY_30D": "a_model"}
+
+        assert mp.models == {"MORTALITY_30D": "a_model"}
+
+    @patch("medpipe.pipeline.pipeline.MedpipeDisplayer")
+    @patch("medpipe.pipeline.pipeline.MedpipeEvaluator")
+    @patch("medpipe.pipeline.pipeline.MedpipeRunner")
+    @patch("medpipe.pipeline.pipeline.MedpipeOrchestrator")
+    def test_is_fitted_false_when_no_models(
+        self, mock_orch_cls, mock_runner_cls, mock_eval_cls, mock_displayer_cls
+    ):
+        """Test that is_fitted is False when fitted_models is empty."""
+        mp = Medpipe(config=MagicMock())
+        mp._runner.fitted_models = {}
+
+        assert mp.is_fitted is False
+
+    @patch("medpipe.pipeline.pipeline.MedpipeDisplayer")
+    @patch("medpipe.pipeline.pipeline.MedpipeEvaluator")
+    @patch("medpipe.pipeline.pipeline.MedpipeRunner")
+    @patch("medpipe.pipeline.pipeline.MedpipeOrchestrator")
+    def test_is_fitted_true_when_models_present(
+        self, mock_orch_cls, mock_runner_cls, mock_eval_cls, mock_displayer_cls
+    ):
+        """Test that is_fitted is True once fitted_models is populated."""
+        mp = Medpipe(config=MagicMock())
+        mp._runner.fitted_models = {"MORTALITY_30D": "a_model"}
+
+        assert mp.is_fitted is True
+
+    @patch("medpipe.pipeline.pipeline.MedpipeDisplayer")
+    @patch("medpipe.pipeline.pipeline.MedpipeEvaluator")
+    @patch("medpipe.pipeline.pipeline.MedpipeRunner")
+    @patch("medpipe.pipeline.pipeline.MedpipeOrchestrator")
+    def test_run_dir_returns_orchestrator_run_dir(
+        self, mock_orch_cls, mock_runner_cls, mock_eval_cls, mock_displayer_cls
+    ):
+        """Test that run_dir delegates to orchestrator.run_dir."""
+        mp = Medpipe(config=MagicMock())
+        mp._orchestrator.run_dir = Path("/fake/run/dir")
+
+        assert mp.run_dir == Path("/fake/run/dir")
+
+    @patch("medpipe.pipeline.pipeline.MedpipeDisplayer")
+    @patch("medpipe.pipeline.pipeline.MedpipeEvaluator")
+    @patch("medpipe.pipeline.pipeline.MedpipeRunner")
+    @patch("medpipe.pipeline.pipeline.MedpipeOrchestrator")
+    def test_data_split_returns_orchestrator_splits(
+        self, mock_orch_cls, mock_runner_cls, mock_eval_cls, mock_displayer_cls
+    ):
+        """Test that data_split delegates to orchestrator.splits."""
+        mp = Medpipe(config=MagicMock())
+        sentinel_splits = MagicMock()
+        mp._orchestrator.splits = sentinel_splits
+
+        assert mp.data_split is sentinel_splits
+
+    @patch("medpipe.pipeline.pipeline.MedpipeDisplayer")
+    @patch("medpipe.pipeline.pipeline.MedpipeEvaluator")
+    @patch("medpipe.pipeline.pipeline.MedpipeRunner")
+    @patch("medpipe.pipeline.pipeline.MedpipeOrchestrator")
+    def test_metrics_returns_evaluator_metrics(
+        self, mock_orch_cls, mock_runner_cls, mock_eval_cls, mock_displayer_cls
+    ):
+        """Test that metrics delegates to evaluator.metrics."""
+        mp = Medpipe(config=MagicMock())
+        mp._evaluator.metrics = ["roc_auc", "ici"]
+
+        assert mp.metrics == ["roc_auc", "ici"]
+
+
 class TestMedpipeFit:
     """Unit tests verifying orchestration delegation and argument routing in Medpipe.fit."""
 
@@ -359,6 +443,26 @@ class TestMedpipeEvaluate:
 
         _, kwargs = mp._evaluator.evaluate.call_args
         pd.testing.assert_series_equal(kwargs["y"], y_df.iloc[:, 0])
+
+    @patch("medpipe.pipeline.pipeline.MedpipeDisplayer")
+    @patch("medpipe.pipeline.pipeline.MedpipeEvaluator")
+    @patch("medpipe.pipeline.pipeline.MedpipeRunner")
+    @patch("medpipe.pipeline.pipeline.MedpipeOrchestrator")
+    def test_evaluate_y_multi_column_dataframe_no_outcome_match_passthrough(
+        self, mock_orch_cls, mock_runner_cls, mock_eval_cls, mock_displayer_cls
+    ):
+        """Verify evaluate passes the full multi-column DataFrame through
+        unmodified when outcome doesn't match any column and there's more
+        than one column to fall back to (neither resolution branch applies)."""
+        mp = Medpipe(config=MagicMock())
+        X = pd.DataFrame({"AGE": [50, 60]})
+        y_df = pd.DataFrame({"MORTALITY_30D": [0, 1], "READMISSION_90D": [1, 0]})
+        mp._evaluator.evaluate.return_value = {}
+
+        mp.evaluate(X, y_df, outcome="UNMATCHED_OUTCOME")
+
+        _, kwargs = mp._evaluator.evaluate.call_args
+        pd.testing.assert_frame_equal(kwargs["y"], y_df)
 
     @patch("medpipe.pipeline.pipeline.MedpipeDisplayer")
     @patch("medpipe.pipeline.pipeline.MedpipeEvaluator")
