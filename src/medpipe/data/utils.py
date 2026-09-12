@@ -89,6 +89,7 @@ def split_data(
     values: list[str] | list[int] | None = None,
     test_size: float | None = None,
     recalibration_size: float | None = None,
+    random_state: int | None = None,
 ) -> tuple[pd.DataFrame, Labels, pd.DataFrame, Labels]:
     """
     Split data into train and test or train and recalibration sets.
@@ -113,6 +114,9 @@ def split_data(
         Test set size if the strategy is random.
     recalibration_size : float | None, default: None
         Recalibration set size if the strategy is random.
+    random_state : int | None, default: None
+        Seed controlling the shuffling applied before the random split, for
+        reproducibility. Ignored when strategy is group.
 
     Returns
     -------
@@ -164,7 +168,7 @@ def split_data(
             )
 
         X_train, X_test, y_train, y_test = train_test_split(
-            features, labels, test_size=size
+            features, labels, test_size=size, random_state=random_state
         )
 
     else:
