@@ -260,7 +260,7 @@ def resolve_subgroup_mask(
     KeyError
         If `column` is not present in `df`.
     ValueError
-        If `group` interval format cannot be parsed.
+        If `group` is a tuple or list that does not have exactly 2 elements.
 
     """
     if column not in df.columns:
@@ -276,6 +276,15 @@ def resolve_subgroup_mask(
     elif isinstance(group, (tuple, list)) and len(group) == 2:
         lower, upper = group[0], group[1]
         return (col_data >= lower) & (col_data <= upper)
+
+    # A tuple/list of any other length is not a valid range definition, and
+    # would otherwise silently fall through to a positional/length-mismatched
+    # equality comparison below.
+    elif isinstance(group, (tuple, list)):
+        raise ValueError(
+            "Range group definitions must have exactly 2 elements (min, max), "
+            f"but got {len(group)}: {group!r}"
+        )
 
     # Standard discrete scalar equality (e.g. string, int, float)
     return col_data == group
