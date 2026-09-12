@@ -572,6 +572,51 @@ class TestMedpipeRun:
     @patch("medpipe.pipeline.pipeline.MedpipeEvaluator")
     @patch("medpipe.pipeline.pipeline.MedpipeRunner")
     @patch("medpipe.pipeline.pipeline.MedpipeOrchestrator")
+    def test_run_logs_fit_and_total_duration_at_debug_level(
+        self, mock_orch_cls, mock_runner_cls, mock_eval_cls, mock_displayer_cls
+    ):
+        """Verify run logs the model fitting duration and the total run
+        duration at the debug log level."""
+        mp = Medpipe(config=MagicMock())
+        mp.mp_config.meta.run_mode = "fast"
+        mp.mp_config.data.kwargs = {}
+        mp._orchestrator.config.data.outcomes = ["MORTALITY_30D"]
+        mp._orchestrator.get_subgroup_specs.return_value = {}
+
+        X_tr, y_tr = pd.DataFrame({"A": [1, 2]}), pd.DataFrame(
+            {"MORTALITY_30D": [0, 1]}
+        )
+        X_te, y_te = pd.DataFrame({"A": [3]}), pd.DataFrame({"MORTALITY_30D": [1]})
+        mp._orchestrator.prepare_data.return_value = (
+            X_tr,
+            y_tr,
+            None,
+            None,
+            X_te,
+            y_te,
+            None,
+        )
+
+        mp.fit = MagicMock(return_value={"MORTALITY_30D": "fitted_model"})
+        mp.evaluate = MagicMock(return_value={"overall": {"roc_auc": 0.9}})
+        mp._logger = MagicMock()
+
+        mp.run(groups_train=None)
+
+        debug_messages = [call.args[0] for call in mp._logger.debug.call_args_list]
+        assert any(
+            "Model fitting completed in" in msg and "seconds" in msg
+            for msg in debug_messages
+        )
+        assert any(
+            "Full pipeline run completed in" in msg and "seconds" in msg
+            for msg in debug_messages
+        )
+
+    @patch("medpipe.pipeline.pipeline.MedpipeDisplayer")
+    @patch("medpipe.pipeline.pipeline.MedpipeEvaluator")
+    @patch("medpipe.pipeline.pipeline.MedpipeRunner")
+    @patch("medpipe.pipeline.pipeline.MedpipeOrchestrator")
     def test_run_audit_mode_triggers_visualization_and_heatmaps(
         self, mock_orch_cls, mock_runner_cls, mock_eval_cls, mock_displayer_cls
     ):

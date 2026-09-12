@@ -156,6 +156,43 @@ class TestSaveReproducibilityArtifacts:
             dataset_path=None,
         )
 
+    @patch("medpipe.pipeline.orchestrator.read_toml_configuration")
+    def test_save_artifacts_copies_toml_when_config_is_a_path(
+        self,
+        mock_read_toml,
+        mock_add_handler,
+        mock_get_logger,
+        mock_artifact_mgr,
+        mock_config,
+    ):
+        """Test that the original TOML file is copied into env/ when the
+        orchestrator was initialized from a file path."""
+        mock_read_toml.return_value = mock_config
+        mock_artifact_mgr_instance = mock_artifact_mgr.return_value
+        mock_artifact_mgr_instance.create_run_directory.return_value = Path(
+            "/tmp/run_1"
+        )
+
+        orchestrator = MedpipeOrchestrator(config="path/to/config.toml")
+
+        mock_artifact_mgr_instance.save_toml_config.assert_called_once_with(
+            Path("path/to/config.toml"), orchestrator.run_dir / "env"
+        )
+
+    def test_save_artifacts_skips_toml_when_config_is_an_object(
+        self, mock_add_handler, mock_get_logger, mock_artifact_mgr, mock_config
+    ):
+        """Test that no TOML file is copied when the orchestrator was
+        initialized directly from a MedpipeConfig object."""
+        mock_artifact_mgr_instance = mock_artifact_mgr.return_value
+        mock_artifact_mgr_instance.create_run_directory.return_value = Path(
+            "/tmp/run_1"
+        )
+
+        MedpipeOrchestrator(config=mock_config)
+
+        mock_artifact_mgr_instance.save_toml_config.assert_not_called()
+
 
 @patch("medpipe.pipeline.orchestrator.ArtifactManager")
 @patch("medpipe.pipeline.orchestrator.get_console_logger")
