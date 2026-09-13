@@ -21,26 +21,27 @@ from medpipe.utils.logger import get_console_logger
 
 if TYPE_CHECKING:
     from medpipe.pipeline.orchestrator import MedpipeOrchestrator
-    from medpipe.pipeline.runner import MedpipeClassifierRunner
+    from medpipe.pipeline.runner import BaseRunner
 
 
-class MedpipeClassifierEvaluator:
+class BaseEvaluator:
     """
-    Evaluation engine for MedpipeClassifier machine learning models and pipelines.
+    Shared evaluation engine for computing point estimates and bootstrap
+    confidence intervals across full datasets and subgroups, independent of
+    outcome type.
 
-    Provides standard inference interfaces (`predict`, `predict_proba`,
-    `decision_function`) and structured performance evaluation across full
-    datasets and extracted data subgroups. In compliance with TRIPOD+AI
-    reporting guidelines, evaluation metrics include bootstrap confidence
-    intervals. Results are automatically logged and saved to disk using the
-    orchestrator's `ArtifactManager`.
+    Provides model resolution, subgroup extraction, TRIPOD+AI compliant
+    slice evaluation, and artifact persistence. Outcome-type-specific
+    prediction retrieval (e.g. probability/decision scores for
+    classification, point or distributional predictions for regression) is
+    provided by subclasses via the `_get_predictions` hook.
 
     Parameters
     ----------
     orchestrator : MedpipeOrchestrator
         The pipeline orchestrator instance containing workflow configuration,
         run directories, and the `ArtifactManager`.
-    runner : MedpipeClassifierRunner
+    runner : BaseRunner
         The pipeline runner instance containing the dictionary of fitted models
         (`fitted_models`).
 
@@ -48,7 +49,7 @@ class MedpipeClassifierEvaluator:
     ----------
     orchestrator : MedpipeOrchestrator
         Pipeline orchestrator instance.
-    runner : MedpipeClassifierRunner
+    runner : BaseRunner
         Pipeline runner instance.
     fitted_models : dict of str to object
         Dictionary mapping outcome names to fitted estimators or pipelines.
@@ -66,11 +67,7 @@ class MedpipeClassifierEvaluator:
     Methods
     -------
     predict(X, model=None, outcome=None)
-        Predict class labels for samples in X.
-    predict_proba(X, model=None, outcome=None)
-        Predict class probabilities for samples in X.
-    decision_function(X, model=None, outcome=None)
-        Compute decision function scores for samples in X.
+        Predict outcomes for samples in X.
     extract_subgroups(X, subgroup_specs)
         Extract index subsets for specified data subgroups.
     evaluate(X, y, outcome=None, metrics=None, subgroup_specs=None, save_artifacts=True)
@@ -82,7 +79,7 @@ class MedpipeClassifierEvaluator:
     def __init__(
         self,
         orchestrator: MedpipeOrchestrator,
-        runner: MedpipeClassifierRunner,
+        runner: BaseRunner,
     ) -> None:
         self.orchestrator = orchestrator
         self.runner = runner
@@ -144,7 +141,7 @@ class MedpipeClassifierEvaluator:
         outcome: str | None = None,
     ) -> npt.NDArray:
         """
-        Predict class labels for samples in X.
+        Predict outcomes for samples in X.
 
         Parameters
         ----------
@@ -158,7 +155,7 @@ class MedpipeClassifierEvaluator:
         Returns
         -------
         y_pred : numpy.ndarray
-            Predicted class labels of shape (n_samples,).
+            Predicted values of shape (n_samples,).
 
         Raises
         ------
@@ -171,78 +168,35 @@ class MedpipeClassifierEvaluator:
             raise AttributeError("The underlying model does not implement 'predict'.")
         return np.asarray(target_model.predict(X))
 
-    def predict_proba(
+    def _get_predictions(
         self,
         X: pd.DataFrame | npt.NDArray,
-        model: Any | None = None,
-        outcome: str | None = None,
+        target_model: Any,
+        metrics: list[str],
     ) -> npt.NDArray:
         """
-        Predict class probabilities for samples in X.
+        Retrieve the model predictions used to compute the requested metrics.
+
+        Subclasses must implement this to resolve the outcome-type-specific
+        prediction method.
 
         Parameters
         ----------
         X : pandas.DataFrame or numpy.ndarray
             Features dataset of shape (n_samples, n_features).
-        model : object, optional
-            Fitted model instance. If None, resolved via `outcome` or `fitted_models`.
-        outcome : str, optional
-            Outcome key to look up in `self.fitted_models`.
+        target_model : object
+            The resolved, fitted model to predict with.
+        metrics : list of str
+            The metric names being evaluated, made available so subclasses
+            can decide which prediction method(s) are needed.
 
         Returns
         -------
-        y_proba : numpy.ndarray
-            Predicted class probabilities of shape (n_samples, n_classes) or
-            (n_samples,).
-
-        Raises
-        ------
-        AttributeError
-            If the resolved model does not implement a `predict_proba` method.
+        y_pred : numpy.ndarray
+            Predictions used as input to metric computation.
 
         """
-        target_model = self._get_model(model, outcome)
-        if not hasattr(target_model, "predict_proba"):
-            raise AttributeError(
-                "The underlying model does not implement 'predict_proba'."
-            )
-        return np.asarray(target_model.predict_proba(X))
-
-    def decision_function(
-        self,
-        X: pd.DataFrame | npt.NDArray,
-        model: Any | None = None,
-        outcome: str | None = None,
-    ) -> npt.NDArray:
-        """
-        Compute decision function scores for samples in X.
-
-        Parameters
-        ----------
-        X : pandas.DataFrame or numpy.ndarray
-            Features dataset of shape (n_samples, n_features).
-        model : object, optional
-            Fitted model instance. If None, resolved via `outcome` or `fitted_models`.
-        outcome : str, optional
-            Outcome key to look up in `self.fitted_models`.
-
-        Returns
-        -------
-        scores : numpy.ndarray
-            Confidence scores or decision function values of shape (n_samples,).
-
-        Raises
-        ------
-        AttributeError
-            If the resolved model does not implement a `decision_function` method.
-
-        """
-        target_model = self._get_model(model, outcome)
-        if not hasattr(target_model, "decision_function"):
-            raise AttributeError(
-                "The underlying model does not implement 'decision_function'."
-            )
-        return np.asarray(target_model.decision_function(X))
+        raise NotImplementedError
 
     def extract_subgroups(
         self,
@@ -435,12 +389,7 @@ class MedpipeClassifierEvaluator:
         y_arr = np.asarray(y)
 
         # Retrieve model predictions
-        if hasattr(target_model, "predict_proba"):
-            y_pred = self.predict_proba(X, model=target_model)
-        elif hasattr(target_model, "decision_function"):
-            y_pred = self.decision_function(X, model=target_model)
-        else:
-            y_pred = self.predict(X, model=target_model)
+        y_pred = self._get_predictions(X, target_model, eval_metrics)
 
         # 1. Compute overall evaluation with confidence intervals
         self.logger.info(
@@ -527,3 +476,164 @@ class MedpipeClassifierEvaluator:
             f"[{outcome}] Successfully saved evaluation artifacts to {saved_path}.",
         )
         return saved_path
+
+
+class MedpipeClassifierEvaluator(BaseEvaluator):
+    """
+    Evaluation engine for MedpipeClassifier machine learning models and pipelines.
+
+    Provides standard inference interfaces (`predict`, `predict_proba`,
+    `decision_function`) and structured performance evaluation across full
+    datasets and extracted data subgroups. In compliance with TRIPOD+AI
+    reporting guidelines, evaluation metrics include bootstrap confidence
+    intervals. Results are automatically logged and saved to disk using the
+    orchestrator's `ArtifactManager`.
+
+    Parameters
+    ----------
+    orchestrator : MedpipeOrchestrator
+        The pipeline orchestrator instance containing workflow configuration,
+        run directories, and the `ArtifactManager`.
+    runner : MedpipeClassifierRunner
+        The pipeline runner instance containing the dictionary of fitted models
+        (`fitted_models`).
+
+    Attributes
+    ----------
+    orchestrator : MedpipeOrchestrator
+        Pipeline orchestrator instance.
+    runner : MedpipeClassifierRunner
+        Pipeline runner instance.
+    fitted_models : dict of str to object
+        Dictionary mapping outcome names to fitted estimators or pipelines.
+    metrics : list of str
+        List of metric names used during evaluation.
+    n_bootstraps : int
+        Number of bootstrap iterations.
+    ci_level : float
+        Target confidence interval level.
+    random_state : int, np.random.Generator, or None
+        Random state instance for resampling.
+    logger : logging.Logger
+        Logger instance configured under `"medpipe.evaluator"`.
+
+    Methods
+    -------
+    predict(X, model=None, outcome=None)
+        Predict class labels for samples in X.
+    predict_proba(X, model=None, outcome=None)
+        Predict class probabilities for samples in X.
+    decision_function(X, model=None, outcome=None)
+        Compute decision function scores for samples in X.
+    extract_subgroups(X, subgroup_specs)
+        Extract index subsets for specified data subgroups.
+    evaluate(X, y, outcome=None, metrics=None, subgroup_specs=None, save_artifacts=True)
+        Evaluate model performance with confidence intervals across full data
+        and subgroups.
+
+    """
+
+    def predict_proba(
+        self,
+        X: pd.DataFrame | npt.NDArray,
+        model: Any | None = None,
+        outcome: str | None = None,
+    ) -> npt.NDArray:
+        """
+        Predict class probabilities for samples in X.
+
+        Parameters
+        ----------
+        X : pandas.DataFrame or numpy.ndarray
+            Features dataset of shape (n_samples, n_features).
+        model : object, optional
+            Fitted model instance. If None, resolved via `outcome` or `fitted_models`.
+        outcome : str, optional
+            Outcome key to look up in `self.fitted_models`.
+
+        Returns
+        -------
+        y_proba : numpy.ndarray
+            Predicted class probabilities of shape (n_samples, n_classes) or
+            (n_samples,).
+
+        Raises
+        ------
+        AttributeError
+            If the resolved model does not implement a `predict_proba` method.
+
+        """
+        target_model = self._get_model(model, outcome)
+        if not hasattr(target_model, "predict_proba"):
+            raise AttributeError(
+                "The underlying model does not implement 'predict_proba'."
+            )
+        return np.asarray(target_model.predict_proba(X))
+
+    def decision_function(
+        self,
+        X: pd.DataFrame | npt.NDArray,
+        model: Any | None = None,
+        outcome: str | None = None,
+    ) -> npt.NDArray:
+        """
+        Compute decision function scores for samples in X.
+
+        Parameters
+        ----------
+        X : pandas.DataFrame or numpy.ndarray
+            Features dataset of shape (n_samples, n_features).
+        model : object, optional
+            Fitted model instance. If None, resolved via `outcome` or `fitted_models`.
+        outcome : str, optional
+            Outcome key to look up in `self.fitted_models`.
+
+        Returns
+        -------
+        scores : numpy.ndarray
+            Confidence scores or decision function values of shape (n_samples,).
+
+        Raises
+        ------
+        AttributeError
+            If the resolved model does not implement a `decision_function` method.
+
+        """
+        target_model = self._get_model(model, outcome)
+        if not hasattr(target_model, "decision_function"):
+            raise AttributeError(
+                "The underlying model does not implement 'decision_function'."
+            )
+        return np.asarray(target_model.decision_function(X))
+
+    def _get_predictions(
+        self,
+        X: pd.DataFrame | npt.NDArray,
+        target_model: Any,
+        metrics: list[str],
+    ) -> npt.NDArray:
+        """
+        Resolve predictions using probability, decision, or label output, in
+        that order of preference.
+
+        Parameters
+        ----------
+        X : pandas.DataFrame or numpy.ndarray
+            Features dataset of shape (n_samples, n_features).
+        target_model : object
+            The resolved, fitted model to predict with.
+        metrics : list of str
+            Unused for classification; accepted for interface compatibility
+            with `BaseEvaluator`.
+
+        Returns
+        -------
+        y_pred : numpy.ndarray
+            Predicted probabilities, decision scores, or class labels.
+
+        """
+        if hasattr(target_model, "predict_proba"):
+            return self.predict_proba(X, model=target_model)
+        elif hasattr(target_model, "decision_function"):
+            return self.decision_function(X, model=target_model)
+        return self.predict(X, model=target_model)
