@@ -14,7 +14,7 @@ from medpipe.pipeline import (
     MedpipeClassifierRunner,
     MedpipeOrchestrator,
 )
-from medpipe.utils import MedpipeConfig
+from medpipe.utils import MedpipeConfig, MedpipeRegressorConfig
 
 __version__ = "0.4.0.dev1"
 
@@ -22,6 +22,7 @@ __all__ = [  # noqa: RUF022 (grouped by category, not alphabetical)
     # Primary API Entry Point
     "MedpipeClassifier",
     "MedpipeConfig",
+    "MedpipeRegressorConfig",
     # Sub-Orchestrators (for custom/modular workflows)
     "MedpipeOrchestrator",
     "MedpipeClassifierRunner",

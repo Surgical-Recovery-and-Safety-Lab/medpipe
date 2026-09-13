@@ -30,6 +30,79 @@ VerboseType = VerbosityMode | bool | VerbosityInt
 
 
 # ==============================================================================
+# SHARED VALIDATION HELPERS
+# ==============================================================================
+def _validate_metrics_registered(metrics: list[str]) -> None:
+    """Validate that all given metric names are registered in MetricRegistry.
+
+    Parameters
+    ----------
+    metrics : list of str
+        Candidate metric identifiers.
+
+    Raises
+    ------
+    ValueError
+        If any entry in `metrics` is not a registered metric.
+
+    """
+    from medpipe.metrics.core import METRICS
+
+    for metric in metrics:
+        if metric not in METRICS:
+            expr = (
+                f"{metric} was not found in available metric "
+                f"list. Available metrics are {METRICS}"
+            )
+            raise ValueError(expr)
+
+
+def _validate_plot_type_keys(
+    v: dict[str, Any], valid_plots: set[str]
+) -> dict[str, Any]:
+    """Ensure plot override identifiers correspond to a set of valid plot
+    types.
+
+    Parameters
+    ----------
+    v : dict of str to Any
+        Candidate `overrides` or `outcome_overrides` mapping.
+    valid_plots : set of str
+        Set of recognized plot type identifiers (case-insensitive).
+
+    Returns
+    -------
+    dict of str to Any
+        The validated mapping.
+
+    Raises
+    ------
+    ValueError
+        If any plot type key is not a recognized plot type.
+
+    """
+    for key, val in v.items():
+        if isinstance(val, dict) and any(
+            isinstance(sub_v, dict) for sub_v in val.values()
+        ):
+            # Outcome overrides dictionary: outcome_name -> {plot_type: params}
+            for plot_key in val:
+                if plot_key.lower() not in valid_plots:
+                    raise ValueError(
+                        f"Unknown plot override type '{plot_key}'. "
+                        f"Valid plot types are: {sorted(valid_plots)}"
+                    )
+        else:
+            # Plot type overrides dictionary: plot_type -> params
+            if key.lower() not in valid_plots:
+                raise ValueError(
+                    f"Unknown plot override type '{key}'. "
+                    f"Valid plot types are: {sorted(valid_plots)}"
+                )
+    return v
+
+
+# ==============================================================================
 # CONFIGURATION SCHEMA (pydantic)
 # ==============================================================================
 # --- TOP-LEVEL MASTER SCHEMAS ---
@@ -536,16 +609,7 @@ class MetricsConfig(BaseModel):
             If any entry in `metrics` is not a registered metric.
 
         """
-        from medpipe.metrics.core import METRICS
-
-        for metric in self.metrics:
-            if metric not in METRICS:
-                expr = (
-                    f"{metric} was not found in available metric "
-                    f"list. Available metrics are {METRICS}"
-                )
-                raise ValueError(expr)
-
+        _validate_metrics_registered(self.metrics)
         return self
 
 
@@ -813,26 +877,7 @@ class DisplayConfig(BaseModel):
             "strata_heatmap",
             "heatmap",
         }
-
-        for key, val in v.items():
-            if isinstance(val, dict) and any(
-                isinstance(sub_v, dict) for sub_v in val.values()
-            ):
-                # Outcome overrides dictionary: outcome_name -> {plot_type: params}
-                for plot_key in val:
-                    if plot_key.lower() not in valid_plots:
-                        raise ValueError(
-                            f"Unknown plot override type '{plot_key}'. "
-                            f"Valid plot types are: {sorted(valid_plots)}"
-                        )
-            else:
-                # Plot type overrides dictionary: plot_type -> params
-                if key.lower() not in valid_plots:
-                    raise ValueError(
-                        f"Unknown plot override type '{key}'. "
-                        f"Valid plot types are: {sorted(valid_plots)}"
-                    )
-        return v
+        return _validate_plot_type_keys(v, valid_plots)
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> DisplayConfig:
@@ -1060,6 +1105,406 @@ class MedpipeConfig(BaseModel):
         Returns
         -------
         MedpipeConfig
+            The validated configuration instance.
+
+        Raises
+        ------
+        ValueError
+            If any key in `outcome_overrides` or
+            `display.outcome_overrides` is not present in
+            `data.outcomes`.
+
+        """
+        valid_outcomes = set(self.data.outcomes)
+
+        if self.outcome_overrides and self.data and self.data.outcomes:
+            for override_outcome in self.outcome_overrides:
+                if override_outcome not in valid_outcomes:
+                    raise ValueError(
+                        f"Outcome override '{override_outcome}' is not present "
+                        f"in data.outcomes: {self.data.outcomes}"
+                    )
+
+        if self.display and self.display.outcome_overrides:
+            for override_outcome in self.display.outcome_overrides:
+                if override_outcome not in valid_outcomes:
+                    raise ValueError(
+                        f"Display outcome override '{override_outcome}' is not present "
+                        f"in data.outcomes: {self.data.outcomes}"
+                    )
+        return self
+
+
+# ==============================================================================
+# REGRESSOR CONFIGURATION SCHEMA (pydantic)
+# ==============================================================================
+# --- REGRESSOR MODEL SCHEMAS ---
+class RegressorModelSetup(BaseModel):
+    """Configuration for a regression model and its hyperparameters.
+
+    Unlike `ModelSetup`, this has no `recalibration` field: post-hoc
+    recalibration is a classification-only concept and is not supported on
+    the regression track.
+
+    Attributes
+    ----------
+    algorithm : str
+        Name of the registered model class to instantiate.
+    hyperparameters : dict of str to Any, default={}
+        Hyperparameters forwarded to the model constructor.
+
+    """
+
+    algorithm: str
+    hyperparameters: dict[str, Any] = Field(default_factory=dict)
+    model_config = {"extra": "forbid"}
+
+
+# --- REGRESSOR EVALUATION SCHEMAS ---
+class RegressorMetricsConfig(BaseModel):
+    """Configuration for regression evaluation metrics and bootstrap
+    confidence intervals.
+
+    Attributes
+    ----------
+    metrics : list of str, default=["rmse", "mae"]
+        Metric identifiers to compute, must be registered in
+        `MetricRegistry`.
+    n_bootstraps : int, default=200
+        Number of bootstrap resamples used to compute confidence
+        intervals.
+    ci_level : float, default=0.95
+        Confidence level for the computed interval bounds.
+
+    """
+
+    metrics: list[str] = Field(default=["rmse", "mae"])
+    n_bootstraps: int = Field(default=200, ge=0)
+    ci_level: float = Field(default=0.95, ge=0.0, le=1.0)
+    model_config = {"extra": "forbid"}
+
+    @model_validator(mode="after")
+    def validate_metrics(self) -> RegressorMetricsConfig:
+        """Validate that all requested metrics are registered.
+
+        Returns
+        -------
+        RegressorMetricsConfig
+            The validated configuration instance.
+
+        Raises
+        ------
+        ValueError
+            If any entry in `metrics` is not a registered metric.
+
+        """
+        _validate_metrics_registered(self.metrics)
+        return self
+
+
+class RegressorValidationSubConfig(BaseModel):
+    """Configuration grouping the test and cross-validation split settings
+    for a regression workflow.
+
+    Unlike `ValidationSubConfig`, this has no `recalibration_split` field:
+    post-hoc recalibration is not supported on the regression track.
+
+    Attributes
+    ----------
+    test_split : SplitTestConfig
+        Configuration for the train/test split.
+    cross_validation : CrossValConfig or None, default=None
+        Configuration for cross-validation, required unless `run_mode`
+        is "fast".
+
+    """
+
+    test_split: SplitTestConfig
+    cross_validation: CrossValConfig | None = None
+    model_config = {"extra": "forbid"}
+
+
+class RegressorEvaluationSubConfig(BaseModel):
+    """Configuration grouping the metrics and fairness evaluation
+    settings for a regression workflow.
+
+    Attributes
+    ----------
+    metrics : RegressorMetricsConfig
+        Configuration for regression evaluation metrics and bootstrap
+        confidence intervals.
+    fairness : FairnessConfig or None, default=None
+        Configuration for subgroup fairness evaluation, required when
+        `run_mode` is "audit" or "eval".
+
+    """
+
+    metrics: RegressorMetricsConfig
+    fairness: FairnessConfig | None = None
+    model_config = {"extra": "forbid"}
+
+
+class RegressorWorkflowConfig(BaseModel):
+    """The master schema for the regression workflow subconfiguration.
+
+    Attributes
+    ----------
+    random_state : int or None, default=42
+        Seed controlling reproducibility of stochastic operations.
+    n_jobs : int or None, default=1
+        Number of parallel jobs to use during model fitting.
+    preprocessing : PreprocessingConfig or None, default=None
+        Configuration controlling whether and how preprocessing is
+        applied.
+    validation : RegressorValidationSubConfig
+        Configuration grouping the test and cross-validation split
+        settings.
+    evaluation : RegressorEvaluationSubConfig
+        Configuration grouping the metrics and fairness evaluation
+        settings.
+
+    """
+
+    random_state: int | None = Field(default=42, ge=0)
+    n_jobs: int | None = Field(default=1, ge=-1)
+
+    preprocessing: PreprocessingConfig | None = None
+    validation: RegressorValidationSubConfig
+    evaluation: RegressorEvaluationSubConfig
+
+    model_config = {"extra": "forbid"}
+
+
+# --- REGRESSOR DISPLAY SCHEMAS ---
+class RegressorDisplayConfig(BaseModel):
+    """Configuration settings for regression pipeline evaluation graphics
+    and themes.
+
+    Attributes
+    ----------
+    defaults : DisplayDefaultsConfig
+        Default visualization parameters applied across all plot types.
+    overrides : dict of str to dict of str to Any, default={}
+        Plot-type-specific parameter overrides, keyed by plot type.
+    outcome_overrides : dict, default={}
+        Outcome-specific plot parameter overrides, keyed by outcome name
+        then plot type, as ``{outcome: {plot_type: {param: value}}}``.
+    theme : dict of str to Any, or None, default=None
+        Theme parameters forwarded to `MedpipeTheme`.
+
+    """
+
+    defaults: DisplayDefaultsConfig = Field(default_factory=DisplayDefaultsConfig)
+    overrides: dict[str, dict[str, Any]] = Field(default_factory=dict)
+    outcome_overrides: dict[str, dict[str, dict[str, Any]]] = Field(
+        default_factory=dict
+    )
+    theme: dict[str, Any] | None = Field(default=None)
+
+    model_config = {"extra": "forbid"}
+
+    @field_validator("overrides", "outcome_overrides")
+    @classmethod
+    def validate_plot_override_keys(cls, v: dict[str, Any]) -> dict[str, Any]:
+        """Ensure plot override identifiers correspond to valid regression
+        plot types.
+
+        Parameters
+        ----------
+        v : dict of str to Any
+            Candidate `overrides` or `outcome_overrides` mapping.
+
+        Returns
+        -------
+        dict of str to Any
+            The validated mapping.
+
+        Raises
+        ------
+        ValueError
+            If any plot type key is not a recognized regression plot type.
+
+        """
+        valid_plots = {
+            "predicted_vs_actual",
+            "pred_vs_actual",
+            "residuals",
+            "residual_plot",
+            "strata_heatmap",
+            "heatmap",
+        }
+        return _validate_plot_type_keys(v, valid_plots)
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> RegressorDisplayConfig:
+        """Instantiate RegressorDisplayConfig from parsed TOML dictionary.
+
+        Parameters
+        ----------
+        data : dict of str to Any
+            Parsed TOML data for the display configuration section.
+
+        Returns
+        -------
+        RegressorDisplayConfig
+            The constructed configuration instance.
+
+        """
+        return cls.model_validate(data)
+
+
+# --- GLOBAL MEDPIPE REGRESSOR CONFIGURATION SCHEMA ---
+class MedpipeRegressorConfig(BaseModel):
+    """The master schema for a single-file regression configuration.
+
+    Attributes
+    ----------
+    meta : MetaConfig
+        Project metadata and run-mode configuration.
+    data : DataConfig
+        Dataset location and predictor/outcome column configuration.
+    workflow : RegressorWorkflowConfig
+        Preprocessing, validation, and evaluation configuration.
+    display : RegressorDisplayConfig or None, default=None
+        Visualization configuration, required when `run_mode` is "audit"
+        or "eval".
+    default_model : RegressorModelSetup
+        Default model and hyperparameter setup applied to all outcomes.
+    outcome_overrides : dict of str to RegressorModelSetup, default={}
+        Per-outcome overrides cascaded onto `default_model`.
+    resolved_models : dict of str to RegressorModelSetup, default={}
+        Fully resolved per-outcome model configurations, generated
+        during validation.
+
+    """
+
+    meta: MetaConfig
+    data: DataConfig
+    workflow: RegressorWorkflowConfig
+    display: RegressorDisplayConfig | None = None
+
+    # The default setup applied to all outcomes
+    default_model: RegressorModelSetup
+
+    # Optional overrides keyed by outcome name
+    outcome_overrides: dict[str, RegressorModelSetup] = Field(default_factory=dict)
+
+    # Dynamically generated during validation: fully resolved configurations per outcome
+    resolved_models: dict[str, RegressorModelSetup] = Field(
+        default_factory=dict, init_var=False
+    )
+
+    model_config = {"extra": "forbid"}
+
+    @model_validator(mode="after")
+    def resolve_cascading_models(self) -> MedpipeRegressorConfig:
+        """Cascade default_model settings into outcome_overrides.
+
+        Returns
+        -------
+        MedpipeRegressorConfig
+            The validated configuration instance, with `resolved_models`
+            populated.
+
+        """
+        resolved = {}
+        for outcome in self.data.outcomes:
+            base_setup = self.default_model.model_dump()
+
+            if outcome in self.outcome_overrides:
+                override_setup = self.outcome_overrides[outcome].model_dump(
+                    exclude_unset=True
+                )
+
+                # Algorithm & Hyperparameters
+                if (
+                    "algorithm" in override_setup
+                    and override_setup["algorithm"] != base_setup["algorithm"]
+                ):
+                    base_setup["algorithm"] = override_setup["algorithm"]
+                    # Algorithm changed: replace hyperparameters entirely
+                    # to prevent collisions
+                    base_setup["hyperparameters"] = override_setup.get(
+                        "hyperparameters", {}
+                    )
+                elif "hyperparameters" in override_setup:
+                    # Same algorithm: deep-merge hyperparameters
+                    base_setup["hyperparameters"].update(
+                        override_setup["hyperparameters"]
+                    )
+
+            resolved[outcome] = RegressorModelSetup(**base_setup)
+
+        self.resolved_models = resolved
+        return self
+
+    @model_validator(mode="after")
+    def validate_cross_validation(self) -> MedpipeRegressorConfig:
+        """Check that a cross-validation config is passed with correct
+        run modes.
+
+        Returns
+        -------
+        MedpipeRegressorConfig
+            The validated configuration instance.
+
+        Raises
+        ------
+        ValueError
+            If `meta.run_mode` is not "fast" and
+            `workflow.validation.cross_validation` is not set.
+
+        """
+        if (
+            self.meta.run_mode != "fast"
+            and self.workflow.validation.cross_validation is None
+        ):
+            expr = (
+                "Cross-validation parameters must be specified "
+                "when run_mode is not 'fast'"
+            )
+            raise ValueError(expr)
+        return self
+
+    @model_validator(mode="after")
+    def validate_audit_and_eval_run_mode(self) -> MedpipeRegressorConfig:
+        """Check that audit and eval run modes have correct evaluation.
+
+        Returns
+        -------
+        MedpipeRegressorConfig
+            The validated configuration instance.
+
+        Raises
+        ------
+        ValueError
+            If `run_mode` is "audit" or "eval" and either
+            `workflow.evaluation.fairness` or `display` is not set.
+
+        """
+        run_mode = self.meta.run_mode
+        if run_mode == "audit" or run_mode == "eval":
+            if self.workflow.evaluation.fairness is None:
+                expr = (
+                    "Evaluation fairness parameters must be specified "
+                    "when run_mode is 'audit' or 'eval'"
+                )
+                raise ValueError(expr)
+            if self.display is None:
+                raise ValueError(
+                    "Display parameters must be specified "
+                    "when run_mode is 'audit' or 'eval'"
+                )
+        return self
+
+    @model_validator(mode="after")
+    def validate_outcome_overrides_exist_in_outcomes(self) -> MedpipeRegressorConfig:
+        """Ensures all outcome names in outcome_overrides are defined in
+        data.outcomes.
+
+        Returns
+        -------
+        MedpipeRegressorConfig
             The validated configuration instance.
 
         Raises
