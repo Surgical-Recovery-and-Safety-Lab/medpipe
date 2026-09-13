@@ -11,9 +11,18 @@ and this project adheres to Semantic Versioning ([SemVer](https://semver.org/spe
 * Fit time and total run time to debug log.
 * Saving the raw toml configuration file to the `env/` artifact folder.
 * Tests for new features.
+* Splitting classes (`Medpipe`, `MedpipeEvaluator`, `MedpipeRunner`) into classifier and regressor. 
+* Renamed `Medpipe` to `MedpipeClassifier`.
+* Regression configuration schemas.
+* Tests for the regression configuration schemas.
+* New regression objects `MedpipeRegressionRunner` and `MedpipeRegressionEvaluator`.
+* The CRPS as a score for cross-validation and evaluation for the regressor.
+* A `MedpipeRegressor` class mirorring `MedpipeClassifier` for regression tasks.
 
 ### Fixed
 * Docstring in the `config.py` script.
+* Bug in the default override values for the displayer.
+* Bug in the `compute_metrics` function. 
 
 ### Removed
 * Custom typings.
