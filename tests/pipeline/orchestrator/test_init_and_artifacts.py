@@ -230,3 +230,34 @@ class TestSplitsProperty:
             match=r"Data has not been prepared yet\. Call 'prepare_data\(\)'",
         ):
             _ = orchestrator.splits
+
+
+@patch("medpipe.pipeline.orchestrator.ArtifactManager")
+@patch("medpipe.pipeline.orchestrator.get_console_logger")
+@patch("medpipe.pipeline.orchestrator.add_file_handler")
+class TestFairnessSplitsProperty:
+    """Unit tests for the MedpipeOrchestrator.fairness_splits property
+    guardrail."""
+
+    def test_fairness_splits_uninitialized_raises_runtime_error(
+        self, mock_add_handler, mock_get_logger, mock_artifact_mgr, mock_config
+    ):
+        """Test that accessing .fairness_splits before prepare_data() raises
+        RuntimeError, same as .splits."""
+        orchestrator = MedpipeOrchestrator(config=mock_config)
+
+        with pytest.raises(
+            RuntimeError,
+            match=r"Data has not been prepared yet\. Call 'prepare_data\(\)'",
+        ):
+            _ = orchestrator.fairness_splits
+
+    def test_fairness_splits_none_when_not_populated(
+        self, mock_add_handler, mock_get_logger, mock_artifact_mgr, mock_config
+    ):
+        """Test that .fairness_splits returns None once data has been
+        prepared but no fairness configuration populated it."""
+        orchestrator = MedpipeOrchestrator(config=mock_config)
+        orchestrator._splits = MagicMock()  # Simulate prepare_data() having run
+
+        assert orchestrator.fairness_splits is None

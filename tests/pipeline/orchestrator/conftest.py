@@ -29,6 +29,8 @@ def mock_config() -> MagicMock:
     config.workflow.random_state = 42
     config.workflow.preprocessing = MagicMock()
     config.workflow.preprocessing.preprocess = True
+    config.workflow.evaluation = MagicMock()
+    config.workflow.evaluation.fairness = None
 
     # Mock a single operation
     op1 = MagicMock()

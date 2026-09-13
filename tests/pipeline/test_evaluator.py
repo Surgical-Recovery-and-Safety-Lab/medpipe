@@ -529,6 +529,70 @@ class TestMedpipeEvaluatorEvaluate:
 
         mock_save.assert_called_once_with(results, outcome="MORTALITY_30D")
 
+    @patch.object(MedpipeClassifierEvaluator, "_evaluate_slice")
+    def test_evaluate_uses_fairness_data_for_subgroup_extraction(
+        self,
+        mock_eval_slice,
+        mock_orchestrator,
+        mock_runner,
+        mock_model,
+        sample_data,
+    ):
+        """Test that a fairness stratum column not in data.predictors (e.g.
+        "hospital" for a spatial comparison) is resolved from the separate
+        `fairness_data` frame, while the model only ever sees `X` as-is."""
+        X, y = sample_data
+        fairness_data = pd.DataFrame(
+            {"hospital": ["A", "B", "A", "B"]}, index=X.index
+        )
+        mock_eval_slice.return_value = {"accuracy": {"point_estimate": 0.8}}
+
+        evaluator = MedpipeClassifierEvaluator(mock_orchestrator, mock_runner)
+
+        results = evaluator.evaluate(
+            X,
+            y,
+            outcome="MORTALITY_30D",
+            subgroup_specs={"hospital": "hospital"},
+            fairness_data=fairness_data,
+            save_artifacts=False,
+        )
+
+        # Model only ever sees X, never the fairness-only column.
+        called_with = mock_model.predict_proba.call_args[0][0]
+        assert "hospital" not in called_with.columns
+        pd.testing.assert_frame_equal(called_with, X)
+
+        # Subgroup extraction resolves strata from fairness_data.
+        assert "hospital" in results["strata"]
+        assert set(results["strata"]["hospital"].keys()) == {"A", "B"}
+
+    @patch.object(MedpipeClassifierEvaluator, "_evaluate_slice")
+    def test_evaluate_defaults_subgroup_extraction_to_x_without_fairness_data(
+        self,
+        mock_eval_slice,
+        mock_orchestrator,
+        mock_runner,
+        sample_data,
+    ):
+        """Test that subgroup extraction falls back to `X` when
+        `fairness_data` isn't provided, preserving strata that are also
+        predictors (e.g. "sex")."""
+        X, y = sample_data
+        mock_eval_slice.return_value = {"accuracy": {"point_estimate": 0.8}}
+
+        evaluator = MedpipeClassifierEvaluator(mock_orchestrator, mock_runner)
+
+        results = evaluator.evaluate(
+            X,
+            y,
+            outcome="MORTALITY_30D",
+            subgroup_specs={"sex": "sex"},
+            save_artifacts=False,
+        )
+
+        assert set(results["strata"]["sex"].keys()) == {"M", "F"}
+
 
 class TestMedpipeEvaluatorSaveEvaluationArtifacts:
     """Tests for MedpipeClassifierEvaluator._save_evaluation_artifacts."""
