@@ -1,3 +1,4 @@
+import time
 from typing import Any, ClassVar
 
 import joblib
@@ -531,6 +532,8 @@ class BaseRunner:
 
         for outcome in outcomes:
             # We assume y_train_df columns correspond to the requested outcomes
+            fit_start_time = time.perf_counter()
+
             y_train = y_train_df[outcome].to_numpy().ravel()
 
             y_recal = None
@@ -547,6 +550,11 @@ class BaseRunner:
             )
 
             self.fitted_models[outcome] = final_model
+
+            fit_duration = time.perf_counter() - fit_start_time
+            self.logger.debug(
+                f"[{outcome}] Fitting completed in {fit_duration:.2f} seconds."
+            )
 
         # Save final models dictionary
         self._save_final_models()

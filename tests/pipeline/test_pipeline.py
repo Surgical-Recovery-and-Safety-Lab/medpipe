@@ -9,7 +9,7 @@ import pandas as pd
 import pytest
 
 from medpipe.pipeline.pipeline import MedpipeClassifier
-from medpipe.utils.config import MedpipeConfig
+from medpipe.utils.config import MedpipeClassifierConfig
 from medpipe.utils.io import read_toml_configuration
 
 # ==============================================================================
@@ -27,7 +27,7 @@ class TestMedpipeUnit:
         self, mock_eval_cls, mock_runner_cls, mock_orch_cls
     ):
         """Verify MedpipeClassifier initializes sub-orchestrators correctly."""
-        mock_config = MagicMock(spec=MedpipeConfig)
+        mock_config = MagicMock(spec=MedpipeClassifierConfig)
         mock_orch_instance = mock_orch_cls.return_value
 
         mp = MedpipeClassifier(config=mock_config)
@@ -837,7 +837,9 @@ def build_medpipe_config(test_data_path: Path, base_config_path: Path):
     """Factory fixture loading default_config.toml and updating data.path
     dynamically."""
 
-    def _factory(run_mode: str = "fast", disable_recal: bool = False) -> MedpipeConfig:
+    def _factory(
+        run_mode: str = "fast", disable_recal: bool = False
+    ) -> MedpipeClassifierConfig:
         config = read_toml_configuration(base_config_path)
         config.data.path = str(test_data_path)
         config.meta.run_mode = run_mode

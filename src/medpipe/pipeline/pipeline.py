@@ -27,7 +27,7 @@ from medpipe.pipeline.orchestrator import (
     MedpipeOrchestrator,
 )
 from medpipe.pipeline.runner import MedpipeClassifierRunner, MedpipeRegressorRunner
-from medpipe.utils.config import MedpipeConfig, MedpipeRegressorConfig
+from medpipe.utils.config import MedpipeClassifierConfig, MedpipeRegressorConfig
 from medpipe.utils.io import read_regressor_toml_configuration
 from medpipe.utils.logger import get_console_logger
 from medpipe.visualisation.displayer import MedpipeClassifierDisplayer
@@ -54,8 +54,9 @@ class MedpipeClassifier:
 
     Parameters
     ----------
-    config : str, Path, or MedpipeConfig
-        Path to the TOML configuration file or an instantiated MedpipeConfig object.
+    config : str, Path, or MedpipeClassifierConfig
+        Path to the TOML configuration file or an instantiated
+        MedpipeClassifierConfig object.
     base_artifact_dir : str or Path, default="artifacts"
         Root directory where versioned execution run artifacts, logs, and
         models are stored.
@@ -105,7 +106,7 @@ class MedpipeClassifier:
 
     def __init__(
         self,
-        config: str | Path | MedpipeConfig,
+        config: str | Path | MedpipeClassifierConfig,
         base_artifact_dir: str | Path = "artifacts",
         verbose_override: bool | int | str | None = None,
     ) -> None:
@@ -612,7 +613,7 @@ class MedpipeClassifier:
                 f"in '{run_path}'"
             )
 
-        # 1. Load JSON dict and instantiate MedpipeConfig
+        # 1. Load JSON dict and instantiate MedpipeClassifierConfig
         import json
 
         import joblib
@@ -620,9 +621,9 @@ class MedpipeClassifier:
         with open(config_path, encoding="utf-8") as f:
             config_dict = json.load(f)
 
-        mp_config = MedpipeConfig.model_validate(config_dict)
+        mp_config = MedpipeClassifierConfig.model_validate(config_dict)
 
-        # 2. Instantiate MedpipeClassifier with reconstructed MedpipeConfig
+        # 2. Instantiate MedpipeClassifier with reconstructed MedpipeClassifierConfig
         new_run_path = run_path / "eval"
         pipe = cls(config=mp_config, base_artifact_dir=new_run_path)
         pipe._orchestrator.run_dir = new_run_path

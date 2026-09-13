@@ -15,7 +15,7 @@ from typing import Any, ClassVar, cast
 
 import pandas as pd
 
-from .config import MedpipeConfig, MedpipeRegressorConfig
+from .config import MedpipeClassifierConfig, MedpipeRegressorConfig
 from .validation import file_checks
 
 
@@ -136,7 +136,7 @@ def load_data(data_file: str | Path, **kwargs: Any) -> pd.DataFrame:
     return cast(pd.DataFrame, loader(file_path, **kwargs))
 
 
-def read_toml_configuration(config_file: str | Path) -> MedpipeConfig:
+def read_toml_configuration(config_file: str | Path) -> MedpipeClassifierConfig:
     """
     Reads a medpipe TOML configuration file.
 
@@ -147,7 +147,7 @@ def read_toml_configuration(config_file: str | Path) -> MedpipeConfig:
 
     Returns
     -------
-    config : MedpipeConfig
+    config : MedpipeClassifierConfig
         Configuration for the pipeline.
 
     """
@@ -156,7 +156,7 @@ def read_toml_configuration(config_file: str | Path) -> MedpipeConfig:
     with open(config_file, "rb") as file:
         raw_config = tomllib.load(file)
 
-    config = MedpipeConfig.model_validate(raw_config)
+    config = MedpipeClassifierConfig.model_validate(raw_config)
 
     return config
 

@@ -1,5 +1,5 @@
 """
-Test functions for the MedpipeConfig schema of the config module.
+Test functions for the MedpipeClassifierConfig schema of the config module.
 """
 
 from pathlib import Path
@@ -9,11 +9,11 @@ from typing import Literal
 import pytest
 from pydantic import ValidationError
 
-from medpipe.utils.config import MedpipeConfig
+from medpipe.utils.config import MedpipeClassifierConfig
 
 
-class TestMedpipeConfig:
-    """Test class for the MedpipeConfig class."""
+class TestMedpipeClassifierConfig:
+    """Test class for the MedpipeClassifierConfig class."""
 
     def _get_valid_config_dict(self, tmp_path: Path, **overrides) -> dict:
         """Creates a fresh valid config dict to override."""
@@ -94,12 +94,12 @@ class TestMedpipeConfig:
         return config_dict
 
     def test_valid_config(self, tmp_path: Path) -> None:
-        """Pass valid configuration to MedpipeConfig."""
+        """Pass valid configuration to MedpipeClassifierConfig."""
         raw_config = self._get_valid_config_dict(tmp_path)
-        config = MedpipeConfig.model_validate(raw_config)
+        config = MedpipeClassifierConfig.model_validate(raw_config)
 
         dumped = config.model_dump(exclude={"resolved_models"})
-        revalidated = MedpipeConfig.model_validate(dumped)
+        revalidated = MedpipeClassifierConfig.model_validate(dumped)
 
         assert revalidated == config
 
@@ -108,7 +108,7 @@ class TestMedpipeConfig:
         raw_config = self._get_valid_config_dict(tmp_path, unexpected_flag=True)
 
         with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
-            MedpipeConfig.model_validate(raw_config)
+            MedpipeClassifierConfig.model_validate(raw_config)
 
     def test_fast_run_mode_minimal_config(self, tmp_path: Path) -> None:
         """Test that 'fast' run_mode does not require cross-validation,
@@ -121,7 +121,7 @@ class TestMedpipeConfig:
         raw_config["workflow"]["evaluation"]["fairness"] = None
         raw_config["display"] = None
 
-        config = MedpipeConfig.model_validate(raw_config)
+        config = MedpipeClassifierConfig.model_validate(raw_config)
 
         assert config.workflow.validation.cross_validation is None
         assert config.display is None
@@ -137,7 +137,7 @@ class TestMedpipeConfig:
         config["workflow"]["validation"]["recalibration_split"] = None
 
         with pytest.raises(ValueError, match=match_expr):
-            MedpipeConfig.model_validate(config)
+            MedpipeClassifierConfig.model_validate(config)
 
     @pytest.mark.parametrize("run_mode", ["audit", "cv"])
     def test_cross_validation_run_mode(
@@ -153,7 +153,7 @@ class TestMedpipeConfig:
         config["workflow"]["validation"]["cross_validation"] = None
 
         with pytest.raises(ValueError, match=match_expr):
-            MedpipeConfig.model_validate(config)
+            MedpipeClassifierConfig.model_validate(config)
 
     @pytest.mark.parametrize(
         "run_mode",
@@ -170,7 +170,7 @@ class TestMedpipeConfig:
         config["workflow"]["evaluation"]["fairness"] = None
 
         with pytest.raises(ValueError, match=match_expr):
-            MedpipeConfig.model_validate(config)
+            MedpipeClassifierConfig.model_validate(config)
 
     @pytest.mark.parametrize("run_mode", ["audit", "eval"])
     def test_display_config_value_error(self, tmp_path: Path, run_mode: str) -> None:
@@ -183,12 +183,12 @@ class TestMedpipeConfig:
         config["display"] = None
 
         with pytest.raises(ValueError, match=match_expr):
-            MedpipeConfig.model_validate(config)
+            MedpipeClassifierConfig.model_validate(config)
 
     def test_cascade_no_overrides(self, tmp_path: Path) -> None:
         """Test that default models map to all outcomes when there are no overrides."""
         raw_config = self._get_valid_config_dict(tmp_path)
-        config = MedpipeConfig.model_validate(raw_config)
+        config = MedpipeClassifierConfig.model_validate(raw_config)
 
         assert "MORTALITY_30D" in config.resolved_models
         assert "ANY_COMP" in config.resolved_models
@@ -217,7 +217,7 @@ class TestMedpipeConfig:
             }
         }
 
-        config = MedpipeConfig.model_validate(raw_config)
+        config = MedpipeClassifierConfig.model_validate(raw_config)
 
         model_mortality = config.resolved_models["MORTALITY_30D"]
         assert model_mortality.algorithm == "HistGradientBoostingClassifier"
@@ -247,7 +247,7 @@ class TestMedpipeConfig:
             }
         }
 
-        config = MedpipeConfig.model_validate(raw_config)
+        config = MedpipeClassifierConfig.model_validate(raw_config)
 
         res_recal = config.resolved_models["MORTALITY_30D"].recalibration
         assert res_recal is not None
@@ -274,7 +274,7 @@ class TestMedpipeConfig:
             }
         }
 
-        config = MedpipeConfig.model_validate(raw_config)
+        config = MedpipeClassifierConfig.model_validate(raw_config)
 
         res_recal = config.resolved_models["MORTALITY_30D"].recalibration
         assert res_recal is not None
@@ -299,7 +299,7 @@ class TestMedpipeConfig:
             }
         }
 
-        config = MedpipeConfig.model_validate(raw_config)
+        config = MedpipeClassifierConfig.model_validate(raw_config)
 
         comp_model = config.resolved_models["ANY_COMP"]
         assert comp_model.algorithm == "HistGradientBoostingClassifier"
@@ -327,7 +327,7 @@ class TestMedpipeConfig:
             }
         }
 
-        config = MedpipeConfig.model_validate(raw_config)
+        config = MedpipeClassifierConfig.model_validate(raw_config)
 
         # learning_rate and max_iter should NOT leak into RandomForestClassifier
         comp_model = config.resolved_models["ANY_COMP"]
@@ -350,7 +350,7 @@ class TestMedpipeConfig:
             }
         }
 
-        config = MedpipeConfig.model_validate(raw_config)
+        config = MedpipeClassifierConfig.model_validate(raw_config)
 
         assert config.resolved_models["MORTALITY_30D"].recalibration is not None
         assert config.resolved_models["ANY_COMP"].recalibration is None
@@ -377,7 +377,7 @@ class TestMedpipeConfig:
             }
         }
 
-        config = MedpipeConfig.model_validate(raw_config)
+        config = MedpipeClassifierConfig.model_validate(raw_config)
 
         res_recal = config.resolved_models["ANY_COMP"].recalibration
         assert res_recal is not None
@@ -407,7 +407,7 @@ class TestMedpipeConfig:
             }
         }
 
-        config = MedpipeConfig.model_validate(raw_config)
+        config = MedpipeClassifierConfig.model_validate(raw_config)
 
         res_recal = config.resolved_models["ANY_COMP"].recalibration
         assert res_recal is not None
@@ -431,7 +431,7 @@ class TestMedpipeConfig:
             }
         }
 
-        config = MedpipeConfig.model_validate(raw_config)
+        config = MedpipeClassifierConfig.model_validate(raw_config)
 
         assert config.default_model.recalibration is None
         assert config.resolved_models["MORTALITY_30D"].recalibration is None
@@ -451,7 +451,7 @@ class TestMedpipeConfig:
             "max_depth": 3,
         }
 
-        config = MedpipeConfig.model_validate(raw_config)
+        config = MedpipeClassifierConfig.model_validate(raw_config)
 
         assert config.workflow.validation.cross_validation
         assert config.workflow.validation.cross_validation.strategy == "random"
@@ -476,7 +476,7 @@ class TestMedpipeConfig:
         )
 
         with pytest.raises(ValidationError, match=escape(match_expr)):
-            MedpipeConfig.model_validate(raw_config)
+            MedpipeClassifierConfig.model_validate(raw_config)
 
     def test_cascade_recalibration_omitted_method_keeps_base_method(
         self, tmp_path: Path
@@ -501,7 +501,7 @@ class TestMedpipeConfig:
             }
         }
 
-        config = MedpipeConfig.model_validate(raw_config)
+        config = MedpipeClassifierConfig.model_validate(raw_config)
 
         res_recal = config.resolved_models["ANY_COMP"].recalibration
         assert res_recal is not None
@@ -521,7 +521,7 @@ class TestMedpipeConfig:
             "ANY_COMP": {"calibration": {"n_bootstraps": 20}},
         }
 
-        config = MedpipeConfig.model_validate(raw_config)
+        config = MedpipeClassifierConfig.model_validate(raw_config)
 
         assert set(config.display.outcome_overrides) == {"MORTALITY_30D", "ANY_COMP"}
 
@@ -544,7 +544,7 @@ class TestMedpipeConfig:
         )
 
         with pytest.raises(ValidationError, match=escape(match_expr)):
-            MedpipeConfig.model_validate(raw_config)
+            MedpipeClassifierConfig.model_validate(raw_config)
 
     def test_cascade_disable_recalibration_via_flag(self, tmp_path: Path) -> None:
         """Test overriding recalibrate=False turns off recalibration for
@@ -562,7 +562,7 @@ class TestMedpipeConfig:
             }
         }
 
-        config = MedpipeConfig.model_validate(raw_config)
+        config = MedpipeClassifierConfig.model_validate(raw_config)
 
         # MORTALITY_30D inherits default True, ANY_COMP overrides to False
         assert config.resolved_models["MORTALITY_30D"].recalibration
