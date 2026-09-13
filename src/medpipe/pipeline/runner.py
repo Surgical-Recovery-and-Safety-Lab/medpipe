@@ -8,6 +8,8 @@ from sklearn.calibration import CalibratedClassifierCV, FrozenEstimator
 from sklearn.model_selection import (
     BaseCrossValidator,
     GridSearchCV,
+    GroupKFold,
+    KFold,
     StratifiedGroupKFold,
     StratifiedKFold,
     cross_validate,
@@ -16,6 +18,7 @@ from sklearn.pipeline import Pipeline
 
 from medpipe.metrics.core import build_scorers
 from medpipe.models.registry import ModelRegistry
+from medpipe.pipeline.estimator import DistributionalPipeline
 from medpipe.pipeline.orchestrator import MedpipeOrchestrator
 from medpipe.utils.logger import get_console_logger
 
@@ -737,3 +740,79 @@ class MedpipeClassifierRunner(BaseRunner):
             X_recal=X_recal,
             y_recal=y_recal,
         )
+
+
+class MedpipeRegressorRunner(BaseRunner):
+    """
+    Executes the training and hyperparameter tuning loops for regression
+    outcomes.
+
+    Fitted pipelines are built as `DistributionalPipeline` instances so that
+    distributional estimators (e.g. NGBoost, OrdBoost) expose a unified
+    `predict_dist` method. Post-hoc recalibration is not supported on the
+    regression track, so `fit_outcome` returns the best fitted pipeline
+    unchanged.
+
+    Parameters
+    ----------
+    orchestrator : MedpipeOrchestrator
+        The configured orchestrator instance, providing resolved configurations,
+        preprocessing pipelines, and the execution run directory.
+
+    Attributes
+    ----------
+    orchestrator : MedpipeOrchestrator
+        Orchestrator instance driving the environment state.
+    logger : logging.Logger
+        Logger instance for the runner.
+    fitted_models : Dict[str, DistributionalPipeline]
+        Dictionary storing the finalized models, keyed by outcome name.
+
+    Methods
+    -------
+    fit_outcome(outcome, X_train, y_train, X_recal=None, y_recal=None,
+    groups_train=None)
+        Trains a model for a single outcome.
+    run(X_train, y_train_df, X_recal=None, y_recal_df=None, groups_train=None)
+        Executes the pipelines for all configured target outcomes.
+
+    """
+
+    _final_step_name: ClassVar[str] = "regressor"
+    _pipeline_cls: ClassVar[type[Pipeline]] = DistributionalPipeline
+    _default_metrics: ClassVar[list[str]] = ["rmse"]
+
+    def _create_cv_splitter(
+        self, strategy: str, n_splits: int, random_state: int | None
+    ) -> KFold | GroupKFold:
+        """
+        Instantiates the appropriate cross-validation splitter.
+
+        Parameters
+        ----------
+        strategy : {'random', 'group'}
+            The CV strategy to employ.
+        n_splits : int
+            The number of cross-validation folds.
+        random_state : int | None
+            The random seed for reproducibility.
+
+        Returns
+        -------
+        Union[KFold, GroupKFold]
+            The instantiated cross-validation splitter object.
+
+        Raises
+        ------
+        ValueError
+            If an unsupported strategy is provided.
+
+        """
+        if strategy == "random":
+            return KFold(n_splits=n_splits, shuffle=True, random_state=random_state)
+        elif strategy == "group":
+            return GroupKFold(
+                n_splits=n_splits, shuffle=True, random_state=random_state
+            )
+        else:
+            raise ValueError(f"Strategy must be 'random' or 'group', got {strategy}")
