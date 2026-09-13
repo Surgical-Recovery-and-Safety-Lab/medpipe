@@ -7,7 +7,7 @@ Exposes configuration schemas, I/O handlers, centralized logging,
 component registries, reproducibility management, and validation utilities.
 """
 
-from medpipe.utils.config import MedpipeConfig, MedpipeRegressorConfig
+from medpipe.utils.config import MedpipeClassifierConfig, MedpipeRegressorConfig
 from medpipe.utils.io import (
     DataLoaderRegistry,
     load_data,
@@ -21,7 +21,7 @@ from medpipe.utils.validation import file_checks, path_checks
 
 __all__ = [  # noqa: RUF022 (grouped by category, not alphabetical)
     # Configuration
-    "MedpipeConfig",
+    "MedpipeClassifierConfig",
     "MedpipeRegressorConfig",
     # I/O utilities
     "load_data",

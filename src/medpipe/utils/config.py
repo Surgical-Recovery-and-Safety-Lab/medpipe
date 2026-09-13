@@ -898,7 +898,7 @@ class DisplayConfig(BaseModel):
 
 
 # --- GLOBAL MEDPIPE CONFIGURATION SCHEMA ---
-class MedpipeConfig(BaseModel):
+class MedpipeClassifierConfig(BaseModel):
     """The master schema for a single-file configuration.
 
     Attributes
@@ -940,12 +940,12 @@ class MedpipeConfig(BaseModel):
     model_config = {"extra": "forbid"}
 
     @model_validator(mode="after")
-    def resolve_cascading_models(self) -> MedpipeConfig:
+    def resolve_cascading_models(self) -> MedpipeClassifierConfig:
         """Cascade default_model settings into outcome_overrides.
 
         Returns
         -------
-        MedpipeConfig
+        MedpipeClassifierConfig
             The validated configuration instance, with `resolved_models`
             populated.
 
@@ -1011,13 +1011,13 @@ class MedpipeConfig(BaseModel):
         return self
 
     @model_validator(mode="after")
-    def validate_recalibration(self) -> MedpipeConfig:
+    def validate_recalibration(self) -> MedpipeClassifierConfig:
         """Check recalibration split is specified with recalibration
         method.
 
         Returns
         -------
-        MedpipeConfig
+        MedpipeClassifierConfig
             The validated configuration instance.
 
         Raises
@@ -1039,13 +1039,13 @@ class MedpipeConfig(BaseModel):
         return self
 
     @model_validator(mode="after")
-    def validate_cross_validation(self) -> MedpipeConfig:
+    def validate_cross_validation(self) -> MedpipeClassifierConfig:
         """Check that a cross-validation config is passed with correct
         run modes.
 
         Returns
         -------
-        MedpipeConfig
+        MedpipeClassifierConfig
             The validated configuration instance.
 
         Raises
@@ -1067,12 +1067,12 @@ class MedpipeConfig(BaseModel):
         return self
 
     @model_validator(mode="after")
-    def validate_audit_and_eval_run_mode(self) -> MedpipeConfig:
+    def validate_audit_and_eval_run_mode(self) -> MedpipeClassifierConfig:
         """Check that audit and eval run modes have correct evaluation.
 
         Returns
         -------
-        MedpipeConfig
+        MedpipeClassifierConfig
             The validated configuration instance.
 
         Raises
@@ -1098,13 +1098,13 @@ class MedpipeConfig(BaseModel):
         return self
 
     @model_validator(mode="after")
-    def validate_outcome_overrides_exist_in_outcomes(self) -> MedpipeConfig:
+    def validate_outcome_overrides_exist_in_outcomes(self) -> MedpipeClassifierConfig:
         """Ensures all outcome names in outcome_overrides are defined in
         data.outcomes.
 
         Returns
         -------
-        MedpipeConfig
+        MedpipeClassifierConfig
             The validated configuration instance.
 
         Raises

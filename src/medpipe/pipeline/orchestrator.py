@@ -10,7 +10,7 @@ from sklearn.pipeline import Pipeline
 
 from medpipe.data.registry import PreprocessorRegistry
 from medpipe.data.utils import extract_labels, resolve_subgroup_mask, split_data
-from medpipe.utils.config import MedpipeConfig, MedpipeRegressorConfig
+from medpipe.utils.config import MedpipeClassifierConfig, MedpipeRegressorConfig
 from medpipe.utils.io import load_data, read_toml_configuration
 from medpipe.utils.logger import add_file_handler, get_console_logger, set_verbosity
 from medpipe.utils.reproducibility import ArtifactManager
@@ -88,11 +88,12 @@ class MedpipeOrchestrator:
 
     Parameters
     ----------
-    config : Union[str, Path, MedpipeConfig, MedpipeRegressorConfig]
+    config : Union[str, Path, MedpipeClassifierConfig, MedpipeRegressorConfig]
         Path to a classifier TOML configuration file (validated via
-        `MedpipeConfig`), or an already-instantiated `MedpipeConfig` or
-        `MedpipeRegressorConfig` object. Regression configs must be parsed
-        by the caller first (e.g. via `read_regressor_toml_configuration`)
+        `MedpipeClassifierConfig`), or an already-instantiated
+        `MedpipeClassifierConfig` or `MedpipeRegressorConfig` object.
+        Regression configs must be parsed by the caller first
+        (e.g. via `read_regressor_toml_configuration`)
         and passed in as an object, since a bare path string/Path is always
         interpreted as a classifier configuration.
     base_artifact_dir : Union[str, Path], default="artifacts"
@@ -102,7 +103,7 @@ class MedpipeOrchestrator:
 
     Attributes
     ----------
-    config : MedpipeConfig
+    config : MedpipeClassifierConfig
         The resolved configuration object driving the pipeline.
     artifact_manager : ArtifactManager
         Manager handling the creation and population of reproducibility artifacts.
@@ -132,7 +133,7 @@ class MedpipeOrchestrator:
 
     def __init__(
         self,
-        config: str | Path | MedpipeConfig | MedpipeRegressorConfig,
+        config: str | Path | MedpipeClassifierConfig | MedpipeRegressorConfig,
         base_artifact_dir: str | Path = "artifacts",
         verbose_override: bool | int | str | None = None,
     ) -> None:
@@ -140,11 +141,11 @@ class MedpipeOrchestrator:
         if isinstance(config, (str, Path)):
             self.config = read_toml_configuration(config)
             self._config_path = Path(config)
-        elif isinstance(config, (MedpipeConfig, MedpipeRegressorConfig)):
+        elif isinstance(config, (MedpipeClassifierConfig, MedpipeRegressorConfig)):
             self.config = config
         else:
             raise ValueError(
-                "A configuration file, a MedpipeConfig, or a "
+                "A configuration file, a MedpipeClassifierConfig, or a "
                 "MedpipeRegressorConfig must be specified."
             )
 
