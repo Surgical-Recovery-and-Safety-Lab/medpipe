@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from medpipe.utils.config import MedpipeConfig
+from medpipe.utils.config import MedpipeClassifierConfig
 from medpipe.utils.io import read_toml_configuration
 
 MINIMAL_VALID_TOML = """
@@ -46,24 +46,24 @@ class TestReadTOMLConfiguration:
 
     def test_read_configuration_example_file(self) -> None:
         """Integration smoke test against the repository's example config,
-        which exercises far more of MedpipeConfig's schema than a minimal
+        which exercises far more of MedpipeClassifierConfig's schema than a minimal
         fixture would."""
         base_dir = Path(__file__).parent.parent.parent.parent
 
         example_config_dir = base_dir / "examples/"
         config = read_toml_configuration(example_config_dir / "default_config.toml")
 
-        assert isinstance(config, MedpipeConfig)
+        assert isinstance(config, MedpipeClassifierConfig)
         assert config.meta.project_name == "medpipe_demo"
 
     def test_read_configuration_returns_medpipe_config(
         self, minimal_config_file: Path
     ) -> None:
         """Test that a minimal valid TOML file is parsed into a fully
-        populated MedpipeConfig instance."""
+        populated MedpipeClassifierConfig instance."""
         config = read_toml_configuration(minimal_config_file)
 
-        assert isinstance(config, MedpipeConfig)
+        assert isinstance(config, MedpipeClassifierConfig)
         assert config.meta.project_name == "test_project"
         assert config.meta.run_mode == "fast"
         assert config.data.outcomes == ["OUTCOME"]
@@ -76,7 +76,7 @@ class TestReadTOMLConfiguration:
         as a Path."""
         config = read_toml_configuration(str(minimal_config_file))
 
-        assert isinstance(config, MedpipeConfig)
+        assert isinstance(config, MedpipeClassifierConfig)
 
     def test_read_configuration_missing_file_raises_file_not_found(
         self, tmp_path: Path
@@ -111,7 +111,7 @@ class TestReadTOMLConfiguration:
     def test_read_configuration_schema_violation_raises_validation_error(
         self, tmp_path: Path
     ) -> None:
-        """Test that syntactically valid TOML which fails MedpipeConfig's
+        """Test that syntactically valid TOML which fails MedpipeClassifierConfig's
         schema surfaces a pydantic ValidationError."""
         invalid_file = tmp_path / "invalid.toml"
         # Missing every required field.

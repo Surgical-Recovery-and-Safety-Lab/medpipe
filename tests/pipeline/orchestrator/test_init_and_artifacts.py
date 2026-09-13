@@ -9,7 +9,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from medpipe.pipeline.orchestrator import MedpipeOrchestrator
-from medpipe.utils.config import MedpipeConfig, MedpipeRegressorConfig
+from medpipe.utils.config import MedpipeClassifierConfig, MedpipeRegressorConfig
 
 
 @patch("medpipe.pipeline.orchestrator.ArtifactManager")
@@ -21,7 +21,7 @@ class TestInit:
     def test_init_with_config_object(
         self, mock_add_handler, mock_get_logger, mock_artifact_mgr, mock_config
     ):
-        """Test initialization when passed a MedpipeConfig object directly."""
+        """Test initialization when passed a MedpipeClassifierConfig object directly."""
         mock_artifact_mgr_instance = mock_artifact_mgr.return_value
         mock_artifact_mgr_instance.create_run_directory.return_value = Path(
             "artifacts/run_1"
@@ -37,7 +37,7 @@ class TestInit:
         self, mock_add_handler, mock_get_logger, mock_artifact_mgr
     ):
         """Test initialization when passed a MedpipeRegressorConfig object
-        directly (not just MedpipeConfig)."""
+        directly (not just MedpipeClassifierConfig)."""
         mock_artifact_mgr_instance = mock_artifact_mgr.return_value
         mock_artifact_mgr_instance.create_run_directory.return_value = Path(
             "artifacts/run_1"
@@ -74,7 +74,7 @@ class TestInit:
         """Test initialization fails when passed an invalid config type."""
         with pytest.raises(
             ValueError,
-            match="A configuration file, a MedpipeConfig, or a "
+            match="A configuration file, a MedpipeClassifierConfig, or a "
             "MedpipeRegressorConfig must be specified",
         ):
             MedpipeOrchestrator(config=12345)  # type: ignore
@@ -156,7 +156,7 @@ class TestSaveReproducibilityArtifacts:
             "/tmp/run_1"
         )
 
-        mock_config_no_data = MagicMock(spec=MedpipeConfig)
+        mock_config_no_data = MagicMock(spec=MedpipeClassifierConfig)
         mock_config_no_data.resolved_models = {}
         mock_config_no_data.meta = MagicMock()
         mock_config_no_data.meta.verbose = 0
@@ -202,7 +202,7 @@ class TestSaveReproducibilityArtifacts:
         self, mock_add_handler, mock_get_logger, mock_artifact_mgr, mock_config
     ):
         """Test that no TOML file is copied when the orchestrator was
-        initialized directly from a MedpipeConfig object."""
+        initialized directly from a MedpipeClassifierConfig object."""
         mock_artifact_mgr_instance = mock_artifact_mgr.return_value
         mock_artifact_mgr_instance.create_run_directory.return_value = Path(
             "/tmp/run_1"
