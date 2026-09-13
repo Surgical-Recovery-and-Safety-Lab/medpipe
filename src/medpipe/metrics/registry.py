@@ -25,6 +25,11 @@ class MetricSpec:
         Human-readable name used for visual displays and reports.
     sklearn_scorer_name : str or None, default=None
         Optional pre-registered scikit-learn scorer string key.
+    needs_threshold : bool, default=False
+        Whether raw predictions must be rounded to discrete class labels
+        before being passed to `func` (e.g., accuracy, precision). Metrics
+        that consume continuous values directly (e.g., rmse, mae, or any
+        `predict_proba`-based metric) must leave this as False.
 
     """
 
@@ -33,6 +38,7 @@ class MetricSpec:
     response_method: str | tuple[str, ...]
     display_name: str
     sklearn_scorer_name: str | None = None
+    needs_threshold: bool = False
 
     def get_scorer(self) -> Callable:
         """Construct a scikit-learn compatible scorer function for cross-validation.

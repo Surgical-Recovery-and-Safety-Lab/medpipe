@@ -53,10 +53,31 @@ def ici_score(y: npt.NDArray, y_pred: npt.NDArray) -> float:
 # ------------------------------------------------------------------------------
 
 _DEFAULT_METRICS = [
-    MetricSpec("accuracy", accuracy_score, "predict", "Accuracy", "accuracy"),
-    MetricSpec("precision", precision_score, "predict", "Precision", "precision"),
-    MetricSpec("recall", recall_score, "predict", "Recall", "recall"),
-    MetricSpec("f1", f1_score, "predict", "F1", "f1"),
+    MetricSpec(
+        "accuracy",
+        accuracy_score,
+        "predict",
+        "Accuracy",
+        "accuracy",
+        needs_threshold=True,
+    ),
+    MetricSpec(
+        "precision",
+        precision_score,
+        "predict",
+        "Precision",
+        "precision",
+        needs_threshold=True,
+    ),
+    MetricSpec(
+        "recall",
+        recall_score,
+        "predict",
+        "Recall",
+        "recall",
+        needs_threshold=True,
+    ),
+    MetricSpec("f1", f1_score, "predict", "F1", "f1", needs_threshold=True),
     MetricSpec("log_loss", log_loss, "predict_proba", "Log loss", "neg_log_loss"),
     MetricSpec(
         "brier_score",
@@ -194,15 +215,14 @@ def compute_metrics(
         y_pred = y_pred[:, 1]
 
     scores = np.zeros(len(metrics))
-    y_labels = np.round(y_pred)
 
     for i, metric_name in enumerate(metrics):
         spec = MetricRegistry.get(metric_name)
 
-        if "predict_proba" in spec.response_method:
-            scores[i] = float(spec.func(y, y_pred))
+        if spec.needs_threshold:
+            scores[i] = float(spec.func(y, np.round(y_pred)))
         else:
-            scores[i] = float(spec.func(y, y_labels))
+            scores[i] = float(spec.func(y, y_pred))
 
     return scores
 
