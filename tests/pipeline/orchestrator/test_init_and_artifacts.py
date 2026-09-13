@@ -9,7 +9,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from medpipe.pipeline.orchestrator import MedpipeOrchestrator
-from medpipe.utils.config import MedpipeConfig
+from medpipe.utils.config import MedpipeConfig, MedpipeRegressorConfig
 
 
 @patch("medpipe.pipeline.orchestrator.ArtifactManager")
@@ -32,6 +32,24 @@ class TestInit:
         assert orchestrator.config == mock_config
         assert orchestrator.run_dir == Path("artifacts/run_1")
         mock_artifact_mgr_instance.save_env_state.assert_called_once()
+
+    def test_init_with_regressor_config_object(
+        self, mock_add_handler, mock_get_logger, mock_artifact_mgr
+    ):
+        """Test initialization when passed a MedpipeRegressorConfig object
+        directly (not just MedpipeConfig)."""
+        mock_artifact_mgr_instance = mock_artifact_mgr.return_value
+        mock_artifact_mgr_instance.create_run_directory.return_value = Path(
+            "artifacts/run_1"
+        )
+
+        mock_regressor_config = MagicMock(spec=MedpipeRegressorConfig)
+        mock_regressor_config.meta = MagicMock()
+        mock_regressor_config.meta.verbose = 0
+
+        orchestrator = MedpipeOrchestrator(config=mock_regressor_config)
+
+        assert orchestrator.config == mock_regressor_config
 
     @patch("medpipe.pipeline.orchestrator.read_toml_configuration")
     def test_init_with_string_path(
@@ -56,7 +74,8 @@ class TestInit:
         """Test initialization fails when passed an invalid config type."""
         with pytest.raises(
             ValueError,
-            match="A configuration file or a MedpipeConfig must be specified",
+            match="A configuration file, a MedpipeConfig, or a "
+            "MedpipeRegressorConfig must be specified",
         ):
             MedpipeOrchestrator(config=12345)  # type: ignore
 

@@ -11,7 +11,13 @@ import numpy.typing as npt
 import pytest
 from sklearn.metrics import mean_absolute_error, root_mean_squared_error
 
-from medpipe.metrics.core import METRICS, build_scorers, compute_metrics, ici_score
+from medpipe.metrics.core import (
+    METRICS,
+    build_scorers,
+    compute_metrics,
+    crps_score,
+    ici_score,
+)
 from medpipe.metrics.registry import MetricRegistry, MetricSpec
 
 
@@ -107,26 +113,47 @@ class TestBuildScorers:
             build_scorers(["invalid"])
 
 
+FLAT_ARRAY_METRICS = [
+    m for m in METRICS if MetricRegistry.get(m).response_method != "predict_dist"
+]
+
+
 class TestComputeMetrics:
     """Test class for the compute_metrics function."""
 
     def test_compute_metrics_success(
         self, mock_data: tuple[npt.NDArray, npt.NDArray]
     ) -> None:
-        """Test metric calculation with 2D probabilities."""
+        """Test metric calculation with 2D probabilities, across every
+        registered metric computable from a flat prediction array
+        (excludes distributional metrics like crps, which require a full
+        predictive distribution object instead)."""
         y, y_pred = mock_data
-        scores = compute_metrics(METRICS, y, y_pred)
+        scores = compute_metrics(FLAT_ARRAY_METRICS, y, y_pred)
         assert isinstance(scores, np.ndarray)
-        assert len(scores) == len(METRICS)
+        assert len(scores) == len(FLAT_ARRAY_METRICS)
 
     def test_compute_metrics_success_pos_proba(
         self, mock_data: tuple[npt.NDArray, npt.NDArray]
     ) -> None:
         """Test metric calculation with 1D positive class probabilities."""
         y, y_pred = mock_data
-        scores = compute_metrics(METRICS, y, y_pred[:, 1])
+        scores = compute_metrics(FLAT_ARRAY_METRICS, y, y_pred[:, 1])
         assert isinstance(scores, np.ndarray)
-        assert len(scores) == len(METRICS)
+        assert len(scores) == len(FLAT_ARRAY_METRICS)
+
+    def test_compute_metrics_distributional_metric_raises_clear_error(
+        self, mock_data: tuple[npt.NDArray, npt.NDArray]
+    ) -> None:
+        """Test that requesting a predict_dist-based metric (e.g. crps)
+        through compute_metrics raises a clear, actionable error instead of
+        a confusing AttributeError from calling .ppf() on a flat array."""
+        y, y_pred = mock_data
+
+        with pytest.raises(
+            ValueError, match="'crps' requires a full predictive distribution"
+        ):
+            compute_metrics(["crps"], y, y_pred)
 
     def test_compute_metrics_numpy_array_input_for_metrics(
         self, mock_data: tuple[npt.NDArray, npt.NDArray]
@@ -268,3 +295,64 @@ class TestComputeMetrics:
         # Verify registration was cleaned up and registry is pristine
         with pytest.raises(ValueError, match="custom_prob_mae"):
             MetricRegistry.get("custom_prob_mae")
+
+
+class TestCrpsScore:
+    """Test class for the crps_score function and its registration."""
+
+    def test_crps_registered_in_metric_registry(self) -> None:
+        """Test that 'crps' is registered with a predict_dist response
+        method."""
+        spec = MetricRegistry.get("crps")
+
+        assert spec.response_method == "predict_dist"
+        assert spec.name == "crps"
+
+    def test_crps_score_matches_closed_form_normal_crps(self) -> None:
+        """Test that crps_score's CDF-grid integration matches the known
+        closed-form CRPS formula for a Normal distribution (Gneiting &
+        Raftery, 2007), independent of the scores package internals."""
+        from scipy.stats import norm
+
+        rng = np.random.default_rng(0)
+        loc = rng.normal(0, 1, size=20)
+        scale = np.abs(rng.normal(1, 0.2, size=20)) + 0.1
+        y_true = loc + rng.normal(0, 1, size=20) * scale
+
+        dist = norm(loc=loc, scale=scale)
+        approx = crps_score(y_true, dist)
+
+        z = (y_true - loc) / scale
+        exact = scale * (
+            z * (2 * norm.cdf(z) - 1) + 2 * norm.pdf(z) - 1 / np.sqrt(np.pi)
+        )
+        exact_mean = float(np.mean(exact))
+
+        assert approx == pytest.approx(exact_mean, abs=0.01)
+
+    def test_crps_score_degenerate_zero_width_range(self) -> None:
+        """Test that a degenerate distribution/observation range (upper ==
+        lower, e.g. a constant predictive distribution matching a constant
+        observation) is nudged to a non-zero-width grid rather than passing
+        an empty/invalid range to the threshold grid."""
+
+        class _ConstantDist:
+            def ppf(self, q):
+                return np.zeros(4)
+
+            def cdf(self, x):
+                return np.ones(4) if x >= 0 else np.zeros(4)
+
+        y_true = np.zeros(4)
+        result = crps_score(y_true, _ConstantDist())
+
+        assert np.isfinite(result)
+        assert result == pytest.approx(0.0, abs=1e-3)
+
+    def test_build_scorers_includes_crps(self) -> None:
+        """Test that build_scorers can construct a scorer for 'crps'
+        alongside flat-array metrics."""
+        scorers = build_scorers(["crps", "rmse"])
+
+        assert set(scorers) == {"crps", "rmse"}
+        assert callable(scorers["crps"])
