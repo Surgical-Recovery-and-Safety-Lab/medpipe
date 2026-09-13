@@ -10,7 +10,7 @@ from sklearn.pipeline import Pipeline
 
 from medpipe.data.registry import PreprocessorRegistry
 from medpipe.data.utils import extract_labels, resolve_subgroup_mask, split_data
-from medpipe.utils.config import MedpipeConfig
+from medpipe.utils.config import MedpipeConfig, MedpipeRegressorConfig
 from medpipe.utils.io import load_data, read_toml_configuration
 from medpipe.utils.logger import add_file_handler, get_console_logger, set_verbosity
 from medpipe.utils.reproducibility import ArtifactManager
@@ -59,8 +59,13 @@ class MedpipeOrchestrator:
 
     Parameters
     ----------
-    config : Union[str, Path, MedpipeConfig]
-        Path to the TOML configuration file or an instantiated MedpipeConfig object.
+    config : Union[str, Path, MedpipeConfig, MedpipeRegressorConfig]
+        Path to a classifier TOML configuration file (validated via
+        `MedpipeConfig`), or an already-instantiated `MedpipeConfig` or
+        `MedpipeRegressorConfig` object. Regression configs must be parsed
+        by the caller first (e.g. via `read_regressor_toml_configuration`)
+        and passed in as an object, since a bare path string/Path is always
+        interpreted as a classifier configuration.
     base_artifact_dir : Union[str, Path], default="artifacts"
         Root directory where the versioned run artifacts and logs will be saved.
     verbose_override : Union[bool, int, str, None], default=None
@@ -98,7 +103,7 @@ class MedpipeOrchestrator:
 
     def __init__(
         self,
-        config: str | Path | MedpipeConfig,
+        config: str | Path | MedpipeConfig | MedpipeRegressorConfig,
         base_artifact_dir: str | Path = "artifacts",
         verbose_override: bool | int | str | None = None,
     ) -> None:
@@ -106,11 +111,12 @@ class MedpipeOrchestrator:
         if isinstance(config, (str, Path)):
             self.config = read_toml_configuration(config)
             self._config_path = Path(config)
-        elif isinstance(config, MedpipeConfig):
+        elif isinstance(config, (MedpipeConfig, MedpipeRegressorConfig)):
             self.config = config
         else:
             raise ValueError(
-                "A configuration file or a MedpipeConfig must be specified."
+                "A configuration file, a MedpipeConfig, or a "
+                "MedpipeRegressorConfig must be specified."
             )
 
         if verbose_override is not None:
