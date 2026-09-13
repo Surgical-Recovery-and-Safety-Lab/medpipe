@@ -349,6 +349,7 @@ class BaseEvaluator:
         metrics: list[str] | None = None,
         subgroup_specs: dict[str, str | Callable[[pd.DataFrame], pd.Series]]
         | None = None,
+        fairness_data: pd.DataFrame | None = None,
         save_artifacts: bool = True,
     ) -> dict[str, Any]:
         """
@@ -361,7 +362,8 @@ class BaseEvaluator:
         Parameters
         ----------
         X : pandas.DataFrame
-            Feature dataset of shape (n_samples, n_features).
+            Feature dataset of shape (n_samples, n_features), used for
+            prediction. Contains model predictors only.
         y : pandas.Series or numpy.ndarray
             Ground truth target values of shape (n_samples,).
         outcome : str, optional
@@ -372,6 +374,12 @@ class BaseEvaluator:
             List of metrics to evaluate. If None, defaults to `self.metrics`.
         subgroup_specs : dict of str to (str or callable), optional
             Specifications for extracting demographic/clinical subgroups.
+        fairness_data : pandas.DataFrame, optional
+            Fairness stratification columns aligned with `X` (see
+            `MedpipeOrchestrator.fairness_splits`), used to resolve
+            `subgroup_specs` instead of `X` when a stratum is not itself a
+            model predictor (e.g. a "HOSPITAL" column). Defaults to `X`
+            when not provided, preserving strata that are also predictors.
         save_artifacts : bool, default=True
             Whether to write evaluation summary results to disk via `ArtifactManager`.
 
@@ -412,7 +420,8 @@ class BaseEvaluator:
         if subgroup_specs:
             self.logger.info(f"[{outcome_name}] Evaluating performance across strata.")
             subgroup_results: dict[str, dict[str, dict[str, dict[str, float]]]] = {}
-            subgroups = self.extract_subgroups(X, subgroup_specs)
+            subgroup_source = fairness_data if fairness_data is not None else X
+            subgroups = self.extract_subgroups(subgroup_source, subgroup_specs)
 
             for cat_name, cat_groups in subgroups.items():
                 subgroup_results[cat_name] = {}

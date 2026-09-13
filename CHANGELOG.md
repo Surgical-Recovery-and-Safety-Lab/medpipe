@@ -17,7 +17,9 @@ and this project adheres to Semantic Versioning ([SemVer](https://semver.org/spe
 * Tests for the regression configuration schemas.
 * New regression objects `MedpipeRegressionRunner` and `MedpipeRegressionEvaluator`.
 * The CRPS as a score for cross-validation and evaluation for the regressor.
-* A `MedpipeRegressor` class mirorring `MedpipeClassifier` for regression tasks.
+* A `MedpipeRegressor` class mirroring `MedpipeClassifier` for regression tasks.
+* A `FairnessSplits` mirroring the `DataSplits` class that is used for the 
+fairness evaluation.
 
 ### Fixed
 * Docstring in the `config.py` script.

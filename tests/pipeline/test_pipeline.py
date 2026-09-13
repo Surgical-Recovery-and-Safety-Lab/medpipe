@@ -412,6 +412,7 @@ class TestMedpipeEvaluate:
             model=None,
             metrics=None,
             subgroup_specs=None,
+            fairness_data=None,
             save_artifacts=True,
         )
         assert results == expected_eval
@@ -506,6 +507,7 @@ class TestMedpipeEvaluate:
             model=mock_model,
             metrics=custom_metrics,
             subgroup_specs=subgroups,
+            fairness_data=None,
             save_artifacts=False,
         )
 
@@ -528,6 +530,7 @@ class TestMedpipeRun:
         mp.mp_config.data.kwargs = {"extra_arg": 0.2}
         mp._orchestrator.config.data.outcomes = ["MORTALITY_30D"]
         mp._orchestrator.get_subgroup_specs.return_value = {"age_gt_60": "AGE > 60"}
+        mp._orchestrator.fairness_splits = None
 
         # Mock split outputs
         X_tr, y_tr = pd.DataFrame({"A": [1, 2]}), pd.DataFrame(
@@ -562,6 +565,7 @@ class TestMedpipeRun:
             y=y_te["MORTALITY_30D"].to_numpy(),
             outcome="MORTALITY_30D",
             subgroup_specs={"age_gt_60": "AGE > 60"},
+            fairness_data=None,
             save_artifacts=True,
         )
 
@@ -946,3 +950,96 @@ class TestMedpipeStressIntegration:
                 shutil.rmtree(run_dir, ignore_errors=True)
 
             assert not run_dir.exists()
+
+
+class TestMedpipeFairnessOnlyColumnIntegration:
+    """Integration tests for fairness strata that are not model predictors
+    (e.g. a "HOSPITAL" column used only for a spatial subgroup comparison)."""
+
+    @pytest.fixture
+    def data_with_hospital_column(self, test_data_path: Path, tmp_path: Path) -> Path:
+        """Writes a copy of the test dataset with an added "HOSPITAL" column
+        that is deliberately not part of any configured predictor list."""
+        df = pd.read_csv(test_data_path)
+        rng = np.random.default_rng(0)
+        df["HOSPITAL"] = rng.choice(["North", "South"], size=len(df))
+
+        out_path = tmp_path / "data_with_hospital.csv"
+        df.to_csv(out_path, index=False)
+        return out_path
+
+    def test_run_succeeds_with_fairness_only_hospital_column(
+        self, build_medpipe_config, data_with_hospital_column: Path, tmp_path: Path
+    ) -> None:
+        """Test a full run() completes end-to-end when the fairness strata
+        include a "HOSPITAL" column that is not part of data.predictors,
+        and that its subgroup results appear in the evaluation output."""
+        config = build_medpipe_config(run_mode="eval", disable_recal=True)
+        config.data.path = str(data_with_hospital_column)
+        config.workflow.evaluation.fairness.strata = ["HOSPITAL"]
+        config.workflow.evaluation.fairness.groups = None
+
+        assert "HOSPITAL" not in config.data.predictors
+
+        artifact_dir = tmp_path / "artifacts"
+        pipeline = MedpipeClassifier(config=config, base_artifact_dir=artifact_dir)
+        run_dir = pipeline.run_dir
+
+        try:
+            results = pipeline.run()
+
+            for outcome in config.data.outcomes:
+                strata = results["evaluations"][outcome]["strata"]["HOSPITAL"]
+                assert set(strata.keys()) == {"North", "South"}
+
+            # The fairness-only column is directly accessible for further
+            # analysis, aligned with the test set, without re-extraction,
+            # and never leaked into the model's feature frame.
+            fairness_split = pipeline.fairness_split
+            assert fairness_split is not None
+            assert set(fairness_split.test["HOSPITAL"].unique()) <= {
+                "North",
+                "South",
+            }
+            assert list(fairness_split.test.index) == list(
+                pipeline.data_split.X_test.index
+            )
+            assert "HOSPITAL" not in pipeline.data_split.X_test.columns
+            assert "HOSPITAL" not in pipeline.data_split.X_train.columns
+
+            # Predictions can be run directly on the fairness-aligned test
+            # data without re-extracting anything.
+            preds = pipeline.predict(
+                pipeline.data_split.X_test, outcome=config.data.outcomes[0]
+            )
+            assert len(preds) == len(fairness_split.test)
+        finally:
+            if run_dir.exists():
+                for handler in list(pipeline._logger.handlers):
+                    handler.close()
+                    pipeline._logger.removeHandler(handler)
+                shutil.rmtree(run_dir, ignore_errors=True)
+
+    def test_run_fails_fast_when_fairness_column_missing_from_data(
+        self, build_medpipe_config, tmp_path: Path
+    ) -> None:
+        """Test that a fairness stratum column absent from the raw dataset
+        raises a KeyError during data ingestion, before fitting or
+        evaluation runs, instead of the pipeline crashing later."""
+        config = build_medpipe_config(run_mode="eval", disable_recal=True)
+        config.workflow.evaluation.fairness.strata = ["HOSPITAL"]
+        config.workflow.evaluation.fairness.groups = None
+
+        artifact_dir = tmp_path / "artifacts"
+        pipeline = MedpipeClassifier(config=config, base_artifact_dir=artifact_dir)
+        run_dir = pipeline.run_dir
+
+        try:
+            with pytest.raises(KeyError, match="HOSPITAL"):
+                pipeline.run()
+        finally:
+            if run_dir.exists():
+                for handler in list(pipeline._logger.handlers):
+                    handler.close()
+                    pipeline._logger.removeHandler(handler)
+                shutil.rmtree(run_dir, ignore_errors=True)

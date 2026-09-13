@@ -1,6 +1,6 @@
 """
 Tests for MedpipeOrchestrator.ingest_data and its
-_get_validation_columns helper.
+_get_validation_columns/_get_fairness_columns helpers.
 """
 
 from unittest.mock import MagicMock, patch
@@ -56,6 +56,44 @@ class TestGetValidationColumns:
         orchestrator.config.workflow.validation = None
 
         cols = orchestrator._get_validation_columns()
+
+        assert cols == []
+
+
+class TestGetFairnessColumns:
+    """Unit tests for MedpipeOrchestrator._get_fairness_columns."""
+
+    def test_get_fairness_columns_with_strata(self):
+        """Test retrieving fairness strata columns, deduplicated."""
+        orchestrator = object.__new__(MedpipeOrchestrator)
+
+        fairness_cfg = MagicMock()
+        fairness_cfg.strata = ["HOSPITAL", "SEX", "HOSPITAL"]
+
+        orchestrator.config = MagicMock()
+        orchestrator.config.workflow.evaluation.fairness = fairness_cfg
+
+        cols = orchestrator._get_fairness_columns()
+
+        assert cols == ["HOSPITAL", "SEX"]
+
+    def test_get_fairness_columns_missing_fairness_config(self):
+        """Test returning an empty list when fairness config is None."""
+        orchestrator = object.__new__(MedpipeOrchestrator)
+        orchestrator.config = MagicMock()
+        orchestrator.config.workflow.evaluation.fairness = None
+
+        cols = orchestrator._get_fairness_columns()
+
+        assert cols == []
+
+    def test_get_fairness_columns_missing_workflow_or_evaluation(self):
+        """Test returning an empty list when workflow is missing entirely."""
+        orchestrator = object.__new__(MedpipeOrchestrator)
+        orchestrator.config = MagicMock()
+        orchestrator.config.workflow = None
+
+        cols = orchestrator._get_fairness_columns()
 
         assert cols == []
 
@@ -119,6 +157,7 @@ class TestIngestData:
             }
         )
         pd.testing.assert_frame_equal(result, expected_df)
+        assert orchestrator._fairness_raw is None
 
     @patch("medpipe.pipeline.orchestrator.load_data")
     def test_ingest_data_passes_keyword_args(
@@ -159,6 +198,83 @@ class TestIngestData:
         orchestrator.ingest_data(**{"extra_arg": 1})
 
         mock_load_data.assert_called_once_with("dummy/path/data.csv", extra_arg=1)
+
+    @patch("medpipe.pipeline.orchestrator.load_data")
+    def test_ingest_data_caches_fairness_only_column_separately(
+        self,
+        mock_load_data,
+        mock_add_handler,
+        mock_get_logger,
+        mock_artifact_mgr,
+        mock_config,
+    ):
+        """Test that a fairness stratum column not in predictors (e.g. a
+        spatial "HOSPITAL" comparison) is validated but kept out of the
+        modelling frame, instead cached separately for prepare_data() to
+        align into FairnessSplits."""
+        mock_config.data.predictors = ["AGE", "BMI"]
+        mock_config.data.outcomes = ["MORTALITY_30D"]
+        mock_config.workflow.validation = None
+
+        fairness_cfg = MagicMock()
+        fairness_cfg.strata = ["HOSPITAL"]
+        mock_config.workflow.evaluation.fairness = fairness_cfg
+
+        raw_df = pd.DataFrame(
+            {
+                "AGE": [25, 30],
+                "BMI": [22.5, 24.1],
+                "MORTALITY_30D": [0, 1],
+                "HOSPITAL": ["A", "B"],
+                "UNNEEDED_COLUMN": ["X", "Y"],
+            }
+        )
+        mock_load_data.return_value = raw_df
+
+        orchestrator = MedpipeOrchestrator(config=mock_config)
+        result = orchestrator.ingest_data()
+
+        assert "HOSPITAL" not in result.columns
+        assert "UNNEEDED_COLUMN" not in result.columns
+        assert list(orchestrator._fairness_raw.columns) == ["HOSPITAL"]
+        assert list(orchestrator._fairness_raw["HOSPITAL"]) == ["A", "B"]
+
+    @patch("medpipe.pipeline.orchestrator.load_data")
+    def test_ingest_data_missing_fairness_column_raises_key_error(
+        self,
+        mock_load_data,
+        mock_add_handler,
+        mock_get_logger,
+        mock_artifact_mgr,
+        mock_config,
+    ):
+        """Test that ingestion fails fast with a KeyError when a configured
+        fairness stratum column is missing from the raw dataset, instead of
+        letting the full pipeline run and crash later during evaluation."""
+        mock_config.data.predictors = ["AGE", "BMI"]
+        mock_config.data.outcomes = ["MORTALITY_30D"]
+        mock_config.workflow.validation = None
+
+        fairness_cfg = MagicMock()
+        fairness_cfg.strata = ["HOSPITAL"]
+        mock_config.workflow.evaluation.fairness = fairness_cfg
+
+        raw_df = pd.DataFrame(
+            {
+                "AGE": [25, 30],
+                "BMI": [22.5, 24.1],
+                "MORTALITY_30D": [0, 1],
+            }
+        )
+        mock_load_data.return_value = raw_df
+
+        orchestrator = MedpipeOrchestrator(config=mock_config)
+
+        with pytest.raises(
+            KeyError,
+            match="required columns were missing from the dataset: \\['HOSPITAL'\\]",
+        ):
+            orchestrator.ingest_data()
 
     @patch("medpipe.pipeline.orchestrator.load_data")
     def test_ingest_data_missing_required_column_raises_key_error(

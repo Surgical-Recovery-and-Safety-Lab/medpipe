@@ -48,6 +48,35 @@ class DataSplits:
     groups_train: NDArray | None = None
 
 
+@dataclass(frozen=True)
+class FairnessSplits:
+    """Container holding fairness stratification columns aligned with each
+    prepared data split.
+
+    Populated whenever `workflow.evaluation.fairness.strata` is configured.
+    Holds every fairness stratum column exactly as ingested, independent of
+    whether a given column is also a model predictor, so fairness columns
+    (e.g. a "HOSPITAL" column used only for a spatial comparison) are always
+    available here without ever being merged into `DataSplits`' feature
+    frames.
+
+    Attributes
+    ----------
+    train : pd.DataFrame
+        Fairness stratum columns for the rows in `DataSplits.X_train`.
+    test : pd.DataFrame
+        Fairness stratum columns for the rows in `DataSplits.X_test`.
+    recal : pd.DataFrame | None
+        Fairness stratum columns for the rows in `DataSplits.X_recal`, if
+        a recalibration split is configured.
+
+    """
+
+    train: pd.DataFrame
+    test: pd.DataFrame
+    recal: pd.DataFrame | None = None
+
+
 class MedpipeOrchestrator:
     """
     Handles data ingress, transformation preparation, and reproducibility management.
@@ -134,6 +163,8 @@ class MedpipeOrchestrator:
         )
 
         self._splits: DataSplits | None = None  # Holds the data splits
+        self._fairness_splits: FairnessSplits | None = None
+        self._fairness_raw: pd.DataFrame | None = None
         self._save_reproducibility_artifacts()
 
     @property
@@ -158,6 +189,30 @@ class MedpipeOrchestrator:
                 "or 'run()' before accessing dataset splits."
             )
         return self._splits
+
+    @property
+    def fairness_splits(self) -> FairnessSplits | None:
+        """Access cached fairness stratification splits.
+
+        Returns
+        -------
+        FairnessSplits or None
+            Access to the FairnessSplits attributes, or None if no
+            `workflow.evaluation.fairness` configuration is set.
+
+        Raises
+        ------
+        RuntimeError
+            If data has not been prepared yet and 'prepare_data()' or
+            'run()' need to be called.
+
+        """
+        if self._splits is None:
+            raise RuntimeError(
+                "Data has not been prepared yet. Call 'prepare_data()' "
+                "or 'run()' before accessing fairness splits."
+            )
+        return self._fairness_splits
 
     def _save_reproducibility_artifacts(self) -> None:
         """
@@ -201,6 +256,10 @@ class MedpipeOrchestrator:
     ]:
         """
         Ingests data, extracts labels, and performs configured train/recal/test splits.
+
+        Also populates `fairness_splits` with the configured fairness
+        stratification columns (see `FairnessSplits`), aligned to the same
+        row indices as the returned `X_train`/`X_test`/`X_recal`.
 
         Parameters
         ----------
@@ -334,12 +393,36 @@ class MedpipeOrchestrator:
             groups_train=groups_train,
         )
 
+        # Fairness stratification columns (e.g. a "HOSPITAL" column used
+        # only for a spatial subgroup comparison) are ingested independently
+        # of `data.predictors` and are never merged into the feature
+        # frames above; align that raw slice with each split's row index so
+        # it stays available for fairness evaluation.
+        self._fairness_splits = (
+            FairnessSplits(
+                train=self._fairness_raw.loc[X_train.index].copy(),
+                test=self._fairness_raw.loc[X_test.index].copy(),
+                recal=(
+                    self._fairness_raw.loc[X_recal.index].copy()
+                    if X_recal is not None
+                    else None
+                ),
+            )
+            if self._fairness_raw is not None
+            else None
+        )
+
         return X_train, y_train_df, X_recal, y_recal_df, X_test, y_test_df, groups_train
 
     def ingest_data(self, **kwargs) -> pd.DataFrame:
         """
         Loads the raw dataset specified in the configuration and filters it
         to retain only predictors, outcomes, and configured group columns.
+
+        Fairness stratification columns (`workflow.evaluation.fairness.strata`)
+        are validated against the raw dataset here too, but are kept out of
+        the returned frame; they are cached separately (`_fairness_raw`) for
+        `prepare_data()` to align into `FairnessSplits`.
 
         Parameters
         ----------
@@ -357,7 +440,8 @@ class MedpipeOrchestrator:
         TypeError
             If the loaded data is not a pandas DataFrame.
         KeyError
-            If any configured required columns are missing from the raw dataset.
+            If any configured required or fairness stratum column is
+            missing from the raw dataset.
 
         """
         dataset_path = self.config.data.path
@@ -384,13 +468,27 @@ class MedpipeOrchestrator:
         # Deduplicate while preserving order
         unique_cols = list(dict.fromkeys(required_cols))
 
+        # Fairness stratification columns (e.g. a "HOSPITAL" column used
+        # only for a spatial subgroup comparison) are validated up front
+        # here too, so a missing column fails fast instead of only once
+        # evaluation runs later — but they are never merged into the
+        # modelling frame below; they are kept as a separate raw slice
+        # (see `_fairness_raw`) so they never reach the model.
+        fairness_cols = self._get_fairness_columns()
+
         # Validate column existence
-        missing_cols = [col for col in unique_cols if col not in data.columns]
+        missing_cols = [
+            col
+            for col in list(dict.fromkeys(unique_cols + fairness_cols))
+            if col not in data.columns
+        ]
         if missing_cols:
             raise KeyError(
                 "The following required columns were missing from the "
                 f"dataset: {missing_cols}"
             )
+
+        self._fairness_raw = data[fairness_cols].copy() if fairness_cols else None
 
         # Filter out unneeded columns
         filtered_data = data[unique_cols].copy()
@@ -426,6 +524,28 @@ class MedpipeOrchestrator:
         unique_cols = list(dict.fromkeys(val_columns))
 
         return unique_cols
+
+    def _get_fairness_columns(self) -> list[str]:
+        """
+        Collect stratification columns from the fairness configuration.
+
+        These columns may or may not also be model predictors (e.g. a
+        "HOSPITAL" column used only for a spatial subgroup comparison), so
+        they are collected separately to be validated and retained
+        independently of `data.predictors`.
+
+        Returns
+        -------
+        unique_cols : list of str
+            Unique fairness stratum column names, or an empty list if no
+            fairness configuration is set.
+
+        """
+        eval_cfg = getattr(getattr(self.config, "workflow", None), "evaluation", None)
+        fairness_cfg = getattr(eval_cfg, "fairness", None)
+        strata = getattr(fairness_cfg, "strata", None) or []
+
+        return list(dict.fromkeys(strata))
 
     def get_subgroup_specs(self) -> dict[str, Any]:
         """

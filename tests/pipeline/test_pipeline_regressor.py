@@ -216,6 +216,7 @@ class TestMedpipeRegressorRun:
         mp.mp_config.data.kwargs = {"extra_arg": 0.2}
         mp._orchestrator.config.data.outcomes = ["LOS_DAYS"]
         mp._orchestrator.get_subgroup_specs.return_value = {"site": "site"}
+        mp._orchestrator.fairness_splits = None
 
         X_tr, y_tr = pd.DataFrame({"A": [1, 2]}), pd.DataFrame({"LOS_DAYS": [3.0, 5.0]})
         X_te, y_te = pd.DataFrame({"A": [3]}), pd.DataFrame({"LOS_DAYS": [4.0]})
@@ -247,6 +248,7 @@ class TestMedpipeRegressorRun:
             y=y_te["LOS_DAYS"].to_numpy(),
             outcome="LOS_DAYS",
             subgroup_specs={"site": "site"},
+            fairness_data=None,
             save_artifacts=True,
         )
 
