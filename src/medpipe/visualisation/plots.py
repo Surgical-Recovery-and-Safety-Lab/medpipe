@@ -12,7 +12,7 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 from medpipe.visualisation.themes import MedpipeTheme
 
-# MedpipeClassifier Default Palette Defaults
+# Default Palette Defaults
 _DEFAULT_THEME = MedpipeTheme()
 
 

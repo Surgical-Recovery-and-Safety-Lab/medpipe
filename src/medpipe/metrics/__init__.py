@@ -1,7 +1,7 @@
 """
 medpipe.metrics
 ---------------
-Metrics, scoring registries, and plotting utilities for the MedpipeClassifier package.
+Metrics, scoring registries, and plotting utilities for the medpipe package.
 
 Provides core metric computation functions, bootstrap confidence interval
 estimation, cross-validation scorer building, and metric registries.

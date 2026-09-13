@@ -1,8 +1,8 @@
 """
 medpipe.pipeline
 ----------------
-Core orchestration, execution, and evaluation interface for the
-MedpipeClassifier package.
+Core orchestration, execution, and evaluation interface for the medpipe
+package.
 
 Exposes the primary high-level pipeline class alongside sub-orchestrators for
 data preparation, cross-validation, model fitting, and evaluation.
