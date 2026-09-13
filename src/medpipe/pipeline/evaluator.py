@@ -16,7 +16,12 @@ import numpy.typing as npt
 import pandas as pd
 
 from medpipe.data.utils import resolve_subgroup_mask
-from medpipe.metrics.core import bootstrap_confidence_intervals, compute_metrics
+from medpipe.metrics.core import (
+    PredictionBundle,
+    bootstrap_confidence_intervals,
+    compute_metrics,
+)
+from medpipe.metrics.registry import MetricRegistry
 from medpipe.utils.logger import get_console_logger
 
 if TYPE_CHECKING:
@@ -420,7 +425,23 @@ class BaseEvaluator:
 
                     pos_idx = X.index.get_indexer(indices)
                     y_sub = y_arr[pos_idx]
-                    y_pred_sub = y_pred[pos_idx]
+
+                    if isinstance(y_pred, PredictionBundle):
+                        point_sub = (
+                            y_pred.point[pos_idx] if y_pred.point is not None else None
+                        )
+                        dist_sub = None
+                        if y_pred.dist is not None:
+                            # Not every distributional prediction object
+                            # supports index-based subsetting (e.g. OrdBoost's
+                            # ContinuousPredictiveDistribution does not), so
+                            # recompute the distribution for this stratum's
+                            # rows directly rather than slicing y_pred.dist.
+                            X_sub = X.iloc[pos_idx]
+                            dist_sub = target_model.predict_dist(X_sub)
+                        y_pred_sub = PredictionBundle(point=point_sub, dist=dist_sub)
+                    else:
+                        y_pred_sub = y_pred[pos_idx]
 
                     self.logger.debug(
                         f"[{outcome}] Evaluating stratum '{cat_name}' "
@@ -696,9 +717,10 @@ class MedpipeRegressorEvaluator(BaseEvaluator):
         X: pd.DataFrame | npt.NDArray,
         target_model: Any,
         metrics: list[str],
-    ) -> npt.NDArray:
+    ) -> PredictionBundle:
         """
-        Resolve point predictions used to compute the requested metrics.
+        Resolve point predictions, and a full predictive distribution when
+        needed, used to compute the requested metrics.
 
         Parameters
         ----------
@@ -707,14 +729,20 @@ class MedpipeRegressorEvaluator(BaseEvaluator):
         target_model : object
             The resolved, fitted model to predict with.
         metrics : list of str
-            Unused for now; accepted for interface compatibility with
-            `BaseEvaluator` (distributional metrics will use this in a
-            future revision).
+            The metric names being evaluated. If any requires a
+            `predict_dist` response method (e.g. crps), `target_model`'s
+            `predict_dist(X)` is also called.
 
         Returns
         -------
-        y_pred : numpy.ndarray
-            Predicted continuous values.
+        PredictionBundle
+            Bundle carrying point predictions and, when needed, the full
+            predictive distribution.
 
         """
-        return self.predict(X, model=target_model)
+        needs_dist = any(
+            MetricRegistry.get(m).response_method == "predict_dist" for m in metrics
+        )
+        point = self.predict(X, model=target_model)
+        dist = target_model.predict_dist(X) if needs_dist else None
+        return PredictionBundle(point=point, dist=dist)

@@ -31,6 +31,13 @@ class MetricSpec:
         before being passed to `func` (e.g., accuracy, precision). Metrics
         that consume continuous values directly (e.g., rmse, mae, or any
         `predict_proba`-based metric) must leave this as False.
+    per_sample_func : Callable or None, default=None
+        For `predict_dist`-based metrics only: a function `(y, dist) ->
+        array of shape (n_samples,)` returning the metric's per-sample
+        values. Used by `bootstrap_confidence_intervals` to compute CIs by
+        resampling precomputed per-sample scores rather than resampling
+        (and re-slicing) the distribution object itself, since not every
+        distributional prediction object supports fancy indexing.
 
     """
 
@@ -40,6 +47,7 @@ class MetricSpec:
     display_name: str
     sklearn_scorer_name: str | None = None
     needs_threshold: bool = False
+    per_sample_func: Callable | None = None
 
     def get_scorer(self) -> Callable:
         """Construct a scikit-learn compatible scorer function for cross-validation.
