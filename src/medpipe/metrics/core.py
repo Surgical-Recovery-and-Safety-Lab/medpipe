@@ -9,6 +9,8 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 import numpy as np
+import scores.probability as scores_probability
+import xarray as xr
 from sklearn.metrics import (
     accuracy_score,
     average_precision_score,
@@ -26,11 +28,23 @@ from splinecalib import SplineCalib
 from medpipe.metrics.registry import MetricRegistry, MetricSpec
 
 if TYPE_CHECKING:
+    from typing import Any
+
     import numpy.typing as npt
 
 # ------------------------------------------------------------------------------
 # STANDALONE METRIC FUNCTIONS
 # ------------------------------------------------------------------------------
+
+# Grid resolution and tail coverage used to build the CDF threshold grid that
+# `crps_score` integrates over. Both NGBoost's and OrdBoost's distribution
+# objects implement `.ppf(q)`/`.cdf(x)` for a scalar argument, returning an
+# (n_samples,) array, regardless of the distribution family/library that
+# produced them (e.g. NGBoost's parametric Normal, OrdBoost's non-parametric
+# binned distribution) - so this grid-based approach works uniformly across
+# libraries without special-casing any specific distribution type.
+_CRPS_THRESHOLD_GRID_SIZE = 200
+_CRPS_EXTREME_QUANTILES = (0.001, 0.999)
 
 
 def ici_score(y: npt.NDArray, y_pred: npt.NDArray) -> float:
@@ -46,6 +60,50 @@ def ici_score(y: npt.NDArray, y_pred: npt.NDArray) -> float:
         return float(np.mean(np.abs(smoothed_outputs - y_pred)))
     else:
         raise ValueError("Error predicting probabilities with spline")
+
+
+def crps_score(y: npt.NDArray, dist: Any) -> float:
+    """Computes the mean Continuous Ranked Probability Score (CRPS) for a
+    predictive distribution, via `scores.probability.crps_cdf`'s exact
+    piecewise-linear integration over a shared CDF threshold grid.
+
+    Works with any distribution object exposing scipy-style `.ppf(q)` and
+    `.cdf(x)` methods for a scalar argument (e.g. NGBoost's or OrdBoost's
+    distribution objects), regardless of the underlying distribution family.
+
+    Parameters
+    ----------
+    y : npt.NDArray
+        Ground truth continuous target values of shape (n_samples,).
+    dist : Any
+        A predictive distribution object exposing `.ppf(q)` and `.cdf(x)`.
+
+    Returns
+    -------
+    float
+        The mean CRPS across samples (lower is better).
+
+    """
+    y_arr = np.asarray(y)
+    low_q, high_q = _CRPS_EXTREME_QUANTILES
+
+    lower = float(min(np.min(dist.ppf(low_q)), np.min(y_arr)))
+    upper = float(max(np.max(dist.ppf(high_q)), np.max(y_arr)))
+    if upper <= lower:
+        upper = lower + 1e-6
+
+    thresholds = np.linspace(lower, upper, _CRPS_THRESHOLD_GRID_SIZE)
+    forecast_cdf = np.stack([dist.cdf(x) for x in thresholds], axis=-1)
+
+    fcst = xr.DataArray(
+        forecast_cdf,
+        dims=["sample", "threshold"],
+        coords={"threshold": thresholds},
+    )
+    obs = xr.DataArray(y_arr, dims=["sample"])
+
+    result = scores_probability.crps_cdf(fcst, obs, threshold_dim="threshold")
+    return float(result["total"].values)
 
 
 # ------------------------------------------------------------------------------
@@ -116,6 +174,7 @@ _DEFAULT_METRICS = [
     ),
     MetricSpec("mae", mean_absolute_error, "predict", "MAE", "neg_mean_absolute_error"),
     MetricSpec("ici", ici_score, "predict_proba", "ICI"),
+    MetricSpec("crps", crps_score, "predict_dist", "CRPS"),
 ]
 
 for _spec in _DEFAULT_METRICS:
@@ -218,6 +277,14 @@ def compute_metrics(
 
     for i, metric_name in enumerate(metrics):
         spec = MetricRegistry.get(metric_name)
+
+        if spec.response_method == "predict_dist":
+            raise ValueError(
+                f"'{metric_name}' requires a full predictive distribution "
+                "and cannot be computed from a flat prediction array via "
+                "compute_metrics(); it is only usable as a cross-validation "
+                "scorer via build_scorers()."
+            )
 
         if spec.needs_threshold:
             scores[i] = float(spec.func(y, np.round(y_pred)))

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
+from typing import Any
 
 from sklearn.metrics import get_scorer, make_scorer
 
@@ -48,6 +49,23 @@ class MetricSpec:
         scorer : Callable
             Scikit-learn scorer object suitable for model evaluation or tuning.
         """
+        if self.response_method == "predict_dist":
+            # sklearn's make_scorer only knows about predict/predict_proba/
+            # decision_function, and none of those pass a full distribution
+            # object to the metric function. Bypass it with a raw callable
+            # matching sklearn's own scorer(estimator, X, y) -> float
+            # convention instead.
+            func = self.func
+
+            def _distributional_scorer(estimator: Any, X: Any, y: Any) -> float:
+                dist = estimator.predict_dist(X)
+                # CRPS (and similar distributional losses) are lower-is-better,
+                # so negate to match sklearn's "greater is better" scorer
+                # convention (as sklearn's own neg_* scorers do).
+                return -float(func(y, dist))
+
+            return _distributional_scorer
+
         if self.sklearn_scorer_name:
             return get_scorer(self.sklearn_scorer_name)
 
