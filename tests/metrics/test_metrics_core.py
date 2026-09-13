@@ -13,6 +13,8 @@ from sklearn.metrics import mean_absolute_error, root_mean_squared_error
 
 from medpipe.metrics.core import (
     METRICS,
+    PredictionBundle,
+    bootstrap_confidence_intervals,
     build_scorers,
     compute_metrics,
     crps_score,
@@ -356,3 +358,59 @@ class TestCrpsScore:
 
         assert set(scorers) == {"crps", "rmse"}
         assert callable(scorers["crps"])
+
+
+class TestPredictionBundleDispatch:
+    """Tests for compute_metrics/bootstrap_confidence_intervals's handling
+    of PredictionBundle, in particular the predict_dist code paths that
+    build_scorers/the CV scorer path don't exercise (those call
+    estimator.predict_dist(X) then spec.func(y, dist) directly, bypassing
+    compute_metrics/bootstrap_confidence_intervals entirely)."""
+
+    def test_compute_metrics_with_prediction_bundle_dist(self) -> None:
+        """Test that compute_metrics computes a predict_dist-based metric
+        directly when given a PredictionBundle with `dist` set."""
+        from scipy.stats import norm
+
+        y_true = np.array([0.1, 0.2, 0.3, 0.4])
+        dist = norm(loc=np.zeros(4), scale=np.ones(4))
+        bundle = PredictionBundle(point=None, dist=dist)
+
+        scores = compute_metrics(["crps"], y_true, bundle)
+
+        assert scores.shape == (1,)
+        assert scores[0] == pytest.approx(crps_score(y_true, dist))
+
+    def test_bootstrap_confidence_intervals_crps_without_dist_raises(self) -> None:
+        """Test that requesting crps without a distribution (bare ndarray,
+        or a PredictionBundle with dist=None) raises a clear ValueError."""
+        y_true = np.array([0.1, 0.2, 0.3, 0.4])
+
+        with pytest.raises(
+            ValueError, match=r"Distributional metrics .* require a PredictionBundle"
+        ):
+            bootstrap_confidence_intervals(["crps"], y_true, np.zeros(4))
+
+    def test_bootstrap_distributional_metric_missing_per_sample_func_raises(
+        self,
+    ) -> None:
+        """Test that a registered predict_dist metric without a
+        per_sample_func raises a clear ValueError when bootstrapped."""
+        custom_spec = MetricSpec(
+            name="dist_metric_no_per_sample",
+            func=lambda y, dist: 0.5,
+            response_method="predict_dist",
+            display_name="No Per-Sample",
+        )
+        y_true = np.array([0.1, 0.2, 0.3, 0.4])
+        bundle = PredictionBundle(point=None, dist=object())
+
+        with patch.dict(MetricRegistry._registry, {}, clear=False):
+            MetricRegistry.register_spec(custom_spec)
+
+            with pytest.raises(
+                ValueError, match="does not define a per_sample_func"
+            ):
+                bootstrap_confidence_intervals(
+                    ["dist_metric_no_per_sample"], y_true, bundle
+                )

@@ -620,6 +620,31 @@ class TestRegressorEvaluator:
         assert result.dist == "fake_dist"
         mock_regressor_model.predict_dist.assert_called_once_with(X)
 
+    def test_predict_dist_success(
+        self, mock_orchestrator, mock_regressor_runner, mock_regressor_model
+    ):
+        """Test predict_dist delegates to the resolved model's predict_dist."""
+        mock_regressor_model.predict_dist.return_value = "fake_dist"
+        evaluator = MedpipeRegressorEvaluator(mock_orchestrator, mock_regressor_runner)
+
+        X = pd.DataFrame({"a": [1, 2]})
+        result = evaluator.predict_dist(X, outcome="LOS_DAYS")
+
+        assert result == "fake_dist"
+        mock_regressor_model.predict_dist.assert_called_once_with(X)
+
+    def test_predict_dist_missing_method_attribute_error(
+        self, mock_orchestrator, mock_regressor_runner
+    ):
+        """Test AttributeError raised when target model lacks predict_dist."""
+        evaluator = MedpipeRegressorEvaluator(mock_orchestrator, mock_regressor_runner)
+        bad_model = object()
+
+        with pytest.raises(
+            AttributeError, match="model does not implement 'predict_dist'"
+        ):
+            evaluator.predict_dist(pd.DataFrame(), model=bad_model)
+
     def test_evaluate_rmse_mae_not_rounded(
         self,
         mock_orchestrator,
