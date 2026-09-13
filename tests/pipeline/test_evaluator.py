@@ -1,5 +1,5 @@
 """
-Unit tests for medpipe.evaluator.MedpipeEvaluator.
+Unit tests for medpipe.evaluator.MedpipeClassifierEvaluator.
 """
 
 from unittest.mock import MagicMock, patch
@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from medpipe.pipeline.evaluator import MedpipeEvaluator
+from medpipe.pipeline.evaluator import MedpipeClassifierEvaluator
 
 # --- Fixtures ---
 
@@ -47,7 +47,7 @@ def mock_model():
 
 @pytest.fixture
 def mock_runner(mock_model):
-    """Fixture providing a mock MedpipeRunner containing fitted models."""
+    """Fixture providing a mock MedpipeClassifierRunner containing fitted models."""
     runner = MagicMock()
     runner.fitted_models = {"MORTALITY_30D": mock_model}
     return runner
@@ -72,11 +72,11 @@ def sample_data():
 
 
 class TestMedpipeEvaluatorInit:
-    """Tests for MedpipeEvaluator.__init__."""
+    """Tests for MedpipeClassifierEvaluator.__init__."""
 
     def test_init_success(self, mock_orchestrator, mock_runner):
         """Test initialization when explicit metrics list is supplied."""
-        evaluator = MedpipeEvaluator(
+        evaluator = MedpipeClassifierEvaluator(
             orchestrator=mock_orchestrator,
             runner=mock_runner,
         )
@@ -89,13 +89,13 @@ class TestMedpipeEvaluatorInit:
 
 
 class TestMedpipeEvaluatorGetModel:
-    """Tests for MedpipeEvaluator._get_model."""
+    """Tests for MedpipeClassifierEvaluator._get_model."""
 
     def test_get_model_explicit_instance(
         self, mock_orchestrator, mock_runner, mock_model
     ):
         """Test resolving model when an explicit model instance is passed."""
-        evaluator = MedpipeEvaluator(mock_orchestrator, mock_runner)
+        evaluator = MedpipeClassifierEvaluator(mock_orchestrator, mock_runner)
         explicit_model = MagicMock()
 
         resolved = evaluator._get_model(model=explicit_model, outcome="ignored")
@@ -105,7 +105,7 @@ class TestMedpipeEvaluatorGetModel:
         self, mock_orchestrator, mock_runner, mock_model
     ):
         """Test resolving model via outcome key lookup in runner.fitted_models."""
-        evaluator = MedpipeEvaluator(mock_orchestrator, mock_runner)
+        evaluator = MedpipeClassifierEvaluator(mock_orchestrator, mock_runner)
 
         resolved = evaluator._get_model(outcome="MORTALITY_30D")
         assert resolved == mock_model
@@ -113,7 +113,7 @@ class TestMedpipeEvaluatorGetModel:
     def test_get_model_by_outcome_key_error(self, mock_orchestrator, mock_runner):
         """Test KeyError raised when specified outcome key is absent in
         fitted_models."""
-        evaluator = MedpipeEvaluator(mock_orchestrator, mock_runner)
+        evaluator = MedpipeClassifierEvaluator(mock_orchestrator, mock_runner)
 
         with pytest.raises(KeyError, match="Outcome 'non_existent' not found"):
             evaluator._get_model(outcome="non_existent")
@@ -123,7 +123,7 @@ class TestMedpipeEvaluatorGetModel:
     ):
         """Test resolving single fitted model implicitly when outcome and
         model are None."""
-        evaluator = MedpipeEvaluator(mock_orchestrator, mock_runner)
+        evaluator = MedpipeClassifierEvaluator(mock_orchestrator, mock_runner)
 
         resolved = evaluator._get_model()
         assert resolved == mock_model
@@ -137,21 +137,21 @@ class TestMedpipeEvaluatorGetModel:
             "MORTALITY_30D": MagicMock(),
             "mortality_90d": MagicMock(),
         }
-        evaluator = MedpipeEvaluator(mock_orchestrator, mock_runner)
+        evaluator = MedpipeClassifierEvaluator(mock_orchestrator, mock_runner)
 
         with pytest.raises(ValueError, match="Multiple models found"):
             evaluator._get_model()
 
 
 class TestMedpipeEvaluatorPredict:
-    """Tests for MedpipeEvaluator.predict."""
+    """Tests for MedpipeClassifierEvaluator.predict."""
 
     def test_predict_success(
         self, mock_orchestrator, mock_runner, mock_model, sample_data
     ):
         """Test predict method success returning ndarray."""
         X, _ = sample_data
-        evaluator = MedpipeEvaluator(mock_orchestrator, mock_runner)
+        evaluator = MedpipeClassifierEvaluator(mock_orchestrator, mock_runner)
 
         preds = evaluator.predict(X, outcome="MORTALITY_30D")
 
@@ -165,21 +165,21 @@ class TestMedpipeEvaluatorPredict:
         """Test AttributeError raised when target model lacks predict method."""
         X, _ = sample_data
         bad_model = object()  # Lacks predict method
-        evaluator = MedpipeEvaluator(mock_orchestrator, mock_runner)
+        evaluator = MedpipeClassifierEvaluator(mock_orchestrator, mock_runner)
 
         with pytest.raises(AttributeError, match="model does not implement 'predict'"):
             evaluator.predict(X, model=bad_model)
 
 
 class TestMedpipeEvaluatorPredictProba:
-    """Tests for MedpipeEvaluator.predict_proba."""
+    """Tests for MedpipeClassifierEvaluator.predict_proba."""
 
     def test_predict_proba_success(
         self, mock_orchestrator, mock_runner, mock_model, sample_data
     ):
         """Test predict_proba method success returning ndarray."""
         X, _ = sample_data
-        evaluator = MedpipeEvaluator(mock_orchestrator, mock_runner)
+        evaluator = MedpipeClassifierEvaluator(mock_orchestrator, mock_runner)
 
         probas = evaluator.predict_proba(X, outcome="MORTALITY_30D")
 
@@ -193,7 +193,7 @@ class TestMedpipeEvaluatorPredictProba:
         """Test AttributeError raised when target model lacks predict_proba method."""
         X, _ = sample_data
         bad_model = object()
-        evaluator = MedpipeEvaluator(mock_orchestrator, mock_runner)
+        evaluator = MedpipeClassifierEvaluator(mock_orchestrator, mock_runner)
 
         with pytest.raises(
             AttributeError, match="model does not implement 'predict_proba'"
@@ -202,14 +202,14 @@ class TestMedpipeEvaluatorPredictProba:
 
 
 class TestMedpipeEvaluatorDecisionFunction:
-    """Tests for MedpipeEvaluator.decision_function."""
+    """Tests for MedpipeClassifierEvaluator.decision_function."""
 
     def test_decision_function_success(
         self, mock_orchestrator, mock_runner, mock_model, sample_data
     ):
         """Test decision_function method success returning ndarray."""
         X, _ = sample_data
-        evaluator = MedpipeEvaluator(mock_orchestrator, mock_runner)
+        evaluator = MedpipeClassifierEvaluator(mock_orchestrator, mock_runner)
 
         scores = evaluator.decision_function(X, outcome="MORTALITY_30D")
 
@@ -224,7 +224,7 @@ class TestMedpipeEvaluatorDecisionFunction:
         decision_function method."""
         X, _ = sample_data
         bad_model = object()
-        evaluator = MedpipeEvaluator(mock_orchestrator, mock_runner)
+        evaluator = MedpipeClassifierEvaluator(mock_orchestrator, mock_runner)
 
         with pytest.raises(
             AttributeError, match="model does not implement 'decision_function'"
@@ -233,14 +233,14 @@ class TestMedpipeEvaluatorDecisionFunction:
 
 
 class TestMedpipeEvaluatorExtractSubgroups:
-    """Tests for MedpipeEvaluator.extract_subgroups."""
+    """Tests for MedpipeClassifierEvaluator.extract_subgroups."""
 
     def test_extract_subgroups_string_spec_success(
         self, mock_orchestrator, mock_runner, sample_data
     ):
         """Test subgroup extraction using column string categorical groupby."""
         X, _ = sample_data
-        evaluator = MedpipeEvaluator(mock_orchestrator, mock_runner)
+        evaluator = MedpipeClassifierEvaluator(mock_orchestrator, mock_runner)
 
         specs = {"sex_group": "sex"}
         subgroups = evaluator.extract_subgroups(X, specs)  # type: ignore
@@ -255,7 +255,7 @@ class TestMedpipeEvaluatorExtractSubgroups:
     ):
         """Test subgroup extraction using a list of numerical range bounds."""
         X, _ = sample_data
-        evaluator = MedpipeEvaluator(mock_orchestrator, mock_runner)
+        evaluator = MedpipeClassifierEvaluator(mock_orchestrator, mock_runner)
 
         specs = {"age": [[18, 50], [51, 120]]}
         subgroups = evaluator.extract_subgroups(X, specs)  # type: ignore
@@ -276,7 +276,7 @@ class TestMedpipeEvaluatorExtractSubgroups:
     ):
         """Test subgroup extraction using predicate callable grouping."""
         X, _ = sample_data
-        evaluator = MedpipeEvaluator(mock_orchestrator, mock_runner)
+        evaluator = MedpipeClassifierEvaluator(mock_orchestrator, mock_runner)
 
         specs = {"elderly": lambda df: df["age"] >= 65}
         subgroups = evaluator.extract_subgroups(X, specs)
@@ -296,7 +296,7 @@ class TestMedpipeEvaluatorExtractSubgroups:
         """Test that a callable returning a plain numpy array (not a
         pd.Series) is wrapped correctly before indexing."""
         X, _ = sample_data
-        evaluator = MedpipeEvaluator(mock_orchestrator, mock_runner)
+        evaluator = MedpipeClassifierEvaluator(mock_orchestrator, mock_runner)
 
         specs = {"elderly": lambda df: (df["age"] >= 65).to_numpy()}
         subgroups = evaluator.extract_subgroups(X, specs)
@@ -320,7 +320,7 @@ class TestMedpipeEvaluatorExtractSubgroups:
             {"ethnicity": ["Maori", "Pacific", "European", "Maori"]},
             index=pd.Index([101, 102, 103, 104]),
         )
-        evaluator = MedpipeEvaluator(mock_orchestrator, mock_runner)
+        evaluator = MedpipeClassifierEvaluator(mock_orchestrator, mock_runner)
 
         specs = {"ethnicity": ["Maori", "Pacific"]}
         subgroups = evaluator.extract_subgroups(X, specs)  # type: ignore
@@ -339,7 +339,7 @@ class TestMedpipeEvaluatorExtractSubgroups:
         """Test subgroup extraction falling back to resolve_subgroup_mask for
         non-column specs."""
         X, _ = sample_data
-        evaluator = MedpipeEvaluator(mock_orchestrator, mock_runner)
+        evaluator = MedpipeClassifierEvaluator(mock_orchestrator, mock_runner)
 
         specs = {"sex": "M"}
         subgroups = evaluator.extract_subgroups(X, specs)  # type: ignore
@@ -350,7 +350,7 @@ class TestMedpipeEvaluatorExtractSubgroups:
 
 
 class TestMedpipeEvaluatorEvaluateSlice:
-    """Tests for MedpipeEvaluator._evaluate_slice."""
+    """Tests for MedpipeClassifierEvaluator._evaluate_slice."""
 
     @patch("medpipe.pipeline.evaluator.bootstrap_confidence_intervals")
     def test_evaluate_slice_bootstrap_success(
@@ -366,7 +366,7 @@ class TestMedpipeEvaluatorEvaluateSlice:
         }
         mock_bootstrap.return_value = expected_results
 
-        evaluator = MedpipeEvaluator(mock_orchestrator, mock_runner)
+        evaluator = MedpipeClassifierEvaluator(mock_orchestrator, mock_runner)
         y_true = np.array([0, 1, 1, 0])
         y_pred = np.array([0.1, 0.8, 0.9, 0.2])
 
@@ -382,7 +382,7 @@ class TestMedpipeEvaluatorEvaluateSlice:
         mock_bootstrap.side_effect = RuntimeError("Resampling failed")
         mock_compute.return_value = [0.85]
 
-        evaluator = MedpipeEvaluator(mock_orchestrator, mock_runner)
+        evaluator = MedpipeClassifierEvaluator(mock_orchestrator, mock_runner)
         y_true = np.array([0, 1, 1, 0])
         y_pred = np.array([0.1, 0.8, 0.9, 0.2])
 
@@ -403,7 +403,7 @@ class TestMedpipeEvaluatorEvaluateSlice:
         mock_bootstrap.side_effect = RuntimeError("Resampling failed")
         mock_compute.side_effect = ValueError("Calculation error")
 
-        evaluator = MedpipeEvaluator(mock_orchestrator, mock_runner)
+        evaluator = MedpipeClassifierEvaluator(mock_orchestrator, mock_runner)
         results = evaluator._evaluate_slice(
             np.array([0]), np.array([0.1]), metrics=["roc_auc"]
         )
@@ -415,10 +415,10 @@ class TestMedpipeEvaluatorEvaluateSlice:
 
 
 class TestMedpipeEvaluatorEvaluate:
-    """Tests for MedpipeEvaluator.evaluate."""
+    """Tests for MedpipeClassifierEvaluator.evaluate."""
 
-    @patch.object(MedpipeEvaluator, "_evaluate_slice")
-    @patch.object(MedpipeEvaluator, "_save_evaluation_artifacts")
+    @patch.object(MedpipeClassifierEvaluator, "_evaluate_slice")
+    @patch.object(MedpipeClassifierEvaluator, "_save_evaluation_artifacts")
     def test_evaluate_overall_only_proba_model(
         self,
         mock_save,
@@ -434,7 +434,7 @@ class TestMedpipeEvaluatorEvaluate:
             "accuracy": {"point_estimate": 1.0, "ci_lower": 1.0, "ci_upper": 1.0}
         }
 
-        evaluator = MedpipeEvaluator(mock_orchestrator, mock_runner)
+        evaluator = MedpipeClassifierEvaluator(mock_orchestrator, mock_runner)
         res = evaluator.evaluate(X, y, outcome="MORTALITY_30D", save_artifacts=False)
 
         assert res["outcome"] == "MORTALITY_30D"
@@ -443,7 +443,7 @@ class TestMedpipeEvaluatorEvaluate:
         mock_model.predict_proba.assert_called_once()
         mock_save.assert_not_called()
 
-    @patch.object(MedpipeEvaluator, "_evaluate_slice")
+    @patch.object(MedpipeClassifierEvaluator, "_evaluate_slice")
     def test_evaluate_fallback_to_decision_function(
         self, mock_eval_slice, mock_orchestrator, mock_runner, sample_data
     ):
@@ -454,7 +454,7 @@ class TestMedpipeEvaluatorEvaluate:
         df_model.decision_function.return_value = np.array([-1.0, 1.0, 1.0, -1.0])
 
         mock_eval_slice.return_value = {}
-        evaluator = MedpipeEvaluator(mock_orchestrator, mock_runner)
+        evaluator = MedpipeClassifierEvaluator(mock_orchestrator, mock_runner)
 
         res = evaluator.evaluate(
             X, y, model=df_model, outcome="custom", save_artifacts=False
@@ -463,7 +463,7 @@ class TestMedpipeEvaluatorEvaluate:
         assert res["outcome"] == "custom"
         df_model.decision_function.assert_called_once_with(X)
 
-    @patch.object(MedpipeEvaluator, "_evaluate_slice")
+    @patch.object(MedpipeClassifierEvaluator, "_evaluate_slice")
     def test_evaluate_fallback_to_predict(
         self, mock_eval_slice, mock_orchestrator, mock_runner, sample_data
     ):
@@ -474,7 +474,7 @@ class TestMedpipeEvaluatorEvaluate:
         predict_model.predict.return_value = np.array([0, 1, 1, 0])
 
         mock_eval_slice.return_value = {}
-        evaluator = MedpipeEvaluator(mock_orchestrator, mock_runner)
+        evaluator = MedpipeClassifierEvaluator(mock_orchestrator, mock_runner)
 
         res = evaluator.evaluate(
             X, y, model=predict_model, outcome="custom", save_artifacts=False
@@ -483,8 +483,8 @@ class TestMedpipeEvaluatorEvaluate:
         assert res["outcome"] == "custom"
         predict_model.predict.assert_called_once_with(X)
 
-    @patch.object(MedpipeEvaluator, "_evaluate_slice")
-    @patch.object(MedpipeEvaluator, "_save_evaluation_artifacts")
+    @patch.object(MedpipeClassifierEvaluator, "_evaluate_slice")
+    @patch.object(MedpipeClassifierEvaluator, "_save_evaluation_artifacts")
     def test_evaluate_with_subgroups_and_empty_group_handling(
         self,
         mock_save,
@@ -498,7 +498,7 @@ class TestMedpipeEvaluatorEvaluate:
         X, y = sample_data
         mock_eval_slice.return_value = {"accuracy": {"point_estimate": 0.8}}
 
-        evaluator = MedpipeEvaluator(mock_orchestrator, mock_runner)
+        evaluator = MedpipeClassifierEvaluator(mock_orchestrator, mock_runner)
 
         subgroup_specs = {
             "sex": "sex",
@@ -527,11 +527,11 @@ class TestMedpipeEvaluatorEvaluate:
 
 
 class TestMedpipeEvaluatorSaveEvaluationArtifacts:
-    """Tests for MedpipeEvaluator._save_evaluation_artifacts."""
+    """Tests for MedpipeClassifierEvaluator._save_evaluation_artifacts."""
 
     def test_save_evaluation_artifacts_success(self, mock_orchestrator, mock_runner):
         """Test persisting evaluation results to disk via ArtifactManager."""
-        evaluator = MedpipeEvaluator(mock_orchestrator, mock_runner)
+        evaluator = MedpipeClassifierEvaluator(mock_orchestrator, mock_runner)
         results = {"outcome": "MORTALITY_30D", "overall": {}}
 
         saved_path = evaluator._save_evaluation_artifacts(

@@ -1,5 +1,5 @@
 """
-Shared fixtures for the MedpipeDisplayer test suite.
+Shared fixtures for the MedpipeClassifierDisplayer test suite.
 """
 
 from collections.abc import Generator

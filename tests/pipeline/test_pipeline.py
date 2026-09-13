@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from medpipe.pipeline.pipeline import Medpipe
+from medpipe.pipeline.pipeline import MedpipeClassifier
 from medpipe.utils.config import MedpipeConfig
 from medpipe.utils.io import read_toml_configuration
 
@@ -21,16 +21,16 @@ class TestMedpipeUnit:
     """Unit tests verifying orchestration delegation and argument routing."""
 
     @patch("medpipe.pipeline.pipeline.MedpipeOrchestrator")
-    @patch("medpipe.pipeline.pipeline.MedpipeRunner")
-    @patch("medpipe.pipeline.pipeline.MedpipeEvaluator")
+    @patch("medpipe.pipeline.pipeline.MedpipeClassifierRunner")
+    @patch("medpipe.pipeline.pipeline.MedpipeClassifierEvaluator")
     def test_medpipe_initialization(
         self, mock_eval_cls, mock_runner_cls, mock_orch_cls
     ):
-        """Verify Medpipe initializes sub-orchestrators correctly."""
+        """Verify MedpipeClassifier initializes sub-orchestrators correctly."""
         mock_config = MagicMock(spec=MedpipeConfig)
         mock_orch_instance = mock_orch_cls.return_value
 
-        mp = Medpipe(config=mock_config)
+        mp = MedpipeClassifier(config=mock_config)
 
         mock_orch_cls.assert_called_once_with(mock_config, "artifacts", None)
         mock_runner_cls.assert_called_once_with(orchestrator=mock_orch_instance)
@@ -40,12 +40,12 @@ class TestMedpipeUnit:
         assert mp.mp_config == mock_orch_instance.config
 
     @patch("medpipe.pipeline.pipeline.MedpipeOrchestrator")
-    @patch("medpipe.pipeline.pipeline.MedpipeRunner")
-    @patch("medpipe.pipeline.pipeline.MedpipeEvaluator")
+    @patch("medpipe.pipeline.pipeline.MedpipeClassifierRunner")
+    @patch("medpipe.pipeline.pipeline.MedpipeClassifierEvaluator")
     def test_inference_delegation(self, mock_eval_cls, mock_runner_cls, mock_orch_cls):
         """Verify predict, predict_proba, and decision_function delegate to
         evaluator."""
-        mp = Medpipe(config=MagicMock())
+        mp = MedpipeClassifier(config=MagicMock())
         X = pd.DataFrame({"A": [1, 2]})
 
         mp.predict(X, outcome="MORTALITY")
@@ -64,13 +64,13 @@ class TestMedpipeUnit:
         )
 
     @patch("medpipe.pipeline.pipeline.MedpipeOrchestrator")
-    @patch("medpipe.pipeline.pipeline.MedpipeRunner")
-    @patch("medpipe.pipeline.pipeline.MedpipeEvaluator")
+    @patch("medpipe.pipeline.pipeline.MedpipeClassifierRunner")
+    @patch("medpipe.pipeline.pipeline.MedpipeClassifierEvaluator")
     def test_evaluate_y_dataframe_resolution(
         self, mock_eval_cls, mock_runner_cls, mock_orch_cls
     ):
         """Verify y DataFrame slicing resolution logic in evaluate()."""
-        mp = Medpipe(config=MagicMock())
+        mp = MedpipeClassifier(config=MagicMock())
         X = pd.DataFrame({"AGE": [50, 60]})
         y_df = pd.DataFrame(
             {
@@ -92,84 +92,84 @@ class TestMedpipeUnit:
 
 
 class TestMedpipeProperties:
-    """Unit tests for Medpipe's thin delegating properties: models,
+    """Unit tests for MedpipeClassifier's thin delegating properties: models,
     is_fitted, run_dir, data_split, and metrics."""
 
-    @patch("medpipe.pipeline.pipeline.MedpipeDisplayer")
-    @patch("medpipe.pipeline.pipeline.MedpipeEvaluator")
-    @patch("medpipe.pipeline.pipeline.MedpipeRunner")
+    @patch("medpipe.pipeline.pipeline.MedpipeClassifierDisplayer")
+    @patch("medpipe.pipeline.pipeline.MedpipeClassifierEvaluator")
+    @patch("medpipe.pipeline.pipeline.MedpipeClassifierRunner")
     @patch("medpipe.pipeline.pipeline.MedpipeOrchestrator")
     def test_models_returns_runner_fitted_models(
         self, mock_orch_cls, mock_runner_cls, mock_eval_cls, mock_displayer_cls
     ):
         """Test that models delegates to runner.fitted_models."""
-        mp = Medpipe(config=MagicMock())
+        mp = MedpipeClassifier(config=MagicMock())
         mp._runner.fitted_models = {"MORTALITY_30D": "a_model"}
 
         assert mp.models == {"MORTALITY_30D": "a_model"}
 
-    @patch("medpipe.pipeline.pipeline.MedpipeDisplayer")
-    @patch("medpipe.pipeline.pipeline.MedpipeEvaluator")
-    @patch("medpipe.pipeline.pipeline.MedpipeRunner")
+    @patch("medpipe.pipeline.pipeline.MedpipeClassifierDisplayer")
+    @patch("medpipe.pipeline.pipeline.MedpipeClassifierEvaluator")
+    @patch("medpipe.pipeline.pipeline.MedpipeClassifierRunner")
     @patch("medpipe.pipeline.pipeline.MedpipeOrchestrator")
     def test_is_fitted_false_when_no_models(
         self, mock_orch_cls, mock_runner_cls, mock_eval_cls, mock_displayer_cls
     ):
         """Test that is_fitted is False when fitted_models is empty."""
-        mp = Medpipe(config=MagicMock())
+        mp = MedpipeClassifier(config=MagicMock())
         mp._runner.fitted_models = {}
 
         assert mp.is_fitted is False
 
-    @patch("medpipe.pipeline.pipeline.MedpipeDisplayer")
-    @patch("medpipe.pipeline.pipeline.MedpipeEvaluator")
-    @patch("medpipe.pipeline.pipeline.MedpipeRunner")
+    @patch("medpipe.pipeline.pipeline.MedpipeClassifierDisplayer")
+    @patch("medpipe.pipeline.pipeline.MedpipeClassifierEvaluator")
+    @patch("medpipe.pipeline.pipeline.MedpipeClassifierRunner")
     @patch("medpipe.pipeline.pipeline.MedpipeOrchestrator")
     def test_is_fitted_true_when_models_present(
         self, mock_orch_cls, mock_runner_cls, mock_eval_cls, mock_displayer_cls
     ):
         """Test that is_fitted is True once fitted_models is populated."""
-        mp = Medpipe(config=MagicMock())
+        mp = MedpipeClassifier(config=MagicMock())
         mp._runner.fitted_models = {"MORTALITY_30D": "a_model"}
 
         assert mp.is_fitted is True
 
-    @patch("medpipe.pipeline.pipeline.MedpipeDisplayer")
-    @patch("medpipe.pipeline.pipeline.MedpipeEvaluator")
-    @patch("medpipe.pipeline.pipeline.MedpipeRunner")
+    @patch("medpipe.pipeline.pipeline.MedpipeClassifierDisplayer")
+    @patch("medpipe.pipeline.pipeline.MedpipeClassifierEvaluator")
+    @patch("medpipe.pipeline.pipeline.MedpipeClassifierRunner")
     @patch("medpipe.pipeline.pipeline.MedpipeOrchestrator")
     def test_run_dir_returns_orchestrator_run_dir(
         self, mock_orch_cls, mock_runner_cls, mock_eval_cls, mock_displayer_cls
     ):
         """Test that run_dir delegates to orchestrator.run_dir."""
-        mp = Medpipe(config=MagicMock())
+        mp = MedpipeClassifier(config=MagicMock())
         mp._orchestrator.run_dir = Path("/fake/run/dir")
 
         assert mp.run_dir == Path("/fake/run/dir")
 
-    @patch("medpipe.pipeline.pipeline.MedpipeDisplayer")
-    @patch("medpipe.pipeline.pipeline.MedpipeEvaluator")
-    @patch("medpipe.pipeline.pipeline.MedpipeRunner")
+    @patch("medpipe.pipeline.pipeline.MedpipeClassifierDisplayer")
+    @patch("medpipe.pipeline.pipeline.MedpipeClassifierEvaluator")
+    @patch("medpipe.pipeline.pipeline.MedpipeClassifierRunner")
     @patch("medpipe.pipeline.pipeline.MedpipeOrchestrator")
     def test_data_split_returns_orchestrator_splits(
         self, mock_orch_cls, mock_runner_cls, mock_eval_cls, mock_displayer_cls
     ):
         """Test that data_split delegates to orchestrator.splits."""
-        mp = Medpipe(config=MagicMock())
+        mp = MedpipeClassifier(config=MagicMock())
         sentinel_splits = MagicMock()
         mp._orchestrator.splits = sentinel_splits
 
         assert mp.data_split is sentinel_splits
 
-    @patch("medpipe.pipeline.pipeline.MedpipeDisplayer")
-    @patch("medpipe.pipeline.pipeline.MedpipeEvaluator")
-    @patch("medpipe.pipeline.pipeline.MedpipeRunner")
+    @patch("medpipe.pipeline.pipeline.MedpipeClassifierDisplayer")
+    @patch("medpipe.pipeline.pipeline.MedpipeClassifierEvaluator")
+    @patch("medpipe.pipeline.pipeline.MedpipeClassifierRunner")
     @patch("medpipe.pipeline.pipeline.MedpipeOrchestrator")
     def test_metrics_returns_evaluator_metrics(
         self, mock_orch_cls, mock_runner_cls, mock_eval_cls, mock_displayer_cls
     ):
         """Test that metrics delegates to evaluator.metrics."""
-        mp = Medpipe(config=MagicMock())
+        mp = MedpipeClassifier(config=MagicMock())
         mp._evaluator.metrics = ["roc_auc", "ici"]
 
         assert mp.metrics == ["roc_auc", "ici"]
@@ -177,17 +177,17 @@ class TestMedpipeProperties:
 
 class TestMedpipeFit:
     """Unit tests verifying orchestration delegation and argument routing in
-    Medpipe.fit."""
+    MedpipeClassifier.fit."""
 
-    @patch("medpipe.pipeline.pipeline.MedpipeDisplayer")
-    @patch("medpipe.pipeline.pipeline.MedpipeEvaluator")
-    @patch("medpipe.pipeline.pipeline.MedpipeRunner")
+    @patch("medpipe.pipeline.pipeline.MedpipeClassifierDisplayer")
+    @patch("medpipe.pipeline.pipeline.MedpipeClassifierEvaluator")
+    @patch("medpipe.pipeline.pipeline.MedpipeClassifierRunner")
     @patch("medpipe.pipeline.pipeline.MedpipeOrchestrator")
     def test_fit_delegation_with_all_arguments(
         self, mock_orch_cls, mock_runner_cls, mock_eval_cls, mock_displayer_cls
     ):
         """Verify fit() delegates to runner.run() with complete parameter mappings."""
-        mp = Medpipe(config=MagicMock())
+        mp = MedpipeClassifier(config=MagicMock())
 
         # Sample datasets
         X_train = pd.DataFrame({"AGE": [50, 60], "BMI": [22.5, 28.1]})
@@ -219,16 +219,16 @@ class TestMedpipeFit:
         )
         assert result == expected_fitted_models
 
-    @patch("medpipe.pipeline.pipeline.MedpipeDisplayer")
-    @patch("medpipe.pipeline.pipeline.MedpipeEvaluator")
-    @patch("medpipe.pipeline.pipeline.MedpipeRunner")
+    @patch("medpipe.pipeline.pipeline.MedpipeClassifierDisplayer")
+    @patch("medpipe.pipeline.pipeline.MedpipeClassifierEvaluator")
+    @patch("medpipe.pipeline.pipeline.MedpipeClassifierRunner")
     @patch("medpipe.pipeline.pipeline.MedpipeOrchestrator")
     def test_fit_delegation_with_defaults(
         self, mock_orch_cls, mock_runner_cls, mock_eval_cls, mock_displayer_cls
     ):
         """Verify fit() passes None defaults for optional recalibration and
         group parameters."""
-        mp = Medpipe(config=MagicMock())
+        mp = MedpipeClassifier(config=MagicMock())
 
         X_train = pd.DataFrame({"AGE": [50, 60]})
         y_train = pd.DataFrame({"MORTALITY_30D": [0, 1]})
@@ -248,17 +248,18 @@ class TestMedpipeFit:
 
 
 class TestMedpipePredict:
-    """Unit tests verifying delegation and parameter passing in Medpipe.predict."""
+    """Unit tests verifying delegation and parameter passing in
+    MedpipeClassifier.predict."""
 
-    @patch("medpipe.pipeline.pipeline.MedpipeDisplayer")
-    @patch("medpipe.pipeline.pipeline.MedpipeEvaluator")
-    @patch("medpipe.pipeline.pipeline.MedpipeRunner")
+    @patch("medpipe.pipeline.pipeline.MedpipeClassifierDisplayer")
+    @patch("medpipe.pipeline.pipeline.MedpipeClassifierEvaluator")
+    @patch("medpipe.pipeline.pipeline.MedpipeClassifierRunner")
     @patch("medpipe.pipeline.pipeline.MedpipeOrchestrator")
     def test_predict_delegation_with_dataframe(
         self, mock_orch_cls, mock_runner_cls, mock_eval_cls, mock_displayer_cls
     ):
         """Verify predict passes DataFrame inputs and outcome kwargs to evaluator."""
-        mp = Medpipe(config=MagicMock())
+        mp = MedpipeClassifier(config=MagicMock())
         X = pd.DataFrame({"AGE": [50, 60], "BMI": [22.5, 28.1]})
         expected_preds = np.array([0, 1])
         mp._evaluator.predict.return_value = expected_preds
@@ -270,15 +271,15 @@ class TestMedpipePredict:
         )
         np.testing.assert_array_equal(preds, expected_preds)
 
-    @patch("medpipe.pipeline.pipeline.MedpipeDisplayer")
-    @patch("medpipe.pipeline.pipeline.MedpipeEvaluator")
-    @patch("medpipe.pipeline.pipeline.MedpipeRunner")
+    @patch("medpipe.pipeline.pipeline.MedpipeClassifierDisplayer")
+    @patch("medpipe.pipeline.pipeline.MedpipeClassifierEvaluator")
+    @patch("medpipe.pipeline.pipeline.MedpipeClassifierRunner")
     @patch("medpipe.pipeline.pipeline.MedpipeOrchestrator")
     def test_predict_delegation_with_explicit_model_and_ndarray(
         self, mock_orch_cls, mock_runner_cls, mock_eval_cls, mock_displayer_cls
     ):
         """Verify predict forwards explicit model instances and numpy arrays."""
-        mp = Medpipe(config=MagicMock())
+        mp = MedpipeClassifier(config=MagicMock())
         X = np.array([[50, 22.5], [60, 28.1]])
         mock_model = MagicMock()
         expected_preds = np.array([1, 0])
@@ -294,17 +295,17 @@ class TestMedpipePredict:
 
 class TestMedpipePredictProba:
     """Unit tests verifying delegation and parameter passing in
-    Medpipe.predict_proba."""
+    MedpipeClassifier.predict_proba."""
 
-    @patch("medpipe.pipeline.pipeline.MedpipeDisplayer")
-    @patch("medpipe.pipeline.pipeline.MedpipeEvaluator")
-    @patch("medpipe.pipeline.pipeline.MedpipeRunner")
+    @patch("medpipe.pipeline.pipeline.MedpipeClassifierDisplayer")
+    @patch("medpipe.pipeline.pipeline.MedpipeClassifierEvaluator")
+    @patch("medpipe.pipeline.pipeline.MedpipeClassifierRunner")
     @patch("medpipe.pipeline.pipeline.MedpipeOrchestrator")
     def test_predict_proba_delegation_with_outcome(
         self, mock_orch_cls, mock_runner_cls, mock_eval_cls, mock_displayer_cls
     ):
         """Verify predict_proba delegates correctly when outcome target is specified."""
-        mp = Medpipe(config=MagicMock())
+        mp = MedpipeClassifier(config=MagicMock())
         X = pd.DataFrame({"AGE": [50, 60]})
         expected_probas = np.array([[0.8, 0.2], [0.3, 0.7]])
         mp._evaluator.predict_proba.return_value = expected_probas
@@ -316,16 +317,16 @@ class TestMedpipePredictProba:
         )
         np.testing.assert_array_equal(probas, expected_probas)
 
-    @patch("medpipe.pipeline.pipeline.MedpipeDisplayer")
-    @patch("medpipe.pipeline.pipeline.MedpipeEvaluator")
-    @patch("medpipe.pipeline.pipeline.MedpipeRunner")
+    @patch("medpipe.pipeline.pipeline.MedpipeClassifierDisplayer")
+    @patch("medpipe.pipeline.pipeline.MedpipeClassifierEvaluator")
+    @patch("medpipe.pipeline.pipeline.MedpipeClassifierRunner")
     @patch("medpipe.pipeline.pipeline.MedpipeOrchestrator")
     def test_predict_proba_delegation_with_defaults(
         self, mock_orch_cls, mock_runner_cls, mock_eval_cls, mock_displayer_cls
     ):
         """Verify predict_proba passes None defaults when model and outcome
         are omitted."""
-        mp = Medpipe(config=MagicMock())
+        mp = MedpipeClassifier(config=MagicMock())
         X = pd.DataFrame({"AGE": [50]})
         expected_probas = np.array([0.15])
         mp._evaluator.predict_proba.return_value = expected_probas
@@ -340,17 +341,17 @@ class TestMedpipePredictProba:
 
 class TestMedpipeDecisionFunction:
     """Unit tests verifying delegation and parameter passing in
-    Medpipe.decision_function."""
+    MedpipeClassifier.decision_function."""
 
-    @patch("medpipe.pipeline.pipeline.MedpipeDisplayer")
-    @patch("medpipe.pipeline.pipeline.MedpipeEvaluator")
-    @patch("medpipe.pipeline.pipeline.MedpipeRunner")
+    @patch("medpipe.pipeline.pipeline.MedpipeClassifierDisplayer")
+    @patch("medpipe.pipeline.pipeline.MedpipeClassifierEvaluator")
+    @patch("medpipe.pipeline.pipeline.MedpipeClassifierRunner")
     @patch("medpipe.pipeline.pipeline.MedpipeOrchestrator")
     def test_decision_function_delegation_with_outcome(
         self, mock_orch_cls, mock_runner_cls, mock_eval_cls, mock_displayer_cls
     ):
         """Verify decision_function forwards target outcome identifier to evaluator."""
-        mp = Medpipe(config=MagicMock())
+        mp = MedpipeClassifier(config=MagicMock())
         X = pd.DataFrame({"AGE": [50, 60]})
         expected_scores = np.array([-1.2, 2.4])
         mp._evaluator.decision_function.return_value = expected_scores
@@ -362,15 +363,15 @@ class TestMedpipeDecisionFunction:
         )
         np.testing.assert_array_equal(scores, expected_scores)
 
-    @patch("medpipe.pipeline.pipeline.MedpipeDisplayer")
-    @patch("medpipe.pipeline.pipeline.MedpipeEvaluator")
-    @patch("medpipe.pipeline.pipeline.MedpipeRunner")
+    @patch("medpipe.pipeline.pipeline.MedpipeClassifierDisplayer")
+    @patch("medpipe.pipeline.pipeline.MedpipeClassifierEvaluator")
+    @patch("medpipe.pipeline.pipeline.MedpipeClassifierRunner")
     @patch("medpipe.pipeline.pipeline.MedpipeOrchestrator")
     def test_decision_function_delegation_with_explicit_model(
         self, mock_orch_cls, mock_runner_cls, mock_eval_cls, mock_displayer_cls
     ):
         """Verify decision_function passes explicit model override."""
-        mp = Medpipe(config=MagicMock())
+        mp = MedpipeClassifier(config=MagicMock())
         X = pd.DataFrame({"AGE": [50]})
         mock_model = MagicMock()
         expected_scores = np.array([0.85])
@@ -385,17 +386,18 @@ class TestMedpipeDecisionFunction:
 
 
 class TestMedpipeEvaluate:
-    """Unit tests verifying dataset resolution and delegation in Medpipe.evaluate."""
+    """Unit tests verifying dataset resolution and delegation in
+    MedpipeClassifier.evaluate."""
 
-    @patch("medpipe.pipeline.pipeline.MedpipeDisplayer")
-    @patch("medpipe.pipeline.pipeline.MedpipeEvaluator")
-    @patch("medpipe.pipeline.pipeline.MedpipeRunner")
+    @patch("medpipe.pipeline.pipeline.MedpipeClassifierDisplayer")
+    @patch("medpipe.pipeline.pipeline.MedpipeClassifierEvaluator")
+    @patch("medpipe.pipeline.pipeline.MedpipeClassifierRunner")
     @patch("medpipe.pipeline.pipeline.MedpipeOrchestrator")
     def test_evaluate_delegation_basic_series(
         self, mock_orch_cls, mock_runner_cls, mock_eval_cls, mock_displayer_cls
     ):
         """Verify evaluate forwards Series target and default kwargs to evaluator."""
-        mp = Medpipe(config=MagicMock())
+        mp = MedpipeClassifier(config=MagicMock())
         X = pd.DataFrame({"AGE": [50, 60]})
         y = pd.Series([0, 1], name="MORTALITY_30D")
         expected_eval = {"overall": {"roc_auc": 0.88}}
@@ -414,15 +416,15 @@ class TestMedpipeEvaluate:
         )
         assert results == expected_eval
 
-    @patch("medpipe.pipeline.pipeline.MedpipeDisplayer")
-    @patch("medpipe.pipeline.pipeline.MedpipeEvaluator")
-    @patch("medpipe.pipeline.pipeline.MedpipeRunner")
+    @patch("medpipe.pipeline.pipeline.MedpipeClassifierDisplayer")
+    @patch("medpipe.pipeline.pipeline.MedpipeClassifierEvaluator")
+    @patch("medpipe.pipeline.pipeline.MedpipeClassifierRunner")
     @patch("medpipe.pipeline.pipeline.MedpipeOrchestrator")
     def test_evaluate_y_dataframe_outcome_column_resolution(
         self, mock_orch_cls, mock_runner_cls, mock_eval_cls, mock_displayer_cls
     ):
         """Verify evaluate slices y DataFrame when outcome matches a column name."""
-        mp = Medpipe(config=MagicMock())
+        mp = MedpipeClassifier(config=MagicMock())
         X = pd.DataFrame({"AGE": [50, 60]})
         y_df = pd.DataFrame({"MORTALITY_30D": [0, 1], "READMISSION_90D": [1, 0]})
         mp._evaluator.evaluate.return_value = {}
@@ -432,16 +434,16 @@ class TestMedpipeEvaluate:
         _, kwargs = mp._evaluator.evaluate.call_args
         pd.testing.assert_series_equal(kwargs["y"], y_df["READMISSION_90D"])
 
-    @patch("medpipe.pipeline.pipeline.MedpipeDisplayer")
-    @patch("medpipe.pipeline.pipeline.MedpipeEvaluator")
-    @patch("medpipe.pipeline.pipeline.MedpipeRunner")
+    @patch("medpipe.pipeline.pipeline.MedpipeClassifierDisplayer")
+    @patch("medpipe.pipeline.pipeline.MedpipeClassifierEvaluator")
+    @patch("medpipe.pipeline.pipeline.MedpipeClassifierRunner")
     @patch("medpipe.pipeline.pipeline.MedpipeOrchestrator")
     def test_evaluate_y_single_column_dataframe_fallback(
         self, mock_orch_cls, mock_runner_cls, mock_eval_cls, mock_displayer_cls
     ):
         """Verify evaluate extracts the first column if y is 1-col DataFrame
         without matching outcome name."""
-        mp = Medpipe(config=MagicMock())
+        mp = MedpipeClassifier(config=MagicMock())
         X = pd.DataFrame({"AGE": [50, 60]})
         y_df = pd.DataFrame({"GENERIC_LABEL": [1, 0]})
         mp._evaluator.evaluate.return_value = {}
@@ -451,9 +453,9 @@ class TestMedpipeEvaluate:
         _, kwargs = mp._evaluator.evaluate.call_args
         pd.testing.assert_series_equal(kwargs["y"], y_df.iloc[:, 0])
 
-    @patch("medpipe.pipeline.pipeline.MedpipeDisplayer")
-    @patch("medpipe.pipeline.pipeline.MedpipeEvaluator")
-    @patch("medpipe.pipeline.pipeline.MedpipeRunner")
+    @patch("medpipe.pipeline.pipeline.MedpipeClassifierDisplayer")
+    @patch("medpipe.pipeline.pipeline.MedpipeClassifierEvaluator")
+    @patch("medpipe.pipeline.pipeline.MedpipeClassifierRunner")
     @patch("medpipe.pipeline.pipeline.MedpipeOrchestrator")
     def test_evaluate_y_multi_column_dataframe_no_outcome_match_passthrough(
         self, mock_orch_cls, mock_runner_cls, mock_eval_cls, mock_displayer_cls
@@ -461,7 +463,7 @@ class TestMedpipeEvaluate:
         """Verify evaluate passes the full multi-column DataFrame through
         unmodified when outcome doesn't match any column and there's more
         than one column to fall back to (neither resolution branch applies)."""
-        mp = Medpipe(config=MagicMock())
+        mp = MedpipeClassifier(config=MagicMock())
         X = pd.DataFrame({"AGE": [50, 60]})
         y_df = pd.DataFrame({"MORTALITY_30D": [0, 1], "READMISSION_90D": [1, 0]})
         mp._evaluator.evaluate.return_value = {}
@@ -471,16 +473,16 @@ class TestMedpipeEvaluate:
         _, kwargs = mp._evaluator.evaluate.call_args
         pd.testing.assert_frame_equal(kwargs["y"], y_df)
 
-    @patch("medpipe.pipeline.pipeline.MedpipeDisplayer")
-    @patch("medpipe.pipeline.pipeline.MedpipeEvaluator")
-    @patch("medpipe.pipeline.pipeline.MedpipeRunner")
+    @patch("medpipe.pipeline.pipeline.MedpipeClassifierDisplayer")
+    @patch("medpipe.pipeline.pipeline.MedpipeClassifierEvaluator")
+    @patch("medpipe.pipeline.pipeline.MedpipeClassifierRunner")
     @patch("medpipe.pipeline.pipeline.MedpipeOrchestrator")
     def test_evaluate_explicit_parameters(
         self, mock_orch_cls, mock_runner_cls, mock_eval_cls, mock_displayer_cls
     ):
         """Verify evaluate forwards custom metrics, subgroup_specs, model,
         and save_artifacts flag."""
-        mp = Medpipe(config=MagicMock())
+        mp = MedpipeClassifier(config=MagicMock())
         X = pd.DataFrame({"AGE": [50]})
         y = np.array([1])
         mock_model = MagicMock()
@@ -509,18 +511,19 @@ class TestMedpipeEvaluate:
 
 
 class TestMedpipeRun:
-    """Unit tests verifying full workflow sequence and branching in Medpipe.run."""
+    """Unit tests verifying full workflow sequence and branching in
+    MedpipeClassifier.run."""
 
-    @patch("medpipe.pipeline.pipeline.MedpipeDisplayer")
-    @patch("medpipe.pipeline.pipeline.MedpipeEvaluator")
-    @patch("medpipe.pipeline.pipeline.MedpipeRunner")
+    @patch("medpipe.pipeline.pipeline.MedpipeClassifierDisplayer")
+    @patch("medpipe.pipeline.pipeline.MedpipeClassifierEvaluator")
+    @patch("medpipe.pipeline.pipeline.MedpipeClassifierRunner")
     @patch("medpipe.pipeline.pipeline.MedpipeOrchestrator")
     def test_run_fast_mode_execution_flow(
         self, mock_orch_cls, mock_runner_cls, mock_eval_cls, mock_displayer_cls
     ):
         """Verify run executes data prep, fit, and test evaluation without
         generating plots in fast mode."""
-        mp = Medpipe(config=MagicMock())
+        mp = MedpipeClassifier(config=MagicMock())
         mp.mp_config.meta.run_mode = "fast"
         mp.mp_config.data.kwargs = {"extra_arg": 0.2}
         mp._orchestrator.config.data.outcomes = ["MORTALITY_30D"]
@@ -568,16 +571,16 @@ class TestMedpipeRun:
         }
         assert "plots" not in results
 
-    @patch("medpipe.pipeline.pipeline.MedpipeDisplayer")
-    @patch("medpipe.pipeline.pipeline.MedpipeEvaluator")
-    @patch("medpipe.pipeline.pipeline.MedpipeRunner")
+    @patch("medpipe.pipeline.pipeline.MedpipeClassifierDisplayer")
+    @patch("medpipe.pipeline.pipeline.MedpipeClassifierEvaluator")
+    @patch("medpipe.pipeline.pipeline.MedpipeClassifierRunner")
     @patch("medpipe.pipeline.pipeline.MedpipeOrchestrator")
     def test_run_logs_fit_and_total_duration_at_debug_level(
         self, mock_orch_cls, mock_runner_cls, mock_eval_cls, mock_displayer_cls
     ):
         """Verify run logs the model fitting duration and the total run
         duration at the debug log level."""
-        mp = Medpipe(config=MagicMock())
+        mp = MedpipeClassifier(config=MagicMock())
         mp.mp_config.meta.run_mode = "fast"
         mp.mp_config.data.kwargs = {}
         mp._orchestrator.config.data.outcomes = ["MORTALITY_30D"]
@@ -613,16 +616,16 @@ class TestMedpipeRun:
             for msg in debug_messages
         )
 
-    @patch("medpipe.pipeline.pipeline.MedpipeDisplayer")
-    @patch("medpipe.pipeline.pipeline.MedpipeEvaluator")
-    @patch("medpipe.pipeline.pipeline.MedpipeRunner")
+    @patch("medpipe.pipeline.pipeline.MedpipeClassifierDisplayer")
+    @patch("medpipe.pipeline.pipeline.MedpipeClassifierEvaluator")
+    @patch("medpipe.pipeline.pipeline.MedpipeClassifierRunner")
     @patch("medpipe.pipeline.pipeline.MedpipeOrchestrator")
     def test_run_audit_mode_triggers_visualization_and_heatmaps(
         self, mock_orch_cls, mock_runner_cls, mock_eval_cls, mock_displayer_cls
     ):
         """Verify run executes plotting routines and generates strata
         heatmaps in audit/eval mode."""
-        mp = Medpipe(config=MagicMock())
+        mp = MedpipeClassifier(config=MagicMock())
         mp.mp_config.meta.run_mode = "audit"
         mp.mp_config.data.kwargs = {}
         mp._orchestrator.config.data.outcomes = ["MORTALITY_30D"]
@@ -668,17 +671,17 @@ class TestMedpipeRun:
 
 
 class TestMedpipePlotAll:
-    """Unit tests verifying parameter forwarding in Medpipe.plot_all."""
+    """Unit tests verifying parameter forwarding in MedpipeClassifier.plot_all."""
 
-    @patch("medpipe.pipeline.pipeline.MedpipeDisplayer")
-    @patch("medpipe.pipeline.pipeline.MedpipeEvaluator")
-    @patch("medpipe.pipeline.pipeline.MedpipeRunner")
+    @patch("medpipe.pipeline.pipeline.MedpipeClassifierDisplayer")
+    @patch("medpipe.pipeline.pipeline.MedpipeClassifierEvaluator")
+    @patch("medpipe.pipeline.pipeline.MedpipeClassifierRunner")
     @patch("medpipe.pipeline.pipeline.MedpipeOrchestrator")
     def test_plot_all_delegation(
         self, mock_orch_cls, mock_runner_cls, mock_eval_cls, mock_displayer_cls
     ):
         """Verify plot_all forwards all inputs and style kwargs to Displayer."""
-        mp = Medpipe(config=MagicMock())
+        mp = MedpipeClassifier(config=MagicMock())
         y_true = np.array([0, 1, 0, 1])
         probas = np.array([0.1, 0.8, 0.2, 0.9])
         expected_plots = {"roc": (MagicMock(), MagicMock())}
@@ -709,7 +712,7 @@ class TestMedpipePlotAll:
 
 
 class TestMedpipeLoad:
-    """Test suite for the Medpipe.load class factory method."""
+    """Test suite for the MedpipeClassifier.load class factory method."""
 
     @pytest.fixture
     def valid_config_dict(self, tmp_path: Path) -> dict:
@@ -746,14 +749,14 @@ class TestMedpipeLoad:
 
         with pytest.raises(
             FileNotFoundError,
-            match="Cannot load Medpipe instance: Configuration JSON missing",
+            match="Cannot load MedpipeClassifier instance: Configuration JSON missing",
         ):
-            Medpipe.load(empty_run_dir)
+            MedpipeClassifier.load(empty_run_dir)
 
     def test_load_successful_without_models_directory(
         self, tmp_path: Path, valid_config_dict: dict
     ) -> None:
-        """Test successful reconstruction of Medpipe when no models
+        """Test successful reconstruction of MedpipeClassifier when no models
         directory is present."""
         run_dir = tmp_path / "run_2026_08_10"
         config_dir = run_dir / "env"
@@ -763,9 +766,9 @@ class TestMedpipeLoad:
         with open(config_path, "w", encoding="utf-8") as f:
             json.dump(valid_config_dict, f)
 
-        pipe = Medpipe.load(run_dir)
+        pipe = MedpipeClassifier.load(run_dir)
 
-        assert isinstance(pipe, Medpipe)
+        assert isinstance(pipe, MedpipeClassifier)
         assert pipe.run_dir == run_dir / "eval"
         assert pipe._displayer.run_dir == run_dir / "eval"
         assert pipe.mp_config.meta.project_name == "demo_project"
@@ -791,9 +794,9 @@ class TestMedpipeLoad:
         joblib.dump(mock_fitted_models, model_artifact)
 
         # Pass run_dir as str to test string path resolution
-        pipe = Medpipe.load(str(run_dir))
+        pipe = MedpipeClassifier.load(str(run_dir))
 
-        assert isinstance(pipe, Medpipe)
+        assert isinstance(pipe, MedpipeClassifier)
         assert pipe.run_dir == run_dir / "eval"
         assert pipe._displayer.run_dir == run_dir / "eval"
         assert pipe.models == mock_fitted_models
@@ -847,7 +850,8 @@ def build_medpipe_config(test_data_path: Path, base_config_path: Path):
 
 
 class TestMedpipeStressIntegration:
-    """Integration stress tests executing Medpipe and verifying artifact lifecycle."""
+    """Integration stress tests executing MedpipeClassifier and verifying
+    artifact lifecycle."""
 
     @pytest.mark.parametrize("run_mode", ["fast", "cv", "eval", "audit"])
     @pytest.mark.parametrize("disable_recal", [False, True])
@@ -867,7 +871,7 @@ class TestMedpipeStressIntegration:
 
         # Direct artifacts to an isolated temporary directory
         artifact_dir = tmp_path / "artifacts"
-        pipeline = Medpipe(config=config, base_artifact_dir=artifact_dir)
+        pipeline = MedpipeClassifier(config=config, base_artifact_dir=artifact_dir)
         run_dir = pipeline.run_dir
 
         try:
@@ -913,7 +917,7 @@ class TestMedpipeStressIntegration:
         """Validates manual step-by-step API execution and artifact cleanup."""
         config = build_medpipe_config(run_mode="fast", disable_recal=True)
         artifact_dir = tmp_path / "artifacts"
-        pipeline = Medpipe(config=config, base_artifact_dir=artifact_dir)
+        pipeline = MedpipeClassifier(config=config, base_artifact_dir=artifact_dir)
         run_dir = pipeline.run_dir
 
         try:

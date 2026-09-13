@@ -1,5 +1,5 @@
 """
-Tests for MedpipeRunner's artifact-persistence helpers: _save_model,
+Tests for MedpipeClassifierRunner's artifact-persistence helpers: _save_model,
 _save_final_models, and _save_cv_results.
 """
 
@@ -10,15 +10,15 @@ import pandas as pd
 import pytest
 from sklearn.pipeline import Pipeline
 
-from medpipe.pipeline.runner import MedpipeRunner
+from medpipe.pipeline.runner import MedpipeClassifierRunner
 
 
 class TestSaveModel:
-    """Unit tests for MedpipeRunner._save_model."""
+    """Unit tests for MedpipeClassifierRunner._save_model."""
 
     @patch("medpipe.pipeline.runner.joblib.dump")
     def test_save_model(self, mock_dump, mock_orchestrator):
-        runner = MedpipeRunner(orchestrator=mock_orchestrator)
+        runner = MedpipeClassifierRunner(orchestrator=mock_orchestrator)
         mock_model = MagicMock(spec=Pipeline)
 
         with patch.object(Path, "mkdir") as mock_mkdir:
@@ -32,13 +32,13 @@ class TestSaveModel:
 
 
 class TestSaveFinalModels:
-    """Unit tests for MedpipeRunner._save_final_models."""
+    """Unit tests for MedpipeClassifierRunner._save_final_models."""
 
     @patch("medpipe.pipeline.runner.joblib.dump")
     def test_save_final_models(self, mock_dump, mock_orchestrator):
         """Test that _save_final_models saves the complete model bundle using
         project_name."""
-        runner = MedpipeRunner(orchestrator=mock_orchestrator)
+        runner = MedpipeClassifierRunner(orchestrator=mock_orchestrator)
         mock_model = MagicMock(spec=Pipeline)
         runner.fitted_models = {"MORTALITY_30D": mock_model}
 
@@ -54,7 +54,7 @@ class TestSaveFinalModels:
 
 
 class TestSaveCvResults:
-    """Unit tests for MedpipeRunner._save_cv_results."""
+    """Unit tests for MedpipeClassifierRunner._save_cv_results."""
 
     @patch.object(pd.DataFrame, "to_csv")
     def test_save_cv_results(self, mock_to_csv, mock_orchestrator):
@@ -62,7 +62,7 @@ class TestSaveCvResults:
         statistics to JSON."""
         mock_artifact_manager = MagicMock()
         mock_orchestrator.artifact_manager = mock_artifact_manager
-        runner = MedpipeRunner(orchestrator=mock_orchestrator)
+        runner = MedpipeClassifierRunner(orchestrator=mock_orchestrator)
 
         cv_data = {
             "fit_time": [0.1, 0.2],

@@ -1,5 +1,5 @@
 """
-Tests for MedpipeDisplayer's combined `plot_all` method.
+Tests for MedpipeClassifierDisplayer's combined `plot_all` method.
 """
 
 from pathlib import Path
@@ -7,7 +7,7 @@ from pathlib import Path
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 
-from medpipe.visualisation.displayer import MedpipeDisplayer
+from medpipe.visualisation.displayer import MedpipeClassifierDisplayer
 
 
 class TestPlotAll:
@@ -19,7 +19,7 @@ class TestPlotAll:
         """Test that plot_all executes all 5 outcome plotting methods and
         persists artifacts."""
         y_true, probas = sample_binary_data
-        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+        displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
 
         plots = displayer.plot_all(
             y_true=y_true,
@@ -53,7 +53,7 @@ class TestPlotAll:
     ) -> None:
         """Test that save=False skips artifact persistence for every plot."""
         y_true, probas = sample_binary_data
-        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+        displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
 
         displayer.plot_all(
             y_true=y_true,
@@ -73,7 +73,7 @@ class TestPlotAll:
         forwarded consistently to every underlying sub-plot call, not just
         the first one."""
         y_true, probas = sample_binary_data
-        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+        displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
 
         plots = displayer.plot_all(
             y_true=y_true,
@@ -99,7 +99,7 @@ class TestPlotAll:
     ) -> None:
         """Verify that rendered heatmaps contain formatted row labels
         (e.g. 'AGE: 18-50')."""
-        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+        displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
 
         heatmap_plots = displayer.plot_all_heatmaps(
             evaluations=sample_evaluations,

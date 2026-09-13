@@ -1,5 +1,5 @@
 """
-Tests for MedpipeRunner._train_model_cv.
+Tests for MedpipeClassifierRunner._train_model_cv.
 """
 
 from unittest.mock import MagicMock, patch
@@ -10,19 +10,19 @@ import pytest
 from sklearn.pipeline import Pipeline
 
 from medpipe.metrics.registry import MetricRegistry, MetricSpec
-from medpipe.pipeline.runner import MedpipeRunner
+from medpipe.pipeline.runner import MedpipeClassifierRunner
 
 
 class TestTrainModelCv:
-    """Unit tests for MedpipeRunner._train_model_cv."""
+    """Unit tests for MedpipeClassifierRunner._train_model_cv."""
 
-    @patch("medpipe.pipeline.runner.MedpipeRunner._save_cv_results")
+    @patch("medpipe.pipeline.runner.MedpipeClassifierRunner._save_cv_results")
     @patch("medpipe.pipeline.runner.cross_validate")
     def test_train_model_cv_standard_cv(
         self, mock_cv, mock_save_cv_results, mock_orchestrator, dummy_data
     ):
         """Test _train_model_cv runs cross_validate and calls _save_cv_results."""
-        runner = MedpipeRunner(orchestrator=mock_orchestrator)
+        runner = MedpipeClassifierRunner(orchestrator=mock_orchestrator)
 
         X_train, y_train, _, _ = dummy_data
         mock_pipeline = MagicMock(spec=Pipeline)
@@ -64,7 +64,7 @@ class TestTrainModelCv:
         mock_pipeline.fit.assert_called_once_with(X_train, y_train)
         assert result == mock_pipeline.fit.return_value
 
-    @patch("medpipe.pipeline.runner.MedpipeRunner._save_cv_results")
+    @patch("medpipe.pipeline.runner.MedpipeClassifierRunner._save_cv_results")
     @patch("medpipe.pipeline.runner.cross_validate")
     def test_train_model_cv_with_groups_train(
         self, mock_cv, mock_save_cv_results, mock_orchestrator, dummy_data
@@ -75,7 +75,7 @@ class TestTrainModelCv:
         mock_orchestrator.config.workflow.validation.cross_validation.strategy = (
             "group"
         )
-        runner = MedpipeRunner(orchestrator=mock_orchestrator)
+        runner = MedpipeClassifierRunner(orchestrator=mock_orchestrator)
 
         X_train, y_train, _, _ = dummy_data
         mock_pipeline = MagicMock(spec=Pipeline)
@@ -98,7 +98,7 @@ class TestTrainModelCv:
         call_kwargs = mock_cv.call_args[1]
         np.testing.assert_array_equal(call_kwargs["groups"], groups_train)
 
-    @patch("medpipe.pipeline.runner.MedpipeRunner._save_cv_results")
+    @patch("medpipe.pipeline.runner.MedpipeClassifierRunner._save_cv_results")
     @patch("medpipe.pipeline.runner.GridSearchCV")
     def test_train_model_cv_grid_search(
         self, mock_grid_search, mock_save_cv_results, mock_orchestrator, dummy_data
@@ -110,7 +110,7 @@ class TestTrainModelCv:
         )
 
         mock_orchestrator.config.workflow.validation.cross_validation.grid_search = True
-        runner = MedpipeRunner(orchestrator=mock_orchestrator)
+        runner = MedpipeClassifierRunner(orchestrator=mock_orchestrator)
         runner.orchestrator.config.workflow.evaluation.metrics.metrics = [
             "accuracy",
             "roc_auc",
@@ -162,7 +162,7 @@ class TestTrainModelCv:
         mock_search_instance.fit.assert_called_once_with(X_train, y_train, groups=None)
         assert result == "best_model"
 
-    @patch("medpipe.pipeline.runner.MedpipeRunner._save_cv_results")
+    @patch("medpipe.pipeline.runner.MedpipeClassifierRunner._save_cv_results")
     @patch("medpipe.pipeline.runner.cross_validate")
     def test_train_model_cv_standard_cv_with_custom_metrics(
         self, mock_cv, mock_save_cv_results, mock_orchestrator, dummy_data
@@ -174,7 +174,7 @@ class TestTrainModelCv:
             "ici",
         ]
         mock_orchestrator.config.workflow.cross_validation.grid_search = False
-        runner = MedpipeRunner(orchestrator=mock_orchestrator)
+        runner = MedpipeClassifierRunner(orchestrator=mock_orchestrator)
 
         X_train, y_train, _, _ = dummy_data
         mock_pipeline = MagicMock(spec=Pipeline)
@@ -205,7 +205,7 @@ class TestTrainModelCv:
         mock_pipeline.fit.assert_called_once_with(X_train, y_train)
         assert result == mock_pipeline.fit.return_value
 
-    @patch("medpipe.pipeline.runner.MedpipeRunner._save_cv_results")
+    @patch("medpipe.pipeline.runner.MedpipeClassifierRunner._save_cv_results")
     @patch("medpipe.pipeline.runner.GridSearchCV")
     def test_train_model_cv_grid_search_with_custom_registry_metric(
         self, mock_grid_search, mock_save_cv_results, mock_orchestrator, dummy_data
@@ -229,7 +229,7 @@ class TestTrainModelCv:
             "ici",
         ]
 
-        runner = MedpipeRunner(orchestrator=mock_orchestrator)
+        runner = MedpipeClassifierRunner(orchestrator=mock_orchestrator)
 
         X_train, y_train, _, _ = dummy_data
         mock_pipeline = MagicMock(spec=Pipeline)
@@ -266,13 +266,13 @@ class TestTrainModelCv:
         mock_search_instance.fit.assert_called_once_with(X_train, y_train, groups=None)
         assert result == "best_model"
 
-    @patch("medpipe.pipeline.runner.MedpipeRunner._save_cv_results")
+    @patch("medpipe.pipeline.runner.MedpipeClassifierRunner._save_cv_results")
     @patch("medpipe.pipeline.runner.cross_validate")
     def test_train_model_cv_missing_metrics_config(
         self, mock_cv, mock_save_cv_results, mock_orchestrator, dummy_data
     ):
         """Test _train_model_cv falls back to 'roc_auc' if metrics config is missing."""
-        runner = MedpipeRunner(orchestrator=mock_orchestrator)
+        runner = MedpipeClassifierRunner(orchestrator=mock_orchestrator)
         del runner.orchestrator.config.workflow.evaluation.metrics
 
         X_train, y_train, _, _ = dummy_data
@@ -293,14 +293,14 @@ class TestTrainModelCv:
         assert "roc_auc" in passed_scoring
         mock_save_cv_results.assert_called_once()
 
-    @patch("medpipe.pipeline.runner.MedpipeRunner._save_cv_results")
+    @patch("medpipe.pipeline.runner.MedpipeClassifierRunner._save_cv_results")
     def test_train_model_cv_group_strategy_without_groups_raises_error(
         self, mock_save_cv_results, mock_orchestrator, dummy_data
     ):
         """Test that cross-validation with a group strategy raises an error
         if groups_train is None."""
         mock_orchestrator.config.workflow.validation.cross_validation.strategy = "group"
-        runner = MedpipeRunner(orchestrator=mock_orchestrator)
+        runner = MedpipeClassifierRunner(orchestrator=mock_orchestrator)
 
         X_train, y_train, _, _ = dummy_data
         mock_pipeline = MagicMock(spec=Pipeline)
@@ -322,7 +322,7 @@ class TestTrainModelCv:
             )
 
     @pytest.mark.parametrize("n_jobs", [1, 4, -1])
-    @patch("medpipe.pipeline.runner.MedpipeRunner._save_cv_results")
+    @patch("medpipe.pipeline.runner.MedpipeClassifierRunner._save_cv_results")
     @patch("medpipe.pipeline.runner.cross_validate")
     def test_train_model_cv_standard_cv_passes_n_jobs(
         self, mock_cv, mock_save_cv_results, mock_orchestrator, dummy_data, n_jobs
@@ -330,7 +330,7 @@ class TestTrainModelCv:
         """Test _train_model_cv propagates configured n_jobs to sklearn
         cross_validate."""
         mock_orchestrator.config.workflow.n_jobs = n_jobs
-        runner = MedpipeRunner(orchestrator=mock_orchestrator)
+        runner = MedpipeClassifierRunner(orchestrator=mock_orchestrator)
 
         X_train, y_train, _, _ = dummy_data
 
@@ -348,7 +348,7 @@ class TestTrainModelCv:
         assert mock_cv.call_args[1]["n_jobs"] == n_jobs
 
     @pytest.mark.parametrize("n_jobs", [1, 4, -1])
-    @patch("medpipe.pipeline.runner.MedpipeRunner._save_cv_results")
+    @patch("medpipe.pipeline.runner.MedpipeClassifierRunner._save_cv_results")
     @patch("medpipe.pipeline.runner.GridSearchCV")
     def test_train_model_cv_grid_search_passes_n_jobs(
         self,
@@ -363,7 +363,7 @@ class TestTrainModelCv:
         mock_orchestrator.config.workflow.validation.cross_validation.grid_search = True
         mock_orchestrator.config.workflow.evaluation.metrics.metrics = ["accuracy"]
 
-        runner = MedpipeRunner(orchestrator=mock_orchestrator)
+        runner = MedpipeClassifierRunner(orchestrator=mock_orchestrator)
         X_train, y_train, _, _ = dummy_data
 
         mock_search_instance = MagicMock()

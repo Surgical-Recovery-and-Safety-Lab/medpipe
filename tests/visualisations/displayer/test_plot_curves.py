@@ -1,5 +1,5 @@
 """
-Tests for MedpipeDisplayer's high-level curve-plotting methods:
+Tests for MedpipeClassifierDisplayer's high-level curve-plotting methods:
 plot_probability_distribution, plot_roc_curve, plot_precision_recall_curve,
 plot_reliability_diagram, and plot_dca_curve.
 """
@@ -11,7 +11,7 @@ import numpy as np
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 
-from medpipe.visualisation.displayer import MedpipeDisplayer
+from medpipe.visualisation.displayer import MedpipeClassifierDisplayer
 
 
 class TestPlotProbabilityDistribution:
@@ -22,7 +22,7 @@ class TestPlotProbabilityDistribution:
     ) -> None:
         """Test successful distribution plot generation with artifact saving."""
         _, probas = sample_binary_data
-        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+        displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
 
         fig, ax = displayer.plot_probability_distribution(
             probas=probas,
@@ -44,7 +44,7 @@ class TestPlotProbabilityDistribution:
     ) -> None:
         """Test that save=False skips artifact persistence."""
         _, probas = sample_binary_data
-        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+        displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
 
         displayer.plot_probability_distribution(
             probas=probas, outcome="mortality", save=False, show=False
@@ -58,7 +58,7 @@ class TestPlotProbabilityDistribution:
     ) -> None:
         """Test interactive display when show=True."""
         _, probas = sample_binary_data
-        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+        displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
 
         displayer.plot_probability_distribution(
             probas=probas, save=False, show=True
@@ -75,7 +75,7 @@ class TestPlotRocCurve:
     ) -> None:
         """Test successful ROC plot generation with default artifact saving."""
         y_true, probas = sample_binary_data
-        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+        displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
 
         fig, ax = displayer.plot_roc_curve(
             y_true=y_true,
@@ -95,7 +95,7 @@ class TestPlotRocCurve:
     ) -> None:
         """Test that save=False skips artifact persistence."""
         y_true, probas = sample_binary_data
-        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+        displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
 
         displayer.plot_roc_curve(
             y_true=y_true, probas=probas, n_bootstraps=10, save=False, show=False
@@ -109,7 +109,7 @@ class TestPlotRocCurve:
     ) -> None:
         """Test interactive display when show=True."""
         y_true, probas = sample_binary_data
-        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+        displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
 
         displayer.plot_roc_curve(
             y_true=y_true, probas=probas, n_bootstraps=10, save=False, show=True
@@ -126,7 +126,7 @@ class TestPlotPrecisionRecallCurve:
     ) -> None:
         """Test successful PR curve generation with figure artifact saving."""
         y_true, probas = sample_binary_data
-        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+        displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
 
         fig, ax = displayer.plot_precision_recall_curve(
             y_true=y_true,
@@ -147,7 +147,7 @@ class TestPlotPrecisionRecallCurve:
     ) -> None:
         """Test that save=False skips artifact persistence."""
         y_true, probas = sample_binary_data
-        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+        displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
 
         displayer.plot_precision_recall_curve(
             y_true=y_true, probas=probas, n_bootstraps=10, save=False, show=False
@@ -161,7 +161,7 @@ class TestPlotPrecisionRecallCurve:
     ) -> None:
         """Test interactive display when show=True."""
         y_true, probas = sample_binary_data
-        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+        displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
 
         displayer.plot_precision_recall_curve(
             y_true=y_true, probas=probas, n_bootstraps=10, save=False, show=True
@@ -179,7 +179,7 @@ class TestPlotReliabilityDiagram:
         """Test successful reliability diagram generation with figure artifact
         saving."""
         y_true, probas = sample_binary_data
-        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+        displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
 
         fig, ax = displayer.plot_reliability_diagram(
             y_true=y_true,
@@ -203,7 +203,7 @@ class TestPlotReliabilityDiagram:
     ) -> None:
         """Test that save=False skips artifact persistence."""
         y_true, probas = sample_binary_data
-        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+        displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
 
         displayer.plot_reliability_diagram(
             y_true=y_true, probas=probas, n_bootstraps=10, save=False, show=False
@@ -217,7 +217,7 @@ class TestPlotReliabilityDiagram:
     ) -> None:
         """Test interactive display when show=True."""
         y_true, probas = sample_binary_data
-        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+        displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
 
         displayer.plot_reliability_diagram(
             y_true=y_true, probas=probas, n_bootstraps=10, save=False, show=True
@@ -232,7 +232,7 @@ class TestPlotReliabilityDiagram:
         argument suppresses the calibration point marker, as intended for
         smooth continuous spline curves."""
         y_true, probas = sample_binary_data
-        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+        displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
 
         _, ax = displayer.plot_reliability_diagram(
             y_true=y_true,
@@ -268,7 +268,7 @@ class TestPlotReliabilityDiagram:
             )
         )
         y_true, probas = sample_binary_data
-        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+        displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
 
         _, ax = displayer.plot_reliability_diagram(
             y_true=y_true, probas=probas, n_bootstraps=5, save=False, show=False
@@ -288,7 +288,7 @@ class TestPlotDcaCurve:
     ) -> None:
         """Test successful DCA plot generation with figure artifact saving."""
         y_true, probas = sample_binary_data
-        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+        displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
 
         fig, ax = displayer.plot_dca_curve(
             y_true=y_true,
@@ -308,7 +308,7 @@ class TestPlotDcaCurve:
     ) -> None:
         """Test that save=False skips artifact persistence."""
         y_true, probas = sample_binary_data
-        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+        displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
 
         displayer.plot_dca_curve(
             y_true=y_true, probas=probas, save=False, show=False
@@ -322,7 +322,7 @@ class TestPlotDcaCurve:
     ) -> None:
         """Test interactive display when show=True."""
         y_true, probas = sample_binary_data
-        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+        displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
 
         displayer.plot_dca_curve(
             y_true=y_true, probas=probas, save=False, show=True
@@ -336,7 +336,7 @@ class TestPlotDcaCurve:
         """Test that explicit thresholds are forwarded through to the
         underlying computation and rendering."""
         y_true, probas = sample_binary_data
-        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+        displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
         custom_thresholds = np.linspace(0.1, 0.5, 10)
 
         _, ax = displayer.plot_dca_curve(

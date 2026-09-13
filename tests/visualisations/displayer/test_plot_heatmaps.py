@@ -1,5 +1,5 @@
 """
-Tests for MedpipeDisplayer's heatmap-plotting methods: plot_strata_heatmap
+Tests for MedpipeClassifierDisplayer's heatmap-plotting methods: plot_strata_heatmap
 and plot_all_heatmaps.
 """
 
@@ -12,7 +12,7 @@ from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 
 from medpipe.metrics.registry import MetricRegistry, MetricSpec
-from medpipe.visualisation.displayer import MedpipeDisplayer
+from medpipe.visualisation.displayer import MedpipeClassifierDisplayer
 
 
 class TestPlotStrataHeatmap:
@@ -22,7 +22,7 @@ class TestPlotStrataHeatmap:
         self, mock_orchestrator, tmp_path: Path
     ) -> None:
         """Test successful strata heatmap generation with figure artifact saving."""
-        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+        displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
         outcomes = ["Mortality", "Readmission"]
         strata = ["Male", "Female"]
         scores = np.array([0.85, 0.78])
@@ -55,7 +55,7 @@ class TestPlotStrataHeatmap:
         )
         MetricRegistry.register_spec(custom_spec)
 
-        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+        displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
         fig, ax = displayer.plot_strata_heatmap(
             outcomes=["ANY_COMP"],
             metric="custom_metric",
@@ -74,7 +74,7 @@ class TestPlotStrataHeatmap:
     ) -> None:
         """Test that a metric name absent from MetricRegistry falls back to
         an upper-cased, underscore-replaced display name rather than raising."""
-        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+        displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
 
         _fig, ax = displayer.plot_strata_heatmap(
             outcomes=["ANY_COMP"],
@@ -92,7 +92,7 @@ class TestPlotStrataHeatmap:
         self, mock_orchestrator, tmp_path: Path
     ) -> None:
         """Test heatmap plot rendering when save=False."""
-        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+        displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
 
         fig, _ = displayer.plot_strata_heatmap(
             outcomes=["Outcome1"],
@@ -111,7 +111,7 @@ class TestPlotStrataHeatmap:
     @patch("matplotlib.pyplot.show")
     def test_plot_strata_heatmap_show_flag(self, mock_show, mock_orchestrator) -> None:
         """Test interactive plot display when show=True."""
-        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+        displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
 
         displayer.plot_strata_heatmap(
             outcomes=["Outcome1"],
@@ -130,7 +130,7 @@ class TestPlotStrataHeatmap:
     ) -> None:
         """Test that the 'ici' metric is scaled by 100 and labeled as a
         percentage, unlike other metrics."""
-        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+        displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
 
         _, ax = displayer.plot_strata_heatmap(
             outcomes=["Outcome1"],
@@ -149,7 +149,7 @@ class TestPlotStrataHeatmap:
     ) -> None:
         """Test that a non-2D strata_scores array raises ValueError before
         any plotting is attempted."""
-        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+        displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
 
         with pytest.raises(ValueError, match="must be a 2D array"):
             displayer.plot_strata_heatmap(
@@ -166,7 +166,7 @@ class TestPlotStrataHeatmap:
     ) -> None:
         """Test that a strata list whose length doesn't match
         strata_scores' row count raises ValueError."""
-        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+        displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
 
         with pytest.raises(ValueError, match="matching row count"):
             displayer.plot_strata_heatmap(
@@ -183,7 +183,7 @@ class TestPlotStrataHeatmap:
     ) -> None:
         """Test that an outcomes list whose length doesn't match
         strata_scores' column count raises ValueError."""
-        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+        displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
 
         with pytest.raises(ValueError, match="matching column count"):
             displayer.plot_strata_heatmap(
@@ -201,7 +201,7 @@ class TestPlotStrataHeatmap:
         """Test that a scores array whose length doesn't match
         strata_scores' column count raises ValueError, once the outcomes
         and row checks have already passed."""
-        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+        displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
 
         with pytest.raises(ValueError, match="matching column count"):
             displayer.plot_strata_heatmap(
@@ -222,7 +222,7 @@ class TestPlotAllHeatmaps:
     ) -> None:
         """Test plot_all_heatmaps correctly parses nested evaluations and
         creates heatmap figures."""
-        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+        displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
 
         heatmap_plots = displayer.plot_all_heatmaps(
             evaluations=sample_evaluations,
@@ -245,7 +245,7 @@ class TestPlotAllHeatmaps:
         self, mock_orchestrator, sample_evaluations, tmp_path: Path
     ) -> None:
         """Test plot_all_heatmaps execution when save=False."""
-        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+        displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
 
         heatmap_plots = displayer.plot_all_heatmaps(
             evaluations=sample_evaluations,
@@ -260,7 +260,7 @@ class TestPlotAllHeatmaps:
         self, mock_orchestrator, sample_evaluations
     ) -> None:
         """Test filtering plot_all_heatmaps to a specified subset of metrics."""
-        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+        displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
 
         heatmap_plots = displayer.plot_all_heatmaps(
             evaluations=sample_evaluations,
@@ -274,7 +274,7 @@ class TestPlotAllHeatmaps:
     def test_plot_all_heatmaps_empty_evaluations(self, mock_orchestrator) -> None:
         """Test plot_all_heatmaps gracefully returns an empty dictionary when
         passed empty evaluations."""
-        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+        displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
         heatmap_plots = displayer.plot_all_heatmaps(evaluations={}, save=False)
 
         assert heatmap_plots == {}
@@ -288,7 +288,7 @@ class TestPlotAllHeatmaps:
                 "strata": {},
             }
         }
-        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+        displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
 
         heatmap_plots = displayer.plot_all_heatmaps(
             evaluations=evals_without_strata, save=False
@@ -300,7 +300,7 @@ class TestPlotAllHeatmaps:
         self, mock_show, mock_orchestrator, sample_evaluations
     ) -> None:
         """Test interactive display when show=True."""
-        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+        displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
 
         displayer.plot_all_heatmaps(
             evaluations=sample_evaluations,
@@ -317,7 +317,7 @@ class TestPlotAllHeatmaps:
         """Test that requesting a metric absent from MetricRegistry falls
         back to an upper-cased display name rather than raising, mirroring
         plot_strata_heatmap's own fallback."""
-        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+        displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
 
         heatmap_plots = displayer.plot_all_heatmaps(
             evaluations=sample_evaluations,
