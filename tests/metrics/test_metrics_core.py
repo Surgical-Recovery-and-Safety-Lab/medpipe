@@ -9,6 +9,7 @@ from unittest.mock import MagicMock, patch
 import numpy as np
 import numpy.typing as npt
 import pytest
+from sklearn.metrics import mean_absolute_error, root_mean_squared_error
 
 from medpipe.metrics.core import METRICS, build_scorers, compute_metrics, ici_score
 from medpipe.metrics.registry import MetricRegistry, MetricSpec
@@ -203,6 +204,26 @@ class TestComputeMetrics:
         assert isinstance(scores, np.ndarray)
         assert len(scores) == 2
         assert scores[0] == 1.0  # All predictions rounded to 0 match target 0
+
+    def test_compute_metrics_regression_metrics_use_raw_predictions(self) -> None:
+        """
+        Test that rmse/mae are computed against raw continuous predictions,
+        not rounded to integer class labels.
+        """
+        y_true = np.array([1.2, 2.7, 3.1, 4.9])
+        y_pred = np.array([1.0, 2.5, 3.4, 4.6])
+
+        scores = compute_metrics(["rmse", "mae"], y_true, y_pred)
+
+        expected_rmse = root_mean_squared_error(y_true, y_pred)
+        expected_mae = mean_absolute_error(y_true, y_pred)
+
+        assert scores[0] == pytest.approx(expected_rmse)
+        assert scores[1] == pytest.approx(expected_mae)
+
+        # Sanity check that rounding the predictions would have changed the result.
+        rounded_mae = mean_absolute_error(y_true, np.round(y_pred))
+        assert scores[1] != pytest.approx(rounded_mae)
 
     def test_compute_metrics_empty_arrays(self) -> None:
         """Test behavior when passing empty NumPy arrays."""
