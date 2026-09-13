@@ -637,3 +637,84 @@ class MedpipeClassifierEvaluator(BaseEvaluator):
         elif hasattr(target_model, "decision_function"):
             return self.decision_function(X, model=target_model)
         return self.predict(X, model=target_model)
+
+
+class MedpipeRegressorEvaluator(BaseEvaluator):
+    """
+    Evaluation engine for MedpipeRegressor machine learning models and
+    pipelines.
+
+    Provides the standard `predict` inference interface and structured
+    performance evaluation across full datasets and extracted data
+    subgroups, using point predictions for metrics such as RMSE and MAE.
+    In compliance with TRIPOD+AI reporting guidelines, evaluation metrics
+    include bootstrap confidence intervals. Results are automatically
+    logged and saved to disk using the orchestrator's `ArtifactManager`.
+
+    Parameters
+    ----------
+    orchestrator : MedpipeOrchestrator
+        The pipeline orchestrator instance containing workflow configuration,
+        run directories, and the `ArtifactManager`.
+    runner : MedpipeRegressorRunner
+        The pipeline runner instance containing the dictionary of fitted models
+        (`fitted_models`).
+
+    Attributes
+    ----------
+    orchestrator : MedpipeOrchestrator
+        Pipeline orchestrator instance.
+    runner : MedpipeRegressorRunner
+        Pipeline runner instance.
+    fitted_models : dict of str to object
+        Dictionary mapping outcome names to fitted estimators or pipelines.
+    metrics : list of str
+        List of metric names used during evaluation.
+    n_bootstraps : int
+        Number of bootstrap iterations.
+    ci_level : float
+        Target confidence interval level.
+    random_state : int, np.random.Generator, or None
+        Random state instance for resampling.
+    logger : logging.Logger
+        Logger instance configured under `"medpipe.evaluator"`.
+
+    Methods
+    -------
+    predict(X, model=None, outcome=None)
+        Predict continuous values for samples in X.
+    extract_subgroups(X, subgroup_specs)
+        Extract index subsets for specified data subgroups.
+    evaluate(X, y, outcome=None, metrics=None, subgroup_specs=None, save_artifacts=True)
+        Evaluate model performance with confidence intervals across full data
+        and subgroups.
+
+    """
+
+    def _get_predictions(
+        self,
+        X: pd.DataFrame | npt.NDArray,
+        target_model: Any,
+        metrics: list[str],
+    ) -> npt.NDArray:
+        """
+        Resolve point predictions used to compute the requested metrics.
+
+        Parameters
+        ----------
+        X : pandas.DataFrame or numpy.ndarray
+            Features dataset of shape (n_samples, n_features).
+        target_model : object
+            The resolved, fitted model to predict with.
+        metrics : list of str
+            Unused for now; accepted for interface compatibility with
+            `BaseEvaluator` (distributional metrics will use this in a
+            future revision).
+
+        Returns
+        -------
+        y_pred : numpy.ndarray
+            Predicted continuous values.
+
+        """
+        return self.predict(X, model=target_model)
