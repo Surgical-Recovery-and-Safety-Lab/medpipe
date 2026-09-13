@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from medpipe.pipeline.evaluator import MedpipeClassifierEvaluator
+from medpipe.pipeline.evaluator import BaseEvaluator, MedpipeClassifierEvaluator
 
 # --- Fixtures ---
 
@@ -548,3 +548,19 @@ class TestMedpipeEvaluatorSaveEvaluationArtifacts:
         assert saved_path == (
             mock_orchestrator.run_dir / "artifacts/results/test_evaluation_results.json"
         )
+
+
+class TestBaseEvaluatorHooks:
+    """Unit tests for BaseEvaluator's default hook implementations."""
+
+    def test_get_predictions_not_implemented(
+        self, mock_orchestrator, mock_runner, mock_model
+    ):
+        """Test that the base class requires subclasses to resolve
+        outcome-type-specific predictions."""
+        evaluator = BaseEvaluator(mock_orchestrator, mock_runner)
+
+        with pytest.raises(NotImplementedError):
+            evaluator._get_predictions(
+                X=pd.DataFrame(), target_model=mock_model, metrics=["accuracy"]
+            )
