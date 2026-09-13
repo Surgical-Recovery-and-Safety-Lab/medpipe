@@ -33,6 +33,12 @@ class TestRegressorWorkflowConfig:
                     "group_column": "OP_YEAR",
                     "values": [2023],
                 },
+                "recalibration_split": {
+                    "strategy": "group",
+                    "group_column": "OP_YEAR",
+                    "values": [2024],
+                    "recalibration_size": None,
+                },
                 "cross_validation": {
                     "strategy": "group",
                     "grid_search": None,

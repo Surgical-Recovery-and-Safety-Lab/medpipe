@@ -452,3 +452,82 @@ metrics = ["rmse", "crps"]
         overall = results["evaluations"]["LOS_DAYS"]["overall"]
         assert np.isfinite(overall["rmse"]["point_estimate"])
         assert np.isfinite(overall["crps"]["point_estimate"])
+
+    def test_full_run_creates_recalibration_split(self, tmp_path: Path) -> None:
+        """Test that a configured `recalibration_split` produces a
+        non-empty, disjoint X_recal/y_recal holdout set for the regression
+        track, reusing the same SplitRecalibrationConfig schema as the
+        classifier (in preparation for future PIT recalibration). The
+        holdout set is not yet consumed by fitting/evaluation."""
+        rng = np.random.default_rng(42)
+        n = 200
+        df = pd.DataFrame(
+            {
+                "feature1": rng.standard_normal(n),
+                "feature2": rng.standard_normal(n),
+                "LOS_DAYS": np.exp(rng.standard_normal(n) * 0.5)
+                + rng.normal(0.0, 0.5, n),
+            }
+        )
+        data_path = tmp_path / "data.csv"
+        df.to_csv(data_path, index=False)
+
+        config_path = tmp_path / "config.toml"
+        config_path.write_text(f"""
+[meta]
+project_name = "stress_test"
+run_mode = "cv"
+
+[data]
+path = "{data_path}"
+predictors = ["feature1", "feature2"]
+outcomes = ["LOS_DAYS"]
+
+[default_model]
+algorithm = "OrdBoostRegressor"
+
+[default_model.hyperparameters]
+n_bins = 10
+mapper = "quantile"
+learning_rate = 0.1
+max_iter = 15
+random_state = 42
+
+[workflow.validation.test_split]
+strategy = "random"
+test_size = 0.2
+
+[workflow.validation.recalibration_split]
+strategy = "random"
+recalibration_size = 0.1
+
+[workflow.validation.cross_validation]
+strategy = "random"
+n_splits = 3
+grid_search = false
+
+[workflow.evaluation.metrics]
+metrics = ["rmse", "crps"]
+""")
+
+        mp = MedpipeRegressor(
+            config=str(config_path), base_artifact_dir=str(tmp_path / "artifacts")
+        )
+        mp.run()
+
+        assert mp.is_fitted
+
+        splits = mp.data_split
+        assert splits.X_recal is not None
+        assert splits.y_recal is not None
+        assert len(splits.X_recal) > 0
+
+        # Train/recal/test partitions are disjoint and together cover the
+        # full ingested dataset.
+        train_idx = set(splits.X_train.index)
+        recal_idx = set(splits.X_recal.index)
+        test_idx = set(splits.X_test.index)
+        assert train_idx.isdisjoint(recal_idx)
+        assert train_idx.isdisjoint(test_idx)
+        assert recal_idx.isdisjoint(test_idx)
+        assert len(train_idx) + len(recal_idx) + len(test_idx) == n

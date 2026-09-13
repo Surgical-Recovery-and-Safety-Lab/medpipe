@@ -12,8 +12,37 @@ from medpipe.utils.config import RegressorValidationSubConfig
 class TestRegressorValidationSubConfig:
     """Test class for the RegressorValidationSubConfig class"""
 
+    def _get_valid_config_dict_group(self, **overrides) -> dict:
+        """Creates a fresh valid config dict with group strategy
+        to override."""
+        config_dict = {
+            "test_split": {
+                "strategy": "group",
+                "group_column": "OP_YEAR",
+                "values": [2023],
+                "test_size": 0.1,
+            },
+            "recalibration_split": {
+                "strategy": "group",
+                "group_column": "OP_YEAR",
+                "values": [2024],
+                "recalibration_size": None,
+            },
+            "cross_validation": {
+                "strategy": "group",
+                "grid_search": None,
+                "group_column": "DHB_NAME",
+                "n_splits": 2,
+                "shuffle": True,
+            },
+        }
+        config_dict.update(overrides)
+
+        return config_dict
+
     def _get_valid_config_dict(self, **overrides) -> dict:
-        """Creates a fresh valid config dict to override."""
+        """Creates a fresh valid config dict (random strategy, no
+        recalibration split) to override."""
         config_dict = {
             "test_split": {
                 "strategy": "random",
@@ -38,7 +67,17 @@ class TestRegressorValidationSubConfig:
         raw_config = self._get_valid_config_dict()
         config = RegressorValidationSubConfig.model_validate(raw_config)
 
+        assert config.model_dump() == {**raw_config, "recalibration_split": None}
+
+    def test_valid_config_with_recalibration_split(self) -> None:
+        """Test that a recalibration split reusing SplitRecalibrationConfig
+        is accepted, so the regression track can create a recalibration
+        holdout set (e.g. for future PIT recalibration)."""
+        raw_config = self._get_valid_config_dict_group()
+        config = RegressorValidationSubConfig.model_validate(raw_config)
+
         assert config.model_dump() == raw_config
+        assert config.recalibration_split is not None
 
     def test_cross_validation_optional(self) -> None:
         """Test that cross_validation defaults to None when omitted."""
@@ -49,22 +88,115 @@ class TestRegressorValidationSubConfig:
 
         assert config.cross_validation is None
 
+    def test_recalibration_split_optional(self) -> None:
+        """Test that recalibration_split defaults to None when omitted."""
+        raw_config = self._get_valid_config_dict()
+
+        config = RegressorValidationSubConfig.model_validate(raw_config)
+
+        assert config.recalibration_split is None
+
     def test_test_split_required(self) -> None:
         """Test that test_split is a required field."""
         with pytest.raises(ValidationError, match="Field required"):
             RegressorValidationSubConfig.model_validate({})
 
-    def test_no_recalibration_split_field(self) -> None:
-        """Test that recalibration_split is not a recognized field, since
-        post-hoc recalibration is not supported on the regression track."""
-        raw_config = self._get_valid_config_dict(
-            recalibration_split={
-                "strategy": "random",
-                "recalibration_size": 0.1,
-            }
-        )
-        with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
-            RegressorValidationSubConfig.model_validate(raw_config)
+    @pytest.mark.parametrize(
+        "strategy, recalibration_dict",
+        [
+            (
+                "random",
+                {
+                    "strategy": "group",
+                    "recalibration_size": None,
+                    "values": [2023],
+                    "group_column": "OP_YEAR",
+                },
+            ),
+            (
+                "group",
+                {
+                    "strategy": "random",
+                    "recalibration_size": 0.1,
+                    "values": None,
+                    "group_column": "OP_YEAR",
+                },
+            ),
+        ],
+    )
+    def test_invalid_strategies(
+        self, strategy: str, recalibration_dict: dict[str, str | list[int | str] | None]
+    ) -> None:
+        """Test case when test and recalibration strategies differ."""
+        with pytest.raises(
+            ValidationError, match="Recalibration and test strategies should match"
+        ):
+            if strategy == "group":
+                RegressorValidationSubConfig.model_validate(
+                    self._get_valid_config_dict_group(
+                        **{"recalibration_split": recalibration_dict}
+                    )
+                )
+            elif strategy == "random":
+                RegressorValidationSubConfig.model_validate(
+                    self._get_valid_config_dict(
+                        **{"recalibration_split": recalibration_dict}
+                    )
+                )
+
+    def test_invalid_columns(self) -> None:
+        """Test case when test and recalibration groups differ."""
+        recalibration_dict = {
+            "strategy": "group",
+            "recalibration_size": None,
+            "values": [2023],
+            "group_column": "invalid",
+        }
+        with pytest.raises(
+            ValidationError, match="Recalibration and test group columns should match"
+        ):
+            RegressorValidationSubConfig.model_validate(
+                self._get_valid_config_dict_group(
+                    **{"recalibration_split": recalibration_dict}
+                )
+            )
+
+    @pytest.mark.parametrize(
+        "test_values, recal_values",
+        [
+            (["test"], ["test"]),
+            ([2023], [2023]),
+            (["test_1", "test_2"], ["test_2"]),
+            ([2023, 2024], [2024]),
+        ],
+    )
+    def test_same_values(
+        self, test_values: list[str | int], recal_values: list[str | int]
+    ) -> None:
+        """Test case when test and recalibration values are similar."""
+        recalibration_dict = {
+            "strategy": "group",
+            "recalibration_size": None,
+            "values": recal_values,
+            "group_column": "group",
+        }
+        test_dict = {
+            "strategy": "group",
+            "test_size": None,
+            "values": test_values,
+            "group_column": "group",
+        }
+        with pytest.raises(
+            ValidationError, match="Recalibration and test values should be different"
+        ):
+            RegressorValidationSubConfig.model_validate(
+                self._get_valid_config_dict_group(
+                    **{
+                        "recalibration_split": recalibration_dict,
+                        "test_split": test_dict,
+                    }
+                )
+            )
 
     def test_extra_fields_forbidden(self) -> None:
         """Test that extra fields at the validation sub config level are
