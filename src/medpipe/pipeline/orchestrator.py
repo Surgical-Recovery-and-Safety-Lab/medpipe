@@ -424,7 +424,7 @@ class MedpipeOrchestrator:
     def get_subgroup_specs(self) -> dict[str, Any]:
         """
         Parses `workflow.evaluation.fairness` settings into a dictionary
-        compatible with `MedpipeEvaluator.extract_subgroups`.
+        compatible with `MedpipeClassifierEvaluator.extract_subgroups`.
 
         Returns
         -------

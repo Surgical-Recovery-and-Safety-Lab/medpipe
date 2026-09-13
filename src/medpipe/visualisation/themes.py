@@ -11,7 +11,7 @@ from matplotlib.typing import RcKeyType
 
 @dataclass
 class MedpipeTheme:
-    """Central aesthetic configuration for Medpipe pipeline visualizations.
+    """Central aesthetic configuration for MedpipeClassifier pipeline visualizations.
 
     This class manages color palettes, line weights, font sizes, axes spines, and
     Matplotlib runtime parameter updates across all graphics generated within the

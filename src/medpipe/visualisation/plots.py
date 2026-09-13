@@ -1,5 +1,5 @@
 """
-Stateless drawing primitives for Medpipe visualizations.
+Stateless drawing primitives for MedpipeClassifier visualizations.
 """
 
 from typing import Any
@@ -12,7 +12,7 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 from medpipe.visualisation.themes import MedpipeTheme
 
-# Medpipe Default Palette Defaults
+# MedpipeClassifier Default Palette Defaults
 _DEFAULT_THEME = MedpipeTheme()
 
 

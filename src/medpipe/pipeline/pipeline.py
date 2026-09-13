@@ -1,8 +1,8 @@
 """
-Main entry point module for the Medpipe machine learning package.
+Main entry point module for the MedpipeClassifier machine learning package.
 
-Provides a unified, high-level interface (`Medpipe`) orchestrating data preparation,
-model fitting, inference, and TRIPOD+AI compliant evaluation.
+Provides a unified, high-level interface (`MedpipeClassifier`) orchestrating
+data preparation, model fitting, inference, and TRIPOD+AI compliant evaluation.
 """
 
 from __future__ import annotations
@@ -15,12 +15,12 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 import pandas as pd
 
-from medpipe.pipeline.evaluator import MedpipeEvaluator
+from medpipe.pipeline.evaluator import MedpipeClassifierEvaluator
 from medpipe.pipeline.orchestrator import DataSplits, MedpipeOrchestrator
-from medpipe.pipeline.runner import MedpipeRunner
+from medpipe.pipeline.runner import MedpipeClassifierRunner
 from medpipe.utils.config import MedpipeConfig
 from medpipe.utils.logger import get_console_logger
-from medpipe.visualisation.displayer import MedpipeDisplayer
+from medpipe.visualisation.displayer import MedpipeClassifierDisplayer
 
 if TYPE_CHECKING:
 
@@ -31,14 +31,14 @@ if TYPE_CHECKING:
     from sklearn.pipeline import Pipeline
 
 
-class Medpipe:
+class MedpipeClassifier:
     """
-    User entry point and high-level pipeline runner for Medpipe.
+    User entry point and high-level pipeline runner for MedpipeClassifier.
 
     Coordinates the complete machine learning lifecycle, delegating data ingress
     and preprocessing setup to `MedpipeOrchestrator`, model cross-validation
-    and fitting to `MedpipeRunner`, and prediction and TRIPOD+AI evaluation to
-    `MedpipeEvaluator`.
+    and fitting to `MedpipeClassifierRunner`, and prediction and TRIPOD+AI evaluation to
+    `MedpipeClassifierEvaluator`.
 
     Parameters
     ----------
@@ -55,13 +55,13 @@ class Medpipe:
     _orchestrator : MedpipeOrchestrator
         Pipeline orchestrator instance driving data preparation and
         reproducibility artifacts.
-    _runner : MedpipeRunner
+    _runner : MedpipeClassifierRunner
         Pipeline execution engine responsible for model training and
         cross-validation loops.
-    _evaluator : MedpipeEvaluator
+    _evaluator : MedpipeClassifierEvaluator
         Pipeline evaluation engine computing point estimates and
         bootstrap confidence intervals.
-    _displayer : MedpipeDisplayer
+    _displayer : MedpipeClassifierDisplayer
         Visualisation engine rendering and persisting evaluation figures.
     _logger : logging.Logger
         Centralized logger instance configured under `"medpipe"`.
@@ -69,7 +69,8 @@ class Medpipe:
     Methods
     -------
     fit(X_train, y_train, X_recal=None, y_recal=None, groups_train=None)
-        Fit machine learning models across configured target outcomes via MedpipeRunner.
+        Fit machine learning models across configured target outcomes via
+        MedpipeClassifierRunner.
     predict(X, model=None, outcome=None)
         Predict class labels for input samples.
     predict_proba(X, model=None, outcome=None)
@@ -98,20 +99,20 @@ class Medpipe:
     ) -> None:
         self._logger = get_console_logger("medpipe")
 
-        self._logger.info("Initialising Medpipe end-to-end pipeline.")
+        self._logger.info("Initialising MedpipeClassifier end-to-end pipeline.")
 
         self._orchestrator = MedpipeOrchestrator(
             config, base_artifact_dir, verbose_override
         )
         self.mp_config = self._orchestrator.config
-        self._runner = MedpipeRunner(orchestrator=self._orchestrator)
-        self._evaluator = MedpipeEvaluator(
+        self._runner = MedpipeClassifierRunner(orchestrator=self._orchestrator)
+        self._evaluator = MedpipeClassifierEvaluator(
             orchestrator=self._orchestrator,
             runner=self._runner,
         )
-        self._displayer = MedpipeDisplayer(orchestrator=self._orchestrator)
+        self._displayer = MedpipeClassifierDisplayer(orchestrator=self._orchestrator)
 
-        self._logger.info("Medpipe initialisation complete.")
+        self._logger.info("MedpipeClassifier initialisation complete.")
 
     @property
     def models(self) -> dict[str, Pipeline | CalibratedClassifierCV]:
@@ -120,14 +121,15 @@ class Medpipe:
         Returns
         -------
         fitted_models : Dict[str, Union[Pipeline, CalibratedClassifierCV]]
-            Fitted models from the MedpipeRunner object.
+            Fitted models from the MedpipeClassifierRunner object.
 
         """
         return self._runner.fitted_models
 
     @property
     def is_fitted(self) -> bool:
-        """Checks if the Medpipe is fitted by looking at MedpipeRunner.
+        """Checks if the MedpipeClassifier is fitted by looking at
+        MedpipeClassifierRunner.
 
         Returns
         -------
@@ -182,7 +184,8 @@ class Medpipe:
         groups_train: np.ndarray | None = None,
     ) -> dict[str, Any]:
         """
-        Fit machine learning models across configured target outcomes via MedpipeRunner.
+        Fit machine learning models across configured target outcomes via
+        MedpipeClassifierRunner.
 
         Parameters
         ----------
@@ -392,12 +395,14 @@ class Medpipe:
             target names to figure objects.
 
         """
-        self._logger.info("Executing full Medpipe pipeline end-to-end.")
+        self._logger.info("Executing full MedpipeClassifier pipeline end-to-end.")
         run_start_time = time.perf_counter()
 
         run_mode = self.mp_config.meta.run_mode
 
-        self._logger.debug(f"Executing full Medpipe pipeline in {run_mode} mode.")
+        self._logger.debug(
+            f"Executing full MedpipeClassifier pipeline in {run_mode} mode."
+        )
 
         n_steps = 3
         if run_mode == "audit" or run_mode == "eval":
@@ -464,7 +469,9 @@ class Medpipe:
         self._logger.debug(
             f"Full pipeline run completed in {run_duration:.2f} seconds."
         )
-        self._logger.info("Full Medpipe pipeline execution finished successfully.")
+        self._logger.info(
+            "Full MedpipeClassifier pipeline execution finished successfully."
+        )
 
         results: dict[str, Any] = {
             "fitted_models": fitted_models,
@@ -531,8 +538,8 @@ class Medpipe:
         )
 
     @classmethod
-    def load(cls, run_dir: str | Path) -> Medpipe:
-        """Reconstruct a Medpipe instance from a run artifact directory.
+    def load(cls, run_dir: str | Path) -> MedpipeClassifier:
+        """Reconstruct a MedpipeClassifier instance from a run artifact directory.
 
         Parses the saved JSON configuration and restores serialized outcome
         model artifacts into the runner engine.
@@ -540,12 +547,12 @@ class Medpipe:
         Parameters
         ----------
         run_dir : str or Path
-            Directory path of a previously executed Medpipe run artifact.
+            Directory path of a previously executed MedpipeClassifier run artifact.
 
         Returns
         -------
-        pipe : Medpipe
-            Re-instantiated Medpipe object ready for inference,
+        pipe : MedpipeClassifier
+            Re-instantiated MedpipeClassifier object ready for inference,
             evaluation, or visualization.
 
         Raises
@@ -560,7 +567,7 @@ class Medpipe:
 
         if not config_path.exists():
             raise FileNotFoundError(
-                "Cannot load Medpipe instance: Configuration JSON missing "
+                "Cannot load MedpipeClassifier instance: Configuration JSON missing "
                 f"in '{run_path}'"
             )
 
@@ -574,7 +581,7 @@ class Medpipe:
 
         mp_config = MedpipeConfig.model_validate(config_dict)
 
-        # 2. Instantiate Medpipe with reconstructed MedpipeConfig
+        # 2. Instantiate MedpipeClassifier with reconstructed MedpipeConfig
         new_run_path = run_path / "eval"
         pipe = cls(config=mp_config, base_artifact_dir=new_run_path)
         pipe._orchestrator.run_dir = new_run_path
@@ -586,6 +593,6 @@ class Medpipe:
             pipe._runner.fitted_models = joblib.load(
                 models_dir / f"{project_name}_fitted.joblib"
             )
-        pipe._logger.info(f"Succesfully loaded Medpipe from {run_dir}")
+        pipe._logger.info(f"Succesfully loaded MedpipeClassifier from {run_dir}")
 
         return pipe

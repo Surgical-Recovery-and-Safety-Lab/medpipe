@@ -1,5 +1,5 @@
 """
-Evaluator module for Medpipe machine learning models and pipelines.
+Evaluator module for MedpipeClassifier machine learning models and pipelines.
 
 Provides TRIPOD+AI compliant model evaluation, subgroup performance analysis,
 bootstrap confidence interval estimation, logging, and artifact management.
@@ -21,12 +21,12 @@ from medpipe.utils.logger import get_console_logger
 
 if TYPE_CHECKING:
     from medpipe.pipeline.orchestrator import MedpipeOrchestrator
-    from medpipe.pipeline.runner import MedpipeRunner
+    from medpipe.pipeline.runner import MedpipeClassifierRunner
 
 
-class MedpipeEvaluator:
+class MedpipeClassifierEvaluator:
     """
-    Evaluation engine for Medpipe machine learning models and pipelines.
+    Evaluation engine for MedpipeClassifier machine learning models and pipelines.
 
     Provides standard inference interfaces (`predict`, `predict_proba`,
     `decision_function`) and structured performance evaluation across full
@@ -40,7 +40,7 @@ class MedpipeEvaluator:
     orchestrator : MedpipeOrchestrator
         The pipeline orchestrator instance containing workflow configuration,
         run directories, and the `ArtifactManager`.
-    runner : MedpipeRunner
+    runner : MedpipeClassifierRunner
         The pipeline runner instance containing the dictionary of fitted models
         (`fitted_models`).
 
@@ -48,7 +48,7 @@ class MedpipeEvaluator:
     ----------
     orchestrator : MedpipeOrchestrator
         Pipeline orchestrator instance.
-    runner : MedpipeRunner
+    runner : MedpipeClassifierRunner
         Pipeline runner instance.
     fitted_models : dict of str to object
         Dictionary mapping outcome names to fitted estimators or pipelines.
@@ -82,7 +82,7 @@ class MedpipeEvaluator:
     def __init__(
         self,
         orchestrator: MedpipeOrchestrator,
-        runner: MedpipeRunner,
+        runner: MedpipeClassifierRunner,
     ) -> None:
         self.orchestrator = orchestrator
         self.runner = runner

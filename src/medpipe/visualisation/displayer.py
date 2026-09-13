@@ -32,8 +32,8 @@ from medpipe.visualisation.plots import (
 from medpipe.visualisation.themes import MedpipeTheme
 
 
-class MedpipeDisplayer:
-    """High-level visualisation and display manager for Medpipe pipeline runs.
+class MedpipeClassifierDisplayer:
+    """High-level visualisation and display manager for MedpipeClassifier pipeline runs.
 
     This class handles statistical calculations (such as bootstrap confidence intervals
     and calibration metrics), applies theme aesthetics, delegates rendering to stateless
@@ -226,11 +226,11 @@ class MedpipeDisplayer:
 
         Examples
         --------
-        >>> MedpipeDisplayer._format_stratum_label("AGE", "[18, 50]")
+        >>> MedpipeClassifierDisplayer._format_stratum_label("AGE", "[18, 50]")
         'AGE: 18-50'
-        >>> MedpipeDisplayer._format_stratum_label("AGE", "[51, 120]")
+        >>> MedpipeClassifierDisplayer._format_stratum_label("AGE", "[51, 120]")
         'AGE: ≥ 51'
-        >>> MedpipeDisplayer._format_stratum_label("SEX", "F")
+        >>> MedpipeClassifierDisplayer._format_stratum_label("SEX", "F")
         'SEX: F'
 
         """

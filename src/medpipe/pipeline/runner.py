@@ -20,7 +20,7 @@ from medpipe.pipeline.orchestrator import MedpipeOrchestrator
 from medpipe.utils.logger import get_console_logger
 
 
-class MedpipeRunner:
+class MedpipeClassifierRunner:
     """
     Executes the training, hyperparameter tuning, and optional recalibration loops.
 

@@ -1,10 +1,10 @@
-"""Visualisation and plotting module for Medpipe.
+"""Visualisation and plotting module for MedpipeClassifier.
 
-Provides the high-level MedpipeDisplayer manager, stateless drawing primitives,
-and aesthetic theme configurations for pipeline evaluation graphics.
+Provides the high-level MedpipeClassifierDisplayer manager, stateless drawing
+primitives, and aesthetic theme configurations for pipeline evaluation graphics.
 """
 
-from medpipe.visualisation.displayer import MedpipeDisplayer
+from medpipe.visualisation.displayer import MedpipeClassifierDisplayer
 from medpipe.visualisation.plots import (
     draw_dca_curve,
     draw_precision_recall_curve,
@@ -16,7 +16,7 @@ from medpipe.visualisation.plots import (
 from medpipe.visualisation.themes import MedpipeTheme
 
 __all__ = [
-    "MedpipeDisplayer",
+    "MedpipeClassifierDisplayer",
     "MedpipeTheme",
     "draw_dca_curve",
     "draw_precision_recall_curve",

@@ -1,7 +1,7 @@
 """
 medpipe.utils
 -------------
-Core utility functions and infrastructure for the Medpipe package.
+Core utility functions and infrastructure for the MedpipeClassifier package.
 
 Exposes configuration schemas, I/O handlers, centralized logging,
 component registries, reproducibility management, and validation utilities.

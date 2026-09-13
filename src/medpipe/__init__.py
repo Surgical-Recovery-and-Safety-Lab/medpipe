@@ -1,5 +1,6 @@
 """
-Medpipe: A Python framework for clinical machine learning pipeline orchestration.
+Medpipe: A Python framework for clinical machine learning pipeline
+orchestration.
 
 Provides unified high-level interfaces for data preparation, model fitting,
 post-hoc calibration, TRIPOD+AI compliant evaluation, and reproducibility tracking.
@@ -8,10 +9,10 @@ post-hoc calibration, TRIPOD+AI compliant evaluation, and reproducibility tracki
 from medpipe.metrics import MetricRegistry
 from medpipe.models import ModelRegistry
 from medpipe.pipeline import (
-    Medpipe,
-    MedpipeEvaluator,
+    MedpipeClassifier,
+    MedpipeClassifierEvaluator,
+    MedpipeClassifierRunner,
     MedpipeOrchestrator,
-    MedpipeRunner,
 )
 from medpipe.utils import MedpipeConfig
 
@@ -19,12 +20,12 @@ __version__ = "0.4.0.dev1"
 
 __all__ = [  # noqa: RUF022 (grouped by category, not alphabetical)
     # Primary API Entry Point
-    "Medpipe",
+    "MedpipeClassifier",
     "MedpipeConfig",
     # Sub-Orchestrators (for custom/modular workflows)
     "MedpipeOrchestrator",
-    "MedpipeRunner",
-    "MedpipeEvaluator",
+    "MedpipeClassifierRunner",
+    "MedpipeClassifierEvaluator",
     # Component Registries (for custom models & metrics)
     "ModelRegistry",
     "MetricRegistry",
