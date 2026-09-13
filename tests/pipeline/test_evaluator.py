@@ -590,14 +590,35 @@ class TestRegressorEvaluator:
     def test_get_predictions_returns_raw_point_predictions(
         self, mock_orchestrator, mock_regressor_runner, mock_regressor_model
     ):
-        """Test that _get_predictions delegates directly to predict()."""
+        """Test that _get_predictions delegates to predict() for point
+        predictions, and does not call predict_dist when no distributional
+        metric is requested."""
         evaluator = MedpipeRegressorEvaluator(mock_orchestrator, mock_regressor_runner)
 
         result = evaluator._get_predictions(
             X=pd.DataFrame(), target_model=mock_regressor_model, metrics=["rmse"]
         )
 
-        np.testing.assert_array_equal(result, [2.5, 7.1, 4.3, 9.9])
+        np.testing.assert_array_equal(result.point, [2.5, 7.1, 4.3, 9.9])
+        assert result.dist is None
+        mock_regressor_model.predict_dist.assert_not_called()
+
+    def test_get_predictions_includes_dist_when_crps_requested(
+        self, mock_orchestrator, mock_regressor_runner, mock_regressor_model
+    ):
+        """Test that _get_predictions also calls predict_dist when a
+        predict_dist-based metric (e.g. crps) is requested."""
+        mock_regressor_model.predict_dist.return_value = "fake_dist"
+        evaluator = MedpipeRegressorEvaluator(mock_orchestrator, mock_regressor_runner)
+
+        X = pd.DataFrame({"a": [1, 2, 3, 4]})
+        result = evaluator._get_predictions(
+            X=X, target_model=mock_regressor_model, metrics=["rmse", "crps"]
+        )
+
+        np.testing.assert_array_equal(result.point, [2.5, 7.1, 4.3, 9.9])
+        assert result.dist == "fake_dist"
+        mock_regressor_model.predict_dist.assert_called_once_with(X)
 
     def test_evaluate_rmse_mae_not_rounded(
         self,
