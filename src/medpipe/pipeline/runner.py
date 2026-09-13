@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, ClassVar
 
 import joblib
 import numpy as np
@@ -20,14 +20,19 @@ from medpipe.pipeline.orchestrator import MedpipeOrchestrator
 from medpipe.utils.logger import get_console_logger
 
 
-class MedpipeClassifierRunner:
+class BaseRunner:
     """
-    Executes the training, hyperparameter tuning, and optional recalibration loops.
+    Shared execution engine for training, hyperparameter tuning, and
+    persisting outcome models, independent of outcome type.
 
-    The runner acts purely as an execution engine. It requests instantiated
-    preprocessing pipelines from the orchestrator, initializes models via the
-    ModelRegistry, handles GridSearchCV or standard cross-validation, applies
-    post-hoc calibration, and persists the finalized models to the run directory.
+    Handles instantiating estimators via the ModelRegistry, running
+    GridSearchCV or standard cross-validation, and persisting the finalized
+    models to the run directory. Outcome-type-specific behavior (CV splitter
+    selection, the fitted pipeline's final step name and class, the default
+    metrics fallback, and any post-hoc adjustment of the fitted pipeline) is
+    provided by subclasses via the `_final_step_name`, `_pipeline_cls`, and
+    `_default_metrics` class attributes and the `_create_cv_splitter` and
+    `_postfit` hook methods.
 
     Parameters
     ----------
@@ -41,23 +46,27 @@ class MedpipeClassifierRunner:
         Orchestrator instance driving the environment state.
     logger : logging.Logger
         Logger instance for the runner.
-    fitted_models : Dict[str, Union[Pipeline, CalibratedClassifierCV]]
+    fitted_models : Dict[str, Any]
         Dictionary storing the finalized models, keyed by outcome name.
 
     Methods
     -------
     fit_outcome(outcome, X_train, y_train, X_recal=None, y_recal=None,
     groups_train=None)
-        Trains, evaluates, and optionally calibrates a model for a single outcome.
+        Trains and optionally post-processes a model for a single outcome.
     run(X_train, y_train_df, X_recal=None, y_recal_df=None, groups_train=None)
         Executes the pipelines for all configured target outcomes.
 
     """
 
+    _final_step_name: ClassVar[str]
+    _pipeline_cls: ClassVar[type[Pipeline]] = Pipeline
+    _default_metrics: ClassVar[list[str]]
+
     def __init__(self, orchestrator: MedpipeOrchestrator) -> None:
         self.orchestrator = orchestrator
         self.logger = get_console_logger("medpipe.runner")
-        self.fitted_models: dict[str, Pipeline | CalibratedClassifierCV] = {}
+        self.fitted_models: dict[str, Any] = {}
 
     def _instantiate_estimator(
         self, algo_name: str, params: dict[str, Any]
@@ -96,9 +105,13 @@ class MedpipeClassifierRunner:
 
     def _create_cv_splitter(
         self, strategy: str, n_splits: int, random_state: int | None
-    ) -> StratifiedKFold | StratifiedGroupKFold:
+    ) -> BaseCrossValidator:
         """
         Instantiates the appropriate cross-validation splitter.
+
+        Subclasses must implement this to return a splitter suited to their
+        outcome type (e.g. stratified splitters for classification, plain
+        K-fold splitters for regression).
 
         Parameters
         ----------
@@ -111,7 +124,7 @@ class MedpipeClassifierRunner:
 
         Returns
         -------
-        Union[StratifiedKFold, StratifiedGroupKFold]
+        BaseCrossValidator
             The instantiated cross-validation splitter object.
 
         Raises
@@ -120,26 +133,15 @@ class MedpipeClassifierRunner:
             If an unsupported strategy is provided.
 
         """
-        if strategy == "random":
-            return StratifiedKFold(
-                n_splits=n_splits, shuffle=True, random_state=random_state
-            )
-        elif strategy == "group":
-            return StratifiedGroupKFold(
-                n_splits=n_splits, shuffle=True, random_state=random_state
-            )
-        else:
-            raise ValueError(f"Strategy must be 'random' or 'group', got {strategy}")
+        raise NotImplementedError
 
-    def _save_model(
-        self, model: Pipeline | CalibratedClassifierCV, outcome: str
-    ) -> None:
+    def _save_model(self, model: Any, outcome: str) -> None:
         """
         Saves the fitted model to the orchestrator's run directory.
 
         Parameters
         ----------
-        model : Union[Pipeline, CalibratedClassifierCV]
+        model : Any
             The finalized, fully fitted model.
         outcome : str
             The name of the outcome, used to name the saved file.
@@ -258,7 +260,7 @@ class MedpipeClassifierRunner:
                 self.orchestrator.config.workflow.evaluation.metrics.metrics
             )
         except AttributeError:
-            configured_metrics = ["roc_auc"]
+            configured_metrics = self._default_metrics
 
         n_jobs = self.orchestrator.config.workflow.n_jobs
         cv_cfg = self.orchestrator.config.workflow.validation.cross_validation
@@ -289,7 +291,9 @@ class MedpipeClassifierRunner:
             self.logger.info(f"[{outcome}] Running GridSearchCV tuning.")
 
             pipeline_params = {
-                f"classifier__{k}": (v if isinstance(v, (list, tuple)) else [v])
+                f"{self._final_step_name}__{k}": (
+                    v if isinstance(v, (list, tuple)) else [v]
+                )
                 for k, v in hyperparams.items()
             }
 
@@ -353,6 +357,274 @@ class MedpipeClassifierRunner:
                 f"[{outcome}] Fitting final base pipeline on full training data."
             )
             return pipeline.fit(X_train, y_train)
+
+    def _postfit(
+        self,
+        outcome: str,
+        best_pipeline: Pipeline,
+        model_config: dict,
+        X_recal: pd.DataFrame | None,
+        y_recal: np.ndarray | None,
+    ) -> Any:
+        """
+        Hook for outcome-type-specific post-processing of the fitted pipeline
+        (e.g. classifier recalibration). Default is a no-op passthrough.
+
+        Parameters
+        ----------
+        outcome : str
+            The name of the outcome being modeled.
+        best_pipeline : sklearn.pipeline.Pipeline
+            The fitted base pipeline.
+        model_config : dict
+            The configuration dictionary for the specific outcome.
+        X_recal : pd.DataFrame or None
+            The recalibration feature set, if available.
+        y_recal : np.ndarray or None
+            The 1D recalibration target labels, if available.
+
+        Returns
+        -------
+        Any
+            The final model to persist and evaluate.
+
+        """
+        return best_pipeline
+
+    def fit_outcome(
+        self,
+        outcome: str,
+        X_train: pd.DataFrame,
+        y_train: np.ndarray,
+        X_recal: pd.DataFrame | None = None,
+        y_recal: np.ndarray | None = None,
+        groups_train: np.ndarray | None = None,
+    ) -> Any:
+        """
+        Trains and optionally post-processes a model for a single outcome.
+
+        Parameters
+        ----------
+        outcome : str
+            The name of the outcome being modeled.
+        X_train : pd.DataFrame
+            The training feature set.
+        y_train : np.ndarray
+            The 1D training target labels.
+        X_recal : Optional[pd.DataFrame], default=None
+            The recalibration feature set.
+        y_recal : Optional[np.ndarray], default=None
+            The 1D recalibration target labels.
+        groups_train : Optional[np.ndarray], default=None
+            Group labels for the training set, required if strategy is 'group'.
+
+        Returns
+        -------
+        Any
+            The fully trained model ready for evaluation.
+
+        Raises
+        ------
+        ValueError
+            If no algorithm is specified for an outcome
+
+        """
+        self.logger.info(f"--- Starting execution for outcome: {outcome} ---")
+
+        model_config = self.orchestrator.config.resolved_models[outcome]
+        algo_name = model_config.algorithm
+
+        if not algo_name:
+            raise ValueError(f"No algorithm specified for outcome: {outcome}")
+
+        hyperparams = model_config.hyperparameters
+
+        # 1. Build Base Pipeline
+        preprocessor = self.orchestrator.build_preprocessor()
+        estimator = self._instantiate_estimator(algo_name, hyperparams)
+
+        steps = []
+        if preprocessor is not None:
+            steps.append(("preprocessor", preprocessor))
+        steps.append((self._final_step_name, estimator))
+        pipeline = self._pipeline_cls(steps)
+
+        # 2. Configure Cross-Validation
+        cv_config = self.orchestrator.config.workflow.validation.cross_validation
+
+        # 3. Training Loop
+        if self.orchestrator.config.meta.run_mode in ["audit", "cv"]:
+            assert cv_config
+            assert cv_config.n_splits
+
+            cv_splitter = self._create_cv_splitter(
+                strategy=cv_config.strategy,
+                n_splits=cv_config.n_splits,
+                random_state=self.orchestrator.config.workflow.random_state,
+            )
+            self.logger.debug(
+                f"[{outcome}] CV {type(cv_splitter).__name__} "
+                f"with arguments {cv_splitter.__dict__}"
+            )
+            best_pipeline = self._train_model_cv(
+                outcome=outcome,
+                pipeline=pipeline,
+                hyperparams=hyperparams,
+                X_train=X_train,
+                y_train=y_train,
+                groups_train=groups_train,
+                cv_splitter=cv_splitter,
+            )
+        else:
+            self.logger.debug(f"[{outcome}] Fitting without any CV")
+            best_pipeline = pipeline.fit(X_train, y_train)
+
+        # 4. Optional Post-Hoc Adjustment
+        final_model = self._postfit(
+            outcome=outcome,
+            best_pipeline=best_pipeline,
+            model_config=model_config.model_dump(),
+            X_recal=X_recal,
+            y_recal=y_recal,
+        )
+
+        # 5. Save and Return
+        self._save_model(final_model, outcome)
+        self.logger.info(f"--- Finished execution for outcome: {outcome} ---")
+        return final_model
+
+    def run(
+        self,
+        X_train: pd.DataFrame,
+        y_train_df: pd.DataFrame,
+        X_recal: pd.DataFrame | None = None,
+        y_recal_df: pd.DataFrame | None = None,
+        groups_train: np.ndarray | None = None,
+    ) -> dict[str, Any]:
+        """
+        Executes the pipelines for all configured target outcomes.
+
+        Parameters
+        ----------
+        X_train : pd.DataFrame
+            The training feature set.
+        y_train_df : pd.DataFrame
+            The training targets DataFrame (can contain multiple outcome columns).
+        X_recal : Optional[pd.DataFrame], default=None
+            The recalibration feature set.
+        y_recal_df : Optional[pd.DataFrame], default=None
+            The recalibration targets DataFrame.
+        groups_train : Optional[np.ndarray], default=None
+            Group labels for the training set.
+
+        Returns
+        -------
+        Dict[str, Any]
+            A dictionary mapping outcome names to their finalized, fitted models.
+
+        """
+        outcomes = self.orchestrator.config.data.outcomes
+        self.logger.debug(f"Starting fitting of {len(outcomes)} models.")
+
+        for outcome in outcomes:
+            # We assume y_train_df columns correspond to the requested outcomes
+            y_train = y_train_df[outcome].to_numpy().ravel()
+
+            y_recal = None
+            if y_recal_df is not None and outcome in y_recal_df.columns:
+                y_recal = y_recal_df[outcome].to_numpy().ravel()
+
+            final_model = self.fit_outcome(
+                outcome=outcome,
+                X_train=X_train,
+                y_train=y_train,
+                X_recal=X_recal,
+                y_recal=y_recal,
+                groups_train=groups_train,
+            )
+
+            self.fitted_models[outcome] = final_model
+
+        # Save final models dictionary
+        self._save_final_models()
+
+        return self.fitted_models
+
+
+class MedpipeClassifierRunner(BaseRunner):
+    """
+    Executes the training, hyperparameter tuning, and optional recalibration loops
+    for binary classification outcomes.
+
+    The runner acts purely as an execution engine. It requests instantiated
+    preprocessing pipelines from the orchestrator, initializes models via the
+    ModelRegistry, handles GridSearchCV or standard cross-validation, applies
+    post-hoc calibration, and persists the finalized models to the run directory.
+
+    Parameters
+    ----------
+    orchestrator : MedpipeOrchestrator
+        The configured orchestrator instance, providing resolved configurations,
+        preprocessing pipelines, and the execution run directory.
+
+    Attributes
+    ----------
+    orchestrator : MedpipeOrchestrator
+        Orchestrator instance driving the environment state.
+    logger : logging.Logger
+        Logger instance for the runner.
+    fitted_models : Dict[str, Union[Pipeline, CalibratedClassifierCV]]
+        Dictionary storing the finalized models, keyed by outcome name.
+
+    Methods
+    -------
+    fit_outcome(outcome, X_train, y_train, X_recal=None, y_recal=None,
+    groups_train=None)
+        Trains, evaluates, and optionally calibrates a model for a single outcome.
+    run(X_train, y_train_df, X_recal=None, y_recal_df=None, groups_train=None)
+        Executes the pipelines for all configured target outcomes.
+
+    """
+
+    _final_step_name: ClassVar[str] = "classifier"
+    _default_metrics: ClassVar[list[str]] = ["roc_auc"]
+
+    def _create_cv_splitter(
+        self, strategy: str, n_splits: int, random_state: int | None
+    ) -> StratifiedKFold | StratifiedGroupKFold:
+        """
+        Instantiates the appropriate cross-validation splitter.
+
+        Parameters
+        ----------
+        strategy : {'random', 'group'}
+            The CV strategy to employ.
+        n_splits : int
+            The number of cross-validation folds.
+        random_state : int | None
+            The random seed for reproducibility.
+
+        Returns
+        -------
+        Union[StratifiedKFold, StratifiedGroupKFold]
+            The instantiated cross-validation splitter object.
+
+        Raises
+        ------
+        ValueError
+            If an unsupported strategy is provided.
+
+        """
+        if strategy == "random":
+            return StratifiedKFold(
+                n_splits=n_splits, shuffle=True, random_state=random_state
+            )
+        elif strategy == "group":
+            return StratifiedGroupKFold(
+                n_splits=n_splits, shuffle=True, random_state=random_state
+            )
+        else:
+            raise ValueError(f"Strategy must be 'random' or 'group', got {strategy}")
 
     def _calibrate_model(
         self,
@@ -426,161 +698,42 @@ class MedpipeClassifierRunner:
             )
             return best_pipeline
 
-    def fit_outcome(
+    def _postfit(
         self,
         outcome: str,
-        X_train: pd.DataFrame,
-        y_train: np.ndarray,
-        X_recal: pd.DataFrame | None = None,
-        y_recal: np.ndarray | None = None,
-        groups_train: np.ndarray | None = None,
+        best_pipeline: Pipeline,
+        model_config: dict,
+        X_recal: pd.DataFrame | None,
+        y_recal: np.ndarray | None,
     ) -> Pipeline | CalibratedClassifierCV:
         """
-        Trains, evaluates, and optionally calibrates a model for a single outcome.
+        Applies optional post-hoc probability recalibration.
 
         Parameters
         ----------
         outcome : str
             The name of the outcome being modeled.
-        X_train : pd.DataFrame
-            The training feature set.
-        y_train : np.ndarray
-            The 1D training target labels.
-        X_recal : Optional[pd.DataFrame], default=None
-            The recalibration feature set.
-        y_recal : Optional[np.ndarray], default=None
-            The 1D recalibration target labels.
-        groups_train : Optional[np.ndarray], default=None
-            Group labels for the training set, required if strategy is 'group'.
+        best_pipeline : sklearn.pipeline.Pipeline
+            The fitted base pipeline.
+        model_config : dict
+            The configuration dictionary for the specific outcome, containing
+            recalibration settings.
+        X_recal : pd.DataFrame or None
+            The recalibration feature set, if available.
+        y_recal : np.ndarray or None
+            The 1D recalibration target labels, if available.
 
         Returns
         -------
-        Union[Pipeline, CalibratedClassifierCV]
-            The fully trained model ready for evaluation.
-
-        Raises
-        ------
-        ValueError
-            If no algorithm is specified for an outcome
+        Union[sklearn.pipeline.Pipeline, sklearn.calibration.CalibratedClassifierCV]
+            The calibrated model if recalibration was performed, otherwise
+            the original fitted pipeline.
 
         """
-        self.logger.info(f"--- Starting execution for outcome: {outcome} ---")
-
-        model_config = self.orchestrator.config.resolved_models[outcome]
-        algo_name = model_config.algorithm
-
-        if not algo_name:
-            raise ValueError(f"No algorithm specified for outcome: {outcome}")
-
-        hyperparams = model_config.hyperparameters
-
-        # 1. Build Base Pipeline
-        preprocessor = self.orchestrator.build_preprocessor()
-        estimator = self._instantiate_estimator(algo_name, hyperparams)
-
-        steps = []
-        if preprocessor is not None:
-            steps.append(("preprocessor", preprocessor))
-        steps.append(("classifier", estimator))
-        pipeline = Pipeline(steps)
-
-        # 2. Configure Cross-Validation
-        cv_config = self.orchestrator.config.workflow.validation.cross_validation
-
-        # 3. Training Loop
-        if self.orchestrator.config.meta.run_mode in ["audit", "cv"]:
-            assert cv_config
-            assert cv_config.n_splits
-
-            cv_splitter = self._create_cv_splitter(
-                strategy=cv_config.strategy,
-                n_splits=cv_config.n_splits,
-                random_state=self.orchestrator.config.workflow.random_state,
-            )
-            self.logger.debug(
-                f"[{outcome}] CV {type(cv_splitter).__name__} "
-                f"with arguments {cv_splitter.__dict__}"
-            )
-            best_pipeline = self._train_model_cv(
-                outcome=outcome,
-                pipeline=pipeline,
-                hyperparams=hyperparams,
-                X_train=X_train,
-                y_train=y_train,
-                groups_train=groups_train,
-                cv_splitter=cv_splitter,
-            )
-        else:
-            self.logger.debug(f"[{outcome}] Fitting without any CV")
-            best_pipeline = pipeline.fit(X_train, y_train)
-
-        # 4. Optional Post-Hoc Recalibration
-        final_model = self._calibrate_model(
+        return self._calibrate_model(
             outcome=outcome,
             best_pipeline=best_pipeline,
-            model_config=model_config.model_dump(),
+            model_config=model_config,
             X_recal=X_recal,
             y_recal=y_recal,
         )
-
-        # 5. Save and Return
-        self._save_model(final_model, outcome)
-        self.logger.info(f"--- Finished execution for outcome: {outcome} ---")
-        return final_model
-
-    def run(
-        self,
-        X_train: pd.DataFrame,
-        y_train_df: pd.DataFrame,
-        X_recal: pd.DataFrame | None = None,
-        y_recal_df: pd.DataFrame | None = None,
-        groups_train: np.ndarray | None = None,
-    ) -> dict[str, Pipeline | CalibratedClassifierCV]:
-        """
-        Executes the pipelines for all configured target outcomes.
-
-        Parameters
-        ----------
-        X_train : pd.DataFrame
-            The training feature set.
-        y_train_df : pd.DataFrame
-            The training targets DataFrame (can contain multiple outcome columns).
-        X_recal : Optional[pd.DataFrame], default=None
-            The recalibration feature set.
-        y_recal_df : Optional[pd.DataFrame], default=None
-            The recalibration targets DataFrame.
-        groups_train : Optional[np.ndarray], default=None
-            Group labels for the training set.
-
-        Returns
-        -------
-        Dict[str, Union[Pipeline, CalibratedClassifierCV]]
-            A dictionary mapping outcome names to their finalized, fitted models.
-
-        """
-        outcomes = self.orchestrator.config.data.outcomes
-        self.logger.debug(f"Starting fitting of {len(outcomes)} models.")
-
-        for outcome in outcomes:
-            # We assume y_train_df columns correspond to the requested outcomes
-            y_train = y_train_df[outcome].to_numpy().ravel()
-
-            y_recal = None
-            if y_recal_df is not None and outcome in y_recal_df.columns:
-                y_recal = y_recal_df[outcome].to_numpy().ravel()
-
-            final_model = self.fit_outcome(
-                outcome=outcome,
-                X_train=X_train,
-                y_train=y_train,
-                X_recal=X_recal,
-                y_recal=y_recal,
-                groups_train=groups_train,
-            )
-
-            self.fitted_models[outcome] = final_model
-
-        # Save final models dictionary
-        self._save_final_models()
-
-        return self.fitted_models
