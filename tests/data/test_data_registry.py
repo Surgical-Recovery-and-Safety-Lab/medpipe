@@ -34,3 +34,9 @@ class TestPreprocessorRegistry:
             pass
 
         assert PreprocessorRegistry.get("CustomScaler") is CustomScaler
+
+    def test_missing_preprocessor_raises_value_error(self):
+        """Test that a name absent from both the registry and its sklearn
+        fallback modules raises a ValueError."""
+        with pytest.raises(ValueError, match="'NotARealPreprocessor' was not found"):
+            PreprocessorRegistry.get("NotARealPreprocessor")
