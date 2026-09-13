@@ -13,20 +13,26 @@ from medpipe.pipeline import (
     MedpipeClassifierEvaluator,
     MedpipeClassifierRunner,
     MedpipeOrchestrator,
+    MedpipeRegressor,
+    MedpipeRegressorEvaluator,
+    MedpipeRegressorRunner,
 )
 from medpipe.utils import MedpipeConfig, MedpipeRegressorConfig
 
 __version__ = "0.4.0.dev1"
 
 __all__ = [  # noqa: RUF022 (grouped by category, not alphabetical)
-    # Primary API Entry Point
+    # Primary API Entry Points
     "MedpipeClassifier",
     "MedpipeConfig",
+    "MedpipeRegressor",
     "MedpipeRegressorConfig",
     # Sub-Orchestrators (for custom/modular workflows)
     "MedpipeOrchestrator",
     "MedpipeClassifierRunner",
     "MedpipeClassifierEvaluator",
+    "MedpipeRegressorRunner",
+    "MedpipeRegressorEvaluator",
     # Component Registries (for custom models & metrics)
     "ModelRegistry",
     "MetricRegistry",

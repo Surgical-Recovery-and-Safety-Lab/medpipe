@@ -704,6 +704,8 @@ class MedpipeRegressorEvaluator(BaseEvaluator):
     -------
     predict(X, model=None, outcome=None)
         Predict continuous values for samples in X.
+    predict_dist(X, model=None, outcome=None)
+        Predict the full predictive distribution for samples in X.
     extract_subgroups(X, subgroup_specs)
         Extract index subsets for specified data subgroups.
     evaluate(X, y, outcome=None, metrics=None, subgroup_specs=None, save_artifacts=True)
@@ -711,6 +713,44 @@ class MedpipeRegressorEvaluator(BaseEvaluator):
         and subgroups.
 
     """
+
+    def predict_dist(
+        self,
+        X: pd.DataFrame | npt.NDArray,
+        model: Any | None = None,
+        outcome: str | None = None,
+    ) -> Any:
+        """
+        Predict the full predictive distribution for samples in X.
+
+        Parameters
+        ----------
+        X : pandas.DataFrame or numpy.ndarray
+            Features dataset of shape (n_samples, n_features).
+        model : object, optional
+            Fitted model instance. If None, resolved via `outcome` or `fitted_models`.
+        outcome : str, optional
+            Outcome key to look up in `self.fitted_models`.
+
+        Returns
+        -------
+        Any
+            The distribution object returned by the resolved model's
+            `predict_dist` method (e.g. an `ngboost.distns.Normal` or
+            `ordboost.distributions.ContinuousPredictiveDistribution`).
+
+        Raises
+        ------
+        AttributeError
+            If the resolved model does not implement a `predict_dist` method.
+
+        """
+        target_model = self._get_model(model, outcome)
+        if not hasattr(target_model, "predict_dist"):
+            raise AttributeError(
+                "The underlying model does not implement 'predict_dist'."
+            )
+        return target_model.predict_dist(X)
 
     def _get_predictions(
         self,
@@ -730,8 +770,8 @@ class MedpipeRegressorEvaluator(BaseEvaluator):
             The resolved, fitted model to predict with.
         metrics : list of str
             The metric names being evaluated. If any requires a
-            `predict_dist` response method (e.g. crps), `target_model`'s
-            `predict_dist(X)` is also called.
+            `predict_dist` response method (e.g. crps), `predict_dist(X)`
+            is also called.
 
         Returns
         -------
@@ -744,5 +784,5 @@ class MedpipeRegressorEvaluator(BaseEvaluator):
             MetricRegistry.get(m).response_method == "predict_dist" for m in metrics
         )
         point = self.predict(X, model=target_model)
-        dist = target_model.predict_dist(X) if needs_dist else None
+        dist = self.predict_dist(X, model=target_model) if needs_dist else None
         return PredictionBundle(point=point, dist=dist)
