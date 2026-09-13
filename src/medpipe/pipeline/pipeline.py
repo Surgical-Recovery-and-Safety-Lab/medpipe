@@ -21,7 +21,11 @@ from medpipe.pipeline.evaluator import (
     MedpipeClassifierEvaluator,
     MedpipeRegressorEvaluator,
 )
-from medpipe.pipeline.orchestrator import DataSplits, MedpipeOrchestrator
+from medpipe.pipeline.orchestrator import (
+    DataSplits,
+    FairnessSplits,
+    MedpipeOrchestrator,
+)
 from medpipe.pipeline.runner import MedpipeClassifierRunner, MedpipeRegressorRunner
 from medpipe.utils.config import MedpipeConfig, MedpipeRegressorConfig
 from medpipe.utils.io import read_regressor_toml_configuration
@@ -86,7 +90,7 @@ class MedpipeClassifier:
     decision_function(X, model=None, outcome=None)
         Compute decision function confidence scores for input samples.
     evaluate(X, y, outcome=None, model=None, metrics=None, subgroup_specs=None,
-    save_artifacts=True)
+    fairness_data=None, save_artifacts=True)
         Evaluate model performance with confidence intervals on full datasets
         and subgroups.
     plot_all(y_true, probas, outcome="default", n_bootstraps=None, save=None,
@@ -170,6 +174,25 @@ class MedpipeClassifier:
 
         """
         return self._orchestrator.splits
+
+    @property
+    def fairness_split(self) -> FairnessSplits | None:
+        """Access fairness stratification columns aligned with each data
+        split.
+
+        Lets fairness analyses be run directly against the relevant
+        columns (e.g. `pipeline.fairness_split.test["HOSPITAL"]") without
+        re-extracting them from the raw dataset, and independently of
+        whether those columns are also model predictors.
+
+        Return
+        ------
+        FairnessSplits or None
+            Any of the FairnessSplits attributes, or None if no
+            `workflow.evaluation.fairness` configuration is set.
+
+        """
+        return self._orchestrator.fairness_splits
 
     @property
     def metrics(self) -> list[str]:
@@ -317,6 +340,7 @@ class MedpipeClassifier:
         metrics: list[str] | None = None,
         subgroup_specs: dict[str, str | Callable[[pd.DataFrame], pd.Series]]
         | None = None,
+        fairness_data: pd.DataFrame | None = None,
         save_artifacts: bool = True,
     ) -> dict[str, Any]:
         """
@@ -340,6 +364,11 @@ class MedpipeClassifier:
             `self._evaluator.metrics`.
         subgroup_specs : dict of str to (str or callable), optional
             Specifications for extracting demographic or clinical subgroups.
+        fairness_data : pandas.DataFrame, optional
+            Fairness stratification columns aligned with `X` (see
+            `fairness_split`), used to resolve `subgroup_specs` for strata
+            that are not themselves model predictors (e.g. "HOSPITAL").
+            Defaults to `X` when not provided.
         save_artifacts : bool, default=True
             Whether to write evaluation summary results to disk via
             `ArtifactManager`.
@@ -369,6 +398,7 @@ class MedpipeClassifier:
             model=model,
             metrics=metrics,
             subgroup_specs=subgroup_specs,
+            fairness_data=fairness_data,
             save_artifacts=save_artifacts,
         )
 
@@ -444,6 +474,8 @@ class MedpipeClassifier:
         plots: dict[str, dict[str, tuple[Figure | SubFigure, Axes]]] = {}
         outcomes = self._orchestrator.config.data.outcomes
         subgroup_specs = self._orchestrator.get_subgroup_specs()
+        fairness_splits = self._orchestrator.fairness_splits
+        fairness_data = fairness_splits.test if fairness_splits is not None else None
 
         for outcome in outcomes:
             y_test_outcome = y_test[outcome]
@@ -452,6 +484,7 @@ class MedpipeClassifier:
                 y=y_test_outcome.to_numpy(),
                 outcome=outcome,
                 subgroup_specs=subgroup_specs,
+                fairness_data=fairness_data,
                 save_artifacts=True,
             )
 
@@ -657,7 +690,7 @@ class MedpipeRegressor:
     predict_dist(X, model=None, outcome=None)
         Predict the full predictive distribution for input samples.
     evaluate(X, y, outcome=None, model=None, metrics=None, subgroup_specs=None,
-    save_artifacts=True)
+    fairness_data=None, save_artifacts=True)
         Evaluate model performance with confidence intervals on full datasets
         and subgroups.
     run(subgroup_specs=None, groups_train=None)
@@ -739,6 +772,25 @@ class MedpipeRegressor:
 
         """
         return self._orchestrator.splits
+
+    @property
+    def fairness_split(self) -> FairnessSplits | None:
+        """Access fairness stratification columns aligned with each data
+        split.
+
+        Lets fairness analyses be run directly against the relevant
+        columns (e.g. `pipeline.fairness_split.test["HOSPITAL"]") without
+        re-extracting them from the raw dataset, and independently of
+        whether those columns are also model predictors.
+
+        Return
+        ------
+        FairnessSplits or None
+            Any of the FairnessSplits attributes, or None if no
+            `workflow.evaluation.fairness` configuration is set.
+
+        """
+        return self._orchestrator.fairness_splits
 
     @property
     def metrics(self) -> list[str]:
@@ -861,6 +913,7 @@ class MedpipeRegressor:
         metrics: list[str] | None = None,
         subgroup_specs: dict[str, str | Callable[[pd.DataFrame], pd.Series]]
         | None = None,
+        fairness_data: pd.DataFrame | None = None,
         save_artifacts: bool = True,
     ) -> dict[str, Any]:
         """
@@ -884,6 +937,11 @@ class MedpipeRegressor:
             `self._evaluator.metrics`.
         subgroup_specs : dict of str to (str or callable), optional
             Specifications for extracting demographic or clinical subgroups.
+        fairness_data : pandas.DataFrame, optional
+            Fairness stratification columns aligned with `X` (see
+            `fairness_split`), used to resolve `subgroup_specs` for strata
+            that are not themselves model predictors (e.g. "HOSPITAL").
+            Defaults to `X` when not provided.
         save_artifacts : bool, default=True
             Whether to write evaluation summary results to disk via
             `ArtifactManager`.
@@ -913,6 +971,7 @@ class MedpipeRegressor:
             model=model,
             metrics=metrics,
             subgroup_specs=subgroup_specs,
+            fairness_data=fairness_data,
             save_artifacts=save_artifacts,
         )
 
@@ -986,6 +1045,8 @@ class MedpipeRegressor:
         evaluations: dict[str, Any] = {}
         outcomes = self._orchestrator.config.data.outcomes
         subgroup_specs = self._orchestrator.get_subgroup_specs()
+        fairness_splits = self._orchestrator.fairness_splits
+        fairness_data = fairness_splits.test if fairness_splits is not None else None
 
         for outcome in outcomes:
             y_test_outcome = y_test[outcome]
@@ -994,6 +1055,7 @@ class MedpipeRegressor:
                 y=y_test_outcome.to_numpy(),
                 outcome=outcome,
                 subgroup_specs=subgroup_specs,
+                fairness_data=fairness_data,
                 save_artifacts=True,
             )
 
