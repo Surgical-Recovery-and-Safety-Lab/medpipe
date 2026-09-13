@@ -8,7 +8,11 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from medpipe.pipeline.evaluator import BaseEvaluator, MedpipeClassifierEvaluator
+from medpipe.pipeline.evaluator import (
+    BaseEvaluator,
+    MedpipeClassifierEvaluator,
+    MedpipeRegressorEvaluator,
+)
 
 # --- Fixtures ---
 
@@ -548,6 +552,79 @@ class TestMedpipeEvaluatorSaveEvaluationArtifacts:
         assert saved_path == (
             mock_orchestrator.run_dir / "artifacts/results/test_evaluation_results.json"
         )
+
+
+class TestRegressorEvaluator:
+    """Tests for MedpipeRegressorEvaluator against continuous synthetic
+    data, confirming the compute_metrics rounding fix (Phase 0) is
+    correctly exercised end-to-end through evaluate()."""
+
+    @pytest.fixture
+    def mock_regressor_model(self):
+        """Fixture providing a mock estimator with continuous point
+        predictions (not integer-rounded probabilities)."""
+        model = MagicMock()
+        model.predict.return_value = np.array([2.5, 7.1, 4.3, 9.9])
+        del model.predict_proba
+        del model.decision_function
+        return model
+
+    @pytest.fixture
+    def mock_regressor_runner(self, mock_regressor_model):
+        """Fixture providing a mock MedpipeRegressorRunner containing a
+        fitted model."""
+        runner = MagicMock()
+        runner.fitted_models = {"LOS_DAYS": mock_regressor_model}
+        return runner
+
+    @pytest.fixture
+    def continuous_sample_data(self):
+        """Fixture providing feature DataFrame X and a continuous target y."""
+        X = pd.DataFrame(
+            {"age": [65, 45, 72, 50]},
+            index=pd.Index([101, 102, 103, 104]),
+        )
+        y = pd.Series([2.0, 7.0, 4.0, 10.0], index=[101, 102, 103, 104], name="los")
+        return X, y
+
+    def test_get_predictions_returns_raw_point_predictions(
+        self, mock_orchestrator, mock_regressor_runner, mock_regressor_model
+    ):
+        """Test that _get_predictions delegates directly to predict()."""
+        evaluator = MedpipeRegressorEvaluator(mock_orchestrator, mock_regressor_runner)
+
+        result = evaluator._get_predictions(
+            X=pd.DataFrame(), target_model=mock_regressor_model, metrics=["rmse"]
+        )
+
+        np.testing.assert_array_equal(result, [2.5, 7.1, 4.3, 9.9])
+
+    def test_evaluate_rmse_mae_not_rounded(
+        self,
+        mock_orchestrator,
+        mock_regressor_runner,
+        continuous_sample_data,
+    ):
+        """Test that evaluate() with rmse/mae uses unrounded continuous
+        predictions end-to-end (regression test for the Phase 0 bug where
+        compute_metrics rounded every non-predict_proba metric's input)."""
+        mock_orchestrator.config.workflow.evaluation.metrics.metrics = [
+            "rmse",
+            "mae",
+        ]
+        evaluator = MedpipeRegressorEvaluator(mock_orchestrator, mock_regressor_runner)
+        X, y = continuous_sample_data
+
+        results = evaluator.evaluate(
+            X, y, outcome="LOS_DAYS", metrics=["rmse", "mae"], save_artifacts=False
+        )
+
+        # Predictions [2.5, 7.1, 4.3, 9.9] vs truth [2.0, 7.0, 4.0, 10.0]:
+        # errors are [0.5, 0.1, 0.3, -0.1] -> MAE = 0.25 exactly.
+        # If predictions were rounded to [2, 7, 4, 10] first (the old bug),
+        # MAE would be 0.5 instead.
+        mae_point_estimate = results["overall"]["mae"]["point_estimate"]
+        assert mae_point_estimate == pytest.approx(0.25)
 
 
 class TestBaseEvaluatorHooks:
