@@ -11,7 +11,7 @@ from sklearn.pipeline import Pipeline
 from medpipe.data.registry import PreprocessorRegistry
 from medpipe.data.utils import extract_labels, resolve_subgroup_mask, split_data
 from medpipe.utils.config import MedpipeClassifierConfig, MedpipeRegressorConfig
-from medpipe.utils.io import load_data, read_toml_configuration
+from medpipe.utils.io import load_data, read_classifier_toml_configuration
 from medpipe.utils.logger import add_file_handler, get_console_logger, set_verbosity
 from medpipe.utils.reproducibility import ArtifactManager
 
@@ -139,7 +139,7 @@ class MedpipeOrchestrator:
     ) -> None:
         self._config_path: Path | None = None
         if isinstance(config, (str, Path)):
-            self.config = read_toml_configuration(config)
+            self.config = read_classifier_toml_configuration(config)
             self._config_path = Path(config)
         elif isinstance(config, (MedpipeClassifierConfig, MedpipeRegressorConfig)):
             self.config = config

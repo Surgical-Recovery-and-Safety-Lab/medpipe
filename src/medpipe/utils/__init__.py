@@ -11,8 +11,8 @@ from medpipe.utils.config import MedpipeClassifierConfig, MedpipeRegressorConfig
 from medpipe.utils.io import (
     DataLoaderRegistry,
     load_data,
+    read_classifier_toml_configuration,
     read_regressor_toml_configuration,
-    read_toml_configuration,
 )
 from medpipe.utils.logger import add_file_handler, get_console_logger
 from medpipe.utils.registry import BaseRegistry
@@ -25,7 +25,7 @@ __all__ = [  # noqa: RUF022 (grouped by category, not alphabetical)
     "MedpipeRegressorConfig",
     # I/O utilities
     "load_data",
-    "read_toml_configuration",
+    "read_classifier_toml_configuration",
     "read_regressor_toml_configuration",
     "DataLoaderRegistry",
     # Logging
