@@ -102,6 +102,89 @@ def _validate_plot_type_keys(
     return v
 
 
+def _validate_recalibration_split_strategy(
+    test_split: SplitTestConfig,
+    recalibration_split: SplitRecalibrationConfig | None,
+) -> None:
+    """Validate that recalibration and test split have the same strategy.
+
+    Parameters
+    ----------
+    test_split : SplitTestConfig
+        Configuration for the train/test split.
+    recalibration_split : SplitRecalibrationConfig or None
+        Configuration for the recalibration split, if any.
+
+    Raises
+    ------
+    ValueError
+        If `recalibration_split` is set and its `strategy` differs from
+        `test_split.strategy`.
+
+    """
+    if recalibration_split and recalibration_split.strategy != test_split.strategy:
+        raise ValueError("Recalibration and test strategies should match")
+
+
+def _validate_recalibration_split_group_column(
+    test_split: SplitTestConfig,
+    recalibration_split: SplitRecalibrationConfig | None,
+) -> None:
+    """Validate that recalibration and test split have the same group column.
+
+    Parameters
+    ----------
+    test_split : SplitTestConfig
+        Configuration for the train/test split.
+    recalibration_split : SplitRecalibrationConfig or None
+        Configuration for the recalibration split, if any.
+
+    Raises
+    ------
+    ValueError
+        If both splits use the "group" strategy but their group columns
+        differ.
+
+    """
+    if (
+        recalibration_split
+        and recalibration_split.strategy == "group"
+        and test_split.strategy == "group"
+        and recalibration_split.group_column != test_split.group_column
+    ):
+        raise ValueError("Recalibration and test group columns should match")
+
+
+def _validate_recalibration_split_values(
+    test_split: SplitTestConfig,
+    recalibration_split: SplitRecalibrationConfig | None,
+) -> None:
+    """Validate that recalibration and test split have different values.
+
+    Parameters
+    ----------
+    test_split : SplitTestConfig
+        Configuration for the train/test split.
+    recalibration_split : SplitRecalibrationConfig or None
+        Configuration for the recalibration split, if any.
+
+    Raises
+    ------
+    ValueError
+        If both splits use the "group" strategy and share any group value.
+
+    """
+    if (
+        recalibration_split
+        and recalibration_split.values is not None
+        and recalibration_split.strategy == "group"
+        and test_split.strategy == "group"
+    ):
+        for value in recalibration_split.values:
+            if value in test_split.values:  # type: ignore
+                raise ValueError("Recalibration and test values should be different")
+
+
 # ==============================================================================
 # CONFIGURATION SCHEMA (pydantic)
 # ==============================================================================
@@ -507,11 +590,9 @@ class ValidationSubConfig(BaseModel):
             from `test_split.strategy`.
 
         """
-        if (
-            self.recalibration_split
-            and self.recalibration_split.strategy != self.test_split.strategy
-        ):
-            raise ValueError("Recalibration and test strategies should match")
+        _validate_recalibration_split_strategy(
+            self.test_split, self.recalibration_split
+        )
         return self
 
     @model_validator(mode="after")
@@ -531,14 +612,9 @@ class ValidationSubConfig(BaseModel):
             columns differ.
 
         """
-        # Check only when strategy is group
-        if (
-            self.recalibration_split
-            and self.recalibration_split.strategy == "group"
-            and self.test_split.strategy == "group"
-            and self.recalibration_split.group_column != self.test_split.group_column
-        ):
-            raise ValueError("Recalibration and test group columns should match")
+        _validate_recalibration_split_group_column(
+            self.test_split, self.recalibration_split
+        )
         return self
 
     @model_validator(mode="after")
@@ -558,17 +634,7 @@ class ValidationSubConfig(BaseModel):
             value.
 
         """
-        if (
-            self.recalibration_split
-            and self.recalibration_split.values is not None
-            and self.recalibration_split.strategy == "group"
-            and self.test_split.strategy == "group"
-        ):
-            for value in self.recalibration_split.values:
-                if value in self.test_split.values:  # type: ignore
-                    raise ValueError(
-                        "Recalibration and test values should be different"
-                    )
+        _validate_recalibration_split_values(self.test_split, self.recalibration_split)
         return self
 
 
@@ -1203,11 +1269,13 @@ class RegressorMetricsConfig(BaseModel):
 
 
 class RegressorValidationSubConfig(BaseModel):
-    """Configuration grouping the test and cross-validation split settings
-    for a regression workflow.
+    """Configuration grouping the test, cross-validation, and
+    recalibration split settings for a regression workflow.
 
-    Unlike `ValidationSubConfig`, this has no `recalibration_split` field:
-    post-hoc recalibration is not supported on the regression track.
+    `recalibration_split` produces a holdout set for future post-hoc
+    regression recalibration (e.g. PIT recalibration); no model-level
+    recalibration step consumes it yet — `RegressorModelSetup` has no
+    `recalibration` field, unlike the classifier's `ModelSetup`.
 
     Attributes
     ----------
@@ -1216,12 +1284,78 @@ class RegressorValidationSubConfig(BaseModel):
     cross_validation : CrossValConfig or None, default=None
         Configuration for cross-validation, required unless `run_mode`
         is "fast".
+    recalibration_split : SplitRecalibrationConfig or None, default=None
+        Configuration for the recalibration split.
 
     """
 
     test_split: SplitTestConfig
     cross_validation: CrossValConfig | None = None
+    recalibration_split: SplitRecalibrationConfig | None = None
     model_config = {"extra": "forbid"}
+
+    @model_validator(mode="after")
+    def validate_group_strategies(self) -> RegressorValidationSubConfig:
+        """Validate that recalibration and test split have same strategy.
+
+        Returns
+        -------
+        RegressorValidationSubConfig
+            The validated configuration instance.
+
+        Raises
+        ------
+        ValueError
+            If `recalibration_split` is set and its `strategy` differs
+            from `test_split.strategy`.
+
+        """
+        _validate_recalibration_split_strategy(
+            self.test_split, self.recalibration_split
+        )
+        return self
+
+    @model_validator(mode="after")
+    def validate_group_columns(self) -> RegressorValidationSubConfig:
+        """Validate that recalibration and test split have same group
+        columns.
+
+        Returns
+        -------
+        RegressorValidationSubConfig
+            The validated configuration instance.
+
+        Raises
+        ------
+        ValueError
+            If both splits use the "group" strategy but their group
+            columns differ.
+
+        """
+        _validate_recalibration_split_group_column(
+            self.test_split, self.recalibration_split
+        )
+        return self
+
+    @model_validator(mode="after")
+    def validate_group_values(self) -> RegressorValidationSubConfig:
+        """Validate that recalibration and test split have different
+        values.
+
+        Returns
+        -------
+        RegressorValidationSubConfig
+            The validated configuration instance.
+
+        Raises
+        ------
+        ValueError
+            If both splits use the "group" strategy and share any group
+            value.
+
+        """
+        _validate_recalibration_split_values(self.test_split, self.recalibration_split)
+        return self
 
 
 class RegressorEvaluationSubConfig(BaseModel):
@@ -1257,8 +1391,8 @@ class RegressorWorkflowConfig(BaseModel):
         Configuration controlling whether and how preprocessing is
         applied.
     validation : RegressorValidationSubConfig
-        Configuration grouping the test and cross-validation split
-        settings.
+        Configuration grouping the test, cross-validation, and
+        recalibration split settings.
     evaluation : RegressorEvaluationSubConfig
         Configuration grouping the metrics and fairness evaluation
         settings.
