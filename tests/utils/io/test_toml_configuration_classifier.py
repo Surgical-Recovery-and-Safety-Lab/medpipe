@@ -1,5 +1,6 @@
 """
-Tests for the read_toml_configuration function of the medpipe.utils.io module.
+Tests for the read_classifier_toml_configuration function of the
+medpipe.utils.io module.
 """
 
 import tomllib
@@ -9,7 +10,7 @@ import pytest
 from pydantic import ValidationError
 
 from medpipe.utils.config import MedpipeClassifierConfig
-from medpipe.utils.io import read_toml_configuration
+from medpipe.utils.io import read_classifier_toml_configuration
 
 MINIMAL_VALID_TOML = """
 [meta]
@@ -41,8 +42,8 @@ def minimal_config_file(tmp_path: Path) -> Path:
     return config_path
 
 
-class TestReadTOMLConfiguration:
-    """Test class for the read_toml_configuration function."""
+class TestReadClassifierTOMLConfiguration:
+    """Test class for the read_classifier_toml_configuration function."""
 
     def test_read_configuration_example_file(self) -> None:
         """Integration smoke test against the repository's example config,
@@ -51,7 +52,9 @@ class TestReadTOMLConfiguration:
         base_dir = Path(__file__).parent.parent.parent.parent
 
         example_config_dir = base_dir / "examples/"
-        config = read_toml_configuration(example_config_dir / "default_config.toml")
+        config = read_classifier_toml_configuration(
+            example_config_dir / "default_config.toml"
+        )
 
         assert isinstance(config, MedpipeClassifierConfig)
         assert config.meta.project_name == "medpipe_demo"
@@ -61,7 +64,7 @@ class TestReadTOMLConfiguration:
     ) -> None:
         """Test that a minimal valid TOML file is parsed into a fully
         populated MedpipeClassifierConfig instance."""
-        config = read_toml_configuration(minimal_config_file)
+        config = read_classifier_toml_configuration(minimal_config_file)
 
         assert isinstance(config, MedpipeClassifierConfig)
         assert config.meta.project_name == "test_project"
@@ -74,7 +77,7 @@ class TestReadTOMLConfiguration:
     ) -> None:
         """Test that config_file may be passed as a plain string as well
         as a Path."""
-        config = read_toml_configuration(str(minimal_config_file))
+        config = read_classifier_toml_configuration(str(minimal_config_file))
 
         assert isinstance(config, MedpipeClassifierConfig)
 
@@ -85,7 +88,7 @@ class TestReadTOMLConfiguration:
         missing_file = tmp_path / "missing.toml"
 
         with pytest.raises(FileNotFoundError):
-            read_toml_configuration(missing_file)
+            read_classifier_toml_configuration(missing_file)
 
     def test_read_configuration_wrong_extension_raises_value_error(
         self, tmp_path: Path
@@ -95,7 +98,7 @@ class TestReadTOMLConfiguration:
         wrong_ext_file.write_text("{}")
 
         with pytest.raises(ValueError, match=r"File suffix should be \.toml"):
-            read_toml_configuration(wrong_ext_file)
+            read_classifier_toml_configuration(wrong_ext_file)
 
     def test_read_configuration_malformed_toml_raises_decode_error(
         self, tmp_path: Path
@@ -106,7 +109,7 @@ class TestReadTOMLConfiguration:
         malformed_file.write_text("this is not = [valid toml")
 
         with pytest.raises(tomllib.TOMLDecodeError):
-            read_toml_configuration(malformed_file)
+            read_classifier_toml_configuration(malformed_file)
 
     def test_read_configuration_schema_violation_raises_validation_error(
         self, tmp_path: Path
@@ -118,4 +121,4 @@ class TestReadTOMLConfiguration:
         invalid_file.write_text("[meta]\nproject_name = \"only_meta\"\n")
 
         with pytest.raises(ValidationError):
-            read_toml_configuration(invalid_file)
+            read_classifier_toml_configuration(invalid_file)

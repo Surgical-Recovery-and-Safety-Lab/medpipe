@@ -51,7 +51,7 @@ class TestInit:
 
         assert orchestrator.config == mock_regressor_config
 
-    @patch("medpipe.pipeline.orchestrator.read_toml_configuration")
+    @patch("medpipe.pipeline.orchestrator.read_classifier_toml_configuration")
     def test_init_with_string_path(
         self,
         mock_read_toml,
@@ -175,7 +175,7 @@ class TestSaveReproducibilityArtifacts:
             dataset_path=None,
         )
 
-    @patch("medpipe.pipeline.orchestrator.read_toml_configuration")
+    @patch("medpipe.pipeline.orchestrator.read_classifier_toml_configuration")
     def test_save_artifacts_copies_toml_when_config_is_a_path(
         self,
         mock_read_toml,

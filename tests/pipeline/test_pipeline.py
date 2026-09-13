@@ -10,7 +10,7 @@ import pytest
 
 from medpipe.pipeline.pipeline import MedpipeClassifier
 from medpipe.utils.config import MedpipeClassifierConfig
-from medpipe.utils.io import read_toml_configuration
+from medpipe.utils.io import read_classifier_toml_configuration
 
 # ==============================================================================
 # 1. UNIT TESTS (Mocked Sub-components & Routing Validation)
@@ -840,7 +840,7 @@ def build_medpipe_config(test_data_path: Path, base_config_path: Path):
     def _factory(
         run_mode: str = "fast", disable_recal: bool = False
     ) -> MedpipeClassifierConfig:
-        config = read_toml_configuration(base_config_path)
+        config = read_classifier_toml_configuration(base_config_path)
         config.data.path = str(test_data_path)
         config.meta.run_mode = run_mode
 
