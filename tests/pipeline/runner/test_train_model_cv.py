@@ -218,7 +218,6 @@ class TestTrainModelCv:
             response_method="predict",
             display_name="Dummy Score",
         )
-        MetricRegistry.register_spec(custom_spec)
 
         mock_orchestrator.config.workflow.validation.cross_validation.strategy = (
             "random"
@@ -243,24 +242,29 @@ class TestTrainModelCv:
         mock_search_instance.best_score_ = 0.9102
         mock_search_instance.cv_results_ = {"mean_test_dummy_custom_score": [0.95]}
 
-        result = runner._train_model_cv(
-            outcome="MORTALITY_30D",
-            pipeline=mock_pipeline,
-            hyperparams=hyperparams,
-            X_train=X_train,
-            y_train=y_train,
-            groups_train=None,
-            cv_splitter=cv_splitter,
-        )
+        # patch.dict restores MetricRegistry._registry to its prior state on
+        # exit, so this registration doesn't leak into other tests.
+        with patch.dict(MetricRegistry._registry, {}, clear=False):
+            MetricRegistry.register_spec(custom_spec)
 
-        mock_grid_search.assert_called_once()
-        call_kwargs = mock_grid_search.call_args[1]
+            result = runner._train_model_cv(
+                outcome="MORTALITY_30D",
+                pipeline=mock_pipeline,
+                hyperparams=hyperparams,
+                X_train=X_train,
+                y_train=y_train,
+                groups_train=None,
+                cv_splitter=cv_splitter,
+            )
 
-        assert call_kwargs["refit"] == "dummy_custom_score"
-        passed_scoring = call_kwargs["scoring"]
-        assert isinstance(passed_scoring, dict)
-        assert "dummy_custom_score" in passed_scoring
-        assert "ici" in passed_scoring
+            mock_grid_search.assert_called_once()
+            call_kwargs = mock_grid_search.call_args[1]
+
+            assert call_kwargs["refit"] == "dummy_custom_score"
+            passed_scoring = call_kwargs["scoring"]
+            assert isinstance(passed_scoring, dict)
+            assert "dummy_custom_score" in passed_scoring
+            assert "ici" in passed_scoring
 
         mock_save_cv_results.assert_called_once()
         mock_search_instance.fit.assert_called_once_with(X_train, y_train, groups=None)
