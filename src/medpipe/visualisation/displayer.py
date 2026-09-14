@@ -4,7 +4,7 @@ High-level display and visualisation manager module.
 
 import ast
 from pathlib import Path
-from typing import Any, ClassVar
+from typing import Any, ClassVar, Literal
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -1663,11 +1663,12 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
         y_true: np.ndarray,
         dist: ContinuousPredictiveDistribution,
         coverage_levels: np.ndarray,
+        metric: Literal["coverage", "sharpness", "winkler"],
         n_bootstraps: int = 1000,
         random_state: int | None = 42,
     ) -> dict[str, Any]:
-        """Compute empirical coverage, sharpness, and Winkler score across
-        nominal coverage levels, with bootstrap CIs.
+        """Compute one of empirical coverage, sharpness, or Winkler score
+        across nominal coverage levels, with bootstrap CIs.
 
         Parameters
         ----------
@@ -1678,6 +1679,8 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
         coverage_levels : np.ndarray
             Nominal central-interval coverage levels in percent (e.g. 90 for
             a 90% interval).
+        metric : {"coverage", "sharpness", "winkler"}
+            Which single metric to compute.
         n_bootstraps : int, default=1000
             Number of bootstrap iterations for 95% confidence interval estimation.
         random_state : int, optional, default=42
@@ -1686,35 +1689,32 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
         Returns
         -------
         dict of str to Any
-            `"coverage_levels"` (np.ndarray), and `"coverage"`, `"sharpness"`,
-            `"winkler"`, each a dict with `"point"`, `"lower_ci"`, `"upper_ci"`
-            (the latter two None when `n_bootstraps <= 0`).
+            `"coverage_levels"` (np.ndarray), and `"output"`, a dict with
+            `"point"`, `"lower_ci"`, `"upper_ci"` (the latter two None when
+            `n_bootstraps <= 0`) for the requested `metric`.
 
         """
+
+        def _metric_value(
+            y: np.ndarray, d: ContinuousPredictiveDistribution, alpha: float
+        ) -> float:
+            if metric == "coverage":
+                return interval_coverage_rate(y, d, alpha=alpha) * 100.0
+            if metric == "sharpness":
+                return sharpness(d, alpha=alpha)
+            return winkler_score(y, d, alpha=alpha)
+
         y_true_arr = np.asarray(y_true, dtype=float)
         coverage_levels_arr = np.asarray(coverage_levels, dtype=float)
         alphas = 1.0 - coverage_levels_arr / 100.0
 
-        empirical_coverage = np.empty_like(alphas)
-        sharp = np.empty_like(alphas)
-        winkler = np.empty_like(alphas)
-
+        point = np.empty_like(alphas)
         for i, alpha in enumerate(alphas):
-            empirical_coverage[i] = (
-                interval_coverage_rate(y_true_arr, dist, alpha=alpha) * 100.0
-            )
-            sharp[i] = sharpness(dist, alpha=alpha)
-            winkler[i] = winkler_score(y_true_arr, dist, alpha=alpha)
+            point[i] = _metric_value(y_true_arr, dist, alpha)
 
         result: dict[str, Any] = {
             "coverage_levels": coverage_levels_arr,
-            "coverage": {
-                "point": empirical_coverage,
-                "lower_ci": None,
-                "upper_ci": None,
-            },
-            "sharpness": {"point": sharp, "lower_ci": None, "upper_ci": None},
-            "winkler": {"point": winkler, "lower_ci": None, "upper_ci": None},
+            "output": {"point": point, "lower_ci": None, "upper_ci": None},
         }
 
         if n_bootstraps <= 0:
@@ -1723,9 +1723,7 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
         rng = np.random.default_rng(random_state)
         n_samples = len(y_true_arr)
         n_levels = len(alphas)
-        coverage_boot = np.empty((n_bootstraps, n_levels))
-        sharp_boot = np.empty((n_bootstraps, n_levels))
-        winkler_boot = np.empty((n_bootstraps, n_levels))
+        boot = np.empty((n_bootstraps, n_levels))
 
         for b in range(n_bootstraps):
             idx = rng.choice(n_samples, size=n_samples, replace=True)
@@ -1734,18 +1732,10 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
                 grid_y=dist.grid_y, grid_cdf=dist.grid_cdf[idx]
             )
             for j, alpha in enumerate(alphas):
-                coverage_boot[b, j] = (
-                    interval_coverage_rate(y_b, dist_b, alpha=alpha) * 100.0
-                )
-                sharp_boot[b, j] = sharpness(dist_b, alpha=alpha)
-                winkler_boot[b, j] = winkler_score(y_b, dist_b, alpha=alpha)
+                boot[b, j] = _metric_value(y_b, dist_b, alpha)
 
-        result["coverage"]["lower_ci"] = np.percentile(coverage_boot, 2.5, axis=0)
-        result["coverage"]["upper_ci"] = np.percentile(coverage_boot, 97.5, axis=0)
-        result["sharpness"]["lower_ci"] = np.percentile(sharp_boot, 2.5, axis=0)
-        result["sharpness"]["upper_ci"] = np.percentile(sharp_boot, 97.5, axis=0)
-        result["winkler"]["lower_ci"] = np.percentile(winkler_boot, 2.5, axis=0)
-        result["winkler"]["upper_ci"] = np.percentile(winkler_boot, 97.5, axis=0)
+        result["output"]["lower_ci"] = np.percentile(boot, 2.5, axis=0)
+        result["output"]["upper_ci"] = np.percentile(boot, 97.5, axis=0)
 
         return result
 
@@ -1899,6 +1889,7 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
             y_true=y_true,
             dist=dist,
             coverage_levels=levels,
+            metric="coverage",
             n_bootstraps=n_bootstraps_val,
         )
 
@@ -1907,9 +1898,9 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
         with (plt.rc_context(self.theme.to_rc_params()),):
             fig, ax = draw_coverage_curve(
                 coverage_levels=data["coverage_levels"],
-                empirical_coverage=data["coverage"]["point"],
-                lower_ci=data["coverage"]["lower_ci"],
-                upper_ci=data["coverage"]["upper_ci"],
+                empirical_coverage=data["output"]["point"],
+                lower_ci=data["output"]["lower_ci"],
+                upper_ci=data["output"]["upper_ci"],
                 label=display_label,
                 color=style_kwargs.pop("color", self.theme.primary_color),
                 ci_alpha=style_kwargs.pop("ci_alpha", self.theme.ci_alpha),
@@ -1997,6 +1988,7 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
             y_true=y_true,
             dist=dist,
             coverage_levels=levels,
+            metric="sharpness",
             n_bootstraps=n_bootstraps_val,
         )
 
@@ -2005,9 +1997,9 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
         with (plt.rc_context(self.theme.to_rc_params()),):
             fig, ax = draw_sharpness_curve(
                 coverage_levels=data["coverage_levels"],
-                sharpness_values=data["sharpness"]["point"],
-                lower_ci=data["sharpness"]["lower_ci"],
-                upper_ci=data["sharpness"]["upper_ci"],
+                sharpness_values=data["output"]["point"],
+                lower_ci=data["output"]["lower_ci"],
+                upper_ci=data["output"]["upper_ci"],
                 label=display_label,
                 color=style_kwargs.pop("color", self.theme.primary_color),
                 ci_alpha=style_kwargs.pop("ci_alpha", self.theme.ci_alpha),
@@ -2095,6 +2087,7 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
             y_true=y_true,
             dist=dist,
             coverage_levels=levels,
+            metric="winkler",
             n_bootstraps=n_bootstraps_val,
         )
 
@@ -2103,9 +2096,9 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
         with (plt.rc_context(self.theme.to_rc_params()),):
             fig, ax = draw_winkler_curve(
                 coverage_levels=data["coverage_levels"],
-                winkler_values=data["winkler"]["point"],
-                lower_ci=data["winkler"]["lower_ci"],
-                upper_ci=data["winkler"]["upper_ci"],
+                winkler_values=data["output"]["point"],
+                lower_ci=data["output"]["lower_ci"],
+                upper_ci=data["output"]["upper_ci"],
                 label=display_label,
                 color=style_kwargs.pop("color", self.theme.primary_color),
                 ci_alpha=style_kwargs.pop("ci_alpha", self.theme.ci_alpha),
