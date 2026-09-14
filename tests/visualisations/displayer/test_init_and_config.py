@@ -46,8 +46,8 @@ class TestNormalizePlotType:
             ("pr", "precision_recall"),
             ("pr_curve", "precision_recall"),
             ("roc_curve", "roc"),
-            ("distribution", "probability_distribution"),
-            ("dist", "probability_distribution"),
+            ("distribution", "data_distribution"),
+            ("dist", "data_distribution"),
             ("dca_curve", "dca"),
             ("roc", "roc"),
             ("dca", "dca"),
@@ -90,7 +90,7 @@ class TestResolvePlotConfig:
             ),
             overrides={
                 "reliability": {"n_bootstraps": 200, "strategy": "spline"},
-                "probability_distribution": {"n_bins": 25},
+                "data_distribution": {"n_bins": 25},
             },
             outcome_overrides={
                 "MORTALITY_30D": {

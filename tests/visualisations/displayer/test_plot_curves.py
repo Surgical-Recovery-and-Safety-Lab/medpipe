@@ -1,6 +1,6 @@
 """
 Tests for MedpipeClassifierDisplayer's high-level curve-plotting methods:
-plot_probability_distribution, plot_roc_curve, plot_precision_recall_curve,
+plot_data_distribution, plot_roc_curve, plot_precision_recall_curve,
 plot_reliability_diagram, and plot_dca_curve.
 """
 
@@ -14,18 +14,18 @@ from matplotlib.figure import Figure
 from medpipe.visualisation.displayer import MedpipeClassifierDisplayer
 
 
-class TestPlotProbabilityDistribution:
-    """Tests for the high-level `plot_probability_distribution` method."""
+class TestPlotDataDistribution:
+    """Tests for the high-level `plot_data_distribution` method."""
 
-    def test_plot_probability_distribution_success_and_saves(
+    def test_plot_data_distribution_success_and_saves(
         self, mock_orchestrator, sample_binary_data, tmp_path: Path
     ) -> None:
         """Test successful distribution plot generation with artifact saving."""
         _, probas = sample_binary_data
         displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
 
-        fig, ax = displayer.plot_probability_distribution(
-            probas=probas,
+        fig, ax = displayer.plot_data_distribution(
+            data=probas,
             outcome="mortality",
             n_bins=12,
             save=True,
@@ -33,36 +33,34 @@ class TestPlotProbabilityDistribution:
         )
 
         expected_file = (
-            tmp_path / "plots" / "mortality" / "mortality_probability_distribution.png"
+            tmp_path / "plots" / "mortality" / "mortality_data_distribution.png"
         )
         assert isinstance(fig, Figure)
         assert isinstance(ax, Axes)
         assert expected_file.exists()
 
-    def test_plot_probability_distribution_no_save(
+    def test_plot_data_distribution_no_save(
         self, mock_orchestrator, sample_binary_data, tmp_path: Path
     ) -> None:
         """Test that save=False skips artifact persistence."""
         _, probas = sample_binary_data
         displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
 
-        displayer.plot_probability_distribution(
-            probas=probas, outcome="mortality", save=False, show=False
+        displayer.plot_data_distribution(
+            data=probas, outcome="mortality", save=False, show=False
         )
 
         assert not (tmp_path / "plots").exists()
 
     @patch("matplotlib.pyplot.show")
-    def test_plot_probability_distribution_show_flag(
+    def test_plot_data_distribution_show_flag(
         self, mock_show, mock_orchestrator, sample_binary_data
     ) -> None:
         """Test interactive display when show=True."""
         _, probas = sample_binary_data
         displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
 
-        displayer.plot_probability_distribution(
-            probas=probas, save=False, show=True
-        )
+        displayer.plot_data_distribution(data=probas, save=False, show=True)
 
         mock_show.assert_called_once()
 

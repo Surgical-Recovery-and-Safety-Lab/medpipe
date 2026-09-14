@@ -41,7 +41,7 @@ class TestPlotAll:
         expected_files = [
             plot_dir / "mortality_roc_curve.png",
             plot_dir / "mortality_pr_curve.png",
-            plot_dir / "mortality_probability_distribution.png",
+            plot_dir / "mortality_data_distribution.png",
             plot_dir / "mortality_reliability_diagram.png",
             plot_dir / "mortality_dca_curve.png",
         ]

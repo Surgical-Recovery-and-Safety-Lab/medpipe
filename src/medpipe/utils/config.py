@@ -956,7 +956,7 @@ class DisplayConfig(BaseModel):
             "roc",
             "roc_curve",
             "distribution",
-            "probability_distribution",
+            "data_distribution",
             "dist",
             "dca",
             "dca_curve",
@@ -1495,6 +1495,9 @@ class RegressorDisplayConfig(BaseModel):
             "marginal_calib",
             "pit_histogram",
             "pit",
+            "distribution",
+            "data_distribution",
+            "dist",
             "strata_heatmap",
             "heatmap",
         }

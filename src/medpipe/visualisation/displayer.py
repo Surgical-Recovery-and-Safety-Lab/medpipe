@@ -33,11 +33,11 @@ from medpipe.pipeline.orchestrator import MedpipeOrchestrator
 from medpipe.utils.logger import get_console_logger
 from medpipe.visualisation.plots import (
     draw_coverage_curve,
+    draw_data_distribution,
     draw_dca_curve,
     draw_marginal_calibration,
     draw_pit_histogram,
     draw_precision_recall_curve,
-    draw_probability_distribution,
     draw_reliability_diagram,
     draw_roc_curve,
     draw_sharpness_curve,
@@ -82,6 +82,9 @@ class BaseDisplayer:
 
     Methods
     -------
+    plot_data_distribution(data, outcome="default", n_bins=None, yscale=None,
+    label=None, xlabel=None, save=None, show=None, **style_kwargs)
+        Render a data distribution histogram and save output.
     plot_strata_heatmap(outcomes, metric, strata, scores, strata_scores,
     save=None, show=None, **style_kwargs)
         Validate subgroup inputs, compute delta matrix, render strata heatmap,
@@ -268,6 +271,104 @@ class BaseDisplayer:
         fig.savefig(save_path, dpi=self.theme.dpi, bbox_inches="tight")
         self.logger.info(f"Saved plot artifact to {save_path}")
         return save_path
+
+    # --- Data Distribution Plotting ---
+
+    def plot_data_distribution(
+        self,
+        data: np.ndarray,
+        outcome: str = "default",
+        n_bins: int | None = None,
+        yscale: str | None = None,
+        label: str | None = None,
+        xlabel: str | None = None,
+        save: bool | None = None,
+        show: bool | None = None,
+        **style_kwargs: Any,
+    ) -> tuple[Figure | SubFigure, Axes]:
+        """Render a data distribution histogram and save figure artifact.
+
+        Outcome-type-agnostic: works for classifier predicted probabilities
+        or regressor continuous target values alike.
+
+        Parameters
+        ----------
+        data : np.ndarray
+            Data values of shape (n_samples, 2) or (n_samples,) (e.g.
+            predicted probabilities or continuous target values).
+        outcome : str, default="default"
+            Outcome identifier used for figure titles and directory structuring.
+        n_bins : int, optional
+            Number of equal-width bins spanning the data's own range.
+        yscale : str, optional
+            Scale to use for the y-axis (e.g. linear, log, etc.)
+        label : str, optional
+            Legend label. Defaults to "Data".
+        xlabel : str, optional
+            Label for the x-axis. Defaults to "Value".
+        save : bool, optional
+            Automatically save the generated plot to the run directory.
+        show : bool, optional
+            Whether to display the plot interactively before closing.
+        **style_kwargs : Any
+            Additional style parameters forwarded to `draw_data_distribution`.
+
+        Returns
+        -------
+        fig : Figure | SubFigure
+            Rendered Matplotlib figure object.
+        ax : Axes
+            Matplotlib axes containing the plotted histogram.
+
+        """
+        cfg = self._resolve_plot_config(
+            plot_type="distribution",
+            outcome=outcome,
+            dist_n_bins=n_bins,
+            dist_yscale=yscale,
+            save=save,
+            show=show,
+            **style_kwargs,
+        )
+
+        n_bins_val = cfg.get("dist_n_bins", 10)
+        save_val = cfg["save"]
+        show_val = cfg["show"]
+        dist_yscale_val = cfg.get("dist_yscale", "linear")
+
+        self.logger.info(f"[{outcome}] Starting data distribution plotting.")
+        self.logger.debug(
+            f"[{outcome}] Plotting data distribution with "
+            f"data: {data.shape} and {n_bins_val} bins."
+        )
+        display_label = label or "Data"
+
+        with (plt.rc_context(self.theme.to_rc_params()),):
+            fig, ax = draw_data_distribution(
+                data=data,
+                n_bins=n_bins_val,
+                label=display_label,
+                xlabel=xlabel or "Value",
+                yscale=dist_yscale_val,
+                color=style_kwargs.pop("color", self.theme.primary_color),
+                show_spines=style_kwargs.pop("show_spines", self.theme.show_spines),
+                title=f"Data Distribution - {outcome.capitalize()}",
+                **style_kwargs,
+            )
+
+        if save_val:
+            self._save_figure(
+                fig=fig,
+                filename=f"{outcome}_data_distribution",
+                outcome=outcome,
+            )
+
+        if show_val:
+            plt.show()
+        elif save_val:
+            plt.close(fig)
+
+        return fig, ax
 
     # --- Subgroup Heatmap Plotting ---
 
@@ -627,8 +728,8 @@ class MedpipeClassifierDisplayer(BaseDisplayer):
     label=None, n_bootstraps=None, save=None, show=None, **style_kwargs)
         Compute PR statistics, render curve with optional bootstrap CIs,
         and save output.
-    plot_probability_distribution(probas, outcome="default", n_bins=None,
-    label=None, save=None, show=None, **style_kwargs)
+    plot_data_distribution(data, outcome="default", n_bins=None, yscale=None,
+    label=None, xlabel=None, save=None, show=None, **style_kwargs)
         Render predicted probability distribution histogram and save output.
     plot_reliability_diagram(y_true, probas, outcome="default", n_bins=None,
     strategy=None, label=None, n_bootstraps=None, save=None,
@@ -657,8 +758,8 @@ class MedpipeClassifierDisplayer(BaseDisplayer):
         "pr": "precision_recall",
         "pr_curve": "precision_recall",
         "roc_curve": "roc",
-        "distribution": "probability_distribution",
-        "dist": "probability_distribution",
+        "distribution": "data_distribution",
+        "dist": "data_distribution",
         "dca_curve": "dca",
     }
     _FALLBACK_DISPLAY_DEFAULTS: ClassVar[dict[str, Any]] = {
@@ -984,96 +1085,6 @@ class MedpipeClassifierDisplayer(BaseDisplayer):
         return thresholds, net_benefit_model, net_benefit_all
 
     # --- High-Level Plotting Methods ---
-
-    def plot_probability_distribution(
-        self,
-        probas: np.ndarray,
-        outcome: str = "default",
-        n_bins: int | None = None,
-        yscale: str | None = None,
-        label: str | None = None,
-        save: bool | None = None,
-        show: bool | None = None,
-        **style_kwargs: Any,
-    ) -> tuple[Figure | SubFigure, Axes]:
-        """Render prediction probability histogram and save figure artifact.
-
-        Parameters
-        ----------
-        probas : np.ndarray
-            Predicted probabilities of shape (n_samples, 2) or (n_samples,).
-        outcome : str, default="default"
-            Outcome identifier used for figure titles and directory structuring.
-        n_bins : int, optional
-            Number of equal-width bins for the histogram.
-        yscale : str, optional
-            Scale to use for the y-axis (e.g. linear, log, etc.)
-        label : str, optional
-            Legend label. Defaults to "Predicted Probabilities".
-        save : bool, optional
-            Automatically save the generated plot to the run directory.
-        show : bool, optional
-            Whether to display the plot interactively before closing.
-        **style_kwargs : Any
-            Additional style parameters forwarded to `draw_probability_distribution`.
-
-        Returns
-        -------
-        fig : Figure | SubFigure
-            Rendered Matplotlib figure object.
-        ax : Axes
-            Matplotlib axes containing the plotted histogram.
-
-        """
-        cfg = self._resolve_plot_config(
-            plot_type="distribution",
-            outcome=outcome,
-            dist_n_bins=n_bins,
-            dist_yscale=yscale,
-            save=save,
-            show=show,
-            **style_kwargs,
-        )
-
-        n_bins_val = cfg["dist_n_bins"]
-        save_val = cfg["save"]
-        show_val = cfg["show"]
-        dist_yscale_val = cfg["dist_yscale"]
-
-        self.logger.info(
-            f"[{outcome}] Starting predicted probability distribution plotting."
-        )
-        self.logger.debug(
-            f"[{outcome}] Plotting predicted probability distribution with "
-            f"probabilities: {probas.shape} and {n_bins_val} bins."
-        )
-        display_label = label or "Predicted Probabilities"
-
-        with (plt.rc_context(self.theme.to_rc_params()),):
-            fig, ax = draw_probability_distribution(
-                probas=probas,
-                n_bins=n_bins_val,
-                label=display_label,
-                yscale=dist_yscale_val,
-                color=style_kwargs.pop("color", self.theme.primary_color),
-                show_spines=style_kwargs.pop("show_spines", self.theme.show_spines),
-                title=f"Probability Distribution - {outcome.capitalize()}",
-                **style_kwargs,
-            )
-
-        if save_val:
-            self._save_figure(
-                fig=fig,
-                filename=f"{outcome}_probability_distribution",
-                outcome=outcome,
-            )
-
-        if show_val:
-            plt.show()
-        elif save_val:
-            plt.close(fig)
-
-        return fig, ax
 
     def plot_roc_curve(
         self,
@@ -1546,8 +1557,8 @@ class MedpipeClassifierDisplayer(BaseDisplayer):
             **style_kwargs.copy(),
         )
 
-        plots["distribution"] = self.plot_probability_distribution(
-            probas=probas,
+        plots["distribution"] = self.plot_data_distribution(
+            data=probas,
             outcome=outcome,
             save=save,
             show=show,
@@ -1581,10 +1592,11 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
     """High-level visualisation and display manager for MedpipeRegressor pipeline runs.
 
     Renders distributional diagnostic figures (coverage reliability, sharpness,
-    Winkler score, marginal calibration, and PIT histograms) for regression
-    models that produce a predictive CDF via `predict_dist`. Coverage,
-    sharpness, and Winkler score are bootstrapped for confidence intervals,
-    mirroring `MedpipeClassifierDisplayer`'s ROC/PR/reliability curves.
+    Winkler score, marginal calibration, and PIT histograms), as well as a
+    target-value data distribution histogram, for regression models that
+    produce a predictive CDF via `predict_dist`. Coverage, sharpness, and
+    Winkler score are bootstrapped for confidence intervals, mirroring
+    `MedpipeClassifierDisplayer`'s ROC/PR/reliability curves.
 
     Currently only OrdBoost's `ContinuousPredictiveDistribution` is
     supported (a `mapper` is required for PIT histograms, e.g. the fitted
@@ -1631,6 +1643,9 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
     plot_pit_histogram(y_true, dist, mapper, outcome="default", n_bins=None,
     label=None, save=None, show=None, **style_kwargs)
         Compute PIT diagnostics, render histogram, and save output.
+    plot_data_distribution(data, outcome="default", n_bins=None, yscale=None,
+    label=None, xlabel=None, save=None, show=None, **style_kwargs)
+        Render a data distribution histogram and save output.
     plot_strata_heatmap(outcomes, metric, strata, scores, strata_scores,
     save=None, show=None, **style_kwargs)
         Validate subgroup inputs, compute delta matrix, render strata heatmap,
@@ -1651,6 +1666,13 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
         "winkler_score": "winkler",
         "marginal_calib": "marginal_calibration",
         "pit": "pit_histogram",
+        "distribution": "data_distribution",
+        "dist": "data_distribution",
+    }
+    _FALLBACK_DISPLAY_DEFAULTS: ClassVar[dict[str, Any]] = {
+        **BaseDisplayer._FALLBACK_DISPLAY_DEFAULTS,
+        "dist_n_bins": 10,
+        "dist_yscale": "linear",
     }
     # Hardcoded defaults (not yet exposed via DisplayDefaultsConfig): nominal
     # coverage grid (percent) for coverage/sharpness/Winkler, and PIT
@@ -2308,7 +2330,7 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
 
         Generates and optionally persists the coverage reliability curve,
         sharpness curve, Winkler score curve, marginal calibration curve,
-        and PIT histogram.
+        PIT histogram, and target-value data distribution histogram.
 
         Parameters
         ----------
@@ -2338,8 +2360,8 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
         -------
         Dict[str, Tuple[Figure | SubFigure, Axes]]
             Dictionary mapping plot identifiers ('coverage', 'sharpness',
-            'winkler', 'marginal_calibration', 'pit_histogram') to their
-            rendered (Figure, Axes) tuples.
+            'winkler', 'marginal_calibration', 'pit_histogram',
+            'data_distribution') to their rendered (Figure, Axes) tuples.
 
         """
         plots: dict[str, tuple[Figure | SubFigure, Axes]] = {}
@@ -2392,6 +2414,14 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
             y_true=y_true,
             dist=dist,
             mapper=mapper,
+            outcome=outcome,
+            save=save,
+            show=show,
+            **style_kwargs.copy(),
+        )
+
+        plots["data_distribution"] = self.plot_data_distribution(
+            data=y_true,
             outcome=outcome,
             save=save,
             show=show,

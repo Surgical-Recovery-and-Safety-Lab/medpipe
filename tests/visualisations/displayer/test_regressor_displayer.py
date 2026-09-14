@@ -241,6 +241,27 @@ class TestPlotPitHistogram:
             )
 
 
+class TestPlotDataDistribution:
+    """Tests for MedpipeRegressorDisplayer.plot_data_distribution (inherited
+    from BaseDisplayer), applied to continuous target values."""
+
+    def test_plot_data_distribution_renders_target_values(
+        self, mock_orchestrator, fitted_ordboost_dist_and_data
+    ) -> None:
+        """Test that the target-value data distribution histogram renders
+        and saves successfully."""
+        y_true, _dist, _mapper = fitted_ordboost_dist_and_data
+        displayer = MedpipeRegressorDisplayer(orchestrator=mock_orchestrator)
+
+        fig, ax = displayer.plot_data_distribution(
+            data=y_true, outcome="LOS_DAYS", save=False, show=False
+        )
+
+        assert fig is not None
+        assert ax is not None
+        assert ax.get_xlabel() == "Value"
+
+
 class TestPlotAll:
     """Tests for MedpipeRegressorDisplayer.plot_all."""
 
@@ -267,6 +288,7 @@ class TestPlotAll:
             "winkler",
             "marginal_calibration",
             "pit_histogram",
+            "data_distribution",
         }
         for fig, ax in plots.values():
             assert fig is not None
@@ -297,6 +319,7 @@ class TestPlotAll:
             "LOS_DAYS_winkler.png",
             "LOS_DAYS_marginal_calibration.png",
             "LOS_DAYS_pit_histogram.png",
+            "LOS_DAYS_data_distribution.png",
         }
         actual_files = {p.name for p in plot_dir.iterdir()}
         assert expected_files <= actual_files

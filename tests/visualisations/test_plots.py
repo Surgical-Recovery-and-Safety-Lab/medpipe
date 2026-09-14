@@ -12,9 +12,9 @@ from matplotlib.figure import Figure, SubFigure
 matplotlib.use("Agg")  # Non-interactive backend for headless testing
 
 from medpipe.visualisation.plots import (
+    draw_data_distribution,
     draw_dca_curve,
     draw_precision_recall_curve,
-    draw_probability_distribution,
     draw_reliability_diagram,
     draw_roc_curve,
     draw_strata_heatmap,
@@ -36,60 +36,72 @@ def dummy_roc_data():
     return fpr, tpr
 
 
-class TestDrawProbabilityDistribution:
-    """Tests for the stateless `draw_probability_distribution` rendering function."""
+class TestDrawDataDistribution:
+    """Tests for the stateless `draw_data_distribution` rendering function."""
 
-    def test_draw_probability_distribution_default_axes(self) -> None:
-        """Test drawing histogram with 1D probas and default axes creation."""
-        probas = np.array([0.1, 0.25, 0.4, 0.75, 0.9])
+    def test_draw_data_distribution_default_axes(self) -> None:
+        """Test drawing histogram with 1D data and default axes creation."""
+        data = np.array([0.1, 0.25, 0.4, 0.75, 0.9])
 
-        fig, ax = draw_probability_distribution(
-            probas=probas, n_bins=10, label="Predictions"
-        )
+        fig, ax = draw_data_distribution(data=data, n_bins=10, label="Predictions")
 
         assert isinstance(fig, (Figure, SubFigure))
         assert isinstance(ax, Axes)
-        assert ax.get_xlabel() == "Predicted probabilities"
+        assert ax.get_xlabel() == "Value"
         assert ax.get_ylabel() == "Count"
         # 10 bins should produce 10 rectangle patches
         assert len(ax.patches) == 10
 
-    def test_draw_probability_distribution_2d_probas(self) -> None:
-        """Test probability distribution plotting with 2D array input (n_samples, 2)."""
-        probas_1d = np.array([0.1, 0.3, 0.6, 0.8])
-        probas_2d = np.column_stack((1 - probas_1d, probas_1d))
+    def test_draw_data_distribution_2d_data(self) -> None:
+        """Test data distribution plotting with 2D array input (n_samples, 2)."""
+        data_1d = np.array([0.1, 0.3, 0.6, 0.8])
+        data_2d = np.column_stack((1 - data_1d, data_1d))
 
-        fig, ax = draw_probability_distribution(probas=probas_2d, n_bins=5)
+        fig, ax = draw_data_distribution(data=data_2d, n_bins=5)
 
         assert isinstance(fig, (Figure, SubFigure))
         assert isinstance(ax, Axes)
 
-    def test_draw_probability_distribution_existing_axes(self) -> None:
+    def test_draw_data_distribution_existing_axes(self) -> None:
         """Test drawing onto a pre-existing Matplotlib axes instance."""
         existing_fig, existing_ax = plt.subplots(figsize=(8, 8))
-        probas = np.array([0.2, 0.5, 0.8])
+        data = np.array([0.2, 0.5, 0.8])
 
-        fig, ax = draw_probability_distribution(probas=probas, ax=existing_ax)
+        fig, ax = draw_data_distribution(data=data, ax=existing_ax)
 
         assert fig is existing_fig
         assert ax is existing_ax
 
-    def test_draw_probability_distribution_custom_styling(self) -> None:
-        """Test custom color, title, and spine visibility options."""
-        probas = np.array([0.15, 0.45, 0.85])
+    def test_draw_data_distribution_custom_styling(self) -> None:
+        """Test custom color, title, xlabel, and spine visibility options."""
+        data = np.array([0.15, 0.45, 0.85])
 
-        _, ax = draw_probability_distribution(
-            probas=probas,
+        _, ax = draw_data_distribution(
+            data=data,
             color="#FF0000",
+            xlabel="Predicted probabilities",
             title="Custom Distribution Title",
             show_spines=True,
         )
 
+        assert ax.get_xlabel() == "Predicted probabilities"
         assert ax.get_title() == "Custom Distribution Title"
         assert ax.spines["top"].get_visible() is True
         assert ax.spines["right"].get_visible() is True
 
-    def test_draw_probability_distribution_detached_axes_raises(self) -> None:
+    def test_draw_data_distribution_arbitrary_range(self) -> None:
+        """Test that bins and x-limits span the data's own range rather
+        than being fixed to [0, 1], so continuous regression targets are
+        also supported."""
+        data = np.array([10.0, 20.0, 30.0, 40.0, 100.0])
+
+        _, ax = draw_data_distribution(data=data, n_bins=4)
+
+        xmin, xmax = ax.get_xlim()
+        assert xmin < 10.0
+        assert xmax > 100.0
+
+    def test_draw_data_distribution_detached_axes_raises(self) -> None:
         """Edge case: raise ValueError when provided Axes is detached from a Figure."""
         mock_ax = MagicMock(spec=Axes)
         mock_ax.get_figure.return_value = None
@@ -98,7 +110,7 @@ class TestDrawProbabilityDistribution:
             ValueError,
             match="The provided Axes instance is not attached to a Figure",
         ):
-            draw_probability_distribution(probas=np.array([0.1, 0.2]), ax=mock_ax)
+            draw_data_distribution(data=np.array([0.1, 0.2]), ax=mock_ax)
 
 
 class TestDrawRocCurve:
