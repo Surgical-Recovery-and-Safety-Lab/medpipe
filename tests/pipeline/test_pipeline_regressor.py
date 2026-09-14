@@ -209,22 +209,27 @@ class TestMedpipeRegressorPlotAll:
     @patch("medpipe.pipeline.pipeline.MedpipeRegressorEvaluator")
     @patch("medpipe.pipeline.pipeline.MedpipeRegressorRunner")
     @patch("medpipe.pipeline.pipeline.MedpipeOrchestrator")
-    def test_plot_all_delegation(
+    def test_plot_all_extracts_mapper_from_fitted_model(
         self, mock_orch_cls, mock_runner_cls, mock_eval_cls, mock_displayer_cls
     ):
-        """Verify plot_all forwards all inputs and style kwargs to the
-        MedpipeRegressorDisplayer."""
+        """Verify plot_all resolves the bin mapper from
+        `self.models[outcome]["regressor"].mapper_` and forwards it (plus
+        all other inputs and style kwargs) to the MedpipeRegressorDisplayer,
+        without the caller having to extract it."""
         mp = MedpipeRegressor(config=MagicMock())
         y_true = np.array([3.0, 5.0, 2.0])
         dist = MagicMock()
         mapper = MagicMock()
+        regressor_step = MagicMock()
+        regressor_step.mapper_ = mapper
+        fitted_pipeline = {"regressor": regressor_step}
+        mp._runner.fitted_models = {"LOS_DAYS": fitted_pipeline}
         expected_plots = {"coverage": (MagicMock(), MagicMock())}
         mp._displayer.plot_all.return_value = expected_plots
 
         plots = mp.plot_all(
             y_true=y_true,
             dist=dist,
-            mapper=mapper,
             outcome="LOS_DAYS",
             n_bootstraps=50,
             save=False,
@@ -244,6 +249,55 @@ class TestMedpipeRegressorPlotAll:
             color="red",
         )
         assert plots == expected_plots
+
+    @patch("medpipe.pipeline.pipeline.MedpipeRegressorDisplayer")
+    @patch("medpipe.pipeline.pipeline.MedpipeRegressorEvaluator")
+    @patch("medpipe.pipeline.pipeline.MedpipeRegressorRunner")
+    @patch("medpipe.pipeline.pipeline.MedpipeOrchestrator")
+    def test_plot_all_passes_none_mapper_when_outcome_unmatched(
+        self, mock_orch_cls, mock_runner_cls, mock_eval_cls, mock_displayer_cls
+    ):
+        """Verify plot_all forwards mapper=None (instead of raising) when
+        `outcome` doesn't match any fitted model, leaving the displayer's
+        own clear error to surface only if the PIT histogram is requested."""
+        mp = MedpipeRegressor(config=MagicMock())
+        mp._runner.fitted_models = {"LOS_DAYS": {"regressor": MagicMock()}}
+        mp._displayer.plot_all.return_value = {}
+
+        mp.plot_all(
+            y_true=np.array([3.0, 5.0]),
+            dist=MagicMock(),
+            outcome="OTHER_OUTCOME",
+        )
+
+        _, kwargs = mp._displayer.plot_all.call_args
+        assert kwargs["mapper"] is None
+
+    @patch("medpipe.pipeline.pipeline.MedpipeRegressorDisplayer")
+    @patch("medpipe.pipeline.pipeline.MedpipeRegressorEvaluator")
+    @patch("medpipe.pipeline.pipeline.MedpipeRegressorRunner")
+    @patch("medpipe.pipeline.pipeline.MedpipeOrchestrator")
+    def test_plot_all_passes_none_mapper_when_regressor_has_no_mapper(
+        self, mock_orch_cls, mock_runner_cls, mock_eval_cls, mock_displayer_cls
+    ):
+        """Verify plot_all forwards mapper=None for a fitted regressor step
+        without a `mapper_` attribute (e.g. not OrdBoost-based)."""
+        mp = MedpipeRegressor(config=MagicMock())
+
+        class PlainRegressor:
+            pass
+
+        mp._runner.fitted_models = {"LOS_DAYS": {"regressor": PlainRegressor()}}
+        mp._displayer.plot_all.return_value = {}
+
+        mp.plot_all(
+            y_true=np.array([3.0, 5.0]),
+            dist=MagicMock(),
+            outcome="LOS_DAYS",
+        )
+
+        _, kwargs = mp._displayer.plot_all.call_args
+        assert kwargs["mapper"] is None
 
 
 class TestMedpipeRegressorRun:
@@ -503,16 +557,16 @@ metrics = ["rmse", "crps"]
 
         # plot_all is not auto-wired into run() yet (see class docstring),
         # but should work end-to-end when called manually against a real
-        # fitted OrdBoostRegressor.
+        # fitted OrdBoostRegressor. The bin mapper is resolved internally
+        # from self.models["LOS_DAYS"]["regressor"].mapper_, so it no
+        # longer needs to be extracted and passed explicitly.
         X_test = mp.data_split.X_test
         y_test = mp.data_split.y_test["LOS_DAYS"].to_numpy()
         dist = mp.predict_dist(X_test, outcome="LOS_DAYS")
-        mapper = mp.models["LOS_DAYS"].named_steps["regressor"].mapper_
 
         plots = mp.plot_all(
             y_true=y_test,
             dist=dist,
-            mapper=mapper,
             outcome="LOS_DAYS",
             n_bootstraps=5,
             save=True,
