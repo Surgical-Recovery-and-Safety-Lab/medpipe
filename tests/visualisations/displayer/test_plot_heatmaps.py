@@ -53,18 +53,22 @@ class TestPlotStrataHeatmap:
             response_method="predict",
             display_name="Custom Metric Name",
         )
-        MetricRegistry.register_spec(custom_spec)
 
-        displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
-        fig, ax = displayer.plot_strata_heatmap(
-            outcomes=["ANY_COMP"],
-            metric="custom_metric",
-            strata=["SEX: F"],
-            scores=np.array([0.80]),
-            strata_scores=np.array([[0.82]]),
-            save=False,
-            show=False,
-        )
+        # patch.dict restores MetricRegistry._registry to its prior state on
+        # exit, so this registration doesn't leak into other tests.
+        with patch.dict(MetricRegistry._registry, {}, clear=False):
+            MetricRegistry.register_spec(custom_spec)
+
+            displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
+            fig, ax = displayer.plot_strata_heatmap(
+                outcomes=["ANY_COMP"],
+                metric="custom_metric",
+                strata=["SEX: F"],
+                scores=np.array([0.80]),
+                strata_scores=np.array([[0.82]]),
+                save=False,
+                show=False,
+            )
 
         assert isinstance(fig, Figure)
         assert "Custom Metric Name" in ax.get_title()

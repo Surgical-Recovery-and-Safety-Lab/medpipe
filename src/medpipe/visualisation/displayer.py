@@ -4,10 +4,11 @@ High-level display and visualisation manager module.
 
 import ast
 from pathlib import Path
-from typing import Any, ClassVar
+from typing import Any, ClassVar, Literal
 
 import matplotlib.pyplot as plt
 import numpy as np
+from joblib import Parallel, delayed
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure, SubFigure
 from ordboost.distributions import ContinuousPredictiveDistribution
@@ -95,6 +96,7 @@ class BaseDisplayer:
         "n_bootstraps": 1000,
         "save": True,
         "show": False,
+        "n_jobs": 1,
     }
 
     def __init__(
@@ -523,6 +525,72 @@ class BaseDisplayer:
         return heatmap_plots
 
 
+def _reliability_bootstrap_iteration(
+    idx: np.ndarray,
+    y_true: np.ndarray,
+    probas: np.ndarray,
+    prob_pred: np.ndarray,
+    strategy: str,
+    n_bins: int,
+    cv_splines: int = 3,
+) -> np.ndarray | None:
+    """Compute one bootstrap resample's calibration curve for
+    `MedpipeClassifierDisplayer._compute_reliability_data`.
+
+    Isolated to a module-level function so each resample's (potentially
+    expensive, e.g. `SplineCalib`-fitting) computation can be dispatched to
+    a `joblib.Parallel` worker independently of the others.
+
+    Parameters
+    ----------
+    idx : numpy.ndarray
+        Bootstrap resample indices (with replacement) into `y_true`/`probas`.
+    y_true : numpy.ndarray
+        Full ground truth binary target labels.
+    probas : numpy.ndarray
+        Full predicted probabilities (already reduced to 1D).
+    prob_pred : numpy.ndarray
+        Evaluation grid (spline) or original bin centers (uniform/quantile)
+        the resampled curve is interpolated/evaluated onto.
+    strategy : {'uniform', 'quantile', 'spline'}
+        Calibration curve estimation strategy.
+    n_bins : int
+        Number of bins used for 'uniform' or 'quantile' binning strategies.
+    cv_splines : int, default=3
+        Number of internal cross-validation folds `SplineCalib` uses to
+        select its regularization strength (only used when
+        `strategy='spline'`); `SplineCalib`'s own default is 5.
+
+    Returns
+    -------
+    numpy.ndarray or None
+        The resampled calibration curve evaluated at `prob_pred`, or `None`
+        if the resample lacked class diversity or was too sparse to use.
+
+    """
+    if len(np.unique(y_true[idx])) < 2:
+        return None
+
+    if strategy == "spline":
+        from splinecalib import SplineCalib
+
+        sc_b = SplineCalib(cv_spline=cv_splines)  # type: ignore
+        sc_b.fit(probas[idx], y_true[idx])
+        b_true = sc_b.calibrate(prob_pred)
+
+        assert b_true is not None
+        if b_true.ndim == 2:
+            b_true = b_true[:, 1]
+        return b_true
+
+    b_true, b_pred = calibration_curve(
+        y_true[idx], probas[idx], n_bins=n_bins, strategy=strategy
+    )
+    if len(b_pred) > 1:
+        return np.interp(prob_pred, b_pred, b_true)
+    return None
+
+
 class MedpipeClassifierDisplayer(BaseDisplayer):
     """High-level visualisation and display manager for MedpipeClassifier pipeline runs.
 
@@ -599,6 +667,8 @@ class MedpipeClassifierDisplayer(BaseDisplayer):
         "dist_n_bins": 10,
         "dist_yscale": "linear",
         "strategy": "uniform",
+        "n_jobs": 1,
+        "cv_splines": 3,
     }
 
     def _compute_roc_data(
@@ -757,6 +827,8 @@ class MedpipeClassifierDisplayer(BaseDisplayer):
         strategy: str = "uniform",
         n_bootstraps: int = 1000,
         random_state: int | None = 42,
+        n_jobs: int | None = 1,
+        cv_splines: int = 3,
     ) -> tuple[
         np.ndarray,
         np.ndarray,
@@ -779,6 +851,14 @@ class MedpipeClassifierDisplayer(BaseDisplayer):
             Number of bootstrap iterations for 95% confidence interval estimation.
         random_state : int, optional, default=42
             Random seed for bootstrap resampling reproducibility.
+        n_jobs : int or None, default=1
+            Number of parallel jobs used to compute bootstrap resamples,
+            each of which independently fits its own calibration curve
+            (e.g. a fresh `SplineCalib` under `strategy='spline'`).
+        cv_splines : int, default=3
+            Number of internal cross-validation folds `SplineCalib` uses to
+            select its regularization strength (only used when
+            `strategy='spline'`); `SplineCalib`'s own default is 5.
 
         Returns
         -------
@@ -800,7 +880,7 @@ class MedpipeClassifierDisplayer(BaseDisplayer):
         if strategy == "spline":
             from splinecalib import SplineCalib
 
-            sc = SplineCalib()
+            sc = SplineCalib(cv_spline=cv_splines)
             sc.fit(probas, y_true)
             prob_pred = np.linspace(0.0, 1.0, 100)
             prob_true = sc.calibrate(prob_pred)
@@ -818,29 +898,26 @@ class MedpipeClassifierDisplayer(BaseDisplayer):
 
         rng = np.random.default_rng(random_state)
         n_samples = len(y_true)
-        boots = []
+        # Draw all resample indices up front, sequentially, so the random
+        # draw sequence (and thus reproducibility for a given random_state)
+        # is unaffected by dispatching the actual curve-fitting work below
+        # to parallel workers.
+        bootstrap_indices = [
+            rng.choice(n_samples, size=n_samples, replace=True)
+            for _ in range(n_bootstraps)
+        ]
 
-        for _ in range(n_bootstraps):
-            idx = rng.choice(n_samples, size=n_samples, replace=True)
-            if len(np.unique(y_true[idx])) < 2:
-                continue
-
-            if strategy == "spline":
-                sc_b = SplineCalib()  # type: ignore
-                sc_b.fit(probas[idx], y_true[idx])
-                b_true = sc_b.calibrate(prob_pred)
-
-                assert b_true is not None
-                if b_true.ndim == 2:
-                    b_true = b_true[:, 1]
-                boots.append(b_true)
-            else:
-                b_true, b_pred = calibration_curve(
-                    y_true[idx], probas[idx], n_bins=n_bins, strategy=strategy
-                )
-                if len(b_pred) > 1:
-                    interp_true = np.interp(prob_pred, b_pred, b_true)
-                    boots.append(interp_true)
+        # Process-based (the joblib default): each resample's fit (e.g. a
+        # SplineCalib fit via scipy's L-BFGS-B) spends its time in a
+        # Python-level optimizer loop that holds the GIL, so a threading
+        # backend adds contention instead of speedup here.
+        boot_results = Parallel(n_jobs=n_jobs)(
+            delayed(_reliability_bootstrap_iteration)(
+                idx, y_true, probas, prob_pred, strategy, n_bins, cv_splines
+            )
+            for idx in bootstrap_indices
+        )
+        boots = [b for b in boot_results if b is not None]
 
         if not boots:
             return prob_true, prob_pred, None, None
@@ -1261,6 +1338,8 @@ class MedpipeClassifierDisplayer(BaseDisplayer):
         n_bins_val = cfg["n_bins"]
         strategy_val = cfg["strategy"]
         n_bootstraps_val = cfg["n_bootstraps"]
+        n_jobs_val = cfg["n_jobs"]
+        cv_splines_val = cfg["cv_splines"]
         dist_yscale_val = cfg["dist_yscale"]
         dist_n_bins_val = cfg["dist_n_bins"]
         save_val = cfg["save"]
@@ -1270,7 +1349,8 @@ class MedpipeClassifierDisplayer(BaseDisplayer):
         self.logger.debug(
             f"[{outcome}] Plotting reliability diagram with "
             f"y: {y_true.shape}, {n_bootstraps_val} bootstrap iterations, "
-            f"{n_bins_val} bins, and {strategy_val} strategy."
+            f"{n_bins_val} bins, {strategy_val} strategy, "
+            f"{n_jobs_val} parallel job(s), and {cv_splines_val} spline CV folds."
         )
         prob_true, prob_pred, lower_ci, upper_ci = self._compute_reliability_data(
             y_true=y_true,
@@ -1278,6 +1358,8 @@ class MedpipeClassifierDisplayer(BaseDisplayer):
             n_bins=n_bins_val,
             strategy=strategy_val,
             n_bootstraps=n_bootstraps_val,
+            n_jobs=n_jobs_val,
+            cv_splines=cv_splines_val,
         )
 
         display_label = label or "Model"
@@ -1573,7 +1655,7 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
     # Hardcoded defaults (not yet exposed via DisplayDefaultsConfig): nominal
     # coverage grid (percent) for coverage/sharpness/Winkler, and PIT
     # histogram bin count.
-    _DEFAULT_COVERAGE_LEVELS: ClassVar[np.ndarray] = np.arange(10, 100, 10)
+    _DEFAULT_COVERAGE_LEVELS: ClassVar[np.ndarray] = np.arange(5, 100, 10)
     _DEFAULT_PIT_N_BINS: ClassVar[int] = 20
 
     def _compute_coverage_sharpness_winkler_data(
@@ -1581,11 +1663,12 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
         y_true: np.ndarray,
         dist: ContinuousPredictiveDistribution,
         coverage_levels: np.ndarray,
+        metric: Literal["coverage", "sharpness", "winkler"],
         n_bootstraps: int = 1000,
         random_state: int | None = 42,
     ) -> dict[str, Any]:
-        """Compute empirical coverage, sharpness, and Winkler score across
-        nominal coverage levels, with bootstrap CIs.
+        """Compute one of empirical coverage, sharpness, or Winkler score
+        across nominal coverage levels, with bootstrap CIs.
 
         Parameters
         ----------
@@ -1596,6 +1679,8 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
         coverage_levels : np.ndarray
             Nominal central-interval coverage levels in percent (e.g. 90 for
             a 90% interval).
+        metric : {"coverage", "sharpness", "winkler"}
+            Which single metric to compute.
         n_bootstraps : int, default=1000
             Number of bootstrap iterations for 95% confidence interval estimation.
         random_state : int, optional, default=42
@@ -1604,35 +1689,32 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
         Returns
         -------
         dict of str to Any
-            `"coverage_levels"` (np.ndarray), and `"coverage"`, `"sharpness"`,
-            `"winkler"`, each a dict with `"point"`, `"lower_ci"`, `"upper_ci"`
-            (the latter two None when `n_bootstraps <= 0`).
+            `"coverage_levels"` (np.ndarray), and `"output"`, a dict with
+            `"point"`, `"lower_ci"`, `"upper_ci"` (the latter two None when
+            `n_bootstraps <= 0`) for the requested `metric`.
 
         """
+
+        def _metric_value(
+            y: np.ndarray, d: ContinuousPredictiveDistribution, alpha: float
+        ) -> float:
+            if metric == "coverage":
+                return interval_coverage_rate(y, d, alpha=alpha) * 100.0
+            if metric == "sharpness":
+                return sharpness(d, alpha=alpha)
+            return winkler_score(y, d, alpha=alpha)
+
         y_true_arr = np.asarray(y_true, dtype=float)
         coverage_levels_arr = np.asarray(coverage_levels, dtype=float)
         alphas = 1.0 - coverage_levels_arr / 100.0
 
-        empirical_coverage = np.empty_like(alphas)
-        sharp = np.empty_like(alphas)
-        winkler = np.empty_like(alphas)
-
+        point = np.empty_like(alphas)
         for i, alpha in enumerate(alphas):
-            empirical_coverage[i] = (
-                interval_coverage_rate(y_true_arr, dist, alpha=alpha) * 100.0
-            )
-            sharp[i] = sharpness(dist, alpha=alpha)
-            winkler[i] = winkler_score(y_true_arr, dist, alpha=alpha)
+            point[i] = _metric_value(y_true_arr, dist, alpha)
 
         result: dict[str, Any] = {
             "coverage_levels": coverage_levels_arr,
-            "coverage": {
-                "point": empirical_coverage,
-                "lower_ci": None,
-                "upper_ci": None,
-            },
-            "sharpness": {"point": sharp, "lower_ci": None, "upper_ci": None},
-            "winkler": {"point": winkler, "lower_ci": None, "upper_ci": None},
+            "output": {"point": point, "lower_ci": None, "upper_ci": None},
         }
 
         if n_bootstraps <= 0:
@@ -1641,9 +1723,7 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
         rng = np.random.default_rng(random_state)
         n_samples = len(y_true_arr)
         n_levels = len(alphas)
-        coverage_boot = np.empty((n_bootstraps, n_levels))
-        sharp_boot = np.empty((n_bootstraps, n_levels))
-        winkler_boot = np.empty((n_bootstraps, n_levels))
+        boot = np.empty((n_bootstraps, n_levels))
 
         for b in range(n_bootstraps):
             idx = rng.choice(n_samples, size=n_samples, replace=True)
@@ -1652,18 +1732,10 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
                 grid_y=dist.grid_y, grid_cdf=dist.grid_cdf[idx]
             )
             for j, alpha in enumerate(alphas):
-                coverage_boot[b, j] = (
-                    interval_coverage_rate(y_b, dist_b, alpha=alpha) * 100.0
-                )
-                sharp_boot[b, j] = sharpness(dist_b, alpha=alpha)
-                winkler_boot[b, j] = winkler_score(y_b, dist_b, alpha=alpha)
+                boot[b, j] = _metric_value(y_b, dist_b, alpha)
 
-        result["coverage"]["lower_ci"] = np.percentile(coverage_boot, 2.5, axis=0)
-        result["coverage"]["upper_ci"] = np.percentile(coverage_boot, 97.5, axis=0)
-        result["sharpness"]["lower_ci"] = np.percentile(sharp_boot, 2.5, axis=0)
-        result["sharpness"]["upper_ci"] = np.percentile(sharp_boot, 97.5, axis=0)
-        result["winkler"]["lower_ci"] = np.percentile(winkler_boot, 2.5, axis=0)
-        result["winkler"]["upper_ci"] = np.percentile(winkler_boot, 97.5, axis=0)
+        result["output"]["lower_ci"] = np.percentile(boot, 2.5, axis=0)
+        result["output"]["upper_ci"] = np.percentile(boot, 97.5, axis=0)
 
         return result
 
@@ -1774,7 +1846,7 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
             Outcome identifier used for figure titles and folder structuring.
         coverage_levels : np.ndarray, optional
             Nominal central-interval coverage levels in percent. Defaults to
-            `np.arange(10, 100, 10)`.
+            `np.arange(5, 100, 10)`.
         n_bootstraps : int, optional
             Number of bootstrap iterations for confidence intervals. Set to 0
             to disable.
@@ -1817,6 +1889,7 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
             y_true=y_true,
             dist=dist,
             coverage_levels=levels,
+            metric="coverage",
             n_bootstraps=n_bootstraps_val,
         )
 
@@ -1825,9 +1898,9 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
         with (plt.rc_context(self.theme.to_rc_params()),):
             fig, ax = draw_coverage_curve(
                 coverage_levels=data["coverage_levels"],
-                empirical_coverage=data["coverage"]["point"],
-                lower_ci=data["coverage"]["lower_ci"],
-                upper_ci=data["coverage"]["upper_ci"],
+                empirical_coverage=data["output"]["point"],
+                lower_ci=data["output"]["lower_ci"],
+                upper_ci=data["output"]["upper_ci"],
                 label=display_label,
                 color=style_kwargs.pop("color", self.theme.primary_color),
                 ci_alpha=style_kwargs.pop("ci_alpha", self.theme.ci_alpha),
@@ -1872,7 +1945,7 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
             Outcome identifier used for figure titles and folder structuring.
         coverage_levels : np.ndarray, optional
             Nominal central-interval coverage levels in percent. Defaults to
-            `np.arange(10, 100, 10)`.
+            `np.arange(5, 100, 10)`.
         n_bootstraps : int, optional
             Number of bootstrap iterations for confidence intervals. Set to 0
             to disable.
@@ -1915,6 +1988,7 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
             y_true=y_true,
             dist=dist,
             coverage_levels=levels,
+            metric="sharpness",
             n_bootstraps=n_bootstraps_val,
         )
 
@@ -1923,9 +1997,9 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
         with (plt.rc_context(self.theme.to_rc_params()),):
             fig, ax = draw_sharpness_curve(
                 coverage_levels=data["coverage_levels"],
-                sharpness_values=data["sharpness"]["point"],
-                lower_ci=data["sharpness"]["lower_ci"],
-                upper_ci=data["sharpness"]["upper_ci"],
+                sharpness_values=data["output"]["point"],
+                lower_ci=data["output"]["lower_ci"],
+                upper_ci=data["output"]["upper_ci"],
                 label=display_label,
                 color=style_kwargs.pop("color", self.theme.primary_color),
                 ci_alpha=style_kwargs.pop("ci_alpha", self.theme.ci_alpha),
@@ -1970,7 +2044,7 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
             Outcome identifier used for figure titles and folder structuring.
         coverage_levels : np.ndarray, optional
             Nominal central-interval coverage levels in percent. Defaults to
-            `np.arange(10, 100, 10)`.
+            `np.arange(5, 100, 10)`.
         n_bootstraps : int, optional
             Number of bootstrap iterations for confidence intervals. Set to 0
             to disable.
@@ -2013,6 +2087,7 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
             y_true=y_true,
             dist=dist,
             coverage_levels=levels,
+            metric="winkler",
             n_bootstraps=n_bootstraps_val,
         )
 
@@ -2021,9 +2096,9 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
         with (plt.rc_context(self.theme.to_rc_params()),):
             fig, ax = draw_winkler_curve(
                 coverage_levels=data["coverage_levels"],
-                winkler_values=data["winkler"]["point"],
-                lower_ci=data["winkler"]["lower_ci"],
-                upper_ci=data["winkler"]["upper_ci"],
+                winkler_values=data["output"]["point"],
+                lower_ci=data["output"]["lower_ci"],
+                upper_ci=data["output"]["upper_ci"],
                 label=display_label,
                 color=style_kwargs.pop("color", self.theme.primary_color),
                 ci_alpha=style_kwargs.pop("ci_alpha", self.theme.ci_alpha),

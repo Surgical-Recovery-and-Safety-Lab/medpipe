@@ -23,12 +23,17 @@ fairness evaluation.
 * Renamed `read_toml_configuration` to `read_classifier_toml_configuration`.
 * An `is_classifier` flag to `MedpipeOrchestrator` to load configuration correctly.
 * Split the `MedipeDisplayer` into a base and a classifier version.
-* Added the `MedipeRegressorDisplayer` and test cases.
+* The `MedipeRegressorDisplayer` and test cases.
+* Parallel loop for stratum bootstrap evaluation.
+* Parallel loop for spline bootstrap reliability diagram.
+* `cv_splines` with a default value of 3 to ICI and reliability diagram 
+`SplineCalib` computations.
 
 ### Fixed
 * Docstring in the `config.py` script.
 * Bug in the default override values for the displayer.
 * Bug in the `compute_metrics` function. 
+* Bug in the `load` methods that did not load the fitted models to the evaluator.
 
 ### Removed
 * Custom typings.

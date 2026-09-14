@@ -40,7 +40,6 @@ if TYPE_CHECKING:
     from matplotlib.axes import Axes
     from matplotlib.figure import Figure, SubFigure
     from ordboost.distributions import ContinuousPredictiveDistribution
-    from ordboost.mappers import BaseBinMapper
     from sklearn.calibration import CalibratedClassifierCV
     from sklearn.pipeline import Pipeline
 
@@ -588,7 +587,7 @@ class MedpipeClassifier:
         """Reconstruct a MedpipeClassifier instance from a run artifact directory.
 
         Parses the saved JSON configuration and restores serialized outcome
-        model artifacts into the runner engine.
+        model artifacts into the runner and evaluator engines.
 
         Parameters
         ----------
@@ -633,12 +632,13 @@ class MedpipeClassifier:
         pipe._orchestrator.run_dir = new_run_path
         pipe._displayer.run_dir = new_run_path
 
-        # 3. Restore serialized model binaries into runner engine
+        # 3. Restore serialized model binaries into runner and evaluator engines
         if models_dir.exists():
             project_name = pipe.mp_config.meta.project_name
             pipe._runner.fitted_models = joblib.load(
                 models_dir / f"{project_name}_fitted.joblib"
             )
+            pipe._evaluator.fitted_models = pipe._runner.fitted_models
         pipe._logger.info(f"Succesfully loaded MedpipeClassifier from {run_dir}")
 
         return pipe
@@ -703,7 +703,7 @@ class MedpipeRegressor:
     fairness_data=None, save_artifacts=True)
         Evaluate model performance with confidence intervals on full datasets
         and subgroups.
-    plot_all(y_true, dist, mapper=None, outcome="default", coverage_levels=None,
+    plot_all(y_true, dist, outcome="default", coverage_levels=None,
     n_bootstraps=None, save=None, show=None, **style_kwargs)
         Execute all core distributional diagnostic visualization routines
         for a given outcome (coverage, sharpness, Winkler, marginal
@@ -1091,7 +1091,6 @@ class MedpipeRegressor:
         self,
         y_true: npt.NDArray,
         dist: ContinuousPredictiveDistribution,
-        mapper: BaseBinMapper | None = None,
         outcome: str = "default",
         coverage_levels: npt.NDArray | None = None,
         n_bootstraps: int | None = None,
@@ -1106,9 +1105,12 @@ class MedpipeRegressor:
         Generates and optionally persists the coverage reliability curve,
         sharpness curve, Winkler score curve, marginal calibration curve,
         and PIT histogram. Only supported for models that produce a
-        predictive CDF via `predict_dist` (currently OrdBoost only); a
-        `mapper` (e.g. the fitted model's `mapper_` attribute) is required
-        for the PIT histogram.
+        predictive CDF via `predict_dist` (currently OrdBoost only). The
+        bin mapper required for the PIT histogram is extracted directly
+        from `self.models[outcome]["regressor"].mapper_`, so `outcome` must
+        match an entry in `runner.fitted_models` for the PIT histogram to
+        render; it stays skipped-with-a-clear-error otherwise, same as
+        when no mapper is available.
 
         Not called automatically by `run()` yet, since not every regression
         algorithm supports `predict_dist` — call this manually once you know
@@ -1121,16 +1123,14 @@ class MedpipeRegressor:
         dist : ContinuousPredictiveDistribution
             Predictive distribution for the same samples, e.g. from
             `self.predict_dist(X, outcome=outcome)`.
-        mapper : BaseBinMapper, optional
-            The fitted OrdBoost model's bin mapper (e.g.
-            `self.models[outcome].named_steps["regressor"].mapper_`),
-            required for the PIT histogram.
         outcome : str, default="default"
-            Outcome identifier used for figure titles and output folder structuring.
+            Outcome identifier used for figure titles, output folder
+            structuring, and to resolve the fitted model (and its bin
+            mapper) from `runner.fitted_models`.
         coverage_levels : numpy.ndarray, optional
             Nominal central-interval coverage levels in percent, used for the
             coverage, sharpness, and Winkler score curves. Defaults to
-            `np.arange(10, 100, 10)`.
+            `np.arange(5, 100, 10)`.
         n_bootstraps : int, optional
             Number of bootstrap iterations for coverage, sharpness, and
             Winkler score curves. If None, resolved from the display
@@ -1152,6 +1152,13 @@ class MedpipeRegressor:
             'pit_histogram') to their rendered (Figure, Axes) Matplotlib objects.
 
         """
+        fitted_model = self.models.get(outcome)
+        mapper = (
+            getattr(fitted_model["regressor"], "mapper_", None)
+            if fitted_model is not None
+            else None
+        )
+
         return self._displayer.plot_all(
             y_true=y_true,
             dist=dist,
@@ -1169,7 +1176,7 @@ class MedpipeRegressor:
         """Reconstruct a MedpipeRegressor instance from a run artifact directory.
 
         Parses the saved JSON configuration and restores serialized outcome
-        model artifacts into the runner engine.
+        model artifacts into the runner and evaluator engines.
 
         Parameters
         ----------
@@ -1213,12 +1220,13 @@ class MedpipeRegressor:
         pipe = cls(config=mp_config, base_artifact_dir=new_run_path)
         pipe._orchestrator.run_dir = new_run_path
 
-        # 3. Restore serialized model binaries into runner engine
+        # 3. Restore serialized model binaries into runner and evaluator engines
         if models_dir.exists():
             project_name = pipe.mp_config.meta.project_name
             pipe._runner.fitted_models = joblib.load(
                 models_dir / f"{project_name}_fitted.joblib"
             )
+            pipe._evaluator.fitted_models = pipe._runner.fitted_models
         pipe._logger.info(f"Succesfully loaded MedpipeRegressor from {run_dir}")
 
         return pipe

@@ -30,13 +30,18 @@ class TestBaseDisplayerDefaults:
 
     def test_resolve_plot_config_fallback_defaults(self, mock_orchestrator) -> None:
         """Test that _resolve_plot_config falls back to the base class's
-        minimal defaults (n_bootstraps, save, show) when no display config
-        is set."""
+        minimal defaults (n_bootstraps, save, show, n_jobs) when no display
+        config is set."""
         displayer = BaseDisplayer(orchestrator=mock_orchestrator)
 
         resolved = displayer._resolve_plot_config(plot_type="anything")
 
-        assert resolved == {"n_bootstraps": 1000, "save": True, "show": False}
+        assert resolved == {
+            "n_bootstraps": 1000,
+            "save": True,
+            "show": False,
+            "n_jobs": 1,
+        }
 
     def test_fallback_defaults_not_mutated_across_calls(
         self, mock_orchestrator

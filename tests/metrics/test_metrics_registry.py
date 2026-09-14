@@ -2,6 +2,8 @@
 Test functions for the metrics.registry module.
 """
 
+from unittest.mock import patch
+
 import numpy as np
 import pytest
 from sklearn.linear_model import LogisticRegression
@@ -46,10 +48,13 @@ class TestMetricRegistry:
             display_name="Custom Metric",
         )
 
-        returned = MetricRegistry.register_spec(custom_spec)
+        # patch.dict restores MetricRegistry._registry to its prior state on
+        # exit, so this registration doesn't leak into other tests.
+        with patch.dict(MetricRegistry._registry, {}, clear=False):
+            returned = MetricRegistry.register_spec(custom_spec)
 
-        assert returned is custom_spec
-        assert MetricRegistry.get("custom_test_metric") is custom_spec
+            assert returned is custom_spec
+            assert MetricRegistry.get("custom_test_metric") is custom_spec
 
     def test_register_spec_overwrites_existing_name(self) -> None:
         """Test that registering a new spec under an already-used name
@@ -67,10 +72,13 @@ class TestMetricRegistry:
             display_name="Second",
         )
 
-        MetricRegistry.register_spec(first)
-        MetricRegistry.register_spec(second)
+        # patch.dict restores MetricRegistry._registry to its prior state on
+        # exit, so these registrations don't leak into other tests.
+        with patch.dict(MetricRegistry._registry, {}, clear=False):
+            MetricRegistry.register_spec(first)
+            MetricRegistry.register_spec(second)
 
-        assert MetricRegistry.get("overwrite_me") is second
+            assert MetricRegistry.get("overwrite_me") is second
 
 
 class TestMetricSpec:

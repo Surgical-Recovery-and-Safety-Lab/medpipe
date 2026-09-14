@@ -56,6 +56,7 @@ class TestWorkflowConfig:
                     "metrics": ["roc_auc", "ici"],
                     "ci_level": 0.95,
                     "n_bootstraps": 200,
+                    "cv_splines": 3,
                 },
                 "fairness": {
                     "strata": ["AGE", "SEX"],

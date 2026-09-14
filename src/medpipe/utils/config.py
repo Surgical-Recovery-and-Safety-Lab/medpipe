@@ -652,12 +652,19 @@ class MetricsConfig(BaseModel):
         intervals.
     ci_level : float, default=0.95
         Confidence level for the computed interval bounds.
+    cv_splines : int, default=3
+        Number of internal cross-validation folds `SplineCalib` uses to
+        select its regularization strength when computing the `ici`
+        metric. Lower values fit faster (this runs once per bootstrap
+        resample) at the cost of a coarser regularization search;
+        `SplineCalib`'s own default is 5.
 
     """
 
     metrics: list[str] = Field(default=["roc_auc", "ici"])
     n_bootstraps: int = Field(default=200, ge=0)
     ci_level: float = Field(default=0.95, ge=0.0, le=1.0)
+    cv_splines: int = Field(default=3, ge=2)
     model_config = {"extra": "forbid"}
 
     @model_validator(mode="after")
@@ -830,6 +837,17 @@ class DisplayDefaultsConfig(BaseModel):
         Number of bins used for histogram and calibration plots.
     strategy : {"uniform", "quantile", "spline"}, default="uniform"
         Strategy used to compute calibration curves.
+    n_jobs : int or None, default=1
+        Number of parallel jobs used to compute bootstrap resamples (e.g.
+        the spline-calibration bootstrap loop behind the reliability
+        diagram). Independent of `workflow.n_jobs`, since plots may be
+        rendered standalone without a full workflow run in scope.
+    cv_splines : int, default=3
+        Number of internal cross-validation folds `SplineCalib` uses to
+        select its regularization strength when `strategy='spline'`.
+        Lower values fit faster (this runs once per bootstrap resample)
+        at the cost of a coarser regularization search; `SplineCalib`'s
+        own default is 5.
 
     """
 
@@ -838,6 +856,8 @@ class DisplayDefaultsConfig(BaseModel):
     show: bool = False
     n_bins: int = Field(default=10, ge=1)
     strategy: Literal["uniform", "quantile", "spline"] = "uniform"
+    n_jobs: int | None = Field(default=1, ge=-1)
+    cv_splines: int = Field(default=3, ge=2)
     model_config = {"extra": "allow"}
 
 
