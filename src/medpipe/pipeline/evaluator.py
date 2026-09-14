@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 import numpy.typing as npt
 import pandas as pd
+from joblib import Parallel, delayed
 
 from medpipe.data.utils import resolve_subgroup_mask
 from medpipe.metrics.core import (
@@ -66,6 +67,8 @@ class BaseEvaluator:
         Target confidence interval level.
     random_state : int, np.random.Generator, or None
         Random state instance for resampling.
+    n_jobs : int or None
+        Number of parallel jobs used to evaluate strata concurrently.
     logger : logging.Logger
         Logger instance configured under `"medpipe.evaluator"`.
 
@@ -94,6 +97,7 @@ class BaseEvaluator:
         self.n_bootstraps = eval_config.metrics.n_bootstraps
         self.ci_level = eval_config.metrics.ci_level
         self.random_state = self.orchestrator.config.workflow.random_state
+        self.n_jobs = self.orchestrator.config.workflow.n_jobs
         self.logger = get_console_logger("medpipe.evaluator")
 
         self.metrics = eval_config.metrics.metrics
@@ -340,6 +344,90 @@ class BaseEvaluator:
                     for metric in metrics
                 }
 
+    def _evaluate_stratum(
+        self,
+        cat_name: str,
+        group_val: str,
+        indices: pd.Index,
+        X: pd.DataFrame,
+        y_arr: npt.NDArray,
+        y_pred: npt.NDArray | PredictionBundle,
+        target_model: Any,
+        eval_metrics: list[str],
+        outcome: str | None,
+    ) -> tuple[str, str, dict[str, dict[str, float]] | None]:
+        """
+        Evaluate a single subgroup slice, isolated so it can be dispatched
+        to a worker by `evaluate`'s parallel stratum loop.
+
+        Parameters
+        ----------
+        cat_name : str
+            Name of the subgroup category (e.g., 'age_group').
+        group_val : str
+            The specific subgroup value being evaluated (e.g., '[18, 50]').
+        indices : pandas.Index
+            Row indices (into `X`) belonging to this subgroup.
+        X : pandas.DataFrame
+            Full feature dataset used for prediction.
+        y_arr : numpy.ndarray
+            Full ground truth target array aligned with `X`.
+        y_pred : numpy.ndarray or PredictionBundle
+            Full model predictions aligned with `X`.
+        target_model : object
+            Fitted estimator, used to recompute distributional predictions
+            for this stratum when `y_pred` is a `PredictionBundle`.
+        eval_metrics : list of str
+            List of metric names to evaluate.
+        outcome : str, optional
+            Outcome key name, used for logging only.
+
+        Returns
+        -------
+        cat_name : str
+            Echoed subgroup category name, for reassembly by the caller.
+        group_val : str
+            Echoed subgroup value, for reassembly by the caller.
+        scores : dict of str to dict of str to float, or None
+            Metric results as returned by `_evaluate_slice`, or `None` if
+            the subgroup was empty and evaluation was skipped.
+
+        """
+        if len(indices) == 0:
+            self.logger.warning(
+                "Subgroup '%s=%s' is empty. Skipping.", cat_name, group_val
+            )
+            return cat_name, group_val, None
+
+        pos_idx = X.index.get_indexer(indices)
+        y_sub = y_arr[pos_idx]
+
+        if isinstance(y_pred, PredictionBundle):
+            point_sub = y_pred.point[pos_idx] if y_pred.point is not None else None
+            dist_sub = None
+            if y_pred.dist is not None:
+                # Not every distributional prediction object supports
+                # index-based subsetting (e.g. OrdBoost's
+                # ContinuousPredictiveDistribution does not), so recompute
+                # the distribution for this stratum's rows directly rather
+                # than slicing y_pred.dist.
+                X_sub = X.iloc[pos_idx]
+                dist_sub = target_model.predict_dist(X_sub)
+            y_pred_sub = PredictionBundle(point=point_sub, dist=dist_sub)
+        else:
+            y_pred_sub = y_pred[pos_idx]
+
+        self.logger.debug(
+            f"[{outcome}] Evaluating stratum '{cat_name}' matching group: {group_val}.",
+        )
+        self.logger.debug(f"[{outcome}] Number of samples in stratum: {len(y_sub)}.")
+
+        return (
+            cat_name,
+            group_val,
+            self._evaluate_slice(y_sub, y_pred_sub, eval_metrics),
+        )
+
     def evaluate(
         self,
         X: pd.DataFrame,
@@ -419,49 +507,36 @@ class BaseEvaluator:
         # 2. Compute subgroup metrics using identical slice evaluation logic
         if subgroup_specs:
             self.logger.info(f"[{outcome_name}] Evaluating performance across strata.")
-            subgroup_results: dict[str, dict[str, dict[str, dict[str, float]]]] = {}
             subgroup_source = fairness_data if fairness_data is not None else X
             subgroups = self.extract_subgroups(subgroup_source, subgroup_specs)
 
-            for cat_name, cat_groups in subgroups.items():
-                subgroup_results[cat_name] = {}
-                for group_val, indices in cat_groups.items():
-                    if len(indices) == 0:
-                        self.logger.warning(
-                            "Subgroup '%s=%s' is empty. Skipping.", cat_name, group_val
-                        )
-                        continue
+            stratum_tasks = [
+                (cat_name, group_val, indices)
+                for cat_name, cat_groups in subgroups.items()
+                for group_val, indices in cat_groups.items()
+            ]
 
-                    pos_idx = X.index.get_indexer(indices)
-                    y_sub = y_arr[pos_idx]
+            stratum_outputs = Parallel(n_jobs=self.n_jobs, prefer="threads")(
+                delayed(self._evaluate_stratum)(
+                    cat_name,
+                    group_val,
+                    indices,
+                    X,
+                    y_arr,
+                    y_pred,
+                    target_model,
+                    eval_metrics,
+                    outcome,
+                )
+                for cat_name, group_val, indices in stratum_tasks
+            )
 
-                    if isinstance(y_pred, PredictionBundle):
-                        point_sub = (
-                            y_pred.point[pos_idx] if y_pred.point is not None else None
-                        )
-                        dist_sub = None
-                        if y_pred.dist is not None:
-                            # Not every distributional prediction object
-                            # supports index-based subsetting (e.g. OrdBoost's
-                            # ContinuousPredictiveDistribution does not), so
-                            # recompute the distribution for this stratum's
-                            # rows directly rather than slicing y_pred.dist.
-                            X_sub = X.iloc[pos_idx]
-                            dist_sub = target_model.predict_dist(X_sub)
-                        y_pred_sub = PredictionBundle(point=point_sub, dist=dist_sub)
-                    else:
-                        y_pred_sub = y_pred[pos_idx]
-
-                    self.logger.debug(
-                        f"[{outcome}] Evaluating stratum '{cat_name}' "
-                        f"matching group: {group_val}.",
-                    )
-                    self.logger.debug(
-                        f"[{outcome}] Number of samples in stratum: {len(y_sub)}."
-                    )
-                    subgroup_results[cat_name][group_val] = self._evaluate_slice(
-                        y_sub, y_pred_sub, eval_metrics
-                    )
+            subgroup_results: dict[str, dict[str, dict[str, dict[str, float]]]] = {
+                cat_name: {} for cat_name in subgroups
+            }
+            for cat_name, group_val, scores in stratum_outputs:
+                if scores is not None:
+                    subgroup_results[cat_name][group_val] = scores
 
             results["strata"] = subgroup_results
 
@@ -544,6 +619,8 @@ class MedpipeClassifierEvaluator(BaseEvaluator):
         Target confidence interval level.
     random_state : int, np.random.Generator, or None
         Random state instance for resampling.
+    n_jobs : int or None
+        Number of parallel jobs used to evaluate strata concurrently.
     logger : logging.Logger
         Logger instance configured under `"medpipe.evaluator"`.
 
@@ -706,6 +783,8 @@ class MedpipeRegressorEvaluator(BaseEvaluator):
         Target confidence interval level.
     random_state : int, np.random.Generator, or None
         Random state instance for resampling.
+    n_jobs : int or None
+        Number of parallel jobs used to evaluate strata concurrently.
     logger : logging.Logger
         Logger instance configured under `"medpipe.evaluator"`.
 
