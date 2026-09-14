@@ -27,6 +27,37 @@ class DistributionalPipeline(Pipeline):
 
     """
 
+    def __sklearn_is_fitted__(self) -> bool:
+        """
+        Indicate whether the pipeline's final estimator has been fitted.
+
+        Falls back to checking NGBoost's `base_models` list when the
+        default scikit-learn check reports "not fitted". NGBoost estimators
+        (e.g. `NGBRegressor`) never set any scikit-learn-conventional
+        fitted attribute (a name ending in an underscore, not starting with
+        `__`), which is exactly what `sklearn.utils.validation
+        .check_is_fitted`'s default heuristic looks for on the final
+        estimator. That makes `Pipeline.__sklearn_is_fitted__()` report
+        "not fitted" even immediately after a fully successful `fit()`
+        call, which in turn makes every `Pipeline` method that starts with
+        `check_is_fitted(self)` (`predict`, `predict_proba`, `score`, ...)
+        raise `NotFittedError` unconditionally for a fitted NGBoost model.
+        `NGBoost.fit()` always initializes `base_models = []` and appends
+        one entry per completed boosting round, so a non-empty list is a
+        reliable "has been fitted" signal across the NGBoost model family.
+
+        Returns
+        -------
+        bool
+            True if the pipeline's final estimator has been fitted.
+
+        """
+        if super().__sklearn_is_fitted__():
+            return True
+
+        final_estimator = self.steps[-1][1] if self.steps else None
+        return bool(getattr(final_estimator, "base_models", None))
+
     def predict_dist(self, X: pd.DataFrame | np.ndarray) -> Any:
         """
         Predict the full predictive distribution for samples in X.
