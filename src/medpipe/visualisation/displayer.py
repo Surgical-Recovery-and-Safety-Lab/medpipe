@@ -8,6 +8,7 @@ from typing import Any, ClassVar
 
 import matplotlib.pyplot as plt
 import numpy as np
+from joblib import Parallel, delayed
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure, SubFigure
 from ordboost.distributions import ContinuousPredictiveDistribution
@@ -95,6 +96,7 @@ class BaseDisplayer:
         "n_bootstraps": 1000,
         "save": True,
         "show": False,
+        "n_jobs": 1,
     }
 
     def __init__(
@@ -523,6 +525,67 @@ class BaseDisplayer:
         return heatmap_plots
 
 
+def _reliability_bootstrap_iteration(
+    idx: np.ndarray,
+    y_true: np.ndarray,
+    probas: np.ndarray,
+    prob_pred: np.ndarray,
+    strategy: str,
+    n_bins: int,
+) -> np.ndarray | None:
+    """Compute one bootstrap resample's calibration curve for
+    `MedpipeClassifierDisplayer._compute_reliability_data`.
+
+    Isolated to a module-level function so each resample's (potentially
+    expensive, e.g. `SplineCalib`-fitting) computation can be dispatched to
+    a `joblib.Parallel` worker independently of the others.
+
+    Parameters
+    ----------
+    idx : numpy.ndarray
+        Bootstrap resample indices (with replacement) into `y_true`/`probas`.
+    y_true : numpy.ndarray
+        Full ground truth binary target labels.
+    probas : numpy.ndarray
+        Full predicted probabilities (already reduced to 1D).
+    prob_pred : numpy.ndarray
+        Evaluation grid (spline) or original bin centers (uniform/quantile)
+        the resampled curve is interpolated/evaluated onto.
+    strategy : {'uniform', 'quantile', 'spline'}
+        Calibration curve estimation strategy.
+    n_bins : int
+        Number of bins used for 'uniform' or 'quantile' binning strategies.
+
+    Returns
+    -------
+    numpy.ndarray or None
+        The resampled calibration curve evaluated at `prob_pred`, or `None`
+        if the resample lacked class diversity or was too sparse to use.
+
+    """
+    if len(np.unique(y_true[idx])) < 2:
+        return None
+
+    if strategy == "spline":
+        from splinecalib import SplineCalib
+
+        sc_b = SplineCalib()  # type: ignore
+        sc_b.fit(probas[idx], y_true[idx])
+        b_true = sc_b.calibrate(prob_pred)
+
+        assert b_true is not None
+        if b_true.ndim == 2:
+            b_true = b_true[:, 1]
+        return b_true
+
+    b_true, b_pred = calibration_curve(
+        y_true[idx], probas[idx], n_bins=n_bins, strategy=strategy
+    )
+    if len(b_pred) > 1:
+        return np.interp(prob_pred, b_pred, b_true)
+    return None
+
+
 class MedpipeClassifierDisplayer(BaseDisplayer):
     """High-level visualisation and display manager for MedpipeClassifier pipeline runs.
 
@@ -599,6 +662,7 @@ class MedpipeClassifierDisplayer(BaseDisplayer):
         "dist_n_bins": 10,
         "dist_yscale": "linear",
         "strategy": "uniform",
+        "n_jobs": 1,
     }
 
     def _compute_roc_data(
@@ -757,6 +821,7 @@ class MedpipeClassifierDisplayer(BaseDisplayer):
         strategy: str = "uniform",
         n_bootstraps: int = 1000,
         random_state: int | None = 42,
+        n_jobs: int | None = 1,
     ) -> tuple[
         np.ndarray,
         np.ndarray,
@@ -779,6 +844,10 @@ class MedpipeClassifierDisplayer(BaseDisplayer):
             Number of bootstrap iterations for 95% confidence interval estimation.
         random_state : int, optional, default=42
             Random seed for bootstrap resampling reproducibility.
+        n_jobs : int or None, default=1
+            Number of parallel jobs used to compute bootstrap resamples,
+            each of which independently fits its own calibration curve
+            (e.g. a fresh `SplineCalib` under `strategy='spline'`).
 
         Returns
         -------
@@ -818,29 +887,26 @@ class MedpipeClassifierDisplayer(BaseDisplayer):
 
         rng = np.random.default_rng(random_state)
         n_samples = len(y_true)
-        boots = []
+        # Draw all resample indices up front, sequentially, so the random
+        # draw sequence (and thus reproducibility for a given random_state)
+        # is unaffected by dispatching the actual curve-fitting work below
+        # to parallel workers.
+        bootstrap_indices = [
+            rng.choice(n_samples, size=n_samples, replace=True)
+            for _ in range(n_bootstraps)
+        ]
 
-        for _ in range(n_bootstraps):
-            idx = rng.choice(n_samples, size=n_samples, replace=True)
-            if len(np.unique(y_true[idx])) < 2:
-                continue
-
-            if strategy == "spline":
-                sc_b = SplineCalib()  # type: ignore
-                sc_b.fit(probas[idx], y_true[idx])
-                b_true = sc_b.calibrate(prob_pred)
-
-                assert b_true is not None
-                if b_true.ndim == 2:
-                    b_true = b_true[:, 1]
-                boots.append(b_true)
-            else:
-                b_true, b_pred = calibration_curve(
-                    y_true[idx], probas[idx], n_bins=n_bins, strategy=strategy
-                )
-                if len(b_pred) > 1:
-                    interp_true = np.interp(prob_pred, b_pred, b_true)
-                    boots.append(interp_true)
+        # Process-based (the joblib default): each resample's fit (e.g. a
+        # SplineCalib fit via scipy's L-BFGS-B) spends its time in a
+        # Python-level optimizer loop that holds the GIL, so a threading
+        # backend adds contention instead of speedup here.
+        boot_results = Parallel(n_jobs=n_jobs)(
+            delayed(_reliability_bootstrap_iteration)(
+                idx, y_true, probas, prob_pred, strategy, n_bins
+            )
+            for idx in bootstrap_indices
+        )
+        boots = [b for b in boot_results if b is not None]
 
         if not boots:
             return prob_true, prob_pred, None, None
@@ -1261,6 +1327,7 @@ class MedpipeClassifierDisplayer(BaseDisplayer):
         n_bins_val = cfg["n_bins"]
         strategy_val = cfg["strategy"]
         n_bootstraps_val = cfg["n_bootstraps"]
+        n_jobs_val = cfg["n_jobs"]
         dist_yscale_val = cfg["dist_yscale"]
         dist_n_bins_val = cfg["dist_n_bins"]
         save_val = cfg["save"]
@@ -1270,7 +1337,8 @@ class MedpipeClassifierDisplayer(BaseDisplayer):
         self.logger.debug(
             f"[{outcome}] Plotting reliability diagram with "
             f"y: {y_true.shape}, {n_bootstraps_val} bootstrap iterations, "
-            f"{n_bins_val} bins, and {strategy_val} strategy."
+            f"{n_bins_val} bins, {strategy_val} strategy, and "
+            f"{n_jobs_val} parallel job(s)."
         )
         prob_true, prob_pred, lower_ci, upper_ci = self._compute_reliability_data(
             y_true=y_true,
@@ -1278,6 +1346,7 @@ class MedpipeClassifierDisplayer(BaseDisplayer):
             n_bins=n_bins_val,
             strategy=strategy_val,
             n_bootstraps=n_bootstraps_val,
+            n_jobs=n_jobs_val,
         )
 
         display_label = label or "Model"
