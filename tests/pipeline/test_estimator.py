@@ -5,6 +5,7 @@ Tests for medpipe.pipeline.estimator.DistributionalPipeline.
 import numpy as np
 import pytest
 from sklearn.base import BaseEstimator, clone
+from sklearn.exceptions import NotFittedError
 
 from medpipe.pipeline.estimator import DistributionalPipeline
 
@@ -40,6 +41,27 @@ class _NoDistEstimator(BaseEstimator):
 
     def predict(self, X):
         return np.zeros(len(X))
+
+
+class _NGBoostLikeEstimator(BaseEstimator):
+    """Dummy estimator mimicking NGBoost's fitted-state bookkeeping: `fit()`
+    populates `base_models` but sets no scikit-learn-conventional
+    trailing-underscore attribute, which is exactly what makes real
+    NGBoost estimators invisible to `sklearn.utils.validation
+    .check_is_fitted`'s default heuristic."""
+
+    def __init__(self):
+        self.base_models = []
+
+    def fit(self, X, y=None):
+        self.base_models = [object()]
+        return self
+
+    def predict(self, X):
+        return np.zeros(len(X))
+
+    def predict_dist(self, X):
+        return f"predict_dist:{len(X)}"
 
 
 class _Passthrough(BaseEstimator):
@@ -140,3 +162,54 @@ class TestDistributionalPipelineCloneSafety:
         cloned.fit(X)
 
         assert cloned.predict_dist(X) == "pred_dist:3"
+
+
+class TestDistributionalPipelineSklearnIsFitted:
+    """Unit tests for DistributionalPipeline.__sklearn_is_fitted__, which
+    works around NGBoost estimators never setting any scikit-learn-
+    conventional fitted attribute (regression test for a bug where
+    `Pipeline.predict()` raised NotFittedError on a successfully fitted
+    NGBoost model)."""
+
+    def test_ngboost_like_estimator_recognized_as_fitted_after_fit(self):
+        """Test that a fitted NGBoost-like estimator (no trailing-underscore
+        attribute, but a populated `base_models`) is recognized as fitted,
+        so `Pipeline.predict()` does not raise NotFittedError."""
+        pipeline = DistributionalPipeline([("estimator", _NGBoostLikeEstimator())])
+        X = np.array([[1.0], [2.0], [3.0]])
+        pipeline.fit(X)
+
+        assert pipeline.__sklearn_is_fitted__() is True
+        # The real regression: Pipeline.predict() calls check_is_fitted(self)
+        # internally, which previously raised for exactly this case.
+        np.testing.assert_array_equal(pipeline.predict(X), np.zeros(3))
+
+    def test_ngboost_like_estimator_unfitted_still_reports_unfitted(self):
+        """Test that an NGBoost-like estimator that has not been fitted
+        (empty `base_models`) is still correctly reported as unfitted."""
+        pipeline = DistributionalPipeline([("estimator", _NGBoostLikeEstimator())])
+
+        assert pipeline.__sklearn_is_fitted__() is False
+        with pytest.raises(NotFittedError):
+            pipeline.predict(np.array([[1.0]]))
+
+    def test_estimator_without_base_models_still_reports_unfitted(self):
+        """Test that an unfitted, non-NGBoost-like estimator (no
+        `base_models` attribute at all) is still correctly reported as
+        unfitted, i.e. the fallback does not mask genuine NotFittedError
+        cases."""
+        pipeline = DistributionalPipeline([("estimator", _NoDistEstimator())])
+
+        assert pipeline.__sklearn_is_fitted__() is False
+        with pytest.raises(NotFittedError):
+            pipeline.predict(np.array([[1.0]]))
+
+    def test_sklearn_conventional_estimator_still_recognized_normally(self):
+        """Test that a normal scikit-learn-conventional fitted estimator
+        (trailing-underscore attribute) is still recognized as fitted via
+        the default check, without needing the NGBoost fallback."""
+        pipeline = DistributionalPipeline([("estimator", _Passthrough())])
+        X = np.array([[1.0, 2.0], [3.0, 4.0]])
+        pipeline.fit(X)
+
+        assert pipeline.__sklearn_is_fitted__() is True

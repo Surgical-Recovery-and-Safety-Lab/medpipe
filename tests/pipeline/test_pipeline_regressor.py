@@ -540,6 +540,63 @@ metrics = ["rmse", "crps"]
         # artifacts. It now must be.
         assert (mp.run_dir / "env" / "config.toml").exists()
 
+    def test_full_run_with_real_ngboost_regressor(self, tmp_path: Path) -> None:
+        """Regression test: a full run() with a real NGBRegressor used to
+        raise NotFittedError during evaluate() (Pipeline.predict() calling
+        check_is_fitted(self), which NGBoost estimators always fail since
+        they set no scikit-learn-conventional fitted attribute), even
+        though the model was correctly fitted. Must now complete
+        end-to-end like OrdBoost does."""
+        rng = np.random.default_rng(42)
+        n = 120
+        df = pd.DataFrame(
+            {
+                "feature1": rng.standard_normal(n),
+                "feature2": rng.standard_normal(n),
+                "LOS_DAYS": np.exp(rng.standard_normal(n) * 0.5)
+                + rng.normal(0.0, 0.5, n),
+            }
+        )
+        data_path = tmp_path / "data.csv"
+        df.to_csv(data_path, index=False)
+
+        config_path = tmp_path / "config.toml"
+        config_path.write_text(f"""
+[meta]
+project_name = "stress_test"
+run_mode = "fast"
+
+[data]
+path = "{data_path}"
+predictors = ["feature1", "feature2"]
+outcomes = ["LOS_DAYS"]
+
+[default_model]
+algorithm = "NGBRegressor"
+
+[default_model.hyperparameters]
+n_estimators = 20
+verbose = false
+
+[workflow.validation.test_split]
+strategy = "random"
+test_size = 0.2
+
+[workflow.evaluation.metrics]
+metrics = ["rmse"]
+""")
+
+        mp = MedpipeRegressor(
+            config=str(config_path), base_artifact_dir=str(tmp_path / "artifacts")
+        )
+        results = mp.run()
+
+        assert mp.is_fitted
+        assert "LOS_DAYS" in results["fitted_models"]
+
+        overall = results["evaluations"]["LOS_DAYS"]["overall"]
+        assert np.isfinite(overall["rmse"]["point_estimate"])
+
     def test_full_run_creates_recalibration_split(self, tmp_path: Path) -> None:
         """Test that a configured `recalibration_split` produces a
         non-empty, disjoint X_recal/y_recal holdout set for the regression
