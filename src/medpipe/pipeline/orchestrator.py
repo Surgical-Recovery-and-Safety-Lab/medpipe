@@ -11,7 +11,11 @@ from sklearn.pipeline import Pipeline
 from medpipe.data.registry import PreprocessorRegistry
 from medpipe.data.utils import extract_labels, resolve_subgroup_mask, split_data
 from medpipe.utils.config import MedpipeClassifierConfig, MedpipeRegressorConfig
-from medpipe.utils.io import load_data, read_classifier_toml_configuration
+from medpipe.utils.io import (
+    load_data,
+    read_classifier_toml_configuration,
+    read_regressor_toml_configuration,
+)
 from medpipe.utils.logger import add_file_handler, get_console_logger, set_verbosity
 from medpipe.utils.reproducibility import ArtifactManager
 
@@ -89,17 +93,18 @@ class MedpipeOrchestrator:
     Parameters
     ----------
     config : Union[str, Path, MedpipeClassifierConfig, MedpipeRegressorConfig]
-        Path to a classifier TOML configuration file (validated via
-        `MedpipeClassifierConfig`), or an already-instantiated
-        `MedpipeClassifierConfig` or `MedpipeRegressorConfig` object.
-        Regression configs must be parsed by the caller first
-        (e.g. via `read_regressor_toml_configuration`)
-        and passed in as an object, since a bare path string/Path is always
-        interpreted as a classifier configuration.
+        Path to a TOML configuration file, or an already-instantiated
+        `MedpipeClassifierConfig` or `MedpipeRegressorConfig` object. A bare
+        path string/Path is parsed via `read_classifier_toml_configuration`
+        or `read_regressor_toml_configuration` depending on `is_classifier`.
     base_artifact_dir : Union[str, Path], default="artifacts"
         Root directory where the versioned run artifacts and logs will be saved.
     verbose_override : Union[bool, int, str, None], default=None
         Console verbosity setting configuration override.
+    is_classifier : bool, default=True
+        Whether `config` (when passed as a path) should be parsed as a
+        `MedpipeClassifierConfig` (True) or a `MedpipeRegressorConfig`
+        (False). Ignored when `config` is already a config object.
 
     Attributes
     ----------
@@ -136,10 +141,15 @@ class MedpipeOrchestrator:
         config: str | Path | MedpipeClassifierConfig | MedpipeRegressorConfig,
         base_artifact_dir: str | Path = "artifacts",
         verbose_override: bool | int | str | None = None,
+        is_classifier: bool = True,
     ) -> None:
         self._config_path: Path | None = None
         if isinstance(config, (str, Path)):
-            self.config = read_classifier_toml_configuration(config)
+            self.config = (
+                read_classifier_toml_configuration(config)
+                if is_classifier
+                else read_regressor_toml_configuration(config)
+            )
             self._config_path = Path(config)
         elif isinstance(config, (MedpipeClassifierConfig, MedpipeRegressorConfig)):
             self.config = config
