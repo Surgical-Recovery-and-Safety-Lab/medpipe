@@ -60,13 +60,42 @@ class TestInit:
         mock_artifact_mgr,
         mock_config,
     ):
-        """Test initialization when passed a string path."""
+        """Test initialization when passed a string path defaults to
+        parsing it as a classifier configuration."""
         mock_read_toml.return_value = mock_config
 
         orchestrator = MedpipeOrchestrator(config="path/to/config.toml")
 
         mock_read_toml.assert_called_once_with("path/to/config.toml")
         assert orchestrator.config == mock_config
+
+    @patch("medpipe.pipeline.orchestrator.read_regressor_toml_configuration")
+    @patch("medpipe.pipeline.orchestrator.read_classifier_toml_configuration")
+    def test_init_with_string_path_and_is_classifier_false(
+        self,
+        mock_read_classifier_toml,
+        mock_read_regressor_toml,
+        mock_add_handler,
+        mock_get_logger,
+        mock_artifact_mgr,
+    ):
+        """Test that a string path is parsed as a regressor configuration,
+        instead of a classifier one, when is_classifier=False."""
+        mock_regressor_config = MagicMock(spec=MedpipeRegressorConfig)
+        mock_regressor_config.meta = MagicMock()
+        mock_regressor_config.meta.verbose = 0
+        mock_read_regressor_toml.return_value = mock_regressor_config
+
+        orchestrator = MedpipeOrchestrator(
+            config="path/to/regressor_config.toml", is_classifier=False
+        )
+
+        mock_read_regressor_toml.assert_called_once_with(
+            "path/to/regressor_config.toml"
+        )
+        mock_read_classifier_toml.assert_not_called()
+        assert orchestrator.config == mock_regressor_config
+        assert orchestrator._config_path == Path("path/to/regressor_config.toml")
 
     def test_init_invalid_type_raises_error(
         self, mock_add_handler, mock_get_logger, mock_artifact_mgr
@@ -211,6 +240,37 @@ class TestSaveReproducibilityArtifacts:
         MedpipeOrchestrator(config=mock_config)
 
         mock_artifact_mgr_instance.save_toml_config.assert_not_called()
+
+    @patch("medpipe.pipeline.orchestrator.read_regressor_toml_configuration")
+    def test_save_artifacts_copies_toml_when_regressor_config_is_a_path(
+        self,
+        mock_read_regressor_toml,
+        mock_add_handler,
+        mock_get_logger,
+        mock_artifact_mgr,
+    ):
+        """Test that the original TOML file is also copied into env/ for a
+        regressor configuration path (is_classifier=False), fixing a
+        regression where MedpipeRegressor pre-parsed the path itself
+        before reaching the orchestrator, so `_config_path` was never set
+        and the TOML was silently never saved."""
+        mock_regressor_config = MagicMock(spec=MedpipeRegressorConfig)
+        mock_regressor_config.meta = MagicMock()
+        mock_regressor_config.meta.verbose = 0
+        mock_read_regressor_toml.return_value = mock_regressor_config
+
+        mock_artifact_mgr_instance = mock_artifact_mgr.return_value
+        mock_artifact_mgr_instance.create_run_directory.return_value = Path(
+            "/tmp/run_1"
+        )
+
+        orchestrator = MedpipeOrchestrator(
+            config="path/to/regressor_config.toml", is_classifier=False
+        )
+
+        mock_artifact_mgr_instance.save_toml_config.assert_called_once_with(
+            Path("path/to/regressor_config.toml"), orchestrator.run_dir / "env"
+        )
 
 
 @patch("medpipe.pipeline.orchestrator.ArtifactManager")
