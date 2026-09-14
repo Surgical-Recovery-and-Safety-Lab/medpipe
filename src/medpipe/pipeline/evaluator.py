@@ -8,6 +8,8 @@ bootstrap confidence interval estimation, logging, and artifact management.
 from __future__ import annotations
 
 from collections.abc import Callable
+from dataclasses import replace
+from functools import partial
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -20,6 +22,7 @@ from medpipe.metrics.core import (
     PredictionBundle,
     bootstrap_confidence_intervals,
     compute_metrics,
+    ici_score,
 )
 from medpipe.metrics.registry import MetricRegistry
 from medpipe.utils.logger import get_console_logger
@@ -98,6 +101,17 @@ class BaseEvaluator:
         self.ci_level = eval_config.metrics.ci_level
         self.random_state = self.orchestrator.config.workflow.random_state
         self.n_jobs = self.orchestrator.config.workflow.n_jobs
+
+        # `ici` is registered globally with a fixed `cv_splines` default;
+        # rebind it to this run's configured value (regression configs have
+        # no such metric/field, hence the fallback).
+        cv_splines = getattr(eval_config.metrics, "cv_splines", 3)
+        MetricRegistry.register_spec(
+            replace(
+                MetricRegistry.get("ici"),
+                func=partial(ici_score, cv_splines=cv_splines),
+            )
+        )
         self.logger = get_console_logger("medpipe.evaluator")
 
         self.metrics = eval_config.metrics.metrics

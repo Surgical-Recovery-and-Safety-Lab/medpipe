@@ -532,6 +532,7 @@ def _reliability_bootstrap_iteration(
     prob_pred: np.ndarray,
     strategy: str,
     n_bins: int,
+    cv_splines: int = 3,
 ) -> np.ndarray | None:
     """Compute one bootstrap resample's calibration curve for
     `MedpipeClassifierDisplayer._compute_reliability_data`.
@@ -555,6 +556,10 @@ def _reliability_bootstrap_iteration(
         Calibration curve estimation strategy.
     n_bins : int
         Number of bins used for 'uniform' or 'quantile' binning strategies.
+    cv_splines : int, default=3
+        Number of internal cross-validation folds `SplineCalib` uses to
+        select its regularization strength (only used when
+        `strategy='spline'`); `SplineCalib`'s own default is 5.
 
     Returns
     -------
@@ -569,7 +574,7 @@ def _reliability_bootstrap_iteration(
     if strategy == "spline":
         from splinecalib import SplineCalib
 
-        sc_b = SplineCalib()  # type: ignore
+        sc_b = SplineCalib(cv_spline=cv_splines)  # type: ignore
         sc_b.fit(probas[idx], y_true[idx])
         b_true = sc_b.calibrate(prob_pred)
 
@@ -663,6 +668,7 @@ class MedpipeClassifierDisplayer(BaseDisplayer):
         "dist_yscale": "linear",
         "strategy": "uniform",
         "n_jobs": 1,
+        "cv_splines": 3,
     }
 
     def _compute_roc_data(
@@ -822,6 +828,7 @@ class MedpipeClassifierDisplayer(BaseDisplayer):
         n_bootstraps: int = 1000,
         random_state: int | None = 42,
         n_jobs: int | None = 1,
+        cv_splines: int = 3,
     ) -> tuple[
         np.ndarray,
         np.ndarray,
@@ -848,6 +855,10 @@ class MedpipeClassifierDisplayer(BaseDisplayer):
             Number of parallel jobs used to compute bootstrap resamples,
             each of which independently fits its own calibration curve
             (e.g. a fresh `SplineCalib` under `strategy='spline'`).
+        cv_splines : int, default=3
+            Number of internal cross-validation folds `SplineCalib` uses to
+            select its regularization strength (only used when
+            `strategy='spline'`); `SplineCalib`'s own default is 5.
 
         Returns
         -------
@@ -869,7 +880,7 @@ class MedpipeClassifierDisplayer(BaseDisplayer):
         if strategy == "spline":
             from splinecalib import SplineCalib
 
-            sc = SplineCalib()
+            sc = SplineCalib(cv_spline=cv_splines)
             sc.fit(probas, y_true)
             prob_pred = np.linspace(0.0, 1.0, 100)
             prob_true = sc.calibrate(prob_pred)
@@ -902,7 +913,7 @@ class MedpipeClassifierDisplayer(BaseDisplayer):
         # backend adds contention instead of speedup here.
         boot_results = Parallel(n_jobs=n_jobs)(
             delayed(_reliability_bootstrap_iteration)(
-                idx, y_true, probas, prob_pred, strategy, n_bins
+                idx, y_true, probas, prob_pred, strategy, n_bins, cv_splines
             )
             for idx in bootstrap_indices
         )
@@ -1328,6 +1339,7 @@ class MedpipeClassifierDisplayer(BaseDisplayer):
         strategy_val = cfg["strategy"]
         n_bootstraps_val = cfg["n_bootstraps"]
         n_jobs_val = cfg["n_jobs"]
+        cv_splines_val = cfg["cv_splines"]
         dist_yscale_val = cfg["dist_yscale"]
         dist_n_bins_val = cfg["dist_n_bins"]
         save_val = cfg["save"]
@@ -1337,8 +1349,8 @@ class MedpipeClassifierDisplayer(BaseDisplayer):
         self.logger.debug(
             f"[{outcome}] Plotting reliability diagram with "
             f"y: {y_true.shape}, {n_bootstraps_val} bootstrap iterations, "
-            f"{n_bins_val} bins, {strategy_val} strategy, and "
-            f"{n_jobs_val} parallel job(s)."
+            f"{n_bins_val} bins, {strategy_val} strategy, "
+            f"{n_jobs_val} parallel job(s), and {cv_splines_val} spline CV folds."
         )
         prob_true, prob_pred, lower_ci, upper_ci = self._compute_reliability_data(
             y_true=y_true,
@@ -1347,6 +1359,7 @@ class MedpipeClassifierDisplayer(BaseDisplayer):
             strategy=strategy_val,
             n_bootstraps=n_bootstraps_val,
             n_jobs=n_jobs_val,
+            cv_splines=cv_splines_val,
         )
 
         display_label = label or "Model"

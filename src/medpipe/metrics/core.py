@@ -77,12 +77,27 @@ class PredictionBundle:
     dist: Any | None = None
 
 
-def ici_score(y: npt.NDArray, y_pred: npt.NDArray) -> float:
-    """Computes the integrated calibration index using a spline-based curve."""
+def ici_score(y: npt.NDArray, y_pred: npt.NDArray, cv_splines: int = 3) -> float:
+    """Computes the integrated calibration index using a spline-based curve.
+
+    Parameters
+    ----------
+    y : npt.NDArray
+        Ground truth binary target labels.
+    y_pred : npt.NDArray
+        Predicted probabilities of shape (n_samples,) or (n_samples, 2).
+    cv_splines : int, default=3
+        Number of internal cross-validation folds `SplineCalib` uses to
+        select its regularization strength. Lower values fit faster (this
+        runs once per bootstrap resample when `ici` is evaluated with a
+        confidence interval) at the cost of a coarser regularization
+        search; `SplineCalib`'s own default is 5.
+
+    """
     if y_pred.ndim == 2:
         y_pred = y_pred[:, 1]
 
-    spline = SplineCalib(logodds_scale=True)
+    spline = SplineCalib(logodds_scale=True, cv_spline=cv_splines)
     spline.fit(y_pred, y)
     smoothed_outputs = spline.predict(y_pred)
 
