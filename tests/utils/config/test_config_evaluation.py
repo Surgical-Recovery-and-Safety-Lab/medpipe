@@ -21,6 +21,7 @@ class TestMetricsConfig:
             "metrics": ["roc_auc", "log_loss", "ici"],
             "n_bootstraps": 1000,
             "ci_level": 0.95,
+            "cv_splines": 3,
         }
         config_dict.update(overrides)
 
@@ -34,12 +35,14 @@ class TestMetricsConfig:
         assert config.model_dump() == raw_config
 
     def test_default_values(self) -> None:
-        """Test default metrics, n_bootstraps, and ci_level when omitted."""
+        """Test default metrics, n_bootstraps, ci_level, and cv_splines when
+        omitted."""
         config = MetricsConfig.model_validate({})
 
         assert config.metrics == ["roc_auc", "ici"]
         assert config.n_bootstraps == 200
         assert config.ci_level == 0.95
+        assert config.cv_splines == 3
 
     def test_invalid_metric(self) -> None:
         """Test case when invalid metric is provided."""
@@ -145,6 +148,7 @@ class TestEvaluationSubConfig:
                 "metrics": ["roc_auc", "ici"],
                 "n_bootstraps": 1000,
                 "ci_level": 0.95,
+                "cv_splines": 3,
             },
             "fairness": {
                 "strata": ["AGE", "SEX"],
