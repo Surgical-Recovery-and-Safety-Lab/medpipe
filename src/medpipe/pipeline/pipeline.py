@@ -588,7 +588,7 @@ class MedpipeClassifier:
         """Reconstruct a MedpipeClassifier instance from a run artifact directory.
 
         Parses the saved JSON configuration and restores serialized outcome
-        model artifacts into the runner engine.
+        model artifacts into the runner and evaluator engines.
 
         Parameters
         ----------
@@ -633,12 +633,13 @@ class MedpipeClassifier:
         pipe._orchestrator.run_dir = new_run_path
         pipe._displayer.run_dir = new_run_path
 
-        # 3. Restore serialized model binaries into runner engine
+        # 3. Restore serialized model binaries into runner and evaluator engines
         if models_dir.exists():
             project_name = pipe.mp_config.meta.project_name
             pipe._runner.fitted_models = joblib.load(
                 models_dir / f"{project_name}_fitted.joblib"
             )
+            pipe._evaluator.fitted_models = pipe._runner.fitted_models
         pipe._logger.info(f"Succesfully loaded MedpipeClassifier from {run_dir}")
 
         return pipe
@@ -1169,7 +1170,7 @@ class MedpipeRegressor:
         """Reconstruct a MedpipeRegressor instance from a run artifact directory.
 
         Parses the saved JSON configuration and restores serialized outcome
-        model artifacts into the runner engine.
+        model artifacts into the runner and evaluator engines.
 
         Parameters
         ----------
@@ -1213,12 +1214,13 @@ class MedpipeRegressor:
         pipe = cls(config=mp_config, base_artifact_dir=new_run_path)
         pipe._orchestrator.run_dir = new_run_path
 
-        # 3. Restore serialized model binaries into runner engine
+        # 3. Restore serialized model binaries into runner and evaluator engines
         if models_dir.exists():
             project_name = pipe.mp_config.meta.project_name
             pipe._runner.fitted_models = joblib.load(
                 models_dir / f"{project_name}_fitted.joblib"
             )
+            pipe._evaluator.fitted_models = pipe._runner.fitted_models
         pipe._logger.info(f"Succesfully loaded MedpipeRegressor from {run_dir}")
 
         return pipe
