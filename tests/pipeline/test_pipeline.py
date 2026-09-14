@@ -780,7 +780,8 @@ class TestMedpipeLoad:
     def test_load_successful_with_fitted_models(
         self, tmp_path: Path, valid_config_dict: dict
     ) -> None:
-        """Test loading and restoring serialized fitted models into runner."""
+        """Test loading and restoring serialized fitted models into both the
+        runner and the evaluator."""
         run_dir = tmp_path / "run_2026_08_10"
         models_dir = run_dir / "models"
         config_dir = run_dir / "env"
@@ -804,6 +805,7 @@ class TestMedpipeLoad:
         assert pipe.run_dir == run_dir / "eval"
         assert pipe._displayer.run_dir == run_dir / "eval"
         assert pipe.models == mock_fitted_models
+        assert pipe._evaluator.fitted_models == mock_fitted_models
 
 
 # ==============================================================================
