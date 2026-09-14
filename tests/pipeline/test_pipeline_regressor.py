@@ -1,7 +1,8 @@
 """
 Tests for MedpipeRegressor, mirroring tests/pipeline/test_pipeline.py's
-structure for MedpipeClassifier (minus plotting, which isn't implemented
-for the regression track yet).
+structure for MedpipeClassifier. `plot_all` is not wired into `run()` yet
+(unlike the classifier), since not every regression algorithm supports
+`predict_dist`; it must be called manually.
 """
 
 import json
@@ -199,6 +200,50 @@ class TestMedpipeRegressorFit:
             groups_train=None,
         )
         assert result == {"LOS_DAYS": "fitted_model"}
+
+
+class TestMedpipeRegressorPlotAll:
+    """Unit tests verifying parameter forwarding in MedpipeRegressor.plot_all."""
+
+    @patch("medpipe.pipeline.pipeline.MedpipeRegressorDisplayer")
+    @patch("medpipe.pipeline.pipeline.MedpipeRegressorEvaluator")
+    @patch("medpipe.pipeline.pipeline.MedpipeRegressorRunner")
+    @patch("medpipe.pipeline.pipeline.MedpipeOrchestrator")
+    def test_plot_all_delegation(
+        self, mock_orch_cls, mock_runner_cls, mock_eval_cls, mock_displayer_cls
+    ):
+        """Verify plot_all forwards all inputs and style kwargs to the
+        MedpipeRegressorDisplayer."""
+        mp = MedpipeRegressor(config=MagicMock())
+        y_true = np.array([3.0, 5.0, 2.0])
+        dist = MagicMock()
+        mapper = MagicMock()
+        expected_plots = {"coverage": (MagicMock(), MagicMock())}
+        mp._displayer.plot_all.return_value = expected_plots
+
+        plots = mp.plot_all(
+            y_true=y_true,
+            dist=dist,
+            mapper=mapper,
+            outcome="LOS_DAYS",
+            n_bootstraps=50,
+            save=False,
+            show=True,
+            color="red",
+        )
+
+        mp._displayer.plot_all.assert_called_once_with(
+            y_true=y_true,
+            dist=dist,
+            mapper=mapper,
+            outcome="LOS_DAYS",
+            coverage_levels=None,
+            n_bootstraps=50,
+            save=False,
+            show=True,
+            color="red",
+        )
+        assert plots == expected_plots
 
 
 class TestMedpipeRegressorRun:
@@ -453,6 +498,40 @@ metrics = ["rmse", "crps"]
         overall = results["evaluations"]["LOS_DAYS"]["overall"]
         assert np.isfinite(overall["rmse"]["point_estimate"])
         assert np.isfinite(overall["crps"]["point_estimate"])
+
+        # plot_all is not auto-wired into run() yet (see class docstring),
+        # but should work end-to-end when called manually against a real
+        # fitted OrdBoostRegressor.
+        X_test = mp.data_split.X_test
+        y_test = mp.data_split.y_test["LOS_DAYS"].to_numpy()
+        dist = mp.predict_dist(X_test, outcome="LOS_DAYS")
+        mapper = mp.models["LOS_DAYS"].named_steps["regressor"].mapper_
+
+        plots = mp.plot_all(
+            y_true=y_test,
+            dist=dist,
+            mapper=mapper,
+            outcome="LOS_DAYS",
+            n_bootstraps=5,
+            save=True,
+        )
+
+        assert set(plots.keys()) == {
+            "coverage",
+            "sharpness",
+            "winkler",
+            "marginal_calibration",
+            "pit_histogram",
+        }
+        plot_dir = mp.run_dir / "plots" / "LOS_DAYS"
+        for filename in (
+            "LOS_DAYS_coverage.png",
+            "LOS_DAYS_sharpness.png",
+            "LOS_DAYS_winkler.png",
+            "LOS_DAYS_marginal_calibration.png",
+            "LOS_DAYS_pit_histogram.png",
+        ):
+            assert (plot_dir / filename).exists()
 
         # Regression test: MedpipeRegressor used to pre-parse a string/Path
         # config itself before reaching MedpipeOrchestrator, so the
