@@ -20,6 +20,10 @@ and this project adheres to Semantic Versioning ([SemVer](https://semver.org/spe
 * A `MedpipeRegressor` class mirroring `MedpipeClassifier` for regression tasks.
 * A `FairnessSplits` mirroring the `DataSplits` class that is used for the 
 fairness evaluation.
+* Renamed `read_toml_configuration` to `read_classifier_toml_configuration`.
+* An `is_classifier` flag to `MedpipeOrchestrator` to load configuration correctly.
+* Split the `MedipeDisplayer` into a base and a classifier version.
+* Added the `MedipeRegressorDisplayer` and test cases.
 
 ### Fixed
 * Docstring in the `config.py` script.

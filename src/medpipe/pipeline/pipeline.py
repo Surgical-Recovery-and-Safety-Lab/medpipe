@@ -29,13 +29,18 @@ from medpipe.pipeline.orchestrator import (
 from medpipe.pipeline.runner import MedpipeClassifierRunner, MedpipeRegressorRunner
 from medpipe.utils.config import MedpipeClassifierConfig, MedpipeRegressorConfig
 from medpipe.utils.logger import get_console_logger
-from medpipe.visualisation.displayer import MedpipeClassifierDisplayer
+from medpipe.visualisation.displayer import (
+    MedpipeClassifierDisplayer,
+    MedpipeRegressorDisplayer,
+)
 
 if TYPE_CHECKING:
 
     import numpy.typing as npt
     from matplotlib.axes import Axes
     from matplotlib.figure import Figure, SubFigure
+    from ordboost.distributions import ContinuousPredictiveDistribution
+    from ordboost.mappers import BaseBinMapper
     from sklearn.calibration import CalibratedClassifierCV
     from sklearn.pipeline import Pipeline
 
@@ -650,9 +655,11 @@ class MedpipeRegressor:
     `MedpipeRegressorEvaluator`.
 
     Unlike `MedpipeClassifier`, there is no post-hoc recalibration step (not
-    a meaningful concept for regression outcomes) and no visualisation
-    support yet - `plot_all`/figure generation for the regression track is
-    not implemented.
+    a meaningful concept for regression outcomes). Distributional diagnostic
+    figures (coverage, sharpness, Winkler score, marginal calibration, PIT
+    histogram) are available via `plot_all`, but only for models producing a
+    predictive CDF through `predict_dist` (currently OrdBoost only); `run()`
+    does not call it automatically yet.
 
     Parameters
     ----------
@@ -677,6 +684,9 @@ class MedpipeRegressor:
     _evaluator : MedpipeRegressorEvaluator
         Pipeline evaluation engine computing point estimates and
         bootstrap confidence intervals.
+    _displayer : MedpipeRegressorDisplayer
+        Visualisation engine rendering and persisting distributional
+        diagnostic figures.
     _logger : logging.Logger
         Centralized logger instance configured under `"medpipe"`.
 
@@ -693,6 +703,11 @@ class MedpipeRegressor:
     fairness_data=None, save_artifacts=True)
         Evaluate model performance with confidence intervals on full datasets
         and subgroups.
+    plot_all(y_true, dist, mapper=None, outcome="default", coverage_levels=None,
+    n_bootstraps=None, save=None, show=None, **style_kwargs)
+        Execute all core distributional diagnostic visualization routines
+        for a given outcome (coverage, sharpness, Winkler, marginal
+        calibration, PIT histogram).
     run(subgroup_specs=None, groups_train=None)
         Execute full end-to-end pipeline (data preparation, model fitting, and
         test evaluation).
@@ -718,6 +733,7 @@ class MedpipeRegressor:
             orchestrator=self._orchestrator,
             runner=self._runner,
         )
+        self._displayer = MedpipeRegressorDisplayer(orchestrator=self._orchestrator)
 
         self._logger.info("MedpipeRegressor initialisation complete.")
 
@@ -986,8 +1002,10 @@ class MedpipeRegressor:
         the debug log level.
 
         Note: unlike `MedpipeClassifier.run`, this does not generate any
-        plots regardless of `run_mode` - visualisation support for the
-        regression track is not implemented yet.
+        plots regardless of `run_mode` - not every regression algorithm
+        supports `predict_dist`, so distributional diagnostics are not
+        auto-generated here yet. Call `plot_all` manually once fitted with a
+        distribution-capable model (e.g. `OrdBoostRegressor`).
 
         Parameters
         ----------
@@ -1068,6 +1086,83 @@ class MedpipeRegressor:
             "fitted_models": fitted_models,
             "evaluations": evaluations,
         }
+
+    def plot_all(
+        self,
+        y_true: npt.NDArray,
+        dist: ContinuousPredictiveDistribution,
+        mapper: BaseBinMapper | None = None,
+        outcome: str = "default",
+        coverage_levels: npt.NDArray | None = None,
+        n_bootstraps: int | None = None,
+        save: bool | None = None,
+        show: bool | None = None,
+        **style_kwargs: Any,
+    ) -> dict[str, tuple[Figure | SubFigure, Axes]]:
+        """
+        Execute all core distributional diagnostic visualization routines
+        for a given outcome.
+
+        Generates and optionally persists the coverage reliability curve,
+        sharpness curve, Winkler score curve, marginal calibration curve,
+        and PIT histogram. Only supported for models that produce a
+        predictive CDF via `predict_dist` (currently OrdBoost only); a
+        `mapper` (e.g. the fitted model's `mapper_` attribute) is required
+        for the PIT histogram.
+
+        Not called automatically by `run()` yet, since not every regression
+        algorithm supports `predict_dist` — call this manually once you know
+        the fitted model is distribution-capable (e.g. `OrdBoostRegressor`).
+
+        Parameters
+        ----------
+        y_true : numpy.ndarray
+            Ground truth continuous target values of shape (n_samples,).
+        dist : ContinuousPredictiveDistribution
+            Predictive distribution for the same samples, e.g. from
+            `self.predict_dist(X, outcome=outcome)`.
+        mapper : BaseBinMapper, optional
+            The fitted OrdBoost model's bin mapper (e.g.
+            `self.models[outcome].named_steps["regressor"].mapper_`),
+            required for the PIT histogram.
+        outcome : str, default="default"
+            Outcome identifier used for figure titles and output folder structuring.
+        coverage_levels : numpy.ndarray, optional
+            Nominal central-interval coverage levels in percent, used for the
+            coverage, sharpness, and Winkler score curves. Defaults to
+            `np.arange(10, 100, 10)`.
+        n_bootstraps : int, optional
+            Number of bootstrap iterations for coverage, sharpness, and
+            Winkler score curves. If None, resolved from the display
+            configuration.
+        save : bool, optional
+            Automatically save all generated plot artifacts to the run directory.
+            If None, resolved from the display configuration.
+        show : bool, optional
+            Whether to display figures interactively before closing. If None,
+            resolved from the display configuration.
+        **style_kwargs : Any
+            Additional style parameters forwarded to underlying drawing primitives.
+
+        Returns
+        -------
+        plots : dict of str to tuple of (matplotlib.figure.Figure, matplotlib.axes.Axes)
+            Dictionary mapping plot keys
+            ('coverage', 'sharpness', 'winkler', 'marginal_calibration',
+            'pit_histogram') to their rendered (Figure, Axes) Matplotlib objects.
+
+        """
+        return self._displayer.plot_all(
+            y_true=y_true,
+            dist=dist,
+            mapper=mapper,
+            outcome=outcome,
+            coverage_levels=coverage_levels,
+            n_bootstraps=n_bootstraps,
+            save=save,
+            show=show,
+            **style_kwargs,
+        )
 
     @classmethod
     def load(cls, run_dir: str | Path) -> MedpipeRegressor:
