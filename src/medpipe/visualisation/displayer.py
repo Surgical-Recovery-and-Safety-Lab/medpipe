@@ -4,7 +4,7 @@ High-level display and visualisation manager module.
 
 import ast
 from pathlib import Path
-from typing import Any
+from typing import Any, ClassVar
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -32,7 +32,484 @@ from medpipe.visualisation.plots import (
 from medpipe.visualisation.themes import MedpipeTheme
 
 
-class MedpipeClassifierDisplayer:
+class BaseDisplayer:
+    """Shared visualisation engine providing config resolution, subgroup
+    heatmap plotting, and artifact persistence, independent of outcome type.
+
+    Config-resolution and heatmap plotting are outcome-type-agnostic: plot
+    parameter precedence (defaults -> overrides -> outcome overrides ->
+    runtime kwargs) and strata delta heatmaps operate purely on plot-type
+    names, metric names, and evaluation dictionaries produced identically by
+    both the classifier and regressor evaluators. Outcome-type-specific
+    metric computation and high-level plotting methods (e.g. ROC/PR curves
+    for classification, coverage/sharpness for regression) are provided by
+    subclasses, which also override `_PLOT_TYPE_ALIASES` and
+    `_FALLBACK_DISPLAY_DEFAULTS` for their own plot types.
+
+    Parameters
+    ----------
+    orchestrator : MedpipeOrchestrator
+        Active pipeline orchestrator instance containing execution context and
+        run directory.
+    theme : MedpipeTheme, optional
+        Aesthetic theme configuration. If None, defaults to `MedpipeTheme()`.
+
+    Attributes
+    ----------
+    orchestrator : MedpipeOrchestrator
+        Associated pipeline orchestrator instance.
+    run_dir : Path
+        Path to the output directory for storing generated figures.
+    theme : MedpipeTheme
+        Active visual theme specification.
+    logger : logging.Logger
+        Console logger instance for displayer operations.
+
+    Methods
+    -------
+    plot_strata_heatmap(outcomes, metric, strata, scores, strata_scores,
+    save=None, show=None, **style_kwargs)
+        Validate subgroup inputs, compute delta matrix, render strata heatmap,
+        and save output.
+    plot_all_heatmaps(evaluations, metrics=None, save=None, show=None, **style_kwargs)
+        Generate subgroup delta heatmaps across outcomes for each evaluated metric.
+
+    """
+
+    _PLOT_TYPE_ALIASES: ClassVar[dict[str, str]] = {}
+    _FALLBACK_DISPLAY_DEFAULTS: ClassVar[dict[str, Any]] = {
+        "n_bootstraps": 1000,
+        "save": True,
+        "show": False,
+    }
+
+    def __init__(
+        self,
+        orchestrator: MedpipeOrchestrator,
+        theme: MedpipeTheme | None = None,
+    ) -> None:
+        self.orchestrator = orchestrator
+        self.run_dir = orchestrator.run_dir
+        self.theme = theme or MedpipeTheme()
+        self.logger = get_console_logger("medpipe.displayer")
+
+    # --- Config Resolution ---
+
+    @classmethod
+    def _normalize_plot_type(cls, plot_type: str) -> str:
+        """Normalize plot aliases to canonical names.
+
+        Parameters
+        ----------
+        plot_type : str
+            Raw identifier or alias for a specific plot type
+            (e.g., 'calibration', 'pr_curve').
+
+        Returns
+        -------
+        str
+            Canonical plot type identifier used for consistent configuration lookup.
+
+        """
+        return cls._PLOT_TYPE_ALIASES.get(plot_type.lower(), plot_type.lower())
+
+    def _resolve_plot_config(
+        self,
+        plot_type: str,
+        outcome: str | None = None,
+        **runtime_kwargs: Any,
+    ) -> dict[str, Any]:
+        """Resolve plot parameters hierarchically across configuration levels.
+
+        Applies parameter precedence in the following order (lowest to highest):
+        1. Default global display settings (`display_cfg.defaults`)
+        2. Plot-type overrides (`display_cfg.overrides`)
+        3. Outcome-specific plot overrides (`display_cfg.outcome_overrides`)
+        4. Explicit non-None runtime arguments (`runtime_kwargs`)
+
+        Parameters
+        ----------
+        plot_type : str
+            Plot identifier or alias (e.g., 'calibration', 'roc', 'distribution').
+        outcome : str, optional
+            Outcome key used to retrieve outcome-specific plot overrides.
+        **runtime_kwargs : Any
+            Runtime keyword arguments passed directly to the calling plot method.
+
+        Returns
+        -------
+        dict of {str : Any}
+            Fully resolved dictionary of parameters for the specified plot.
+
+        """
+        display_cfg = getattr(self.orchestrator.config, "display", None)
+
+        if display_cfg is None:
+            config_params: dict[str, Any] = dict(self._FALLBACK_DISPLAY_DEFAULTS)
+            overrides: dict[str, Any] = {}
+            outcome_overrides: dict[str, Any] = {}
+        else:
+            config_params = display_cfg.defaults.model_dump()
+            overrides = display_cfg.overrides
+            outcome_overrides = display_cfg.outcome_overrides
+
+        canonical_type = self._normalize_plot_type(plot_type)
+
+        # 1. Apply global plot-type overrides (matching on any alias that
+        # normalizes to the same canonical plot type as `plot_type`)
+        for key, value in overrides.items():
+            if self._normalize_plot_type(key) == canonical_type:
+                config_params.update(value)
+
+        # 2. Apply outcome-specific plot overrides
+        if outcome and outcome in outcome_overrides:
+            out_cfg = outcome_overrides[outcome]
+            for key, value in out_cfg.items():
+                if self._normalize_plot_type(key) == canonical_type:
+                    config_params.update(value)
+
+        # 3. Apply explicit non-None runtime kwargs overrides
+        for k, v in runtime_kwargs.items():
+            if v is not None:
+                config_params[k] = v
+
+        return config_params
+
+    # --- Internal Helpers ---
+    @staticmethod
+    def _format_stratum_label(stratum_var: str, cat_key: Any) -> str:
+        """Format raw stratum variable names and category keys into clean
+        display labels.
+
+        Parses stringified numerical bounds (e.g., '[18, 50]' or '[51, 120]') into
+        readable ranges (e.g., '18-50' or open-ended '≥ 51'). Non-interval keys
+        (e.g., 'F', 'M') are returned with standard variable prefixing.
+
+        Parameters
+        ----------
+        stratum_var : str
+            Name of the subgroup stratum variable (e.g., 'AGE', 'SEX').
+        cat_key : Any
+            Category identifier or raw bin string (e.g., '[18, 50]', 'F').
+
+        Returns
+        -------
+        str
+            Formatted stratum label suitable for heatmap visual displays.
+
+        Examples
+        --------
+        >>> BaseDisplayer._format_stratum_label("AGE", "[18, 50]")
+        'AGE: 18-50'
+        >>> BaseDisplayer._format_stratum_label("AGE", "[51, 120]")
+        'AGE: ≥ 51'
+        >>> BaseDisplayer._format_stratum_label("SEX", "F")
+        'SEX: F'
+
+        """
+        cat_str = str(cat_key).strip()
+
+        if cat_str.startswith("[") and cat_str.endswith("]"):
+            try:
+                parsed = ast.literal_eval(cat_str)
+                if isinstance(parsed, (list, tuple)) and len(parsed) == 2:
+                    low, high = parsed[0], parsed[1]
+
+                    if isinstance(high, (int, float)) and high >= 100:
+                        return f"{stratum_var}: ≥ {low}"
+
+                    return f"{stratum_var}: {low}-{high}"
+            except (ValueError, SyntaxError):
+                pass
+
+        return f"{stratum_var}: {cat_str}"
+
+    def _save_figure(
+        self, fig: Figure | SubFigure, filename: str, outcome: str | None = None
+    ) -> Path:
+        """Persist figure artifact to disk in the run directory structure.
+
+        Parameters
+        ----------
+        fig : Figure | SubFigure
+            Matplotlib figure object to be saved.
+        filename : str
+            Base filename for the saved image file (without extension).
+        outcome : str, optional
+            Subdirectory name corresponding to a specific clinical outcome.
+
+        Returns
+        -------
+        Path
+            Absolute path to the created plot file.
+        """
+        plot_dir = self.run_dir / "plots"
+        if outcome:
+            plot_dir = plot_dir / outcome
+        plot_dir.mkdir(parents=True, exist_ok=True)
+
+        save_path = plot_dir / f"{filename}.png"
+        fig.savefig(save_path, dpi=self.theme.dpi, bbox_inches="tight")
+        self.logger.info(f"Saved plot artifact to {save_path}")
+        return save_path
+
+    # --- Subgroup Heatmap Plotting ---
+
+    def plot_strata_heatmap(
+        self,
+        outcomes: list[str],
+        metric: str,
+        strata: list[str],
+        scores: np.ndarray,
+        strata_scores: np.ndarray,
+        save: bool | None = None,
+        show: bool | None = None,
+        **style_kwargs: Any,
+    ) -> tuple[Figure | SubFigure, Axes]:
+        """Validate strata data, compute delta matrix, and render heatmap.
+
+        Parameters
+        ----------
+        outcomes : list of str
+            List of outcome names.
+        metric : str
+            Metric identifier being evaluated (e.g., 'auc', 'ici').
+        strata : list of str
+            List of subgroup strata names.
+        scores : np.ndarray
+            Baseline metric scores for unstratified models of shape (n_outcomes,).
+        strata_scores : np.ndarray
+            Metric scores per stratum and outcome of shape (n_strata, n_outcomes).
+        save : bool, optional
+            Automatically save the generated plot to the run directory.
+        show : bool, optional
+            Whether to display the plot interactively before closing.
+        **style_kwargs : Any
+            Additional style parameters forwarded to `draw_strata_heatmap`.
+
+        Returns
+        -------
+        fig : Figure | SubFigure
+            Rendered Matplotlib figure object.
+        ax : Axes
+            Matplotlib axes containing the heatmap plot.
+
+        Raises
+        ------
+        ValueError
+            If matrix dimensions do not match the provided strata, outcomes, or scores.
+
+        """
+        cfg = self._resolve_plot_config(
+            plot_type="strata_heatmap",
+            save=save,
+            show=show,
+            **style_kwargs,
+        )
+        save_val = cfg["save"]
+        show_val = cfg["show"]
+
+        scores_arr = np.asarray(scores)
+        strata_scores_arr = np.asarray(strata_scores)
+
+        # 1. Validation Logic
+        if strata_scores_arr.ndim != 2:
+            raise ValueError(
+                f"strata_scores must be a 2D array, got shape {strata_scores_arr.shape}"
+            )
+        if len(strata) != strata_scores_arr.shape[0]:
+            raise ValueError(
+                f"Inputs strata and strata_scores must have matching row count, "
+                f"got {len(strata)} and {strata_scores_arr.shape[0]}"
+            )
+        if len(outcomes) != strata_scores_arr.shape[1]:
+            raise ValueError(
+                f"Inputs outcomes and strata_scores must have matching column count, "
+                f"got {len(outcomes)} and {strata_scores_arr.shape[1]}"
+            )
+        if len(scores_arr) != strata_scores_arr.shape[1]:
+            raise ValueError(
+                f"Inputs scores and strata_scores must have matching column count, "
+                f"got {len(scores_arr)} and {strata_scores_arr.shape[1]}"
+            )
+
+        # 2. Data Preparation
+        strata_matrix = np.vstack((scores_arr, strata_scores_arr))
+        plot_data = np.abs(strata_matrix - scores_arr)
+        text_data = strata_matrix.copy()
+
+        try:
+            spec = MetricRegistry.get(metric)
+            display_name = (
+                getattr(spec, "display_name", None) or metric.replace("_", " ").upper()
+            )
+        except Exception:
+            display_name = metric.replace("_", " ").upper()
+
+        is_ici = metric.lower() == "ici"
+        vmax = 0.5 if is_ici else 0.1
+        percent = " (%)" if is_ici else ""
+
+        if is_ici:
+            plot_data *= 100
+            text_data *= 100
+
+        colorbar_label = rf"|$\Delta$ {display_name}|" + percent
+        title = style_kwargs.pop("title", f"Strata delta - {display_name}{percent}")
+        row_labels = ["All strata", *list(strata)]
+
+        # 3. Stateless Drawing Delegate
+        with (plt.rc_context(self.theme.to_rc_params()),):
+            fig, ax = draw_strata_heatmap(
+                plot_data=plot_data,
+                text_data=text_data,
+                row_labels=row_labels,
+                col_labels=outcomes,
+                colorbar_label=colorbar_label,
+                vmax=vmax,
+                title=title,
+                **style_kwargs,
+            )
+
+        if save_val:
+            self._save_figure(fig=fig, filename=f"{metric}_strata_heatmap")
+
+        if show_val:
+            plt.show()
+        elif save_val:
+            plt.close(fig)
+
+        return fig, ax
+
+    def plot_all_heatmaps(
+        self,
+        evaluations: dict[str, Any],
+        metrics: list[str] | None = None,
+        save: bool | None = None,
+        show: bool | None = None,
+        **style_kwargs: Any,
+    ) -> dict[str, tuple[Figure | SubFigure, Axes]]:
+        """Generate subgroup delta heatmaps across outcomes for each evaluated metric.
+
+        Parameters
+        ----------
+        evaluations : dict of str to Any
+            Nested evaluations dictionary mapping outcome keys to their overall and
+            subgroup performance evaluation results.
+        metrics : list of str, optional
+            List of metric names to render heatmaps for (e.g., ['auc', 'ici']).
+            If None, inferred from the first outcome's overall metrics.
+        save : bool, optional
+            Automatically save all generated heatmap figures to disk.
+        show : bool, optional
+            Whether to display figures interactively before closing.
+        **style_kwargs : Any
+            Additional style parameters forwarded to `plot_strata_heatmap`.
+
+        Returns
+        -------
+        heatmap_plots : dict of str to (Figure, Axes)
+            Dictionary mapping metric names to their rendered (Figure, Axes) tuples.
+
+        """
+        outcomes = list(evaluations.keys())
+        if not outcomes:
+            return {}
+
+        first_eval = evaluations[outcomes[0]]
+        overall_dict = first_eval.get("overall", {})
+        strata_dict = first_eval.get("strata", {})
+
+        target_metrics = metrics or list(overall_dict.keys())
+
+        # Flatten nested strata dict structure: stratum_variable -> category -> metric
+        # Example row labels: "SEX: F", "SEX: M", "AGE: [18, 50]"
+        strata_tuples: list[tuple[str, str]] = []
+        strata_row_labels: list[str] = []
+
+        for stratum_var, cat_dict in strata_dict.items():
+            for cat_key in cat_dict:
+                strata_tuples.append((stratum_var, cat_key))
+                # Use helper to transform raw cat_key into clean label
+                strata_row_labels.append(
+                    self._format_stratum_label(stratum_var, cat_key)
+                )
+
+        if not strata_tuples:
+            self.logger.warning(
+                "No subgroup strata found in evaluation dict; skipping heatmaps."
+            )
+            return {}
+
+        heatmap_plots: dict[str, tuple[Figure | SubFigure, Axes]] = {}
+
+        for metric in target_metrics:
+            # Look up MetricSpec display_name
+            try:
+                spec = MetricRegistry.get(metric)
+                disp_name = (
+                    getattr(spec, "display_name", None)
+                    or metric.replace("_", " ").upper()
+                )
+            except Exception:
+                disp_name = metric.replace("_", " ").upper()
+
+            self.logger.info(
+                f"--- Starting heatmap plotting for metric: {disp_name} ---"
+            )
+            # Extract unstratified baseline point estimates across outcomes
+            scores_list = []
+            for out in outcomes:
+                entry = evaluations[out].get("overall", {}).get(metric, {})
+                val = (
+                    entry.get("point_estimate", np.nan)
+                    if isinstance(entry, dict)
+                    else entry
+                )
+                scores_list.append(val)
+            scores = np.array(scores_list)
+
+            # Extract stratum point estimates matrix (shape: n_strata_rows, n_outcomes)
+            strata_scores_list = []
+            for stratum_var, cat_key in strata_tuples:
+                row = []
+                for out in outcomes:
+                    entry = (
+                        evaluations[out]
+                        .get("strata", {})
+                        .get(stratum_var, {})
+                        .get(cat_key, {})
+                        .get(metric, {})
+                    )
+                    val = (
+                        entry.get("point_estimate", np.nan)
+                        if isinstance(entry, dict)
+                        else entry
+                    )
+                    row.append(val)
+                strata_scores_list.append(row)
+
+            strata_scores = np.array(strata_scores_list)
+
+            # Render heatmap for current metric
+            heatmap_plots[metric] = self.plot_strata_heatmap(
+                outcomes=outcomes,
+                metric=metric,
+                strata=strata_row_labels,
+                scores=scores,
+                strata_scores=strata_scores,
+                save=save,
+                show=show,
+                **style_kwargs.copy(),
+            )
+
+            self.logger.info(
+                f"--- Finished heatmap plotting for metric: {disp_name} ---"
+            )
+        return heatmap_plots
+
+
+class MedpipeClassifierDisplayer(BaseDisplayer):
     """High-level visualisation and display manager for MedpipeClassifier pipeline runs.
 
     This class handles statistical calculations (such as bootstrap confidence intervals
@@ -92,164 +569,23 @@ class MedpipeClassifierDisplayer:
         (ROC, PR, distribution, reliability, DCA) for a given outcome.
     """
 
-    def __init__(
-        self,
-        orchestrator: MedpipeOrchestrator,
-        theme: MedpipeTheme | None = None,
-    ) -> None:
-        self.orchestrator = orchestrator
-        self.run_dir = orchestrator.run_dir
-        self.theme = theme or MedpipeTheme()
-        self.logger = get_console_logger("medpipe.displayer")
-
-    # --- Config Resolution ---
-
-    @staticmethod
-    def _normalize_plot_type(plot_type: str) -> str:
-        """Normalize plot aliases to canonical names.
-
-        Parameters
-        ----------
-        plot_type : str
-            Raw identifier or alias for a specific plot type
-            (e.g., 'calibration', 'pr_curve').
-
-        Returns
-        -------
-        str
-            Canonical plot type identifier used for consistent configuration lookup.
-
-        """
-        mapping = {
-            "calibration": "reliability",
-            "reliability_diagram": "reliability",
-            "pr": "precision_recall",
-            "pr_curve": "precision_recall",
-            "roc_curve": "roc",
-            "distribution": "probability_distribution",
-            "dist": "probability_distribution",
-            "dca_curve": "dca",
-        }
-        return mapping.get(plot_type.lower(), plot_type.lower())
-
-    def _resolve_plot_config(
-        self,
-        plot_type: str,
-        outcome: str | None = None,
-        **runtime_kwargs: Any,
-    ) -> dict[str, Any]:
-        """Resolve plot parameters hierarchically across configuration levels.
-
-        Applies parameter precedence in the following order (lowest to highest):
-        1. Default global display settings (`display_cfg.defaults`)
-        2. Plot-type overrides (`display_cfg.overrides`)
-        3. Outcome-specific plot overrides (`display_cfg.outcome_overrides`)
-        4. Explicit non-None runtime arguments (`runtime_kwargs`)
-
-        Parameters
-        ----------
-        plot_type : str
-            Plot identifier or alias (e.g., 'calibration', 'roc', 'distribution').
-        outcome : str, optional
-            Outcome key used to retrieve outcome-specific plot overrides.
-        **runtime_kwargs : Any
-            Runtime keyword arguments passed directly to the calling plot method.
-
-        Returns
-        -------
-        dict of {str : Any}
-            Fully resolved dictionary of parameters for the specified plot.
-
-        """
-        display_cfg = getattr(self.orchestrator.config, "display", None)
-
-        if display_cfg is None:
-            config_params: dict[str, Any] = {
-                "n_bootstraps": 1000,
-                "save": True,
-                "show": False,
-                "n_bins": 10,
-                "dist_n_bins": 10,
-                "dist_yscale": "linear",
-                "strategy": "uniform",
-            }
-            overrides: dict[str, Any] = {}
-            outcome_overrides: dict[str, Any] = {}
-        else:
-            config_params = display_cfg.defaults.model_dump()
-            overrides = display_cfg.overrides
-            outcome_overrides = display_cfg.outcome_overrides
-
-        canonical_type = self._normalize_plot_type(plot_type)
-
-        # 1. Apply global plot-type overrides (matching on any alias that
-        # normalizes to the same canonical plot type as `plot_type`)
-        for key, value in overrides.items():
-            if self._normalize_plot_type(key) == canonical_type:
-                config_params.update(value)
-
-        # 2. Apply outcome-specific plot overrides
-        if outcome and outcome in outcome_overrides:
-            out_cfg = outcome_overrides[outcome]
-            for key, value in out_cfg.items():
-                if self._normalize_plot_type(key) == canonical_type:
-                    config_params.update(value)
-
-        # 3. Apply explicit non-None runtime kwargs overrides
-        for k, v in runtime_kwargs.items():
-            if v is not None:
-                config_params[k] = v
-
-        return config_params
-
-    # --- Internal Helpers ---
-    @staticmethod
-    def _format_stratum_label(stratum_var: str, cat_key: Any) -> str:
-        """Format raw stratum variable names and category keys into clean
-        display labels.
-
-        Parses stringified numerical bounds (e.g., '[18, 50]' or '[51, 120]') into
-        readable ranges (e.g., '18-50' or open-ended '≥ 51'). Non-interval keys
-        (e.g., 'F', 'M') are returned with standard variable prefixing.
-
-        Parameters
-        ----------
-        stratum_var : str
-            Name of the subgroup stratum variable (e.g., 'AGE', 'SEX').
-        cat_key : Any
-            Category identifier or raw bin string (e.g., '[18, 50]', 'F').
-
-        Returns
-        -------
-        str
-            Formatted stratum label suitable for heatmap visual displays.
-
-        Examples
-        --------
-        >>> MedpipeClassifierDisplayer._format_stratum_label("AGE", "[18, 50]")
-        'AGE: 18-50'
-        >>> MedpipeClassifierDisplayer._format_stratum_label("AGE", "[51, 120]")
-        'AGE: ≥ 51'
-        >>> MedpipeClassifierDisplayer._format_stratum_label("SEX", "F")
-        'SEX: F'
-
-        """
-        cat_str = str(cat_key).strip()
-
-        if cat_str.startswith("[") and cat_str.endswith("]"):
-            try:
-                parsed = ast.literal_eval(cat_str)
-                if isinstance(parsed, (list, tuple)) and len(parsed) == 2:
-                    low, high = parsed[0], parsed[1]
-
-                    if isinstance(high, (int, float)) and high >= 100:
-                        return f"{stratum_var}: ≥ {low}"
-
-                    return f"{stratum_var}: {low}-{high}"
-            except (ValueError, SyntaxError):
-                pass
-
-        return f"{stratum_var}: {cat_str}"
+    _PLOT_TYPE_ALIASES: ClassVar[dict[str, str]] = {
+        "calibration": "reliability",
+        "reliability_diagram": "reliability",
+        "pr": "precision_recall",
+        "pr_curve": "precision_recall",
+        "roc_curve": "roc",
+        "distribution": "probability_distribution",
+        "dist": "probability_distribution",
+        "dca_curve": "dca",
+    }
+    _FALLBACK_DISPLAY_DEFAULTS: ClassVar[dict[str, Any]] = {
+        **BaseDisplayer._FALLBACK_DISPLAY_DEFAULTS,
+        "n_bins": 10,
+        "dist_n_bins": 10,
+        "dist_yscale": "linear",
+        "strategy": "uniform",
+    }
 
     def _compute_roc_data(
         self,
@@ -499,35 +835,6 @@ class MedpipeClassifierDisplayer:
         upper_ci = np.percentile(boots, 97.5, axis=0)
 
         return prob_true, prob_pred, lower_ci, upper_ci
-
-    def _save_figure(
-        self, fig: Figure | SubFigure, filename: str, outcome: str | None = None
-    ) -> Path:
-        """Persist figure artifact to disk in the run directory structure.
-
-        Parameters
-        ----------
-        fig : Figure | SubFigure
-            Matplotlib figure object to be saved.
-        filename : str
-            Base filename for the saved image file (without extension).
-        outcome : str, optional
-            Subdirectory name corresponding to a specific clinical outcome.
-
-        Returns
-        -------
-        Path
-            Absolute path to the created plot file.
-        """
-        plot_dir = self.run_dir / "plots"
-        if outcome:
-            plot_dir = plot_dir / outcome
-        plot_dir.mkdir(parents=True, exist_ok=True)
-
-        save_path = plot_dir / f"{filename}.png"
-        fig.savefig(save_path, dpi=self.theme.dpi, bbox_inches="tight")
-        self.logger.info(f"Saved plot artifact to {save_path}")
-        return save_path
 
     def _compute_dca_data(
         self,
@@ -995,132 +1302,6 @@ class MedpipeClassifierDisplayer:
 
         return fig, ax
 
-    def plot_strata_heatmap(
-        self,
-        outcomes: list[str],
-        metric: str,
-        strata: list[str],
-        scores: np.ndarray,
-        strata_scores: np.ndarray,
-        save: bool | None = None,
-        show: bool | None = None,
-        **style_kwargs: Any,
-    ) -> tuple[Figure | SubFigure, Axes]:
-        """Validate strata data, compute delta matrix, and render heatmap.
-
-        Parameters
-        ----------
-        outcomes : list of str
-            List of outcome names.
-        metric : str
-            Metric identifier being evaluated (e.g., 'auc', 'ici').
-        strata : list of str
-            List of subgroup strata names.
-        scores : np.ndarray
-            Baseline metric scores for unstratified models of shape (n_outcomes,).
-        strata_scores : np.ndarray
-            Metric scores per stratum and outcome of shape (n_strata, n_outcomes).
-        save : bool, optional
-            Automatically save the generated plot to the run directory.
-        show : bool, optional
-            Whether to display the plot interactively before closing.
-        **style_kwargs : Any
-            Additional style parameters forwarded to `draw_strata_heatmap`.
-
-        Returns
-        -------
-        fig : Figure | SubFigure
-            Rendered Matplotlib figure object.
-        ax : Axes
-            Matplotlib axes containing the heatmap plot.
-
-        Raises
-        ------
-        ValueError
-            If matrix dimensions do not match the provided strata, outcomes, or scores.
-
-        """
-        cfg = self._resolve_plot_config(
-            plot_type="strata_heatmap",
-            save=save,
-            show=show,
-            **style_kwargs,
-        )
-        save_val = cfg["save"]
-        show_val = cfg["show"]
-
-        scores_arr = np.asarray(scores)
-        strata_scores_arr = np.asarray(strata_scores)
-
-        # 1. Validation Logic
-        if strata_scores_arr.ndim != 2:
-            raise ValueError(
-                f"strata_scores must be a 2D array, got shape {strata_scores_arr.shape}"
-            )
-        if len(strata) != strata_scores_arr.shape[0]:
-            raise ValueError(
-                f"Inputs strata and strata_scores must have matching row count, "
-                f"got {len(strata)} and {strata_scores_arr.shape[0]}"
-            )
-        if len(outcomes) != strata_scores_arr.shape[1]:
-            raise ValueError(
-                f"Inputs outcomes and strata_scores must have matching column count, "
-                f"got {len(outcomes)} and {strata_scores_arr.shape[1]}"
-            )
-        if len(scores_arr) != strata_scores_arr.shape[1]:
-            raise ValueError(
-                f"Inputs scores and strata_scores must have matching column count, "
-                f"got {len(scores_arr)} and {strata_scores_arr.shape[1]}"
-            )
-
-        # 2. Data Preparation
-        strata_matrix = np.vstack((scores_arr, strata_scores_arr))
-        plot_data = np.abs(strata_matrix - scores_arr)
-        text_data = strata_matrix.copy()
-
-        try:
-            spec = MetricRegistry.get(metric)
-            display_name = (
-                getattr(spec, "display_name", None) or metric.replace("_", " ").upper()
-            )
-        except Exception:
-            display_name = metric.replace("_", " ").upper()
-
-        is_ici = metric.lower() == "ici"
-        vmax = 0.5 if is_ici else 0.1
-        percent = " (%)" if is_ici else ""
-
-        if is_ici:
-            plot_data *= 100
-            text_data *= 100
-
-        colorbar_label = rf"|$\Delta$ {display_name}|" + percent
-        title = style_kwargs.pop("title", f"Strata delta - {display_name}{percent}")
-        row_labels = ["All strata", *list(strata)]
-
-        # 3. Stateless Drawing Delegate
-        with (plt.rc_context(self.theme.to_rc_params()),):
-            fig, ax = draw_strata_heatmap(
-                plot_data=plot_data,
-                text_data=text_data,
-                row_labels=row_labels,
-                col_labels=outcomes,
-                colorbar_label=colorbar_label,
-                vmax=vmax,
-                title=title,
-                **style_kwargs,
-            )
-
-        if save_val:
-            self._save_figure(fig=fig, filename=f"{metric}_strata_heatmap")
-
-        if show_val:
-            plt.show()
-        elif save_val:
-            plt.close(fig)
-
-        return fig, ax
-
     def plot_dca_curve(
         self,
         y_true: np.ndarray,
@@ -1203,133 +1384,6 @@ class MedpipeClassifierDisplayer:
             plt.close(fig)
 
         return fig, ax
-
-    def plot_all_heatmaps(
-        self,
-        evaluations: dict[str, Any],
-        metrics: list[str] | None = None,
-        save: bool | None = None,
-        show: bool | None = None,
-        **style_kwargs: Any,
-    ) -> dict[str, tuple[Figure | SubFigure, Axes]]:
-        """Generate subgroup delta heatmaps across outcomes for each evaluated metric.
-
-        Parameters
-        ----------
-        evaluations : dict of str to Any
-            Nested evaluations dictionary mapping outcome keys to their overall and
-            subgroup performance evaluation results.
-        metrics : list of str, optional
-            List of metric names to render heatmaps for (e.g., ['auc', 'ici']).
-            If None, inferred from the first outcome's overall metrics.
-        save : bool, optional
-            Automatically save all generated heatmap figures to disk.
-        show : bool, optional
-            Whether to display figures interactively before closing.
-        **style_kwargs : Any
-            Additional style parameters forwarded to `plot_strata_heatmap`.
-
-        Returns
-        -------
-        heatmap_plots : dict of str to (Figure, Axes)
-            Dictionary mapping metric names to their rendered (Figure, Axes) tuples.
-
-        """
-        outcomes = list(evaluations.keys())
-        if not outcomes:
-            return {}
-
-        first_eval = evaluations[outcomes[0]]
-        overall_dict = first_eval.get("overall", {})
-        strata_dict = first_eval.get("strata", {})
-
-        target_metrics = metrics or list(overall_dict.keys())
-
-        # Flatten nested strata dict structure: stratum_variable -> category -> metric
-        # Example row labels: "SEX: F", "SEX: M", "AGE: [18, 50]"
-        strata_tuples: list[tuple[str, str]] = []
-        strata_row_labels: list[str] = []
-
-        for stratum_var, cat_dict in strata_dict.items():
-            for cat_key in cat_dict:
-                strata_tuples.append((stratum_var, cat_key))
-                # Use helper to transform raw cat_key into clean label
-                strata_row_labels.append(
-                    self._format_stratum_label(stratum_var, cat_key)
-                )
-
-        if not strata_tuples:
-            self.logger.warning(
-                "No subgroup strata found in evaluation dict; skipping heatmaps."
-            )
-            return {}
-
-        heatmap_plots: dict[str, tuple[Figure | SubFigure, Axes]] = {}
-
-        for metric in target_metrics:
-            # Look up MetricSpec display_name
-            try:
-                spec = MetricRegistry.get(metric)
-                disp_name = (
-                    getattr(spec, "display_name", None)
-                    or metric.replace("_", " ").upper()
-                )
-            except Exception:
-                disp_name = metric.replace("_", " ").upper()
-
-            self.logger.info(
-                f"--- Starting heatmap plotting for metric: {disp_name} ---"
-            )
-            # Extract unstratified baseline point estimates across outcomes
-            scores_list = []
-            for out in outcomes:
-                entry = evaluations[out].get("overall", {}).get(metric, {})
-                val = (
-                    entry.get("point_estimate", np.nan)
-                    if isinstance(entry, dict)
-                    else entry
-                )
-                scores_list.append(val)
-            scores = np.array(scores_list)
-
-            # Extract stratum point estimates matrix (shape: n_strata_rows, n_outcomes)
-            strata_scores_list = []
-            for stratum_var, cat_key in strata_tuples:
-                row = []
-                for out in outcomes:
-                    entry = (
-                        evaluations[out]
-                        .get("strata", {})
-                        .get(stratum_var, {})
-                        .get(cat_key, {})
-                        .get(metric, {})
-                    )
-                    val = (
-                        entry.get("point_estimate", np.nan)
-                        if isinstance(entry, dict)
-                        else entry
-                    )
-                    row.append(val)
-                strata_scores_list.append(row)
-
-            strata_scores = np.array(strata_scores_list)
-
-            # Render heatmap for current metric
-            heatmap_plots[metric] = self.plot_strata_heatmap(
-                outcomes=outcomes,
-                metric=metric,
-                strata=strata_row_labels,
-                scores=scores,
-                strata_scores=strata_scores,
-                save=save,
-                show=show,
-                **style_kwargs.copy(),
-            )
-
-            self.logger.info(
-                f"--- Finished heatmap plotting for metric: {disp_name} ---"
-            )
-        return heatmap_plots
 
     def plot_all(
         self,
