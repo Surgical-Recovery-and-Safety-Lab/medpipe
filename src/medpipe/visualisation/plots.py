@@ -645,6 +645,539 @@ def draw_strata_heatmap(
     return fig, ax
 
 
+def draw_coverage_curve(
+    coverage_levels: np.ndarray,
+    empirical_coverage: np.ndarray,
+    lower_ci: np.ndarray | None = None,
+    upper_ci: np.ndarray | None = None,
+    label: str = "Model",
+    ax: Axes | None = None,
+    color: str = _DEFAULT_THEME.primary_color,
+    ci_color: str | None = None,
+    ci_alpha: float = _DEFAULT_THEME.ci_alpha,
+    linestyle: str = "-",
+    linewidth: float = _DEFAULT_THEME.linewidth,
+    marker: str | None = "o",
+    ideal_linestyle: str = "--",
+    ideal_color: str = "black",
+    title: str | None = None,
+    show_spines: bool = _DEFAULT_THEME.show_spines,
+    **line_kwargs: Any,
+) -> tuple[Figure | SubFigure, Axes]:
+    """Render a coverage reliability curve (nominal vs. empirical coverage).
+
+    Parameters
+    ----------
+    coverage_levels : np.ndarray
+        Nominal central-interval coverage levels in percent (e.g. 90 for a
+        90% interval).
+    empirical_coverage : np.ndarray
+        Empirical coverage in percent at each nominal coverage level.
+    lower_ci : np.ndarray, optional
+        Lower bound array for 95% confidence interval shading.
+    upper_ci : np.ndarray, optional
+        Upper bound array for 95% confidence interval shading.
+    label : str, default="Model"
+        Legend label for the plotted curve.
+    ax : matplotlib.axes.Axes, optional
+        Pre-existing Matplotlib axes instance. If None, a new figure and axes
+        are created.
+    color : str, default=_DEFAULT_THEME.primary_color
+        Color specifier for the main curve and default confidence interval fill.
+    ci_color : str, optional
+        Custom color specifier for confidence interval shading. Defaults to `color`.
+    ci_alpha : float, default=_DEFAULT_THEME.ci_alpha
+        Opacity level for confidence interval shaded region [0.0, 1.0].
+    linestyle : str, default="-"
+        Line style for the coverage curve.
+    linewidth : float, default=_DEFAULT_THEME.linewidth
+        Width in points for the coverage curve line.
+    marker : str or None, default="o"
+        Marker symbol for coverage points.
+    ideal_linestyle : str, default="--"
+        Line style for the perfect-coverage diagonal reference line.
+    ideal_color : str, default="black"
+        Color specifier for the reference line.
+    title : str, optional
+        Axes title text.
+    show_spines : bool, default=_DEFAULT_THEME.show_spines
+        Whether to keep the top and right border spines visible.
+    **line_kwargs : Any
+        Additional Matplotlib keyword arguments forwarded to `ax.plot`.
+
+    Returns
+    -------
+    fig : matplotlib.figure.Figure or matplotlib.figure.SubFigure
+        Parent Matplotlib figure containing the axes.
+    ax : matplotlib.axes.Axes
+        Matplotlib axes containing the rendered coverage curve.
+
+    """
+    if ax is None:
+        fig, ax = plt.subplots(figsize=(6, 6))
+    else:
+        fig = ax.get_figure()
+        if fig is None:
+            raise ValueError("The provided Axes instance is not attached to a Figure")
+
+    ax.plot(
+        [0, 100],
+        [0, 100],
+        linestyle=ideal_linestyle,
+        color=ideal_color,
+        label="Ideal",
+    )
+
+    for key in ("color", "linestyle", "linewidth", "marker", "label"):
+        line_kwargs.pop(key, None)
+
+    plot_kwargs: dict[str, Any] = {
+        "color": color,
+        "linestyle": linestyle,
+        "linewidth": linewidth,
+        "label": label,
+        **line_kwargs,
+    }
+    if marker:
+        plot_kwargs["marker"] = marker
+
+    ax.plot(coverage_levels, empirical_coverage, **plot_kwargs)
+
+    if lower_ci is not None and upper_ci is not None:
+        ax.fill_between(
+            coverage_levels,
+            lower_ci,
+            upper_ci,
+            color=ci_color or color,
+            alpha=ci_alpha,
+            label=f"{label} 95% CI",
+        )
+
+    ax.set_xlabel("Nominal coverage (%)", fontweight="bold")
+    ax.set_ylabel("Empirical coverage (%)", fontweight="bold")
+    ax.set_xlim(0, 100)
+    ax.set_ylim(0, 100)
+
+    if title:
+        ax.set_title(title, fontweight="bold")
+
+    if not show_spines:
+        ax.spines["top"].set_visible(False)
+        ax.spines["right"].set_visible(False)
+
+    ax.legend(loc="lower right", frameon=False)
+
+    return fig, ax
+
+
+def draw_sharpness_curve(
+    coverage_levels: np.ndarray,
+    sharpness_values: np.ndarray,
+    lower_ci: np.ndarray | None = None,
+    upper_ci: np.ndarray | None = None,
+    label: str = "Model",
+    ax: Axes | None = None,
+    color: str = _DEFAULT_THEME.primary_color,
+    ci_color: str | None = None,
+    ci_alpha: float = _DEFAULT_THEME.ci_alpha,
+    linestyle: str = "-",
+    linewidth: float = _DEFAULT_THEME.linewidth,
+    marker: str | None = "o",
+    title: str | None = None,
+    show_spines: bool = _DEFAULT_THEME.show_spines,
+    **line_kwargs: Any,
+) -> tuple[Figure | SubFigure, Axes]:
+    """Render a sharpness curve (mean prediction interval width vs. nominal
+    coverage).
+
+    Parameters
+    ----------
+    coverage_levels : np.ndarray
+        Nominal central-interval coverage levels in percent.
+    sharpness_values : np.ndarray
+        Mean prediction interval width at each nominal coverage level.
+    lower_ci : np.ndarray, optional
+        Lower bound array for 95% confidence interval shading.
+    upper_ci : np.ndarray, optional
+        Upper bound array for 95% confidence interval shading.
+    label : str, default="Model"
+        Legend label for the plotted curve.
+    ax : matplotlib.axes.Axes, optional
+        Pre-existing Matplotlib axes instance. If None, a new figure and axes
+        are created.
+    color : str, default=_DEFAULT_THEME.primary_color
+        Color specifier for the main curve and default confidence interval fill.
+    ci_color : str, optional
+        Custom color specifier for confidence interval shading. Defaults to `color`.
+    ci_alpha : float, default=_DEFAULT_THEME.ci_alpha
+        Opacity level for confidence interval shaded region [0.0, 1.0].
+    linestyle : str, default="-"
+        Line style for the sharpness curve.
+    linewidth : float, default=_DEFAULT_THEME.linewidth
+        Width in points for the sharpness curve line.
+    marker : str or None, default="o"
+        Marker symbol for sharpness points.
+    title : str, optional
+        Axes title text.
+    show_spines : bool, default=_DEFAULT_THEME.show_spines
+        Whether to keep the top and right border spines visible.
+    **line_kwargs : Any
+        Additional Matplotlib keyword arguments forwarded to `ax.plot`.
+
+    Returns
+    -------
+    fig : matplotlib.figure.Figure or matplotlib.figure.SubFigure
+        Parent Matplotlib figure containing the axes.
+    ax : matplotlib.axes.Axes
+        Matplotlib axes containing the rendered sharpness curve.
+
+    """
+    if ax is None:
+        fig, ax = plt.subplots(figsize=(6, 6))
+    else:
+        fig = ax.get_figure()
+        if fig is None:
+            raise ValueError("The provided Axes instance is not attached to a Figure")
+
+    for key in ("color", "linestyle", "linewidth", "marker", "label"):
+        line_kwargs.pop(key, None)
+
+    plot_kwargs: dict[str, Any] = {
+        "color": color,
+        "linestyle": linestyle,
+        "linewidth": linewidth,
+        "label": label,
+        **line_kwargs,
+    }
+    if marker:
+        plot_kwargs["marker"] = marker
+
+    ax.plot(coverage_levels, sharpness_values, **plot_kwargs)
+
+    if lower_ci is not None and upper_ci is not None:
+        ax.fill_between(
+            coverage_levels,
+            lower_ci,
+            upper_ci,
+            color=ci_color or color,
+            alpha=ci_alpha,
+            label=f"{label} 95% CI",
+        )
+
+    ax.set_xlabel("Nominal coverage (%)", fontweight="bold")
+    ax.set_ylabel("Mean interval width", fontweight="bold")
+    ax.set_xlim(0, 100)
+
+    if title:
+        ax.set_title(title, fontweight="bold")
+
+    if not show_spines:
+        ax.spines["top"].set_visible(False)
+        ax.spines["right"].set_visible(False)
+
+    ax.legend(loc="upper left", frameon=False)
+
+    return fig, ax
+
+
+def draw_winkler_curve(
+    coverage_levels: np.ndarray,
+    winkler_values: np.ndarray,
+    lower_ci: np.ndarray | None = None,
+    upper_ci: np.ndarray | None = None,
+    label: str = "Model",
+    ax: Axes | None = None,
+    color: str = _DEFAULT_THEME.primary_color,
+    ci_color: str | None = None,
+    ci_alpha: float = _DEFAULT_THEME.ci_alpha,
+    linestyle: str = "-",
+    linewidth: float = _DEFAULT_THEME.linewidth,
+    marker: str | None = "o",
+    title: str | None = None,
+    show_spines: bool = _DEFAULT_THEME.show_spines,
+    **line_kwargs: Any,
+) -> tuple[Figure | SubFigure, Axes]:
+    """Render a Winkler (interval) score curve across nominal coverage levels.
+
+    Parameters
+    ----------
+    coverage_levels : np.ndarray
+        Nominal central-interval coverage levels in percent.
+    winkler_values : np.ndarray
+        Mean Winkler score at each nominal coverage level (lower is better).
+    lower_ci : np.ndarray, optional
+        Lower bound array for 95% confidence interval shading.
+    upper_ci : np.ndarray, optional
+        Upper bound array for 95% confidence interval shading.
+    label : str, default="Model"
+        Legend label for the plotted curve.
+    ax : matplotlib.axes.Axes, optional
+        Pre-existing Matplotlib axes instance. If None, a new figure and axes
+        are created.
+    color : str, default=_DEFAULT_THEME.primary_color
+        Color specifier for the main curve and default confidence interval fill.
+    ci_color : str, optional
+        Custom color specifier for confidence interval shading. Defaults to `color`.
+    ci_alpha : float, default=_DEFAULT_THEME.ci_alpha
+        Opacity level for confidence interval shaded region [0.0, 1.0].
+    linestyle : str, default="-"
+        Line style for the Winkler score curve.
+    linewidth : float, default=_DEFAULT_THEME.linewidth
+        Width in points for the Winkler score curve line.
+    marker : str or None, default="o"
+        Marker symbol for Winkler score points.
+    title : str, optional
+        Axes title text.
+    show_spines : bool, default=_DEFAULT_THEME.show_spines
+        Whether to keep the top and right border spines visible.
+    **line_kwargs : Any
+        Additional Matplotlib keyword arguments forwarded to `ax.plot`.
+
+    Returns
+    -------
+    fig : matplotlib.figure.Figure or matplotlib.figure.SubFigure
+        Parent Matplotlib figure containing the axes.
+    ax : matplotlib.axes.Axes
+        Matplotlib axes containing the rendered Winkler score curve.
+
+    """
+    if ax is None:
+        fig, ax = plt.subplots(figsize=(6, 6))
+    else:
+        fig = ax.get_figure()
+        if fig is None:
+            raise ValueError("The provided Axes instance is not attached to a Figure")
+
+    for key in ("color", "linestyle", "linewidth", "marker", "label"):
+        line_kwargs.pop(key, None)
+
+    plot_kwargs: dict[str, Any] = {
+        "color": color,
+        "linestyle": linestyle,
+        "linewidth": linewidth,
+        "label": label,
+        **line_kwargs,
+    }
+    if marker:
+        plot_kwargs["marker"] = marker
+
+    ax.plot(coverage_levels, winkler_values, **plot_kwargs)
+
+    if lower_ci is not None and upper_ci is not None:
+        ax.fill_between(
+            coverage_levels,
+            lower_ci,
+            upper_ci,
+            color=ci_color or color,
+            alpha=ci_alpha,
+            label=f"{label} 95% CI",
+        )
+
+    ax.set_xlabel("Nominal coverage (%)", fontweight="bold")
+    ax.set_ylabel("Winkler score", fontweight="bold")
+    ax.set_xlim(0, 100)
+
+    if title:
+        ax.set_title(title, fontweight="bold")
+
+    if not show_spines:
+        ax.spines["top"].set_visible(False)
+        ax.spines["right"].set_visible(False)
+
+    ax.legend(loc="upper left", frameon=False)
+
+    return fig, ax
+
+
+def draw_marginal_calibration(
+    grid_y: np.ndarray,
+    diff: np.ndarray,
+    label: str = "Model",
+    ax: Axes | None = None,
+    color: str = _DEFAULT_THEME.primary_color,
+    linestyle: str = "-",
+    linewidth: float = _DEFAULT_THEME.linewidth,
+    zero_linestyle: str = "--",
+    zero_color: str = "gray",
+    title: str | None = None,
+    show_spines: bool = _DEFAULT_THEME.show_spines,
+    **line_kwargs: Any,
+) -> tuple[Figure | SubFigure, Axes]:
+    """Render a marginal calibration curve (empirical minus mean-predicted CDF).
+
+    Parameters
+    ----------
+    grid_y : np.ndarray
+        Target-value grid points along the X-axis.
+    diff : np.ndarray
+        Difference between the empirical CDF and the mean predicted CDF at
+        each grid point (empirical - mean predicted).
+    label : str, default="Model"
+        Legend label for the plotted curve.
+    ax : matplotlib.axes.Axes, optional
+        Pre-existing Matplotlib axes instance. If None, a new figure and axes
+        are created.
+    color : str, default=_DEFAULT_THEME.primary_color
+        Color specifier for the curve.
+    linestyle : str, default="-"
+        Line style for the curve.
+    linewidth : float, default=_DEFAULT_THEME.linewidth
+        Width in points for the curve line.
+    zero_linestyle : str, default="--"
+        Line style for the zero (perfect calibration) reference line.
+    zero_color : str, default="gray"
+        Color specifier for the zero reference line.
+    title : str, optional
+        Axes title text.
+    show_spines : bool, default=_DEFAULT_THEME.show_spines
+        Whether to keep the top and right border spines visible.
+    **line_kwargs : Any
+        Additional Matplotlib keyword arguments forwarded to `ax.plot`.
+
+    Returns
+    -------
+    fig : matplotlib.figure.Figure or matplotlib.figure.SubFigure
+        Parent Matplotlib figure containing the axes.
+    ax : matplotlib.axes.Axes
+        Matplotlib axes containing the rendered marginal calibration curve.
+
+    """
+    if ax is None:
+        fig, ax = plt.subplots(figsize=(7, 5))
+    else:
+        fig = ax.get_figure()
+        if fig is None:
+            raise ValueError("The provided Axes instance is not attached to a Figure")
+
+    for key in ("color", "linestyle", "linewidth", "label"):
+        line_kwargs.pop(key, None)
+
+    ax.plot(
+        grid_y,
+        diff,
+        color=color,
+        linestyle=linestyle,
+        linewidth=linewidth,
+        label=label,
+        **line_kwargs,
+    )
+    ax.axhline(0.0, color=zero_color, linestyle=zero_linestyle, linewidth=1.5)
+
+    ax.set_xlabel("Target value", fontweight="bold")
+    ax.set_ylabel("eCDF - mean predicted CDF", fontweight="bold")
+
+    if title:
+        ax.set_title(title, fontweight="bold")
+
+    if not show_spines:
+        ax.spines["top"].set_visible(False)
+        ax.spines["right"].set_visible(False)
+
+    ax.legend(loc="best", frameon=False)
+
+    return fig, ax
+
+
+def draw_pit_histogram(
+    bin_centres: np.ndarray,
+    hist_values: np.ndarray,
+    alpha_score: float,
+    n_bins: int = 20,
+    label: str = "Model",
+    ax: Axes | None = None,
+    color: str = _DEFAULT_THEME.primary_color,
+    edgecolor: str = "black",
+    uniform_linestyle: str = "--",
+    uniform_color: str = "black",
+    title: str | None = None,
+    show_spines: bool = _DEFAULT_THEME.show_spines,
+    **bar_kwargs: Any,
+) -> tuple[Figure | SubFigure, Axes]:
+    """Render a randomized Probability Integral Transform (PIT) histogram.
+
+    Parameters
+    ----------
+    bin_centres : np.ndarray
+        Bin centre positions in [0, 1] for each PIT histogram bar.
+    hist_values : np.ndarray
+        Density values for each PIT histogram bin.
+    alpha_score : float
+        PIT alpha (uniformity) score, displayed in the legend label.
+    n_bins : int, default=20
+        Number of bins used to compute the histogram (drives bar width and
+        the uniform reference line height).
+    label : str, default="Model"
+        Legend label prefix for the histogram series.
+    ax : matplotlib.axes.Axes, optional
+        Pre-existing Matplotlib axes instance. If None, a new figure and axes
+        are created.
+    color : str, default=_DEFAULT_THEME.primary_color
+        Fill color for histogram bars.
+    edgecolor : str, default="black"
+        Border color for histogram bars.
+    uniform_linestyle : str, default="--"
+        Line style for the uniform-density reference line.
+    uniform_color : str, default="black"
+        Color specifier for the uniform-density reference line.
+    title : str, optional
+        Axes title text.
+    show_spines : bool, default=_DEFAULT_THEME.show_spines
+        Whether to keep the top and right border spines visible.
+    **bar_kwargs : Any
+        Additional Matplotlib keyword arguments forwarded to `ax.bar`.
+
+    Returns
+    -------
+    fig : matplotlib.figure.Figure or matplotlib.figure.SubFigure
+        Parent Matplotlib figure containing the axes.
+    ax : matplotlib.axes.Axes
+        Matplotlib axes containing the rendered PIT histogram.
+
+    """
+    if ax is None:
+        fig, ax = plt.subplots(figsize=(7, 5))
+    else:
+        fig = ax.get_figure()
+        if fig is None:
+            raise ValueError("The provided Axes instance is not attached to a Figure")
+
+    for key in ("color", "edgecolor", "width", "label"):
+        bar_kwargs.pop(key, None)
+
+    bin_width = 1.0 / n_bins
+    ax.bar(
+        bin_centres,
+        hist_values,
+        width=bin_width * 0.9,
+        color=color,
+        edgecolor=edgecolor,
+        label=f"{label} (alpha score: {alpha_score:.3f})",
+        **bar_kwargs,
+    )
+    ax.axhline(
+        1.0 / n_bins,
+        color=uniform_color,
+        linestyle=uniform_linestyle,
+        linewidth=1.5,
+        label="Uniform",
+    )
+
+    ax.set_xlabel("PIT value", fontweight="bold")
+    ax.set_ylabel("Density", fontweight="bold")
+    ax.set_xlim(0, 1)
+
+    if title:
+        ax.set_title(title, fontweight="bold")
+
+    if not show_spines:
+        ax.spines["top"].set_visible(False)
+        ax.spines["right"].set_visible(False)
+
+    ax.legend(frameon=False)
+
+    return fig, ax
+
+
 def draw_dca_curve(
     thresholds: np.ndarray,
     net_benefit_model: np.ndarray,

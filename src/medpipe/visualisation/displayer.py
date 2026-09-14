@@ -10,6 +10,15 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure, SubFigure
+from ordboost.distributions import ContinuousPredictiveDistribution
+from ordboost.mappers import BaseBinMapper
+from ordboost.metrics import (
+    interval_coverage_rate,
+    marginal_calibration_curve,
+    pit_diagnostics,
+    sharpness,
+    winkler_score,
+)
 from sklearn.calibration import calibration_curve
 from sklearn.metrics import (
     auc,
@@ -22,12 +31,17 @@ from medpipe.metrics.registry import MetricRegistry
 from medpipe.pipeline.orchestrator import MedpipeOrchestrator
 from medpipe.utils.logger import get_console_logger
 from medpipe.visualisation.plots import (
+    draw_coverage_curve,
     draw_dca_curve,
+    draw_marginal_calibration,
+    draw_pit_histogram,
     draw_precision_recall_curve,
     draw_probability_distribution,
     draw_reliability_diagram,
     draw_roc_curve,
+    draw_sharpness_curve,
     draw_strata_heatmap,
+    draw_winkler_curve,
 )
 from medpipe.visualisation.themes import MedpipeTheme
 
@@ -1471,6 +1485,838 @@ class MedpipeClassifierDisplayer(BaseDisplayer):
         plots["dca"] = self.plot_dca_curve(
             y_true=y_true,
             probas=probas,
+            outcome=outcome,
+            save=save,
+            show=show,
+            **style_kwargs.copy(),
+        )
+
+        self.logger.info(f"--- Finished graphical display for outcome: {outcome} ---")
+        return plots
+
+
+class MedpipeRegressorDisplayer(BaseDisplayer):
+    """High-level visualisation and display manager for MedpipeRegressor pipeline runs.
+
+    Renders distributional diagnostic figures (coverage reliability, sharpness,
+    Winkler score, marginal calibration, and PIT histograms) for regression
+    models that produce a predictive CDF via `predict_dist`. Coverage,
+    sharpness, and Winkler score are bootstrapped for confidence intervals,
+    mirroring `MedpipeClassifierDisplayer`'s ROC/PR/reliability curves.
+
+    Currently only OrdBoost's `ContinuousPredictiveDistribution` is
+    supported (a `mapper` is required for PIT histograms, e.g. the fitted
+    `OrdBoostRegressor`'s `mapper_` attribute); NGBoost-wrapped
+    distributions are not yet supported and will raise a clear error if
+    passed to `plot_pit_histogram`.
+
+    Parameters
+    ----------
+    orchestrator : MedpipeOrchestrator
+        Active pipeline orchestrator instance containing execution context and
+        run directory.
+    theme : MedpipeTheme, optional
+        Aesthetic theme configuration. If None, defaults to `MedpipeTheme()`.
+
+    Attributes
+    ----------
+    orchestrator : MedpipeOrchestrator
+        Associated pipeline orchestrator instance.
+    run_dir : Path
+        Path to the output directory for storing generated figures.
+    theme : MedpipeTheme
+        Active visual theme specification.
+    logger : logging.Logger
+        Console logger instance for displayer operations.
+
+    Methods
+    -------
+    plot_coverage(y_true, dist, outcome="default", coverage_levels=None,
+    n_bootstraps=None, label=None, save=None, show=None, **style_kwargs)
+        Compute empirical coverage across nominal coverage levels with
+        bootstrap CIs, render curve, and save output.
+    plot_sharpness(y_true, dist, outcome="default", coverage_levels=None,
+    n_bootstraps=None, label=None, save=None, show=None, **style_kwargs)
+        Compute mean interval width across nominal coverage levels with
+        bootstrap CIs, render curve, and save output.
+    plot_winkler(y_true, dist, outcome="default", coverage_levels=None,
+    n_bootstraps=None, label=None, save=None, show=None, **style_kwargs)
+        Compute Winkler score across nominal coverage levels with bootstrap
+        CIs, render curve, and save output.
+    plot_marginal_calibration(y_true, dist, outcome="default", label=None,
+    save=None, show=None, **style_kwargs)
+        Compute marginal calibration curve, render plot, and save output.
+    plot_pit_histogram(y_true, dist, mapper, outcome="default", n_bins=None,
+    label=None, save=None, show=None, **style_kwargs)
+        Compute PIT diagnostics, render histogram, and save output.
+    plot_strata_heatmap(outcomes, metric, strata, scores, strata_scores,
+    save=None, show=None, **style_kwargs)
+        Validate subgroup inputs, compute delta matrix, render strata heatmap,
+        and save output.
+    plot_all_heatmaps(evaluations, metrics=None, save=None, show=None, **style_kwargs)
+        Generate subgroup delta heatmaps across outcomes for each evaluated metric.
+    plot_all(y_true, dist, mapper, outcome="default", coverage_levels=None,
+    n_bootstraps=None, save=None, show=None, **style_kwargs)
+        Execute all core distributional diagnostic visualization routines
+        for a given outcome.
+
+    """
+
+    _PLOT_TYPE_ALIASES: ClassVar[dict[str, str]] = {
+        "coverage_curve": "coverage",
+        "sharpness_curve": "sharpness",
+        "winkler_curve": "winkler",
+        "winkler_score": "winkler",
+        "marginal_calib": "marginal_calibration",
+        "pit": "pit_histogram",
+    }
+    # Hardcoded defaults (not yet exposed via DisplayDefaultsConfig): nominal
+    # coverage grid (percent) for coverage/sharpness/Winkler, and PIT
+    # histogram bin count.
+    _DEFAULT_COVERAGE_LEVELS: ClassVar[np.ndarray] = np.arange(10, 100, 10)
+    _DEFAULT_PIT_N_BINS: ClassVar[int] = 20
+
+    def _compute_coverage_sharpness_winkler_data(
+        self,
+        y_true: np.ndarray,
+        dist: ContinuousPredictiveDistribution,
+        coverage_levels: np.ndarray,
+        n_bootstraps: int = 1000,
+        random_state: int | None = 42,
+    ) -> dict[str, Any]:
+        """Compute empirical coverage, sharpness, and Winkler score across
+        nominal coverage levels, with bootstrap CIs.
+
+        Parameters
+        ----------
+        y_true : np.ndarray
+            Ground truth continuous target values of shape (n_samples,).
+        dist : ContinuousPredictiveDistribution
+            Predictive distribution for the same samples.
+        coverage_levels : np.ndarray
+            Nominal central-interval coverage levels in percent (e.g. 90 for
+            a 90% interval).
+        n_bootstraps : int, default=1000
+            Number of bootstrap iterations for 95% confidence interval estimation.
+        random_state : int, optional, default=42
+            Random seed for bootstrap resampling reproducibility.
+
+        Returns
+        -------
+        dict of str to Any
+            `"coverage_levels"` (np.ndarray), and `"coverage"`, `"sharpness"`,
+            `"winkler"`, each a dict with `"point"`, `"lower_ci"`, `"upper_ci"`
+            (the latter two None when `n_bootstraps <= 0`).
+
+        """
+        y_true_arr = np.asarray(y_true, dtype=float)
+        coverage_levels_arr = np.asarray(coverage_levels, dtype=float)
+        alphas = 1.0 - coverage_levels_arr / 100.0
+
+        empirical_coverage = np.empty_like(alphas)
+        sharp = np.empty_like(alphas)
+        winkler = np.empty_like(alphas)
+
+        for i, alpha in enumerate(alphas):
+            empirical_coverage[i] = (
+                interval_coverage_rate(y_true_arr, dist, alpha=alpha) * 100.0
+            )
+            sharp[i] = sharpness(dist, alpha=alpha)
+            winkler[i] = winkler_score(y_true_arr, dist, alpha=alpha)
+
+        result: dict[str, Any] = {
+            "coverage_levels": coverage_levels_arr,
+            "coverage": {
+                "point": empirical_coverage,
+                "lower_ci": None,
+                "upper_ci": None,
+            },
+            "sharpness": {"point": sharp, "lower_ci": None, "upper_ci": None},
+            "winkler": {"point": winkler, "lower_ci": None, "upper_ci": None},
+        }
+
+        if n_bootstraps <= 0:
+            return result
+
+        rng = np.random.default_rng(random_state)
+        n_samples = len(y_true_arr)
+        n_levels = len(alphas)
+        coverage_boot = np.empty((n_bootstraps, n_levels))
+        sharp_boot = np.empty((n_bootstraps, n_levels))
+        winkler_boot = np.empty((n_bootstraps, n_levels))
+
+        for b in range(n_bootstraps):
+            idx = rng.choice(n_samples, size=n_samples, replace=True)
+            y_b = y_true_arr[idx]
+            dist_b = ContinuousPredictiveDistribution(
+                grid_y=dist.grid_y, grid_cdf=dist.grid_cdf[idx]
+            )
+            for j, alpha in enumerate(alphas):
+                coverage_boot[b, j] = (
+                    interval_coverage_rate(y_b, dist_b, alpha=alpha) * 100.0
+                )
+                sharp_boot[b, j] = sharpness(dist_b, alpha=alpha)
+                winkler_boot[b, j] = winkler_score(y_b, dist_b, alpha=alpha)
+
+        result["coverage"]["lower_ci"] = np.percentile(coverage_boot, 2.5, axis=0)
+        result["coverage"]["upper_ci"] = np.percentile(coverage_boot, 97.5, axis=0)
+        result["sharpness"]["lower_ci"] = np.percentile(sharp_boot, 2.5, axis=0)
+        result["sharpness"]["upper_ci"] = np.percentile(sharp_boot, 97.5, axis=0)
+        result["winkler"]["lower_ci"] = np.percentile(winkler_boot, 2.5, axis=0)
+        result["winkler"]["upper_ci"] = np.percentile(winkler_boot, 97.5, axis=0)
+
+        return result
+
+    def _compute_marginal_calibration_data(
+        self,
+        y_true: np.ndarray,
+        dist: ContinuousPredictiveDistribution,
+    ) -> tuple[np.ndarray, np.ndarray]:
+        """Compute the marginal calibration curve for a predictive distribution.
+
+        Parameters
+        ----------
+        y_true : np.ndarray
+            Ground truth continuous target values of shape (n_samples,).
+        dist : ContinuousPredictiveDistribution
+            Predictive distribution for the same samples.
+
+        Returns
+        -------
+        grid_y : np.ndarray
+            Target-value grid points.
+        diff : np.ndarray
+            Empirical CDF minus mean predicted CDF at each grid point.
+
+        """
+        y_true_arr = np.asarray(y_true, dtype=float)
+        grid_y, diff = marginal_calibration_curve(y_true_arr, dist)
+        return grid_y, diff
+
+    def _compute_pit_histogram_data(
+        self,
+        y_true: np.ndarray,
+        dist: ContinuousPredictiveDistribution,
+        mapper: BaseBinMapper | None,
+        n_bins: int = 20,
+    ) -> tuple[np.ndarray, np.ndarray, float]:
+        """Compute PIT (Probability Integral Transform) histogram diagnostics.
+
+        Parameters
+        ----------
+        y_true : np.ndarray
+            Ground truth continuous target values of shape (n_samples,).
+        dist : ContinuousPredictiveDistribution
+            Predictive distribution for the same samples.
+        mapper : BaseBinMapper or None
+            The fitted OrdBoost model's bin mapper (e.g. its `mapper_`
+            attribute), required to compute exact PIT diagnostics.
+        n_bins : int, default=20
+            Number of PIT histogram bins.
+
+        Returns
+        -------
+        bin_centres : np.ndarray
+            Bin centre positions in [0, 1].
+        hist_values : np.ndarray
+            Density values for each bin.
+        alpha_score : float
+            PIT alpha (uniformity) score.
+
+        Raises
+        ------
+        ValueError
+            If `mapper` is None, since NGBoost-wrapped distributions (which
+            have no OrdBoost bin mapper) are not yet supported.
+
+        """
+        if mapper is None:
+            raise ValueError(
+                "A `mapper` (e.g. the fitted OrdBoostRegressor's `mapper_` "
+                "attribute) is required to compute a PIT histogram. "
+                "Distributions without an OrdBoost bin mapper (e.g. "
+                "NGBoost-wrapped distributions) are not yet supported."
+            )
+
+        y_true_arr = np.asarray(y_true, dtype=float)
+        pit = pit_diagnostics(y_true_arr, dist, mapper)
+        alpha_score = float(np.asarray(pit.alpha_score()))
+        hist = pit.hist_values(n_bins)
+        bin_centres = np.asarray(hist["bin_centre"].values)
+        hist_values = np.asarray(hist.values)
+
+        return bin_centres, hist_values, alpha_score
+
+    # --- High-Level Plotting Methods ---
+
+    def plot_coverage(
+        self,
+        y_true: np.ndarray,
+        dist: ContinuousPredictiveDistribution,
+        outcome: str = "default",
+        coverage_levels: np.ndarray | None = None,
+        n_bootstraps: int | None = None,
+        label: str | None = None,
+        save: bool | None = None,
+        show: bool | None = None,
+        **style_kwargs: Any,
+    ) -> tuple[Figure | SubFigure, Axes]:
+        """Compute coverage reliability, render curve with confidence
+        intervals, and save figure.
+
+        Parameters
+        ----------
+        y_true : np.ndarray
+            Ground truth continuous target values of shape (n_samples,).
+        dist : ContinuousPredictiveDistribution
+            Predictive distribution for the same samples.
+        outcome : str, default="default"
+            Outcome identifier used for figure titles and folder structuring.
+        coverage_levels : np.ndarray, optional
+            Nominal central-interval coverage levels in percent. Defaults to
+            `np.arange(10, 100, 10)`.
+        n_bootstraps : int, optional
+            Number of bootstrap iterations for confidence intervals. Set to 0
+            to disable.
+        label : str, optional
+            Legend label for the model. Defaults to 'Model'.
+        save : bool, optional
+            Automatically save the generated plot to the run directory.
+        show : bool, optional
+            Whether to display the plot interactively before closing.
+        **style_kwargs : Any
+            Additional style parameters forwarded to `draw_coverage_curve`.
+
+        Returns
+        -------
+        fig : Figure | SubFigure
+            Rendered Matplotlib figure object.
+        ax : Axes
+            Matplotlib axes containing the plotted elements.
+
+        """
+        cfg = self._resolve_plot_config(
+            plot_type="coverage",
+            outcome=outcome,
+            n_bootstraps=n_bootstraps,
+            save=save,
+            show=show,
+            **style_kwargs,
+        )
+        n_bootstraps_val = cfg["n_bootstraps"]
+        save_val = cfg["save"]
+        show_val = cfg["show"]
+        levels = (
+            coverage_levels
+            if coverage_levels is not None
+            else self._DEFAULT_COVERAGE_LEVELS
+        )
+
+        self.logger.info(f"[{outcome}] Starting coverage curve plotting.")
+        data = self._compute_coverage_sharpness_winkler_data(
+            y_true=y_true,
+            dist=dist,
+            coverage_levels=levels,
+            n_bootstraps=n_bootstraps_val,
+        )
+
+        display_label = label or "Model"
+
+        with (plt.rc_context(self.theme.to_rc_params()),):
+            fig, ax = draw_coverage_curve(
+                coverage_levels=data["coverage_levels"],
+                empirical_coverage=data["coverage"]["point"],
+                lower_ci=data["coverage"]["lower_ci"],
+                upper_ci=data["coverage"]["upper_ci"],
+                label=display_label,
+                color=style_kwargs.pop("color", self.theme.primary_color),
+                ci_alpha=style_kwargs.pop("ci_alpha", self.theme.ci_alpha),
+                linewidth=style_kwargs.pop("linewidth", self.theme.linewidth),
+                show_spines=style_kwargs.pop("show_spines", self.theme.show_spines),
+                title=f"Coverage Reliability - {outcome.capitalize()}",
+                **style_kwargs,
+            )
+
+        if save_val:
+            self._save_figure(fig=fig, filename=f"{outcome}_coverage", outcome=outcome)
+
+        if show_val:
+            plt.show()
+        elif save_val:
+            plt.close(fig)
+
+        return fig, ax
+
+    def plot_sharpness(
+        self,
+        y_true: np.ndarray,
+        dist: ContinuousPredictiveDistribution,
+        outcome: str = "default",
+        coverage_levels: np.ndarray | None = None,
+        n_bootstraps: int | None = None,
+        label: str | None = None,
+        save: bool | None = None,
+        show: bool | None = None,
+        **style_kwargs: Any,
+    ) -> tuple[Figure | SubFigure, Axes]:
+        """Compute sharpness, render curve with confidence intervals, and
+        save figure.
+
+        Parameters
+        ----------
+        y_true : np.ndarray
+            Ground truth continuous target values of shape (n_samples,).
+        dist : ContinuousPredictiveDistribution
+            Predictive distribution for the same samples.
+        outcome : str, default="default"
+            Outcome identifier used for figure titles and folder structuring.
+        coverage_levels : np.ndarray, optional
+            Nominal central-interval coverage levels in percent. Defaults to
+            `np.arange(10, 100, 10)`.
+        n_bootstraps : int, optional
+            Number of bootstrap iterations for confidence intervals. Set to 0
+            to disable.
+        label : str, optional
+            Legend label for the model. Defaults to 'Model'.
+        save : bool, optional
+            Automatically save the generated plot to the run directory.
+        show : bool, optional
+            Whether to display the plot interactively before closing.
+        **style_kwargs : Any
+            Additional style parameters forwarded to `draw_sharpness_curve`.
+
+        Returns
+        -------
+        fig : Figure | SubFigure
+            Rendered Matplotlib figure object.
+        ax : Axes
+            Matplotlib axes containing the plotted elements.
+
+        """
+        cfg = self._resolve_plot_config(
+            plot_type="sharpness",
+            outcome=outcome,
+            n_bootstraps=n_bootstraps,
+            save=save,
+            show=show,
+            **style_kwargs,
+        )
+        n_bootstraps_val = cfg["n_bootstraps"]
+        save_val = cfg["save"]
+        show_val = cfg["show"]
+        levels = (
+            coverage_levels
+            if coverage_levels is not None
+            else self._DEFAULT_COVERAGE_LEVELS
+        )
+
+        self.logger.info(f"[{outcome}] Starting sharpness curve plotting.")
+        data = self._compute_coverage_sharpness_winkler_data(
+            y_true=y_true,
+            dist=dist,
+            coverage_levels=levels,
+            n_bootstraps=n_bootstraps_val,
+        )
+
+        display_label = label or "Model"
+
+        with (plt.rc_context(self.theme.to_rc_params()),):
+            fig, ax = draw_sharpness_curve(
+                coverage_levels=data["coverage_levels"],
+                sharpness_values=data["sharpness"]["point"],
+                lower_ci=data["sharpness"]["lower_ci"],
+                upper_ci=data["sharpness"]["upper_ci"],
+                label=display_label,
+                color=style_kwargs.pop("color", self.theme.primary_color),
+                ci_alpha=style_kwargs.pop("ci_alpha", self.theme.ci_alpha),
+                linewidth=style_kwargs.pop("linewidth", self.theme.linewidth),
+                show_spines=style_kwargs.pop("show_spines", self.theme.show_spines),
+                title=f"Sharpness - {outcome.capitalize()}",
+                **style_kwargs,
+            )
+
+        if save_val:
+            self._save_figure(fig=fig, filename=f"{outcome}_sharpness", outcome=outcome)
+
+        if show_val:
+            plt.show()
+        elif save_val:
+            plt.close(fig)
+
+        return fig, ax
+
+    def plot_winkler(
+        self,
+        y_true: np.ndarray,
+        dist: ContinuousPredictiveDistribution,
+        outcome: str = "default",
+        coverage_levels: np.ndarray | None = None,
+        n_bootstraps: int | None = None,
+        label: str | None = None,
+        save: bool | None = None,
+        show: bool | None = None,
+        **style_kwargs: Any,
+    ) -> tuple[Figure | SubFigure, Axes]:
+        """Compute Winkler score, render curve with confidence intervals,
+        and save figure.
+
+        Parameters
+        ----------
+        y_true : np.ndarray
+            Ground truth continuous target values of shape (n_samples,).
+        dist : ContinuousPredictiveDistribution
+            Predictive distribution for the same samples.
+        outcome : str, default="default"
+            Outcome identifier used for figure titles and folder structuring.
+        coverage_levels : np.ndarray, optional
+            Nominal central-interval coverage levels in percent. Defaults to
+            `np.arange(10, 100, 10)`.
+        n_bootstraps : int, optional
+            Number of bootstrap iterations for confidence intervals. Set to 0
+            to disable.
+        label : str, optional
+            Legend label for the model. Defaults to 'Model'.
+        save : bool, optional
+            Automatically save the generated plot to the run directory.
+        show : bool, optional
+            Whether to display the plot interactively before closing.
+        **style_kwargs : Any
+            Additional style parameters forwarded to `draw_winkler_curve`.
+
+        Returns
+        -------
+        fig : Figure | SubFigure
+            Rendered Matplotlib figure object.
+        ax : Axes
+            Matplotlib axes containing the plotted elements.
+
+        """
+        cfg = self._resolve_plot_config(
+            plot_type="winkler",
+            outcome=outcome,
+            n_bootstraps=n_bootstraps,
+            save=save,
+            show=show,
+            **style_kwargs,
+        )
+        n_bootstraps_val = cfg["n_bootstraps"]
+        save_val = cfg["save"]
+        show_val = cfg["show"]
+        levels = (
+            coverage_levels
+            if coverage_levels is not None
+            else self._DEFAULT_COVERAGE_LEVELS
+        )
+
+        self.logger.info(f"[{outcome}] Starting Winkler score curve plotting.")
+        data = self._compute_coverage_sharpness_winkler_data(
+            y_true=y_true,
+            dist=dist,
+            coverage_levels=levels,
+            n_bootstraps=n_bootstraps_val,
+        )
+
+        display_label = label or "Model"
+
+        with (plt.rc_context(self.theme.to_rc_params()),):
+            fig, ax = draw_winkler_curve(
+                coverage_levels=data["coverage_levels"],
+                winkler_values=data["winkler"]["point"],
+                lower_ci=data["winkler"]["lower_ci"],
+                upper_ci=data["winkler"]["upper_ci"],
+                label=display_label,
+                color=style_kwargs.pop("color", self.theme.primary_color),
+                ci_alpha=style_kwargs.pop("ci_alpha", self.theme.ci_alpha),
+                linewidth=style_kwargs.pop("linewidth", self.theme.linewidth),
+                show_spines=style_kwargs.pop("show_spines", self.theme.show_spines),
+                title=f"Winkler Score - {outcome.capitalize()}",
+                **style_kwargs,
+            )
+
+        if save_val:
+            self._save_figure(fig=fig, filename=f"{outcome}_winkler", outcome=outcome)
+
+        if show_val:
+            plt.show()
+        elif save_val:
+            plt.close(fig)
+
+        return fig, ax
+
+    def plot_marginal_calibration(
+        self,
+        y_true: np.ndarray,
+        dist: ContinuousPredictiveDistribution,
+        outcome: str = "default",
+        label: str | None = None,
+        save: bool | None = None,
+        show: bool | None = None,
+        **style_kwargs: Any,
+    ) -> tuple[Figure | SubFigure, Axes]:
+        """Compute the marginal calibration curve, render plot, and save figure.
+
+        Parameters
+        ----------
+        y_true : np.ndarray
+            Ground truth continuous target values of shape (n_samples,).
+        dist : ContinuousPredictiveDistribution
+            Predictive distribution for the same samples.
+        outcome : str, default="default"
+            Outcome identifier used for figure titles and folder structuring.
+        label : str, optional
+            Legend label for the model. Defaults to 'Model'.
+        save : bool, optional
+            Automatically save the generated plot to the run directory.
+        show : bool, optional
+            Whether to display the plot interactively before closing.
+        **style_kwargs : Any
+            Additional style parameters forwarded to `draw_marginal_calibration`.
+
+        Returns
+        -------
+        fig : Figure | SubFigure
+            Rendered Matplotlib figure object.
+        ax : Axes
+            Matplotlib axes containing the plotted elements.
+
+        """
+        cfg = self._resolve_plot_config(
+            plot_type="marginal_calibration",
+            outcome=outcome,
+            save=save,
+            show=show,
+            **style_kwargs,
+        )
+        save_val = cfg["save"]
+        show_val = cfg["show"]
+
+        self.logger.info(f"[{outcome}] Starting marginal calibration plotting.")
+        grid_y, diff = self._compute_marginal_calibration_data(y_true=y_true, dist=dist)
+
+        display_label = label or "Model"
+
+        with (plt.rc_context(self.theme.to_rc_params()),):
+            fig, ax = draw_marginal_calibration(
+                grid_y=grid_y,
+                diff=diff,
+                label=display_label,
+                color=style_kwargs.pop("color", self.theme.primary_color),
+                linewidth=style_kwargs.pop("linewidth", self.theme.linewidth),
+                show_spines=style_kwargs.pop("show_spines", self.theme.show_spines),
+                title=f"Marginal Calibration - {outcome.capitalize()}",
+                **style_kwargs,
+            )
+
+        if save_val:
+            self._save_figure(
+                fig=fig, filename=f"{outcome}_marginal_calibration", outcome=outcome
+            )
+
+        if show_val:
+            plt.show()
+        elif save_val:
+            plt.close(fig)
+
+        return fig, ax
+
+    def plot_pit_histogram(
+        self,
+        y_true: np.ndarray,
+        dist: ContinuousPredictiveDistribution,
+        mapper: BaseBinMapper | None = None,
+        outcome: str = "default",
+        n_bins: int | None = None,
+        label: str | None = None,
+        save: bool | None = None,
+        show: bool | None = None,
+        **style_kwargs: Any,
+    ) -> tuple[Figure | SubFigure, Axes]:
+        """Compute PIT diagnostics, render histogram, and save figure.
+
+        Parameters
+        ----------
+        y_true : np.ndarray
+            Ground truth continuous target values of shape (n_samples,).
+        dist : ContinuousPredictiveDistribution
+            Predictive distribution for the same samples.
+        mapper : BaseBinMapper, optional
+            The fitted OrdBoost model's bin mapper (e.g. its `mapper_`
+            attribute). Required; NGBoost-wrapped distributions are not yet
+            supported and will raise a clear error.
+        outcome : str, default="default"
+            Outcome identifier used for figure titles and folder structuring.
+        n_bins : int, optional
+            Number of PIT histogram bins. Defaults to 20.
+        label : str, optional
+            Legend label prefix for the histogram. Defaults to 'Model'.
+        save : bool, optional
+            Automatically save the generated plot to the run directory.
+        show : bool, optional
+            Whether to display the plot interactively before closing.
+        **style_kwargs : Any
+            Additional style parameters forwarded to `draw_pit_histogram`.
+
+        Returns
+        -------
+        fig : Figure | SubFigure
+            Rendered Matplotlib figure object.
+        ax : Axes
+            Matplotlib axes containing the plotted elements.
+
+        Raises
+        ------
+        ValueError
+            If `mapper` is None.
+
+        """
+        cfg = self._resolve_plot_config(
+            plot_type="pit_histogram",
+            outcome=outcome,
+            save=save,
+            show=show,
+            **style_kwargs,
+        )
+        # Hardcoded for now rather than routed through `_resolve_plot_config`,
+        # since DisplayDefaultsConfig.n_bins is shared with the classifier's
+        # calibration-bin default (10); revisit once regressor-specific
+        # display defaults are added to the config schema.
+        n_bins_val = n_bins if n_bins is not None else self._DEFAULT_PIT_N_BINS
+        save_val = cfg["save"]
+        show_val = cfg["show"]
+
+        self.logger.info(f"[{outcome}] Starting PIT histogram plotting.")
+        bin_centres, hist_values, alpha_score = self._compute_pit_histogram_data(
+            y_true=y_true, dist=dist, mapper=mapper, n_bins=n_bins_val
+        )
+
+        display_label = label or "Model"
+
+        with (plt.rc_context(self.theme.to_rc_params()),):
+            fig, ax = draw_pit_histogram(
+                bin_centres=bin_centres,
+                hist_values=hist_values,
+                alpha_score=alpha_score,
+                n_bins=n_bins_val,
+                label=display_label,
+                color=style_kwargs.pop("color", self.theme.primary_color),
+                show_spines=style_kwargs.pop("show_spines", self.theme.show_spines),
+                title=f"PIT Histogram - {outcome.capitalize()}",
+                **style_kwargs,
+            )
+
+        if save_val:
+            self._save_figure(
+                fig=fig, filename=f"{outcome}_pit_histogram", outcome=outcome
+            )
+
+        if show_val:
+            plt.show()
+        elif save_val:
+            plt.close(fig)
+
+        return fig, ax
+
+    def plot_all(
+        self,
+        y_true: np.ndarray,
+        dist: ContinuousPredictiveDistribution,
+        mapper: BaseBinMapper | None = None,
+        outcome: str = "default",
+        coverage_levels: np.ndarray | None = None,
+        n_bootstraps: int | None = None,
+        save: bool | None = None,
+        show: bool | None = None,
+        **style_kwargs: Any,
+    ) -> dict[str, tuple[Figure | SubFigure, Axes]]:
+        """Execute all core distributional diagnostic visualization routines
+        for a given outcome.
+
+        Generates and optionally persists the coverage reliability curve,
+        sharpness curve, Winkler score curve, marginal calibration curve,
+        and PIT histogram.
+
+        Parameters
+        ----------
+        y_true : np.ndarray
+            Ground truth continuous target values of shape (n_samples,).
+        dist : ContinuousPredictiveDistribution
+            Predictive distribution for the same samples.
+        mapper : BaseBinMapper, optional
+            The fitted OrdBoost model's bin mapper, required for the PIT
+            histogram (e.g. its `mapper_` attribute).
+        outcome : str, default="default"
+            Outcome identifier used for figure titles and output folder structuring.
+        coverage_levels : np.ndarray, optional
+            Nominal central-interval coverage levels in percent, used for the
+            coverage, sharpness, and Winkler score curves.
+        n_bootstraps : int, optional
+            Number of bootstrap iterations for coverage, sharpness, and
+            Winkler score curves.
+        save : bool, optional
+            Automatically save all generated plot artifacts to the run directory.
+        show : bool, optional
+            Whether to display figures interactively before closing.
+        **style_kwargs : Any
+            Additional style parameters forwarded to underlying drawing functions.
+
+        Returns
+        -------
+        Dict[str, Tuple[Figure | SubFigure, Axes]]
+            Dictionary mapping plot identifiers ('coverage', 'sharpness',
+            'winkler', 'marginal_calibration', 'pit_histogram') to their
+            rendered (Figure, Axes) tuples.
+
+        """
+        plots: dict[str, tuple[Figure | SubFigure, Axes]] = {}
+
+        self.logger.info(f"--- Starting graphical display for outcome: {outcome} ---")
+
+        plots["coverage"] = self.plot_coverage(
+            y_true=y_true,
+            dist=dist,
+            outcome=outcome,
+            coverage_levels=coverage_levels,
+            n_bootstraps=n_bootstraps,
+            save=save,
+            show=show,
+            **style_kwargs.copy(),
+        )
+
+        plots["sharpness"] = self.plot_sharpness(
+            y_true=y_true,
+            dist=dist,
+            outcome=outcome,
+            coverage_levels=coverage_levels,
+            n_bootstraps=n_bootstraps,
+            save=save,
+            show=show,
+            **style_kwargs.copy(),
+        )
+
+        plots["winkler"] = self.plot_winkler(
+            y_true=y_true,
+            dist=dist,
+            outcome=outcome,
+            coverage_levels=coverage_levels,
+            n_bootstraps=n_bootstraps,
+            save=save,
+            show=show,
+            **style_kwargs.copy(),
+        )
+
+        plots["marginal_calibration"] = self.plot_marginal_calibration(
+            y_true=y_true,
+            dist=dist,
+            outcome=outcome,
+            save=save,
+            show=show,
+            **style_kwargs.copy(),
+        )
+
+        plots["pit_histogram"] = self.plot_pit_histogram(
+            y_true=y_true,
+            dist=dist,
+            mapper=mapper,
             outcome=outcome,
             save=save,
             show=show,
