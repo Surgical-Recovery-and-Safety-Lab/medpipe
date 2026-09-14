@@ -92,7 +92,7 @@ class TestPlotCoverage:
 
         assert fig is not None
         assert ax is not None
-        lines = [line for line in ax.get_lines() if len(line.get_ydata()) == 9]
+        lines = [line for line in ax.get_lines() if len(line.get_ydata()) == 10]
         assert len(lines) >= 1
         for line in lines:
             ydata = np.asarray(line.get_ydata())
@@ -107,7 +107,7 @@ class TestPlotCoverage:
         displayer = MedpipeRegressorDisplayer(orchestrator=mock_orchestrator)
 
         data = displayer._compute_coverage_sharpness_winkler_data(
-            y_true=y_true, dist=dist, coverage_levels=np.arange(10, 100, 10),
+            y_true=y_true, dist=dist, coverage_levels=np.arange(5, 100, 10),
             n_bootstraps=0,
         )
 
@@ -127,7 +127,7 @@ class TestPlotSharpness:
         displayer = MedpipeRegressorDisplayer(orchestrator=mock_orchestrator)
 
         data = displayer._compute_coverage_sharpness_winkler_data(
-            y_true=y_true, dist=dist, coverage_levels=np.arange(10, 100, 10),
+            y_true=y_true, dist=dist, coverage_levels=np.arange(5, 100, 10),
             n_bootstraps=20,
         )
 

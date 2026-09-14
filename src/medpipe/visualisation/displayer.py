@@ -1655,7 +1655,7 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
     # Hardcoded defaults (not yet exposed via DisplayDefaultsConfig): nominal
     # coverage grid (percent) for coverage/sharpness/Winkler, and PIT
     # histogram bin count.
-    _DEFAULT_COVERAGE_LEVELS: ClassVar[np.ndarray] = np.arange(10, 100, 10)
+    _DEFAULT_COVERAGE_LEVELS: ClassVar[np.ndarray] = np.arange(5, 100, 10)
     _DEFAULT_PIT_N_BINS: ClassVar[int] = 20
 
     def _compute_coverage_sharpness_winkler_data(
@@ -1856,7 +1856,7 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
             Outcome identifier used for figure titles and folder structuring.
         coverage_levels : np.ndarray, optional
             Nominal central-interval coverage levels in percent. Defaults to
-            `np.arange(10, 100, 10)`.
+            `np.arange(5, 100, 10)`.
         n_bootstraps : int, optional
             Number of bootstrap iterations for confidence intervals. Set to 0
             to disable.
@@ -1954,7 +1954,7 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
             Outcome identifier used for figure titles and folder structuring.
         coverage_levels : np.ndarray, optional
             Nominal central-interval coverage levels in percent. Defaults to
-            `np.arange(10, 100, 10)`.
+            `np.arange(5, 100, 10)`.
         n_bootstraps : int, optional
             Number of bootstrap iterations for confidence intervals. Set to 0
             to disable.
@@ -2052,7 +2052,7 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
             Outcome identifier used for figure titles and folder structuring.
         coverage_levels : np.ndarray, optional
             Nominal central-interval coverage levels in percent. Defaults to
-            `np.arange(10, 100, 10)`.
+            `np.arange(5, 100, 10)`.
         n_bootstraps : int, optional
             Number of bootstrap iterations for confidence intervals. Set to 0
             to disable.
