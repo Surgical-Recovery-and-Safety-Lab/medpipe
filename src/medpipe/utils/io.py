@@ -136,7 +136,9 @@ def load_data(data_file: str | Path, **kwargs: Any) -> pd.DataFrame:
     return cast(pd.DataFrame, loader(file_path, **kwargs))
 
 
-def read_toml_configuration(config_file: str | Path) -> MedpipeClassifierConfig:
+def read_classifier_toml_configuration(
+    config_file: str | Path,
+) -> MedpipeClassifierConfig:
     """
     Reads a medpipe TOML configuration file.
 

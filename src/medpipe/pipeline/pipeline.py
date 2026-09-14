@@ -28,7 +28,6 @@ from medpipe.pipeline.orchestrator import (
 )
 from medpipe.pipeline.runner import MedpipeClassifierRunner, MedpipeRegressorRunner
 from medpipe.utils.config import MedpipeClassifierConfig, MedpipeRegressorConfig
-from medpipe.utils.io import read_regressor_toml_configuration
 from medpipe.utils.logger import get_console_logger
 from medpipe.visualisation.displayer import MedpipeClassifierDisplayer
 
@@ -658,8 +657,8 @@ class MedpipeRegressor:
     Parameters
     ----------
     config : str, Path, or MedpipeRegressorConfig
-        Path to a TOML configuration file (parsed via
-        `read_regressor_toml_configuration`) or an instantiated
+        Path to a TOML configuration file (parsed by `MedpipeOrchestrator`
+        via `read_regressor_toml_configuration`) or an instantiated
         `MedpipeRegressorConfig` object.
     base_artifact_dir : str or Path, default="artifacts"
         Root directory where versioned execution run artifacts, logs, and
@@ -710,11 +709,8 @@ class MedpipeRegressor:
 
         self._logger.info("Initialising MedpipeRegressor end-to-end pipeline.")
 
-        if isinstance(config, (str, Path)):
-            config = read_regressor_toml_configuration(config)
-
         self._orchestrator = MedpipeOrchestrator(
-            config, base_artifact_dir, verbose_override
+            config, base_artifact_dir, verbose_override, is_classifier=False
         )
         self.mp_config = self._orchestrator.config
         self._runner = MedpipeRegressorRunner(orchestrator=self._orchestrator)

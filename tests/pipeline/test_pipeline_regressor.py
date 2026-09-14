@@ -32,33 +32,34 @@ class TestMedpipeRegressorUnit:
 
         mp = MedpipeRegressor(config=mock_config)
 
-        mock_orch_cls.assert_called_once_with(mock_config, "artifacts", None)
+        mock_orch_cls.assert_called_once_with(
+            mock_config, "artifacts", None, is_classifier=False
+        )
         mock_runner_cls.assert_called_once_with(orchestrator=mock_orch_instance)
         mock_eval_cls.assert_called_once_with(
             orchestrator=mock_orch_instance, runner=mock_runner_cls.return_value
         )
         assert mp.mp_config == mock_orch_instance.config
 
-    @patch("medpipe.pipeline.pipeline.read_regressor_toml_configuration")
     @patch("medpipe.pipeline.pipeline.MedpipeOrchestrator")
     @patch("medpipe.pipeline.pipeline.MedpipeRegressorRunner")
     @patch("medpipe.pipeline.pipeline.MedpipeRegressorEvaluator")
-    def test_medpipe_regressor_parses_string_path_as_regressor_config(
-        self, mock_eval_cls, mock_runner_cls, mock_orch_cls, mock_read_regressor_toml
+    def test_medpipe_regressor_forwards_string_path_with_is_classifier_false(
+        self, mock_eval_cls, mock_runner_cls, mock_orch_cls
     ):
-        """Verify a string/Path config is parsed via
-        read_regressor_toml_configuration (not the classifier loader),
-        since MedpipeOrchestrator always treats a bare path as a classifier
-        config."""
-        mock_parsed_config = MagicMock(spec=MedpipeRegressorConfig)
-        mock_read_regressor_toml.return_value = mock_parsed_config
-
+        """Verify a string/Path config is forwarded to MedpipeOrchestrator
+        unconverted, with `is_classifier=False`, so the orchestrator (not
+        MedpipeRegressor itself) parses it via
+        read_regressor_toml_configuration and can record `_config_path`
+        for reproducibility artifacts."""
         MedpipeRegressor(config="path/to/regressor_config.toml")
 
-        mock_read_regressor_toml.assert_called_once_with(
-            "path/to/regressor_config.toml"
+        mock_orch_cls.assert_called_once_with(
+            "path/to/regressor_config.toml",
+            "artifacts",
+            None,
+            is_classifier=False,
         )
-        mock_orch_cls.assert_called_once_with(mock_parsed_config, "artifacts", None)
 
     @patch("medpipe.pipeline.pipeline.MedpipeOrchestrator")
     @patch("medpipe.pipeline.pipeline.MedpipeRegressorRunner")
@@ -452,6 +453,13 @@ metrics = ["rmse", "crps"]
         overall = results["evaluations"]["LOS_DAYS"]["overall"]
         assert np.isfinite(overall["rmse"]["point_estimate"])
         assert np.isfinite(overall["crps"]["point_estimate"])
+
+        # Regression test: MedpipeRegressor used to pre-parse a string/Path
+        # config itself before reaching MedpipeOrchestrator, so the
+        # orchestrator's `_config_path` was never set and the original TOML
+        # was silently never copied into the run's reproducibility
+        # artifacts. It now must be.
+        assert (mp.run_dir / "env" / "config.toml").exists()
 
     def test_full_run_creates_recalibration_split(self, tmp_path: Path) -> None:
         """Test that a configured `recalibration_split` produces a
