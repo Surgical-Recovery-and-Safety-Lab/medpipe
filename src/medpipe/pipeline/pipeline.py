@@ -540,7 +540,7 @@ class MedpipeClassifier:
         """Execute all core evaluation visualization routines for a given outcome.
 
         Generates and optionally persists the ROC curve, Precision-Recall curve,
-        Probability Distribution histogram, Reliability Diagram, and Decision
+        Data Distribution histogram, Reliability Diagram, and Decision
         Curve Analysis (DCA).
 
         Parameters
@@ -657,9 +657,10 @@ class MedpipeRegressor:
     Unlike `MedpipeClassifier`, there is no post-hoc recalibration step (not
     a meaningful concept for regression outcomes). Distributional diagnostic
     figures (coverage, sharpness, Winkler score, marginal calibration, PIT
-    histogram) are available via `plot_all`, but only for models producing a
-    predictive CDF through `predict_dist` (currently OrdBoost only); `run()`
-    does not call it automatically yet.
+    histogram, and target-value data distribution) are available via
+    `plot_all`, but only for models producing a predictive CDF through
+    `predict_dist` (currently OrdBoost only); `run()` does not call it
+    automatically yet.
 
     Parameters
     ----------
@@ -707,7 +708,7 @@ class MedpipeRegressor:
     n_bootstraps=None, save=None, show=None, **style_kwargs)
         Execute all core distributional diagnostic visualization routines
         for a given outcome (coverage, sharpness, Winkler, marginal
-        calibration, PIT histogram).
+        calibration, PIT histogram, data distribution).
     run(subgroup_specs=None, groups_train=None)
         Execute full end-to-end pipeline (data preparation, model fitting, and
         test evaluation).
@@ -1104,8 +1105,9 @@ class MedpipeRegressor:
 
         Generates and optionally persists the coverage reliability curve,
         sharpness curve, Winkler score curve, marginal calibration curve,
-        and PIT histogram. Only supported for models that produce a
-        predictive CDF via `predict_dist` (currently OrdBoost only). The
+        PIT histogram, and target-value data distribution histogram. Only
+        supported for models that produce a predictive CDF via
+        `predict_dist` (currently OrdBoost only). The
         bin mapper required for the PIT histogram is extracted directly
         from `self.models[outcome]["regressor"].mapper_`, so `outcome` must
         match an entry in `runner.fitted_models` for the PIT histogram to
@@ -1149,7 +1151,8 @@ class MedpipeRegressor:
         plots : dict of str to tuple of (matplotlib.figure.Figure, matplotlib.axes.Axes)
             Dictionary mapping plot keys
             ('coverage', 'sharpness', 'winkler', 'marginal_calibration',
-            'pit_histogram') to their rendered (Figure, Axes) Matplotlib objects.
+            'pit_histogram', 'data_distribution') to their rendered (Figure,
+            Axes) Matplotlib objects.
 
         """
         fitted_model = self.models.get(outcome)

@@ -16,27 +16,30 @@ from medpipe.visualisation.themes import MedpipeTheme
 _DEFAULT_THEME = MedpipeTheme()
 
 
-def draw_probability_distribution(
-    probas: np.ndarray,
+def draw_data_distribution(
+    data: np.ndarray,
     n_bins: int = 10,
-    label: str = "Predicted probabilities",
+    label: str = "Data",
     ax: Axes | None = None,
     yscale: str = "linear",
     color: str = _DEFAULT_THEME.primary_color,
     edgecolor: str = "black",
+    xlabel: str = "Value",
     title: str | None = None,
     show_spines: bool = _DEFAULT_THEME.show_spines,
     **hist_kwargs: Any,
 ) -> tuple[Figure | SubFigure, Axes]:
-    """Render a predicted probability distribution histogram.
+    """Render a data distribution histogram.
 
     Parameters
     ----------
-    probas : np.ndarray
-        Predicted probabilities of shape (n_samples, 2) or (n_samples,).
+    data : np.ndarray
+        Data values of shape (n_samples, 2) or (n_samples,) (e.g. predicted
+        probabilities or continuous target values). If 2D, the second column
+        is used.
     n_bins : int, default=10
-        Number of equal-width bins across the [0, 1] probability range.
-    label : str, default="Predicted Probabilities"
+        Number of equal-width bins spanning the data's own range.
+    label : str, default="Data"
         Legend label for the histogram series.
     ax : matplotlib.axes.Axes, optional
         Pre-existing Matplotlib axes instance. If None, a new figure and axes
@@ -47,6 +50,8 @@ def draw_probability_distribution(
         Fill color for histogram bars.
     edgecolor : str, default="black"
         Border color for histogram bars.
+    xlabel : str, default="Value"
+        Label for the x-axis.
     title : str, optional
         Axes title text.
     show_spines : bool, default=_DEFAULT_THEME.show_spines
@@ -74,17 +79,23 @@ def draw_probability_distribution(
         if fig is None:
             raise ValueError("The provided Axes instance is not attached to a Figure")
 
-    if probas.ndim == 2:
-        probas = probas[:, 1]
+    if data.ndim == 2:
+        data = data[:, 1]
 
-    bins = np.linspace(0.0, 1.0, n_bins + 1).tolist()
+    data_min = float(np.min(data))
+    data_max = float(np.max(data))
+    if data_min == data_max:
+        data_min -= 0.5
+        data_max += 0.5
+    margin = 0.05 * (data_max - data_min)
+    bins = np.linspace(data_min, data_max, n_bins + 1).tolist()
 
     # Clean hist_kwargs to prevent parameter collisions
     for key in ("color", "edgecolor", "bins", "label"):
         hist_kwargs.pop(key, None)
 
     ax.hist(
-        probas,
+        data,
         bins=bins,
         color=color,
         edgecolor=edgecolor,
@@ -92,10 +103,10 @@ def draw_probability_distribution(
         **hist_kwargs,
     )
 
-    ax.set_xlabel("Predicted probabilities", fontweight="bold")
+    ax.set_xlabel(xlabel, fontweight="bold")
     ax.set_ylabel("Count", fontweight="bold")
     ax.set_yscale(yscale)
-    ax.set_xlim(xmin=-0.05, xmax=1.05)
+    ax.set_xlim(xmin=data_min - margin, xmax=data_max + margin)
 
     if title:
         ax.set_title(title, fontweight="bold")

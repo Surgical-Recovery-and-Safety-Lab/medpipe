@@ -578,6 +578,7 @@ metrics = ["rmse", "crps"]
             "winkler",
             "marginal_calibration",
             "pit_histogram",
+            "data_distribution",
         }
         plot_dir = mp.run_dir / "plots" / "LOS_DAYS"
         for filename in (
@@ -586,6 +587,7 @@ metrics = ["rmse", "crps"]
             "LOS_DAYS_winkler.png",
             "LOS_DAYS_marginal_calibration.png",
             "LOS_DAYS_pit_histogram.png",
+            "LOS_DAYS_data_distribution.png",
         ):
             assert (plot_dir / filename).exists()
 

@@ -28,6 +28,9 @@ fairness evaluation.
 * Parallel loop for spline bootstrap reliability diagram.
 * `cv_splines` with a default value of 3 to ICI and reliability diagram 
 `SplineCalib` computations.
+* Moved `plot_probability_distribution` to `BaseDisplayer` as
+`plot_data_distribution`, so `MedpipeRegressorDisplayer` can also plot the
+target-value data distribution; included in both displayers' `plot_all`.
 
 ### Fixed
 * Docstring in the `config.py` script.

@@ -5,7 +5,12 @@ extracted from MedpipeClassifierDisplayer, and its extension points
 subclasses.
 """
 
+from pathlib import Path
 from typing import ClassVar
+
+import numpy as np
+from matplotlib.axes import Axes
+from matplotlib.figure import Figure
 
 from medpipe.visualisation.displayer import BaseDisplayer, MedpipeClassifierDisplayer
 
@@ -97,6 +102,46 @@ class TestBaseDisplayerSubclassExtensionPoints:
 
         assert resolved["n_coverage_levels"] == 10
         assert "n_coverage_levels" not in BaseDisplayer._FALLBACK_DISPLAY_DEFAULTS
+
+
+class TestBaseDisplayerDataDistribution:
+    """Tests confirming plot_data_distribution works directly on
+    BaseDisplayer, independent of any classifier- or regressor-specific
+    plotting, and without requiring a display config."""
+
+    def test_plot_data_distribution_directly_on_base_displayer(
+        self, mock_orchestrator
+    ) -> None:
+        """Test that BaseDisplayer itself can render a data distribution
+        histogram, falling back to sane bin/scale defaults when no display
+        config is set."""
+        displayer = BaseDisplayer(orchestrator=mock_orchestrator)
+        rng = np.random.default_rng(0)
+        data = rng.normal(size=100)
+
+        fig, ax = displayer.plot_data_distribution(data=data, save=False, show=False)
+
+        assert isinstance(fig, Figure)
+        assert isinstance(ax, Axes)
+        assert ax.get_xlabel() == "Value"
+
+    def test_plot_data_distribution_saves_artifact(
+        self, mock_orchestrator, tmp_path: Path
+    ) -> None:
+        """Test that save=True persists the figure under the outcome folder
+        with the `_data_distribution` filename suffix."""
+        displayer = BaseDisplayer(orchestrator=mock_orchestrator)
+        rng = np.random.default_rng(1)
+        data = rng.uniform(0.0, 1.0, size=50)
+
+        displayer.plot_data_distribution(
+            data=data, outcome="mortality", save=True, show=False
+        )
+
+        expected_file = (
+            tmp_path / "plots" / "mortality" / "mortality_data_distribution.png"
+        )
+        assert expected_file.exists()
 
 
 class TestBaseDisplayerHeatmaps:
