@@ -108,11 +108,11 @@ class TestPlotCoverage:
 
         data = displayer._compute_coverage_sharpness_winkler_data(
             y_true=y_true, dist=dist, coverage_levels=np.arange(5, 100, 10),
-            n_bootstraps=0,
+            metric="coverage", n_bootstraps=0,
         )
 
-        assert data["coverage"]["lower_ci"] is None
-        assert data["coverage"]["upper_ci"] is None
+        assert data["output"]["lower_ci"] is None
+        assert data["output"]["upper_ci"] is None
 
 
 class TestPlotSharpness:
@@ -128,10 +128,10 @@ class TestPlotSharpness:
 
         data = displayer._compute_coverage_sharpness_winkler_data(
             y_true=y_true, dist=dist, coverage_levels=np.arange(5, 100, 10),
-            n_bootstraps=20,
+            metric="sharpness", n_bootstraps=20,
         )
 
-        sharp = data["sharpness"]["point"]
+        sharp = data["output"]["point"]
         assert np.all(np.isfinite(sharp))
         assert np.all(sharp > 0)
 
@@ -151,10 +151,10 @@ class TestPlotSharpness:
 
         data = displayer._compute_coverage_sharpness_winkler_data(
             y_true=y_true, dist=dist, coverage_levels=np.array([10.0, 90.0]),
-            n_bootstraps=0,
+            metric="sharpness", n_bootstraps=0,
         )
 
-        sharp = data["sharpness"]["point"]
+        sharp = data["output"]["point"]
         assert sharp[1] >= sharp[0]
 
 
