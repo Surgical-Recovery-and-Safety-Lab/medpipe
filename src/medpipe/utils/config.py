@@ -830,6 +830,11 @@ class DisplayDefaultsConfig(BaseModel):
         Number of bins used for histogram and calibration plots.
     strategy : {"uniform", "quantile", "spline"}, default="uniform"
         Strategy used to compute calibration curves.
+    n_jobs : int or None, default=1
+        Number of parallel jobs used to compute bootstrap resamples (e.g.
+        the spline-calibration bootstrap loop behind the reliability
+        diagram). Independent of `workflow.n_jobs`, since plots may be
+        rendered standalone without a full workflow run in scope.
 
     """
 
@@ -838,6 +843,7 @@ class DisplayDefaultsConfig(BaseModel):
     show: bool = False
     n_bins: int = Field(default=10, ge=1)
     strategy: Literal["uniform", "quantile", "spline"] = "uniform"
+    n_jobs: int | None = Field(default=1, ge=-1)
     model_config = {"extra": "allow"}
 
 
