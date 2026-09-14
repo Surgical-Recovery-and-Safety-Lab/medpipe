@@ -14,7 +14,6 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 import numpy.typing as npt
 import pandas as pd
-from joblib import Parallel, delayed
 
 from medpipe.data.utils import resolve_subgroup_mask
 from medpipe.metrics.core import (
@@ -68,7 +67,8 @@ class BaseEvaluator:
     random_state : int, np.random.Generator, or None
         Random state instance for resampling.
     n_jobs : int or None
-        Number of parallel jobs used to evaluate strata concurrently.
+        Number of parallel jobs used to compute each slice's bootstrap
+        resamples (see `bootstrap_confidence_intervals`).
     logger : logging.Logger
         Logger instance configured under `"medpipe.evaluator"`.
 
@@ -317,6 +317,7 @@ class BaseEvaluator:
                 n_bootstraps=self.n_bootstraps,
                 ci_level=self.ci_level,
                 random_state=self.random_state,
+                n_jobs=self.n_jobs,
             )
         except Exception as err:
             self.logger.warning(
@@ -357,8 +358,10 @@ class BaseEvaluator:
         outcome: str | None,
     ) -> tuple[str, str, dict[str, dict[str, float]] | None]:
         """
-        Evaluate a single subgroup slice, isolated so it can be dispatched
-        to a worker by `evaluate`'s parallel stratum loop.
+        Evaluate a single subgroup slice, isolated from `evaluate`'s stratum
+        loop for readability (the loop itself runs sequentially; parallelism
+        is instead applied to each slice's own bootstrap loop, see
+        `bootstrap_confidence_intervals`'s `n_jobs`).
 
         Parameters
         ----------
@@ -516,8 +519,15 @@ class BaseEvaluator:
                 for group_val, indices in cat_groups.items()
             ]
 
-            stratum_outputs = Parallel(n_jobs=self.n_jobs, prefer="threads")(
-                delayed(self._evaluate_stratum)(
+            # Evaluated sequentially: the dominant cost is each slice's own
+            # bootstrap loop (see `bootstrap_confidence_intervals`'s
+            # `n_jobs`), which already spends the configured parallelism
+            # budget. Parallelizing this outer loop too would nest
+            # `n_jobs` worker processes inside `n_jobs` worker processes,
+            # oversubscribing cores for comparatively little gain, since
+            # there are far fewer strata than bootstrap resamples.
+            stratum_outputs = [
+                self._evaluate_stratum(
                     cat_name,
                     group_val,
                     indices,
@@ -529,7 +539,7 @@ class BaseEvaluator:
                     outcome,
                 )
                 for cat_name, group_val, indices in stratum_tasks
-            )
+            ]
 
             subgroup_results: dict[str, dict[str, dict[str, dict[str, float]]]] = {
                 cat_name: {} for cat_name in subgroups
@@ -620,7 +630,8 @@ class MedpipeClassifierEvaluator(BaseEvaluator):
     random_state : int, np.random.Generator, or None
         Random state instance for resampling.
     n_jobs : int or None
-        Number of parallel jobs used to evaluate strata concurrently.
+        Number of parallel jobs used to compute each slice's bootstrap
+        resamples (see `bootstrap_confidence_intervals`).
     logger : logging.Logger
         Logger instance configured under `"medpipe.evaluator"`.
 
@@ -784,7 +795,8 @@ class MedpipeRegressorEvaluator(BaseEvaluator):
     random_state : int, np.random.Generator, or None
         Random state instance for resampling.
     n_jobs : int or None
-        Number of parallel jobs used to evaluate strata concurrently.
+        Number of parallel jobs used to compute each slice's bootstrap
+        resamples (see `bootstrap_confidence_intervals`).
     logger : logging.Logger
         Logger instance configured under `"medpipe.evaluator"`.
 

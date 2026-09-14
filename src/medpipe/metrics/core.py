@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 import scores.probability as scores_probability
 import xarray as xr
+from joblib import Parallel, delayed
 from sklearn.metrics import (
     accuracy_score,
     average_precision_score,
@@ -358,6 +359,53 @@ def compute_metrics(
     return scores
 
 
+def _flat_metric_bootstrap_iteration(
+    boot_idx: npt.NDArray,
+    metrics: list[str],
+    y_true_arr: npt.NDArray,
+    y_pred_arr: npt.NDArray,
+) -> npt.NDArray | None:
+    """Compute all requested flat metrics for one bootstrap resample.
+
+    Isolated to a module-level function so each resample's (potentially
+    expensive, e.g. `ici`'s `SplineCalib`-fitting) computation can be
+    dispatched to a `joblib.Parallel` worker independently of the others.
+
+    Parameters
+    ----------
+    boot_idx : npt.NDArray
+        Bootstrap resample indices (with replacement) into `y_true_arr`/
+        `y_pred_arr`.
+    metrics : list[str]
+        Metric identifier keys registered in `MetricRegistry`.
+    y_true_arr : npt.NDArray
+        Full ground truth binary target labels.
+    y_pred_arr : npt.NDArray
+        Full predicted probabilities or decision values.
+
+    Returns
+    -------
+    npt.NDArray or None
+        Score array of shape (n_metrics,) for this resample, or `None` if
+        the resample lacked class diversity (e.g., single-class draws) or
+        metric computation failed (e.g., divide-by-zero or numerical
+        errors in spline fits).
+
+    """
+    y_boot = y_true_arr[boot_idx]
+    p_boot = y_pred_arr[boot_idx]
+
+    # Ensure resample contains at least two classes for binary metrics
+    # (e.g., ROC AUC / log loss)
+    if len(np.unique(y_boot)) < 2:
+        return None
+
+    try:
+        return compute_metrics(metrics, y_boot, p_boot)
+    except Exception:
+        return None
+
+
 def _bootstrap_flat_metrics(
     metrics: list[str],
     y_true_arr: npt.NDArray,
@@ -366,6 +414,7 @@ def _bootstrap_flat_metrics(
     lower_percentile: float,
     upper_percentile: float,
     rng: np.random.Generator,
+    n_jobs: int | None = 1,
 ) -> dict[str, dict[str, float]]:
     """Bootstrap CIs for flat-array metrics by resampling (y, y_pred) pairs
     and recomputing each metric per resample. See `bootstrap_confidence_intervals`.
@@ -374,24 +423,25 @@ def _bootstrap_flat_metrics(
 
     point_estimates = compute_metrics(metrics, y_true_arr, y_pred_arr)
 
-    bootstrapped_scores: list[npt.NDArray] = []
-    for _ in range(n_bootstraps):
-        boot_idx = rng.integers(0, n_samples, size=n_samples)
-        y_boot = y_true_arr[boot_idx]
-        p_boot = y_pred_arr[boot_idx]
+    # Draw all resample indices up front, sequentially, so the random draw
+    # sequence (and thus reproducibility for a given rng state) is
+    # unaffected by dispatching the per-resample metric computation below
+    # to parallel workers.
+    boot_indices = [
+        rng.integers(0, n_samples, size=n_samples) for _ in range(n_bootstraps)
+    ]
 
-        # Ensure resample contains at least two classes for binary metrics
-        # (e.g., ROC AUC / log loss)
-        if len(np.unique(y_boot)) < 2:
-            continue
-
-        try:
-            scores = compute_metrics(metrics, y_boot, p_boot)
-            bootstrapped_scores.append(scores)
-        except Exception:
-            # Skip invalid iterations
-            # (e.g., divide-by-zero or numerical errors in spline fits)
-            continue
+    # Process-based (the joblib default): metrics like `ici` fit a fresh
+    # SplineCalib per resample via scipy's L-BFGS-B, which spends its time
+    # in a Python-level optimizer loop holding the GIL, so a threading
+    # backend would add contention instead of speedup here.
+    results = Parallel(n_jobs=n_jobs)(
+        delayed(_flat_metric_bootstrap_iteration)(
+            boot_idx, metrics, y_true_arr, y_pred_arr
+        )
+        for boot_idx in boot_indices
+    )
+    bootstrapped_scores = [scores for scores in results if scores is not None]
 
     if not bootstrapped_scores:
         raise ValueError(
@@ -470,6 +520,7 @@ def bootstrap_confidence_intervals(
     n_bootstraps: int = 1000,
     ci_level: float = 0.95,
     random_state: int | np.random.Generator | None = None,
+    n_jobs: int | None = 1,
 ) -> dict[str, dict[str, float]]:
     """
     Compute non-parametric bootstrap confidence intervals for evaluation metrics.
@@ -497,6 +548,10 @@ def bootstrap_confidence_intervals(
         Confidence level for the calculated interval bounds (e.g., 0.95 for 95% CI).
     random_state : int, np.random.Generator, or None, default=None
         Seed or random generator instance to ensure reproducible resampling.
+    n_jobs : int or None, default=1
+        Number of parallel jobs used to compute flat-metric bootstrap
+        resamples (e.g. `ici`'s per-resample `SplineCalib` fits). Not used
+        for `predict_dist`-based metrics.
 
     Returns
     -------
@@ -555,6 +610,7 @@ def bootstrap_confidence_intervals(
                 lower_percentile,
                 upper_percentile,
                 rng,
+                n_jobs,
             )
         )
 
