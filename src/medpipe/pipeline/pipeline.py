@@ -35,7 +35,6 @@ from medpipe.visualisation.displayer import (
 )
 
 if TYPE_CHECKING:
-
     import numpy.typing as npt
     from matplotlib.axes import Axes
     from matplotlib.figure import Figure, SubFigure
@@ -433,8 +432,8 @@ class MedpipeClassifier:
             to fitted model instances.
             - `"evaluations"`: Dictionary mapping outcome target names
             to evaluation results dictionaries.
-            - `"plots"`: (Audit mode only) Nested dictionary mapping outcome
-            target names to figure objects.
+            - `"plots"`: (Audit / Eval mode only) Nested dictionary mapping
+            outcome target names to figure objects.
 
         """
         self._logger.info("Executing full MedpipeClassifier pipeline end-to-end.")
@@ -1002,11 +1001,7 @@ class MedpipeRegressor:
         The model fitting duration and total run duration are recorded at
         the debug log level.
 
-        Note: unlike `MedpipeClassifier.run`, this does not generate any
-        plots regardless of `run_mode` - not every regression algorithm
-        supports `predict_dist`, so distributional diagnostics are not
-        auto-generated here yet. Call `plot_all` manually once fitted with a
-        distribution-capable model (e.g. `OrdBoostRegressor`).
+        Note: only models that support `predict_dist`, are able to generate plots.
 
         Parameters
         ----------
@@ -1022,6 +1017,8 @@ class MedpipeRegressor:
             to fitted model instances.
             - `"evaluations"`: Dictionary mapping outcome target names
             to evaluation results dictionaries.
+            - `"plots"`: (Audit / Eval mode only) Nested dictionary mapping
+            outcome target names to figure objects.
 
         """
         self._logger.info("Executing full MedpipeRegressor pipeline end-to-end.")
@@ -1033,6 +1030,8 @@ class MedpipeRegressor:
         )
 
         n_steps = 3
+        if run_mode == "audit" or run_mode == "eval":
+            n_steps = 4
 
         # 1. Prepare data splits via orchestrator
         data_kwargs = self.mp_config.data.kwargs  # Get extra data arguments
@@ -1060,6 +1059,7 @@ class MedpipeRegressor:
         )
         evaluations: dict[str, Any] = {}
         outcomes = self._orchestrator.config.data.outcomes
+        plots: dict[str, dict[str, tuple[Figure | SubFigure, Axes]]] = {}
         subgroup_specs = self._orchestrator.get_subgroup_specs()
         fairness_splits = self._orchestrator.fairness_splits
         fairness_data = fairness_splits.test if fairness_splits is not None else None
@@ -1075,6 +1075,18 @@ class MedpipeRegressor:
                 save_artifacts=True,
             )
 
+        if run_mode == "audit" or run_mode == "eval":
+            self._logger.info(f"Step 4/{n_steps}: Plotting graphs.")
+            for outcome in outcomes:
+                y_true_outcome = y_test[outcome].to_numpy()
+                dist_outcome = self.predict_dist(X=X_test, outcome=outcome)
+
+                plots[outcome] = self.plot_all(
+                    y_true=y_true_outcome,
+                    dist=dist_outcome,
+                    outcome=outcome,
+                )
+
         run_duration = time.perf_counter() - run_start_time
         self._logger.debug(
             f"Full pipeline run completed in {run_duration:.2f} seconds."
@@ -1083,10 +1095,14 @@ class MedpipeRegressor:
             "Full MedpipeRegressor pipeline execution finished successfully."
         )
 
-        return {
+        results: dict[str, Any] = {
             "fitted_models": fitted_models,
             "evaluations": evaluations,
         }
+        if plots:
+            results["plots"] = plots
+
+        return results
 
     def plot_all(
         self,
