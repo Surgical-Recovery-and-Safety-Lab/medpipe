@@ -67,6 +67,8 @@ class MedpipeClassifier:
 
     Attributes
     ----------
+    displayer : MedpipeClassifierDisplayer
+        Visualisation engine rendering and persisting evaluation figures.
     _orchestrator : MedpipeOrchestrator
         Pipeline orchestrator instance driving data preparation and
         reproducibility artifacts.
@@ -76,8 +78,6 @@ class MedpipeClassifier:
     _evaluator : MedpipeClassifierEvaluator
         Pipeline evaluation engine computing point estimates and
         bootstrap confidence intervals.
-    _displayer : MedpipeClassifierDisplayer
-        Visualisation engine rendering and persisting evaluation figures.
     _logger : logging.Logger
         Centralized logger instance configured under `"medpipe"`.
 
@@ -125,7 +125,7 @@ class MedpipeClassifier:
             orchestrator=self._orchestrator,
             runner=self._runner,
         )
-        self._displayer = MedpipeClassifierDisplayer(orchestrator=self._orchestrator)
+        self.displayer = MedpipeClassifierDisplayer(orchestrator=self._orchestrator)
 
         self._logger.info("MedpipeClassifier initialisation complete.")
 
@@ -504,7 +504,7 @@ class MedpipeClassifier:
                 )
             # Generate cross-outcome strata heatmaps per metric
             self._logger.info("Generating subgroup strata heatmaps across outcomes.")
-            strata_heatmaps = self._displayer.plot_all_heatmaps(
+            strata_heatmaps = self.displayer.plot_all_heatmaps(
                 evaluations=evaluations,
             )
             plots["strata_heatmaps"] = strata_heatmaps
@@ -571,7 +571,7 @@ class MedpipeClassifier:
             to their rendered (Figure, Axes) Matplotlib objects.
 
         """
-        return self._displayer.plot_all(
+        return self.displayer.plot_all(
             y_true=y_true,
             probas=probas,
             outcome=outcome,
@@ -629,7 +629,7 @@ class MedpipeClassifier:
         new_run_path = run_path / "eval"
         pipe = cls(config=mp_config, base_artifact_dir=new_run_path)
         pipe._orchestrator.run_dir = new_run_path
-        pipe._displayer.run_dir = new_run_path
+        pipe.displayer.run_dir = new_run_path
 
         # 3. Restore serialized model binaries into runner and evaluator engines
         if models_dir.exists():
@@ -675,6 +675,9 @@ class MedpipeRegressor:
 
     Attributes
     ----------
+    displayer : MedpipeRegressorDisplayer
+        Visualisation engine rendering and persisting distributional
+        diagnostic figures.
     _orchestrator : MedpipeOrchestrator
         Pipeline orchestrator instance driving data preparation and
         reproducibility artifacts.
@@ -684,9 +687,6 @@ class MedpipeRegressor:
     _evaluator : MedpipeRegressorEvaluator
         Pipeline evaluation engine computing point estimates and
         bootstrap confidence intervals.
-    _displayer : MedpipeRegressorDisplayer
-        Visualisation engine rendering and persisting distributional
-        diagnostic figures.
     _logger : logging.Logger
         Centralized logger instance configured under `"medpipe"`.
 
@@ -733,7 +733,7 @@ class MedpipeRegressor:
             orchestrator=self._orchestrator,
             runner=self._runner,
         )
-        self._displayer = MedpipeRegressorDisplayer(orchestrator=self._orchestrator)
+        self.displayer = MedpipeRegressorDisplayer(orchestrator=self._orchestrator)
 
         self._logger.info("MedpipeRegressor initialisation complete.")
 
@@ -1178,7 +1178,7 @@ class MedpipeRegressor:
             else None
         )
 
-        return self._displayer.plot_all(
+        return self.displayer.plot_all(
             y_true=y_true,
             dist=dist,
             mapper=mapper,
