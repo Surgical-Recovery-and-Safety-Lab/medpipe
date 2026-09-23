@@ -1238,6 +1238,7 @@ class MedpipeRegressor:
         new_run_path = run_path / "eval"
         pipe = cls(config=mp_config, base_artifact_dir=new_run_path)
         pipe._orchestrator.run_dir = new_run_path
+        pipe.displayer.run_dir = new_run_path
 
         # 3. Restore serialized model binaries into runner and evaluator engines
         if models_dir.exists():

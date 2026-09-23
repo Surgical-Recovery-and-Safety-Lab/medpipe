@@ -507,6 +507,7 @@ class TestMedpipeRegressorLoad:
 
         assert isinstance(pipe, MedpipeRegressor)
         assert pipe.run_dir == run_dir / "eval"
+        assert pipe.displayer.run_dir == run_dir / "eval"
         assert pipe.mp_config.meta.project_name == "demo_regressor_project"
 
     def test_load_successful_with_fitted_models(
@@ -532,6 +533,7 @@ class TestMedpipeRegressorLoad:
 
         assert isinstance(pipe, MedpipeRegressor)
         assert pipe.run_dir == run_dir / "eval"
+        assert pipe.displayer.run_dir == run_dir / "eval"
         assert pipe.models == mock_fitted_models
         assert pipe._evaluator.fitted_models == mock_fitted_models
 
