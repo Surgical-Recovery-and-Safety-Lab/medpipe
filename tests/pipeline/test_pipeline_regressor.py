@@ -1,8 +1,8 @@
 """
 Tests for MedpipeRegressor, mirroring tests/pipeline/test_pipeline.py's
-structure for MedpipeClassifier. `plot_all` is not wired into `run()` yet
-(unlike the classifier), since not every regression algorithm supports
-`predict_dist`; it must be called manually.
+structure for MedpipeClassifier. `run()` only triggers plotting in
+audit/eval mode, and only models that support `predict_dist` can produce
+plots.
 """
 
 import json
@@ -306,13 +306,13 @@ class TestMedpipeRegressorRun:
     @patch("medpipe.pipeline.pipeline.MedpipeRegressorEvaluator")
     @patch("medpipe.pipeline.pipeline.MedpipeRegressorRunner")
     @patch("medpipe.pipeline.pipeline.MedpipeOrchestrator")
-    def test_run_execution_flow_never_generates_plots(
+    def test_run_fast_mode_execution_flow_never_generates_plots(
         self, mock_orch_cls, mock_runner_cls, mock_eval_cls
     ):
         """Verify run executes data prep, fit, and test evaluation, and
-        never attempts any plotting regardless of run_mode."""
+        never attempts any plotting outside of audit/eval mode."""
         mp = MedpipeRegressor(config=MagicMock())
-        mp.mp_config.meta.run_mode = "audit"
+        mp.mp_config.meta.run_mode = "fast"
         mp.mp_config.data.kwargs = {"extra_arg": 0.2}
         mp._orchestrator.config.data.outcomes = ["LOS_DAYS"]
         mp._orchestrator.get_subgroup_specs.return_value = {"site": "site"}
@@ -332,6 +332,8 @@ class TestMedpipeRegressorRun:
 
         mp.fit = MagicMock(return_value={"LOS_DAYS": "fitted_model"})
         mp.evaluate = MagicMock(return_value={"overall": {"rmse": 1.2}})
+        mp.predict_dist = MagicMock()
+        mp.plot_all = MagicMock()
 
         results = mp.run(groups_train=None)
 
@@ -352,9 +354,56 @@ class TestMedpipeRegressorRun:
             save_artifacts=True,
         )
 
+        mp.predict_dist.assert_not_called()
+        mp.plot_all.assert_not_called()
         assert results["fitted_models"] == {"LOS_DAYS": "fitted_model"}
         assert results["evaluations"] == {"LOS_DAYS": {"overall": {"rmse": 1.2}}}
         assert "plots" not in results
+
+    @patch("medpipe.pipeline.pipeline.MedpipeRegressorEvaluator")
+    @patch("medpipe.pipeline.pipeline.MedpipeRegressorRunner")
+    @patch("medpipe.pipeline.pipeline.MedpipeOrchestrator")
+    def test_run_audit_mode_triggers_plotting(
+        self, mock_orch_cls, mock_runner_cls, mock_eval_cls
+    ):
+        """Verify run calls predict_dist and plot_all per outcome, and
+        includes the resulting figures in audit/eval mode."""
+        mp = MedpipeRegressor(config=MagicMock())
+        mp.mp_config.meta.run_mode = "audit"
+        mp.mp_config.data.kwargs = {}
+        mp._orchestrator.config.data.outcomes = ["LOS_DAYS"]
+        mp._orchestrator.get_subgroup_specs.return_value = {}
+        mp._orchestrator.fairness_splits = None
+
+        X_tr, y_tr = pd.DataFrame({"A": [1, 2]}), pd.DataFrame({"LOS_DAYS": [3.0, 5.0]})
+        X_te, y_te = pd.DataFrame({"A": [3]}), pd.DataFrame({"LOS_DAYS": [4.0]})
+        mp._orchestrator.prepare_data.return_value = (
+            X_tr,
+            y_tr,
+            None,
+            None,
+            X_te,
+            y_te,
+            None,
+        )
+
+        mp.fit = MagicMock(return_value={"LOS_DAYS": "fitted_model"})
+        mp.evaluate = MagicMock(return_value={"overall": {"rmse": 1.2}})
+        dist_mock = MagicMock()
+        mp.predict_dist = MagicMock(return_value=dist_mock)
+        mp.plot_all = MagicMock(return_value={"coverage": ("fig_obj", "ax_obj")})
+
+        results = mp.run(groups_train=None)
+
+        mp.predict_dist.assert_called_once_with(X=X_te, outcome="LOS_DAYS")
+        mp.plot_all.assert_called_once_with(
+            y_true=y_te["LOS_DAYS"].to_numpy(),
+            dist=dist_mock,
+            outcome="LOS_DAYS",
+        )
+
+        assert "plots" in results
+        assert results["plots"]["LOS_DAYS"] == {"coverage": ("fig_obj", "ax_obj")}
 
     @patch("medpipe.pipeline.pipeline.MedpipeRegressorEvaluator")
     @patch("medpipe.pipeline.pipeline.MedpipeRegressorRunner")
