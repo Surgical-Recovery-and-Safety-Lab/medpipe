@@ -225,7 +225,7 @@ class TestMedpipeRegressorPlotAll:
         fitted_pipeline = {"regressor": regressor_step}
         mp._runner.fitted_models = {"LOS_DAYS": fitted_pipeline}
         expected_plots = {"coverage": (MagicMock(), MagicMock())}
-        mp._displayer.plot_all.return_value = expected_plots
+        mp.displayer.plot_all.return_value = expected_plots
 
         plots = mp.plot_all(
             y_true=y_true,
@@ -237,7 +237,7 @@ class TestMedpipeRegressorPlotAll:
             color="red",
         )
 
-        mp._displayer.plot_all.assert_called_once_with(
+        mp.displayer.plot_all.assert_called_once_with(
             y_true=y_true,
             dist=dist,
             mapper=mapper,
@@ -262,7 +262,7 @@ class TestMedpipeRegressorPlotAll:
         own clear error to surface only if the PIT histogram is requested."""
         mp = MedpipeRegressor(config=MagicMock())
         mp._runner.fitted_models = {"LOS_DAYS": {"regressor": MagicMock()}}
-        mp._displayer.plot_all.return_value = {}
+        mp.displayer.plot_all.return_value = {}
 
         mp.plot_all(
             y_true=np.array([3.0, 5.0]),
@@ -270,7 +270,7 @@ class TestMedpipeRegressorPlotAll:
             outcome="OTHER_OUTCOME",
         )
 
-        _, kwargs = mp._displayer.plot_all.call_args
+        _, kwargs = mp.displayer.plot_all.call_args
         assert kwargs["mapper"] is None
 
     @patch("medpipe.pipeline.pipeline.MedpipeRegressorDisplayer")
@@ -288,7 +288,7 @@ class TestMedpipeRegressorPlotAll:
             pass
 
         mp._runner.fitted_models = {"LOS_DAYS": {"regressor": PlainRegressor()}}
-        mp._displayer.plot_all.return_value = {}
+        mp.displayer.plot_all.return_value = {}
 
         mp.plot_all(
             y_true=np.array([3.0, 5.0]),
@@ -296,7 +296,7 @@ class TestMedpipeRegressorPlotAll:
             outcome="LOS_DAYS",
         )
 
-        _, kwargs = mp._displayer.plot_all.call_args
+        _, kwargs = mp.displayer.plot_all.call_args
         assert kwargs["mapper"] is None
 
 

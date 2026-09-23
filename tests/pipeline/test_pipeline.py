@@ -651,7 +651,7 @@ class TestMedpipeRun:
         mp.evaluate = MagicMock(return_value={"overall": {}})
         mp.predict_proba = MagicMock(return_value=np.array([0.85]))
         mp.plot_all = MagicMock(return_value={"roc": ("fig_obj", "ax_obj")})
-        mp._displayer.plot_all_heatmaps.return_value = {
+        mp.displayer.plot_all_heatmaps.return_value = {
             "auc_heatmap": ("fig_hm", "ax_hm")
         }
 
@@ -663,7 +663,7 @@ class TestMedpipeRun:
             probas=np.array([0.85]),
             outcome="MORTALITY_30D",
         )
-        mp._displayer.plot_all_heatmaps.assert_called_once_with(
+        mp.displayer.plot_all_heatmaps.assert_called_once_with(
             evaluations={"MORTALITY_30D": {"overall": {}}}
         )
 
@@ -689,7 +689,7 @@ class TestMedpipePlotAll:
         y_true = np.array([0, 1, 0, 1])
         probas = np.array([0.1, 0.8, 0.2, 0.9])
         expected_plots = {"roc": (MagicMock(), MagicMock())}
-        mp._displayer.plot_all.return_value = expected_plots
+        mp.displayer.plot_all.return_value = expected_plots
 
         plots = mp.plot_all(
             y_true=y_true,
@@ -702,7 +702,7 @@ class TestMedpipePlotAll:
             color="red",
         )
 
-        mp._displayer.plot_all.assert_called_once_with(
+        mp.displayer.plot_all.assert_called_once_with(
             y_true=y_true,
             probas=probas,
             outcome="READMISSION_90D",
@@ -774,7 +774,7 @@ class TestMedpipeLoad:
 
         assert isinstance(pipe, MedpipeClassifier)
         assert pipe.run_dir == run_dir / "eval"
-        assert pipe._displayer.run_dir == run_dir / "eval"
+        assert pipe.displayer.run_dir == run_dir / "eval"
         assert pipe.mp_config.meta.project_name == "demo_project"
 
     def test_load_successful_with_fitted_models(
@@ -803,7 +803,7 @@ class TestMedpipeLoad:
 
         assert isinstance(pipe, MedpipeClassifier)
         assert pipe.run_dir == run_dir / "eval"
-        assert pipe._displayer.run_dir == run_dir / "eval"
+        assert pipe.displayer.run_dir == run_dir / "eval"
         assert pipe.models == mock_fitted_models
         assert pipe._evaluator.fitted_models == mock_fitted_models
 
