@@ -1,5 +1,5 @@
 """
-Tests for MedpipeRunner.run.
+Tests for MedpipeClassifierRunner.run.
 """
 
 from unittest.mock import MagicMock, patch
@@ -9,21 +9,21 @@ import pandas as pd
 import pytest
 from sklearn.pipeline import Pipeline
 
-from medpipe.pipeline.runner import MedpipeRunner
+from medpipe.pipeline.runner import MedpipeClassifierRunner
 
 
 class TestRun:
-    """Unit tests for MedpipeRunner.run."""
+    """Unit tests for MedpipeClassifierRunner.run."""
 
-    @patch("medpipe.pipeline.runner.MedpipeRunner._save_final_models")
-    @patch("medpipe.pipeline.runner.MedpipeRunner.fit_outcome")
+    @patch("medpipe.pipeline.runner.MedpipeClassifierRunner._save_final_models")
+    @patch("medpipe.pipeline.runner.MedpipeClassifierRunner.fit_outcome")
     def test_run_orchestrates_outcomes_and_saves_final_models(
         self, mock_fit_outcome, mock_save_final_models, mock_orchestrator, dummy_data
     ):
         """Test that run method iterates outcomes, stores fitted models, and
         saves final model dictionary."""
         mock_orchestrator.config.data.outcomes = ["OUTCOME_1", "OUTCOME_2"]
-        runner = MedpipeRunner(orchestrator=mock_orchestrator)
+        runner = MedpipeClassifierRunner(orchestrator=mock_orchestrator)
 
         X_train = dummy_data[0]
         y_train_df = pd.DataFrame(
@@ -52,7 +52,7 @@ class TestRun:
         """Test that run raises KeyError if configured outcome column is
         absent in y_train_df."""
         mock_orchestrator.config.data.outcomes = ["MISSING_OUTCOME"]
-        runner = MedpipeRunner(orchestrator=mock_orchestrator)
+        runner = MedpipeClassifierRunner(orchestrator=mock_orchestrator)
 
         X_train = dummy_data[0]
         y_train_df = pd.DataFrame({"OTHER_OUTCOME": [0, 1, 0, 1]})
@@ -60,8 +60,8 @@ class TestRun:
         with pytest.raises(KeyError, match="MISSING_OUTCOME"):
             runner.run(X_train, y_train_df)
 
-    @patch("medpipe.pipeline.runner.MedpipeRunner._save_final_models")
-    @patch("medpipe.pipeline.runner.MedpipeRunner.fit_outcome")
+    @patch("medpipe.pipeline.runner.MedpipeClassifierRunner._save_final_models")
+    @patch("medpipe.pipeline.runner.MedpipeClassifierRunner.fit_outcome")
     def test_run_without_recalibration_data(
         self, mock_fit_outcome, mock_save_final_models, mock_orchestrator, dummy_data
     ):
@@ -69,7 +69,7 @@ class TestRun:
         entirely (the default None), passing y_recal=None through to
         fit_outcome for every outcome."""
         mock_orchestrator.config.data.outcomes = ["OUTCOME_1"]
-        runner = MedpipeRunner(orchestrator=mock_orchestrator)
+        runner = MedpipeClassifierRunner(orchestrator=mock_orchestrator)
 
         X_train = dummy_data[0]
         y_train_df = pd.DataFrame({"OUTCOME_1": [0, 1, 0, 1, 0, 1]})
@@ -82,8 +82,8 @@ class TestRun:
         assert call_kwargs["y_recal"] is None
         assert call_kwargs["X_recal"] is None
 
-    @patch("medpipe.pipeline.runner.MedpipeRunner._save_final_models")
-    @patch("medpipe.pipeline.runner.MedpipeRunner.fit_outcome")
+    @patch("medpipe.pipeline.runner.MedpipeClassifierRunner._save_final_models")
+    @patch("medpipe.pipeline.runner.MedpipeClassifierRunner.fit_outcome")
     def test_run_recalibration_data_missing_outcome_column(
         self, mock_fit_outcome, mock_save_final_models, mock_orchestrator, dummy_data
     ):
@@ -91,7 +91,7 @@ class TestRun:
         to y_recal=None for that outcome specifically, rather than raising
         — recalibration data isn't required to cover every outcome."""
         mock_orchestrator.config.data.outcomes = ["OUTCOME_1", "OUTCOME_2"]
-        runner = MedpipeRunner(orchestrator=mock_orchestrator)
+        runner = MedpipeClassifierRunner(orchestrator=mock_orchestrator)
 
         X_train = dummy_data[0]
         y_train_df = pd.DataFrame(

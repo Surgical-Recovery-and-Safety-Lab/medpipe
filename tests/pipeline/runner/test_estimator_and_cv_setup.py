@@ -1,5 +1,5 @@
 """
-Tests for MedpipeRunner._instantiate_estimator and _create_cv_splitter.
+Tests for MedpipeClassifierRunner._instantiate_estimator and _create_cv_splitter.
 """
 
 import pytest
@@ -7,14 +7,14 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LinearRegression
 from sklearn.model_selection import StratifiedGroupKFold, StratifiedKFold
 
-from medpipe.pipeline.runner import MedpipeRunner
+from medpipe.pipeline.runner import MedpipeClassifierRunner
 
 
 class TestInstantiateEstimator:
-    """Unit tests for MedpipeRunner._instantiate_estimator."""
+    """Unit tests for MedpipeClassifierRunner._instantiate_estimator."""
 
     def test_instantiate_estimator_classifier(self, mock_orchestrator):
-        runner = MedpipeRunner(orchestrator=mock_orchestrator)
+        runner = MedpipeClassifierRunner(orchestrator=mock_orchestrator)
         estimator = runner._instantiate_estimator(
             "RandomForestClassifier", {"n_estimators": 10}
         )
@@ -27,7 +27,7 @@ class TestInstantiateEstimator:
     ):
         """Test that regressors are returned as plain estimators, with no
         target-transformation wrapping applied."""
-        runner = MedpipeRunner(orchestrator=mock_orchestrator)
+        runner = MedpipeClassifierRunner(orchestrator=mock_orchestrator)
         estimator = runner._instantiate_estimator("LinearRegression", {})
 
         assert isinstance(estimator, LinearRegression)
@@ -35,7 +35,7 @@ class TestInstantiateEstimator:
     def test_instantiate_estimator_list_params_filtered(self, mock_orchestrator):
         """Test that list hyperparameters are reduced to scalars for initial
         instantiation."""
-        runner = MedpipeRunner(orchestrator=mock_orchestrator)
+        runner = MedpipeClassifierRunner(orchestrator=mock_orchestrator)
         params = {"n_estimators": [10, 50, 100], "max_depth": 5}
 
         estimator = runner._instantiate_estimator("RandomForestClassifier", params)
@@ -45,10 +45,10 @@ class TestInstantiateEstimator:
 
 
 class TestCreateCvSplitter:
-    """Unit tests for MedpipeRunner._create_cv_splitter."""
+    """Unit tests for MedpipeClassifierRunner._create_cv_splitter."""
 
     def test_create_cv_splitter(self, mock_orchestrator):
-        runner = MedpipeRunner(orchestrator=mock_orchestrator)
+        runner = MedpipeClassifierRunner(orchestrator=mock_orchestrator)
 
         random_cv = runner._create_cv_splitter("random", 3, 42)
         assert isinstance(random_cv, StratifiedKFold)

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
+from typing import Any
 
 from sklearn.metrics import get_scorer, make_scorer
 
@@ -25,6 +26,18 @@ class MetricSpec:
         Human-readable name used for visual displays and reports.
     sklearn_scorer_name : str or None, default=None
         Optional pre-registered scikit-learn scorer string key.
+    needs_threshold : bool, default=False
+        Whether raw predictions must be rounded to discrete class labels
+        before being passed to `func` (e.g., accuracy, precision). Metrics
+        that consume continuous values directly (e.g., rmse, mae, or any
+        `predict_proba`-based metric) must leave this as False.
+    per_sample_func : Callable or None, default=None
+        For `predict_dist`-based metrics only: a function `(y, dist) ->
+        array of shape (n_samples,)` returning the metric's per-sample
+        values. Used by `bootstrap_confidence_intervals` to compute CIs by
+        resampling precomputed per-sample scores rather than resampling
+        (and re-slicing) the distribution object itself, since not every
+        distributional prediction object supports fancy indexing.
 
     """
 
@@ -33,6 +46,8 @@ class MetricSpec:
     response_method: str | tuple[str, ...]
     display_name: str
     sklearn_scorer_name: str | None = None
+    needs_threshold: bool = False
+    per_sample_func: Callable | None = None
 
     def get_scorer(self) -> Callable:
         """Construct a scikit-learn compatible scorer function for cross-validation.
@@ -42,6 +57,23 @@ class MetricSpec:
         scorer : Callable
             Scikit-learn scorer object suitable for model evaluation or tuning.
         """
+        if self.response_method == "predict_dist":
+            # sklearn's make_scorer only knows about predict/predict_proba/
+            # decision_function, and none of those pass a full distribution
+            # object to the metric function. Bypass it with a raw callable
+            # matching sklearn's own scorer(estimator, X, y) -> float
+            # convention instead.
+            func = self.func
+
+            def _distributional_scorer(estimator: Any, X: Any, y: Any) -> float:
+                dist = estimator.predict_dist(X)
+                # CRPS (and similar distributional losses) are lower-is-better,
+                # so negate to match sklearn's "greater is better" scorer
+                # convention (as sklearn's own neg_* scorers do).
+                return -float(func(y, dist))
+
+            return _distributional_scorer
+
         if self.sklearn_scorer_name:
             return get_scorer(self.sklearn_scorer_name)
 

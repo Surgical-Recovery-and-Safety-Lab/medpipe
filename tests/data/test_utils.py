@@ -11,7 +11,6 @@ import pandas as pd
 import pytest
 from pandas.testing import assert_frame_equal
 
-from medpipe._types import Labels
 from medpipe.data.utils import (
     extract_labels,
     get_split_idx,
@@ -165,7 +164,7 @@ class TestGetSplitIdx:
 class TestSplitData:
     """Test class for the split_data function."""
 
-    def _generate_mock_data(self) -> tuple[pd.DataFrame, Labels]:
+    def _generate_mock_data(self) -> tuple[pd.DataFrame, npt.NDArray]:
         """Generate mock data for tests."""
         features = pd.DataFrame(
             {

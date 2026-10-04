@@ -1,5 +1,5 @@
 """
-Tests for MedpipeDisplayer's internal statistical computation helpers:
+Tests for MedpipeClassifierDisplayer's internal statistical computation helpers:
 _compute_roc_data, _compute_precision_recall_data, _compute_reliability_data,
 _compute_dca_data, and the _save_figure artifact-persistence helper.
 """
@@ -10,7 +10,7 @@ from unittest.mock import MagicMock, patch
 import matplotlib.pyplot as plt
 import numpy as np
 
-from medpipe.visualisation.displayer import MedpipeDisplayer
+from medpipe.visualisation.displayer import MedpipeClassifierDisplayer
 
 
 class TestComputeRocData:
@@ -22,7 +22,7 @@ class TestComputeRocData:
         """Test ROC data calculation with 1D predicted probabilities and
         bootstrapping."""
         y_true, probas = sample_binary_data
-        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+        displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
 
         fpr, tpr, roc_auc, lower_ci, upper_ci = displayer._compute_roc_data(
             y_true=y_true, probas=probas, n_bootstraps=50
@@ -43,7 +43,7 @@ class TestComputeRocData:
         """Test ROC data calculation when probabilities are 2D (n_samples, 2)."""
         y_true, probas_1d = sample_binary_data
         probas_2d = np.column_stack((1 - probas_1d, probas_1d))
-        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+        displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
 
         _, _, roc_auc, lower_ci, upper_ci = displayer._compute_roc_data(
             y_true=y_true, probas=probas_2d, n_bootstraps=10
@@ -58,7 +58,7 @@ class TestComputeRocData:
     ) -> None:
         """Test that n_bootstraps <= 0 returns None for confidence interval arrays."""
         y_true, probas = sample_binary_data
-        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+        displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
 
         fpr, tpr, roc_auc, lower_ci, upper_ci = displayer._compute_roc_data(
             y_true=y_true, probas=probas, n_bootstraps=0
@@ -79,7 +79,7 @@ class TestComputeRocData:
         """
         y_true = np.array([0, 0, 0, 0, 1])
         probas = np.array([0.1, 0.2, 0.3, 0.4, 0.9])
-        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+        displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
 
         _, _, roc_auc, lower_ci, upper_ci = displayer._compute_roc_data(
             y_true=y_true, probas=probas, n_bootstraps=30, random_state=0
@@ -98,7 +98,7 @@ class TestComputeRocData:
         """
         y_true = np.array([0, 1])
         probas = np.array([0.2, 0.8])
-        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+        displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
 
         fake_rng = MagicMock()
         fake_rng.choice.return_value = np.array([0, 0])
@@ -122,7 +122,7 @@ class TestComputePrecisionRecallData:
         """Test PR data calculation with 1D predicted probabilities and
         bootstrapping."""
         y_true, probas = sample_binary_data
-        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+        displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
 
         (
             precision,
@@ -150,7 +150,7 @@ class TestComputePrecisionRecallData:
         """Test PR data calculation when probabilities are 2D (n_samples, 2)."""
         y_true, probas_1d = sample_binary_data
         probas_2d = np.column_stack((1 - probas_1d, probas_1d))
-        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+        displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
 
         _, _, ap_score, _baseline, lower_ci, upper_ci = (
             displayer._compute_precision_recall_data(
@@ -167,7 +167,7 @@ class TestComputePrecisionRecallData:
     ) -> None:
         """Test that n_bootstraps <= 0 returns None for confidence interval arrays."""
         y_true, probas = sample_binary_data
-        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+        displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
 
         _, _, ap_score, _baseline, lower_ci, upper_ci = (
             displayer._compute_precision_recall_data(
@@ -186,7 +186,7 @@ class TestComputePrecisionRecallData:
         method still succeeds when at least one resample has both classes."""
         y_true = np.array([0, 0, 0, 0, 1])
         probas = np.array([0.1, 0.2, 0.3, 0.4, 0.9])
-        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+        displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
 
         _, _, ap_score, _baseline, lower_ci, upper_ci = (
             displayer._compute_precision_recall_data(
@@ -206,7 +206,7 @@ class TestComputePrecisionRecallData:
         is mocked to always resample index 0 for determinism."""
         y_true = np.array([0, 1])
         probas = np.array([0.2, 0.8])
-        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+        displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
 
         fake_rng = MagicMock()
         fake_rng.choice.return_value = np.array([0, 0])
@@ -231,7 +231,7 @@ class TestComputeReliabilityData:
     ) -> None:
         """Test calibration curve computation with the default uniform strategy."""
         y_true, probas = sample_binary_data
-        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+        displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
 
         prob_true, prob_pred, lower_ci, upper_ci = displayer._compute_reliability_data(
             y_true=y_true, probas=probas, n_bins=5, n_bootstraps=20
@@ -249,7 +249,7 @@ class TestComputeReliabilityData:
         """Test that 2D probabilities are reduced to the positive-class column."""
         y_true, probas_1d = sample_binary_data
         probas_2d = np.column_stack((1 - probas_1d, probas_1d))
-        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+        displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
 
         prob_true_2d, prob_pred_2d, _, _ = displayer._compute_reliability_data(
             y_true=y_true, probas=probas_2d, n_bins=5, n_bootstraps=0
@@ -276,7 +276,7 @@ class TestComputeReliabilityData:
         """
         y_true = np.array([0, 1, 0, 1, 0, 1, 0, 1])
         probas = np.array([0.1, 0.9, 0.2, 0.8, 0.3, 0.7, 0.4, 0.6])
-        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+        displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
 
         fake_instance = MagicMock()
         two_d_output = np.column_stack(
@@ -302,7 +302,7 @@ class TestComputeReliabilityData:
     ) -> None:
         """Test calibration curve computation with the quantile strategy."""
         y_true, probas = sample_binary_data
-        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+        displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
 
         prob_true, prob_pred, _lower_ci, _upper_ci = (
             displayer._compute_reliability_data(
@@ -323,7 +323,7 @@ class TestComputeReliabilityData:
         """Test calibration curve computation with the spline strategy,
         including the bootstrap loop's spline-specific branch."""
         y_true, probas = sample_binary_data
-        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+        displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
 
         prob_true, prob_pred, lower_ci, upper_ci = displayer._compute_reliability_data(
             y_true=y_true, probas=probas, strategy="spline", n_bootstraps=5
@@ -340,7 +340,7 @@ class TestComputeReliabilityData:
     ) -> None:
         """Test that n_bootstraps <= 0 returns None for confidence interval arrays."""
         y_true, probas = sample_binary_data
-        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+        displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
 
         _prob_true, _prob_pred, lower_ci, upper_ci = (
             displayer._compute_reliability_data(
@@ -356,7 +356,7 @@ class TestComputeReliabilityData:
     ) -> None:
         """Test that an empty calibration curve (e.g. from a degenerate
         input) short-circuits before attempting to bootstrap."""
-        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+        displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
 
         with patch(
             "medpipe.visualisation.displayer.calibration_curve",
@@ -382,7 +382,7 @@ class TestComputeReliabilityData:
         method still succeeds when at least one resample has both classes."""
         y_true = np.array([0, 0, 0, 0, 1])
         probas = np.array([0.1, 0.2, 0.3, 0.4, 0.9])
-        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+        displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
 
         _prob_true, _prob_pred, lower_ci, upper_ci = (
             displayer._compute_reliability_data(
@@ -405,7 +405,7 @@ class TestComputeReliabilityData:
         is mocked to always resample index 0 for determinism."""
         y_true = np.array([0, 1])
         probas = np.array([0.2, 0.8])
-        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+        displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
 
         fake_rng = MagicMock()
         fake_rng.choice.return_value = np.array([0, 0])
@@ -429,7 +429,7 @@ class TestComputeReliabilityData:
         curve on every bootstrap call while the main call still succeeds."""
         y_true = np.array([0, 1, 0, 1, 0, 1, 0, 1])
         probas = np.array([0.1, 0.9, 0.2, 0.8, 0.3, 0.7, 0.4, 0.6])
-        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+        displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
 
         from medpipe.visualisation.displayer import calibration_curve as real_curve
 
@@ -468,7 +468,7 @@ class TestComputeDcaData:
     ) -> None:
         """Test DCA computation using the default threshold grid."""
         y_true, probas = sample_binary_data
-        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+        displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
 
         thresholds, nb_model, nb_all = displayer._compute_dca_data(
             y_true=y_true, probas=probas
@@ -483,7 +483,7 @@ class TestComputeDcaData:
     ) -> None:
         """Test DCA computation using an explicitly provided threshold grid."""
         y_true, probas = sample_binary_data
-        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+        displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
         custom_thresholds = np.linspace(0.1, 0.5, 10)
 
         thresholds, nb_model, nb_all = displayer._compute_dca_data(
@@ -500,7 +500,7 @@ class TestComputeDcaData:
         """Test DCA computation reduces 2D probabilities to the positive class."""
         y_true, probas_1d = sample_binary_data
         probas_2d = np.column_stack((1 - probas_1d, probas_1d))
-        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+        displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
 
         _, nb_model_2d, _ = displayer._compute_dca_data(
             y_true=y_true, probas=probas_2d
@@ -519,7 +519,7 @@ class TestSaveFigure:
         self, mock_orchestrator, tmp_path: Path
     ) -> None:
         """Test saving a figure to the default run directory path."""
-        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+        displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
         fig, _ = plt.subplots()
 
         saved_path = displayer._save_figure(fig=fig, filename="test_plot")
@@ -532,7 +532,7 @@ class TestSaveFigure:
         self, mock_orchestrator, tmp_path: Path
     ) -> None:
         """Test saving a figure inside an outcome-specific subdirectory."""
-        displayer = MedpipeDisplayer(orchestrator=mock_orchestrator)
+        displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
         fig, _ = plt.subplots()
 
         saved_path = displayer._save_figure(

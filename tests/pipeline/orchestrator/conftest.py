@@ -6,13 +6,13 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from medpipe.utils.config import MedpipeConfig
+from medpipe.utils.config import MedpipeClassifierConfig
 
 
 @pytest.fixture
 def mock_config() -> MagicMock:
-    """Creates a mock MedpipeConfig with necessary attributes."""
-    config = MagicMock(spec=MedpipeConfig)
+    """Creates a mock MedpipeClassifierConfig with necessary attributes."""
+    config = MagicMock(spec=MedpipeClassifierConfig)
 
     # Mock Meta section
     config.meta = MagicMock()
@@ -29,6 +29,8 @@ def mock_config() -> MagicMock:
     config.workflow.random_state = 42
     config.workflow.preprocessing = MagicMock()
     config.workflow.preprocessing.preprocess = True
+    config.workflow.evaluation = MagicMock()
+    config.workflow.evaluation.fairness = None
 
     # Mock a single operation
     op1 = MagicMock()

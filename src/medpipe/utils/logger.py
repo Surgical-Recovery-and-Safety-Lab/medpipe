@@ -20,8 +20,8 @@ class CompactProgressFilter(logging.Filter):
 
     # Tuple of message prefixes/substrings to allow through in "compact" mode
     PROGRESS_KEYWORDS = (
-        "Initialising Medpipe end-to-end",
-        "Succesfully loaded Medpipe",
+        "Initialising MedpipeClassifier end-to-end",
+        "Succesfully loaded MedpipeClassifier",
         "Step 1/",
         "Step 2/",
         "Step 3/",
@@ -30,7 +30,7 @@ class CompactProgressFilter(logging.Filter):
         "Starting model fitting across",
         "--- Starting ",
         "--- Finished ",
-        "Full Medpipe pipeline execution finished",
+        "Full MedpipeClassifier pipeline execution finished",
     )
 
     def filter(self, record: logging.LogRecord) -> bool:

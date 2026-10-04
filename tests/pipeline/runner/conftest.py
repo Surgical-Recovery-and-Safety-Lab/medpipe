@@ -1,5 +1,5 @@
 """
-Shared fixtures for the MedpipeRunner test suite.
+Shared fixtures for the MedpipeClassifierRunner test suite.
 """
 
 from pathlib import Path

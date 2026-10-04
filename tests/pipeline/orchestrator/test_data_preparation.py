@@ -259,6 +259,130 @@ class TestPrepareData:
 
     @patch("medpipe.pipeline.orchestrator.split_data")
     @patch("medpipe.pipeline.orchestrator.extract_labels")
+    def test_prepare_data_builds_fairness_splits_for_fairness_only_column(
+        self,
+        mock_extract_labels,
+        mock_split_data,
+        mock_add_handler,
+        mock_get_logger,
+        mock_artifact_mgr,
+        mock_config,
+    ):
+        """Test that a fairness stratum column not in predictors (e.g. a
+        spatial "HOSPITAL" comparison) never appears in X_train/X_test/
+        X_recal, and instead is exposed, aligned by row, via
+        `fairness_splits`."""
+        mock_config.data.predictors = ["AGE"]
+        mock_config.data.outcomes = ["MORTALITY_30D"]
+
+        fairness_cfg = MagicMock()
+        fairness_cfg.strata = ["HOSPITAL"]
+        mock_config.workflow.evaluation.fairness = fairness_cfg
+
+        val_config = MagicMock()
+        val_config.test_split.strategy = "random"
+        val_config.test_split.group_column = None
+        val_config.recalibration_split.strategy = "random"
+        val_config.recalibration_split.group_column = None
+        val_config.cross_validation = None
+        mock_config.workflow.validation = val_config
+
+        orchestrator = MedpipeOrchestrator(config=mock_config)
+
+        # ingest_data() only ever returns the modelling frame (predictors +
+        # outcomes); the fairness-only column is validated and cached
+        # separately via `_fairness_raw`, mirroring the real ingest_data().
+        ingested_data = pd.DataFrame(
+            {"AGE": [25, 30, 45, 60], "MORTALITY_30D": [0, 1, 0, 1]},
+            index=pd.Index([0, 1, 2, 3]),
+        )
+        orchestrator.ingest_data = MagicMock(return_value=ingested_data)
+        orchestrator._fairness_raw = pd.DataFrame(
+            {"HOSPITAL": ["A", "B", "A", "B"]}, index=pd.Index([0, 1, 2, 3])
+        )
+
+        X_all = ingested_data[["AGE"]]
+        y_all_arr = np.array([[0], [1], [0], [1]])
+        mock_extract_labels.return_value = (X_all, y_all_arr)
+
+        X_temp = pd.DataFrame({"AGE": [25, 30, 45]}, index=pd.Index([0, 1, 2]))
+        y_temp_arr = np.array([[0], [1], [0]])
+        X_test_df = pd.DataFrame({"AGE": [60]}, index=pd.Index([3]))
+        y_test_arr = np.array([[1]])
+
+        X_train_df = pd.DataFrame({"AGE": [25, 30]}, index=pd.Index([0, 1]))
+        y_train_arr = np.array([[0], [1]])
+        X_recal_df = pd.DataFrame({"AGE": [45]}, index=pd.Index([2]))
+        y_recal_arr = np.array([[0]])
+
+        mock_split_data.side_effect = [
+            (X_temp, y_temp_arr, X_test_df, y_test_arr),
+            (X_train_df, y_train_arr, X_recal_df, y_recal_arr),
+        ]
+
+        X_train, _y_train, X_recal, _y_recal, X_test, _y_test, _groups = (
+            orchestrator.prepare_data()
+        )
+
+        # The fairness-only column never touches the modelling frames.
+        assert "HOSPITAL" not in X_train.columns
+        assert "HOSPITAL" not in X_recal.columns
+        assert "HOSPITAL" not in X_test.columns
+        assert "AGE" in X_train.columns
+        assert "AGE" in X_test.columns
+
+        # It is instead available, row-aligned, via fairness_splits.
+        fairness_splits = orchestrator.fairness_splits
+        assert fairness_splits is not None
+        assert list(fairness_splits.train["HOSPITAL"]) == ["A", "B"]
+        assert list(fairness_splits.test["HOSPITAL"]) == ["B"]
+        assert fairness_splits.recal is not None
+        assert list(fairness_splits.recal["HOSPITAL"]) == ["A"]
+
+    @patch("medpipe.pipeline.orchestrator.split_data")
+    @patch("medpipe.pipeline.orchestrator.extract_labels")
+    def test_prepare_data_fairness_splits_none_without_fairness_config(
+        self,
+        mock_extract_labels,
+        mock_split_data,
+        mock_add_handler,
+        mock_get_logger,
+        mock_artifact_mgr,
+        mock_config,
+    ):
+        """Test that fairness_splits stays None when no fairness
+        configuration is set."""
+        mock_config.data.outcomes = ["MORTALITY_30D"]
+
+        val_config = MagicMock()
+        val_config.test_split.strategy = "random"
+        val_config.test_split.group_column = None
+        val_config.recalibration_split = None
+        val_config.cross_validation = None
+        mock_config.workflow.validation = val_config
+
+        orchestrator = MedpipeOrchestrator(config=mock_config)
+
+        raw_data = pd.DataFrame({"AGE": [25, 30, 45], "MORTALITY_30D": [0, 1, 0]})
+        orchestrator.ingest_data = MagicMock(return_value=raw_data)
+
+        X_all = pd.DataFrame({"AGE": [25, 30, 45]})
+        y_all_arr = np.array([[0], [1], [0]])
+        mock_extract_labels.return_value = (X_all, y_all_arr)
+
+        X_temp = pd.DataFrame({"AGE": [25, 30]}, index=pd.Index([0, 1]))
+        y_temp_arr = np.array([[0], [1]])
+        X_test_df = pd.DataFrame({"AGE": [45]}, index=pd.Index([2]))
+        y_test_arr = np.array([[0]])
+
+        mock_split_data.return_value = (X_temp, y_temp_arr, X_test_df, y_test_arr)
+
+        orchestrator.prepare_data()
+
+        assert orchestrator.fairness_splits is None
+
+    @patch("medpipe.pipeline.orchestrator.split_data")
+    @patch("medpipe.pipeline.orchestrator.extract_labels")
     def test_prepare_data_passes_random_state_to_split_data(
         self,
         mock_extract_labels,

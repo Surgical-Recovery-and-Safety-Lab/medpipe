@@ -269,6 +269,40 @@ class TestArtifactManagerSaveResolvedConfig:
         assert loaded["tuple_param"] == [10, 20]
 
 
+class TestArtifactManagerSaveTomlConfig:
+    """Tests for ArtifactManager.save_toml_config."""
+
+    def test_save_toml_config(self, tmp_path: Path) -> None:
+        """Test that the original TOML file is copied verbatim into the
+        destination directory as config.toml."""
+        manager = ArtifactManager(base_artifact_dir=tmp_path)
+        run_dir = manager.create_run_directory()
+
+        source_file = tmp_path / "original_config.toml"
+        source_file.write_text('[meta]\nproject_name = "demo"\n')
+
+        saved_path = manager.save_toml_config(source_file, run_dir)
+
+        assert saved_path.exists()
+        assert saved_path.name == "config.toml"
+        assert saved_path.read_text() == source_file.read_text()
+
+    def test_save_toml_config_creates_missing_destination_directory(
+        self, tmp_path: Path
+    ) -> None:
+        """Test that the destination directory is created if missing."""
+        manager = ArtifactManager(base_artifact_dir=tmp_path)
+
+        source_file = tmp_path / "original_config.toml"
+        source_file.write_text('[meta]\nproject_name = "demo"\n')
+
+        missing_dir = tmp_path / "nested" / "env"
+        saved_path = manager.save_toml_config(source_file, missing_dir)
+
+        assert missing_dir.exists()
+        assert saved_path.exists()
+
+
 class TestArtifactManagerSaveEnvState:
     """Tests for ArtifactManager.save_env_state."""
 

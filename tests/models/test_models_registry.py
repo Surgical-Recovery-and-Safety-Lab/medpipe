@@ -1,4 +1,5 @@
 import ngboost
+import ordboost
 import pytest
 import sklearn.ensemble
 import sklearn.isotonic
@@ -37,6 +38,11 @@ class TestModelRegistry:
         """Test retrieving a model from the ngboost fallback."""
         model_cls = ModelRegistry.get("NGBClassifier")
         assert model_cls is ngboost.NGBClassifier
+
+    def test_fallback_ordboost(self):
+        """Test retrieving a model from the ordboost fallback."""
+        model_cls = ModelRegistry.get("OrdBoostRegressor")
+        assert model_cls is ordboost.OrdBoostRegressor
 
     def test_missing_model_raises_value_error(self):
         """Test that a name absent from both the registry and its fallback

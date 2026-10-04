@@ -2,6 +2,7 @@ from types import ModuleType
 from typing import ClassVar
 
 import ngboost
+import ordboost
 import sklearn.ensemble
 import sklearn.isotonic
 import sklearn.linear_model
@@ -20,4 +21,5 @@ class ModelRegistry(BaseRegistry[type[BaseEstimator]]):
         sklearn.linear_model,
         sklearn.isotonic,
         ngboost,
+        ordboost,
     ]

@@ -1,5 +1,5 @@
 """
-Tests for MedpipeRunner.fit_outcome.
+Tests for MedpipeClassifierRunner.fit_outcome.
 """
 
 from unittest.mock import MagicMock, patch
@@ -9,12 +9,12 @@ from sklearn.calibration import CalibratedClassifierCV
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.pipeline import Pipeline
 
-from medpipe.pipeline.runner import MedpipeRunner
+from medpipe.pipeline.runner import MedpipeClassifierRunner
 from medpipe.utils.config import ModelSetup
 
 
 class TestFitOutcome:
-    """Unit tests for MedpipeRunner.fit_outcome."""
+    """Unit tests for MedpipeClassifierRunner.fit_outcome."""
 
     @pytest.mark.parametrize(
         "run_mode, should_call_cv",
@@ -25,8 +25,8 @@ class TestFitOutcome:
             ("audit", True),
         ],
     )
-    @patch("medpipe.pipeline.runner.MedpipeRunner._save_model")
-    @patch("medpipe.pipeline.runner.MedpipeRunner._train_model_cv")
+    @patch("medpipe.pipeline.runner.MedpipeClassifierRunner._save_model")
+    @patch("medpipe.pipeline.runner.MedpipeClassifierRunner._train_model_cv")
     def test_fit_outcome_run_modes(
         self,
         mock_train_cv,
@@ -54,7 +54,7 @@ class TestFitOutcome:
         mock_model_setup.model_dump.return_value = {}
         mock_orchestrator.config.resolved_models = {"MORTALITY_30D": mock_model_setup}
 
-        runner = MedpipeRunner(orchestrator=mock_orchestrator)
+        runner = MedpipeClassifierRunner(orchestrator=mock_orchestrator)
         X_train, y_train, _, _ = dummy_data
 
         with patch.object(
@@ -79,15 +79,15 @@ class TestFitOutcome:
         mock_model_setup.algorithm = None
         mock_orchestrator.config.resolved_models = {"MORTALITY_30D": mock_model_setup}
 
-        runner = MedpipeRunner(orchestrator=mock_orchestrator)
+        runner = MedpipeClassifierRunner(orchestrator=mock_orchestrator)
 
         with pytest.raises(
             ValueError, match="No algorithm specified for outcome: MORTALITY_30D"
         ):
             runner.fit_outcome("MORTALITY_30D", dummy_data[0], dummy_data[1])
 
-    @patch("medpipe.pipeline.runner.MedpipeRunner._train_model_cv")
-    @patch("medpipe.pipeline.runner.MedpipeRunner._save_model")
+    @patch("medpipe.pipeline.runner.MedpipeClassifierRunner._train_model_cv")
+    @patch("medpipe.pipeline.runner.MedpipeClassifierRunner._save_model")
     def test_fit_outcome_with_recalibration(
         self, mock_save, mock_train_cv, mock_orchestrator, dummy_data
     ):
@@ -111,7 +111,7 @@ class TestFitOutcome:
         }
         mock_orchestrator.config.resolved_models = {"MORTALITY_30D": mock_model_setup}
 
-        runner = MedpipeRunner(orchestrator=mock_orchestrator)
+        runner = MedpipeClassifierRunner(orchestrator=mock_orchestrator)
         X_train, y_train, X_recal, y_recal = dummy_data
 
         real_pipeline = Pipeline(
@@ -146,7 +146,7 @@ class TestFitOutcome:
         mock_model_setup.hyperparameters = {}
         mock_orchestrator.config.resolved_models = {"MORTALITY_30D": mock_model_setup}
 
-        runner = MedpipeRunner(orchestrator=mock_orchestrator)
+        runner = MedpipeClassifierRunner(orchestrator=mock_orchestrator)
         X_train, y_train, _, _ = dummy_data
 
         with pytest.raises(
@@ -159,7 +159,7 @@ class TestFitOutcome:
                 groups_train=None,
             )
 
-    @patch("medpipe.pipeline.runner.MedpipeRunner._save_model")
+    @patch("medpipe.pipeline.runner.MedpipeClassifierRunner._save_model")
     def test_fit_outcome_includes_preprocessor_step_when_present(
         self, mock_save, mock_orchestrator, dummy_data
     ):
@@ -178,7 +178,7 @@ class TestFitOutcome:
         mock_model_setup.model_dump.return_value = {}
         mock_orchestrator.config.resolved_models = {"MORTALITY_30D": mock_model_setup}
 
-        runner = MedpipeRunner(orchestrator=mock_orchestrator)
+        runner = MedpipeClassifierRunner(orchestrator=mock_orchestrator)
         X_train, y_train, _, _ = dummy_data
 
         captured_pipelines = []

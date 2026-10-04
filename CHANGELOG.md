@@ -7,7 +7,43 @@ and this project adheres to Semantic Versioning ([SemVer](https://semver.org/spe
 
 ## [Unreleased]
 
-## [0.4.0.dev1] 2026-09-12
+## [0.4.0.dev2] - 2026-10-05
+
+### Added
+* Fit time and total run time to debug log.
+* Saving the raw toml configuration file to the `env/` artifact folder.
+* Tests for new features.
+* Splitting classes (`Medpipe`, `MedpipeEvaluator`, `MedpipeRunner`) into classifier and regressor. 
+* Renamed `Medpipe` to `MedpipeClassifier`.
+* Regression configuration schemas.
+* Tests for the regression configuration schemas.
+* New regression objects `MedpipeRegressionRunner` and `MedpipeRegressionEvaluator`.
+* The CRPS as a score for cross-validation and evaluation for the regressor.
+* A `MedpipeRegressor` class mirroring `MedpipeClassifier` for regression tasks.
+* A `FairnessSplits` mirroring the `DataSplits` class that is used for the 
+fairness evaluation.
+* Renamed `read_toml_configuration` to `read_classifier_toml_configuration`.
+* An `is_classifier` flag to `MedpipeOrchestrator` to load configuration correctly.
+* Split the `MedipeDisplayer` into a base and a classifier version.
+* The `MedipeRegressorDisplayer` and test cases.
+* Parallel loop for stratum bootstrap evaluation.
+* Parallel loop for spline bootstrap reliability diagram.
+* `cv_splines` with a default value of 3 to ICI and reliability diagram 
+`SplineCalib` computations.
+* Moved `plot_probability_distribution` to `BaseDisplayer` as
+`plot_data_distribution`, so `MedpipeRegressorDisplayer` can also plot the
+target-value data distribution; included in both displayers' `plot_all`.
+
+### Fixed
+* Docstring in the `config.py` script.
+* Bug in the default override values for the displayer.
+* Bug in the `compute_metrics` function. 
+* Bug in the `load` methods that did not load the fitted models to the evaluator.
+
+### Removed
+* Custom typings.
+
+## [0.4.0.dev1] - 2026-09-12
 
 ### Added
 * `ruff` as a dev dependency, with lint configuration (`select` rules,
@@ -61,7 +97,7 @@ unescaped regex metacharacters (e.g. `.`) to coincidentally match.
 * Added explicit `strict=True` to a `zip()` call in the evaluator's
 bootstrap-CI fallback path.
 
-## [0.4.0.dev0] 2026-09-09
+## [0.4.0.dev0] - 2026-09-09
 
 ### Added
 * **BREAKING** MedpipeOrchestrator class that handles the loading configuration, data, and creates the ArtifactManager
@@ -132,7 +168,9 @@ bootstrap-CI fallback path.
 ### Removed
 * Class imbalance mitigation methods (data sampling, cost-sensitive learning).
 
-[Unreleased]: https://github.com/Surgical-Recovery-and-Safety-Lab/medpipe/compare/v0.4.0.dev0...HEAD
+[Unreleased]: https://github.com/Surgical-Recovery-and-Safety-Lab/medpipe/compare/v0.4.0.dev2...HEAD
+[v0.4.0.dev2]: https://github.com/Surgical-Recovery-and-Safety-Lab/medpipe/compare/v0.4.0.dev1...v0.4.0.dev2
+[v0.4.0.dev1]: https://github.com/Surgical-Recovery-and-Safety-Lab/medpipe/compare/v0.4.0.dev0...v0.4.0.dev1
 [v0.4.0.dev0]: https://github.com/Surgical-Recovery-and-Safety-Lab/medpipe/compare/v0.3.1...v0.4.0.dev0
 [0.3.1]: https://github.com/Surgical-Recovery-and-Safety-Lab/medpipe/compare/v.0.3.0...v0.3.1
 [0.3.0]: https://github.com/Surgical-Recovery-and-Safety-Lab/medpipe/compare/v.0.2.1...v0.3.0

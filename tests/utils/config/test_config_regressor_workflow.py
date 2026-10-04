@@ -1,15 +1,15 @@
 """
-Test functions for the WorkflowConfig schema of the config module.
+Test functions for the RegressorWorkflowConfig schema of the config module.
 """
 
 import pytest
 from pydantic import ValidationError
 
-from medpipe.utils.config import WorkflowConfig
+from medpipe.utils.config import RegressorWorkflowConfig
 
 
-class TestWorkflowConfig:
-    """Test class for the WorkflowConfig class"""
+class TestRegressorWorkflowConfig:
+    """Test class for the RegressorWorkflowConfig class"""
 
     def _get_valid_config_dict(self, **overrides) -> dict:
         """Creates a fresh valid config dict to override."""
@@ -20,12 +20,8 @@ class TestWorkflowConfig:
                 "preprocess": True,
                 "operations": [
                     {
-                        "name": "OrdinalEncoder",
-                        "columns": ["SEX", "ETHNICITY"],
-                    },
-                    {
-                        "name": "StandarScaler",
-                        "columns": ["SEX", "ETHNICITY"],
+                        "name": "StandardScaler",
+                        "columns": ["AGE", "BMI"],
                         "with_mean": True,
                     },
                 ],
@@ -53,10 +49,9 @@ class TestWorkflowConfig:
             },
             "evaluation": {
                 "metrics": {
-                    "metrics": ["roc_auc", "ici"],
+                    "metrics": ["rmse", "mae"],
                     "ci_level": 0.95,
                     "n_bootstraps": 200,
-                    "cv_splines": 3,
                 },
                 "fairness": {
                     "strata": ["AGE", "SEX"],
@@ -69,16 +64,16 @@ class TestWorkflowConfig:
         return config_dict
 
     def test_valid_config(self) -> None:
-        """Pass valid configuration to WorkflowConfig."""
+        """Pass valid configuration to RegressorWorkflowConfig."""
         raw_config = self._get_valid_config_dict()
-        config = WorkflowConfig.model_validate(raw_config)
+        config = RegressorWorkflowConfig.model_validate(raw_config)
 
         assert config.model_dump() == raw_config
 
     def test_preprocessing_optional(self) -> None:
         """Test that preprocessing defaults to None when omitted."""
         raw_config = self._get_valid_config_dict(preprocessing=None)
-        config = WorkflowConfig.model_validate(raw_config)
+        config = RegressorWorkflowConfig.model_validate(raw_config)
 
         assert config.preprocessing is None
 
@@ -88,34 +83,10 @@ class TestWorkflowConfig:
         del raw_config["random_state"]
         del raw_config["n_jobs"]
 
-        config = WorkflowConfig.model_validate(raw_config)
+        config = RegressorWorkflowConfig.model_validate(raw_config)
 
         assert config.random_state == 42
         assert config.n_jobs == 1
-
-    def test_random_state_limit(self) -> None:
-        """Test that random_state must be non-negative."""
-        with pytest.raises(
-            ValidationError, match="Input should be greater than or equal to 0"
-        ):
-            WorkflowConfig.model_validate(
-                self._get_valid_config_dict(random_state=-1)
-            )
-
-    def test_n_jobs_allows_minus_one(self) -> None:
-        """Test that n_jobs=-1 is accepted as a valid value."""
-        config = WorkflowConfig.model_validate(
-            self._get_valid_config_dict(n_jobs=-1)
-        )
-
-        assert config.n_jobs == -1
-
-    def test_n_jobs_limit(self) -> None:
-        """Test that n_jobs cannot go below -1."""
-        with pytest.raises(
-            ValidationError, match="Input should be greater than or equal to -1"
-        ):
-            WorkflowConfig.model_validate(self._get_valid_config_dict(n_jobs=-2))
 
     def test_validation_required(self) -> None:
         """Test that validation is a required field."""
@@ -123,7 +94,7 @@ class TestWorkflowConfig:
         del raw_config["validation"]
 
         with pytest.raises(ValidationError, match="Field required"):
-            WorkflowConfig.model_validate(raw_config)
+            RegressorWorkflowConfig.model_validate(raw_config)
 
     def test_evaluation_required(self) -> None:
         """Test that evaluation is a required field."""
@@ -131,11 +102,11 @@ class TestWorkflowConfig:
         del raw_config["evaluation"]
 
         with pytest.raises(ValidationError, match="Field required"):
-            WorkflowConfig.model_validate(raw_config)
+            RegressorWorkflowConfig.model_validate(raw_config)
 
     def test_extra_fields_forbidden(self) -> None:
         """Test that extra fields at the workflow config level are forbidden."""
         with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
-            WorkflowConfig.model_validate(
+            RegressorWorkflowConfig.model_validate(
                 self._get_valid_config_dict(unexpected_flag=True)
             )

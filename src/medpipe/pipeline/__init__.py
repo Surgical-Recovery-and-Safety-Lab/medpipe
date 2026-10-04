@@ -1,20 +1,29 @@
 """
 medpipe.pipeline
 ----------------
-Core orchestration, execution, and evaluation interface for the Medpipe package.
+Core orchestration, execution, and evaluation interface for the medpipe
+package.
 
-Exposes the primary high-level pipeline class alongside sub-orchestrators for
-data preparation, cross-validation, model fitting, and evaluation.
+Exposes the primary high-level pipeline classes alongside sub-orchestrators
+for data preparation, cross-validation, model fitting, and evaluation.
 """
 
-from medpipe.pipeline.evaluator import MedpipeEvaluator
+from medpipe.pipeline.estimator import DistributionalPipeline
+from medpipe.pipeline.evaluator import (
+    MedpipeClassifierEvaluator,
+    MedpipeRegressorEvaluator,
+)
 from medpipe.pipeline.orchestrator import MedpipeOrchestrator
-from medpipe.pipeline.pipeline import Medpipe
-from medpipe.pipeline.runner import MedpipeRunner
+from medpipe.pipeline.pipeline import MedpipeClassifier, MedpipeRegressor
+from medpipe.pipeline.runner import MedpipeClassifierRunner, MedpipeRegressorRunner
 
 __all__ = [
-    "Medpipe",
-    "MedpipeEvaluator",
+    "DistributionalPipeline",
+    "MedpipeClassifier",
+    "MedpipeClassifierEvaluator",
+    "MedpipeClassifierRunner",
     "MedpipeOrchestrator",
-    "MedpipeRunner",
+    "MedpipeRegressor",
+    "MedpipeRegressorEvaluator",
+    "MedpipeRegressorRunner",
 ]

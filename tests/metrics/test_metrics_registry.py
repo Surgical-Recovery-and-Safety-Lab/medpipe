@@ -2,6 +2,8 @@
 Test functions for the metrics.registry module.
 """
 
+from unittest.mock import patch
+
 import numpy as np
 import pytest
 from sklearn.linear_model import LogisticRegression
@@ -46,10 +48,13 @@ class TestMetricRegistry:
             display_name="Custom Metric",
         )
 
-        returned = MetricRegistry.register_spec(custom_spec)
+        # patch.dict restores MetricRegistry._registry to its prior state on
+        # exit, so this registration doesn't leak into other tests.
+        with patch.dict(MetricRegistry._registry, {}, clear=False):
+            returned = MetricRegistry.register_spec(custom_spec)
 
-        assert returned is custom_spec
-        assert MetricRegistry.get("custom_test_metric") is custom_spec
+            assert returned is custom_spec
+            assert MetricRegistry.get("custom_test_metric") is custom_spec
 
     def test_register_spec_overwrites_existing_name(self) -> None:
         """Test that registering a new spec under an already-used name
@@ -67,10 +72,13 @@ class TestMetricRegistry:
             display_name="Second",
         )
 
-        MetricRegistry.register_spec(first)
-        MetricRegistry.register_spec(second)
+        # patch.dict restores MetricRegistry._registry to its prior state on
+        # exit, so these registrations don't leak into other tests.
+        with patch.dict(MetricRegistry._registry, {}, clear=False):
+            MetricRegistry.register_spec(first)
+            MetricRegistry.register_spec(second)
 
-        assert MetricRegistry.get("overwrite_me") is second
+            assert MetricRegistry.get("overwrite_me") is second
 
 
 class TestMetricSpec:
@@ -183,3 +191,37 @@ class TestMetricSpec:
 
         expected = float(np.sum(fitted_estimator.predict(X)))
         assert result == pytest.approx(expected)
+
+    def test_get_scorer_predict_dist_bypasses_make_scorer(self) -> None:
+        """Test that response_method='predict_dist' produces a plain raw
+        callable (sklearn's scorer(estimator, X, y) convention) rather than
+        a sklearn make_scorer-built _Scorer object, since make_scorer has no
+        concept of a distributional response method."""
+        captured: dict[str, object] = {}
+
+        def fake_dist_metric(y_true, dist):
+            captured["y_true"] = y_true
+            captured["dist"] = dist
+            return 3.5
+
+        spec = MetricSpec(
+            name="dummy_dist",
+            func=fake_dist_metric,
+            response_method="predict_dist",
+            display_name="Dummy Dist",
+        )
+
+        class _FakeEstimator:
+            def predict_dist(self, X):
+                return f"dist_for:{list(X)}"
+
+        scorer = spec.get_scorer()
+        assert not hasattr(scorer, "_score_func")  # not a sklearn _Scorer
+
+        result = scorer(_FakeEstimator(), [1, 2, 3], np.array([0.1, 0.2, 0.3]))
+
+        # Negated, since CRPS-like distributional metrics are losses
+        # (lower is better) but sklearn scorers are "greater is better".
+        assert result == -3.5
+        assert captured["dist"] == "dist_for:[1, 2, 3]"
+        np.testing.assert_array_equal(captured["y_true"], [0.1, 0.2, 0.3])

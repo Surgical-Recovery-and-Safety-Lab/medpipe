@@ -1,5 +1,5 @@
 """
-Tests for MedpipeRunner._calibrate_model.
+Tests for MedpipeClassifierRunner._calibrate_model.
 """
 
 from unittest.mock import MagicMock, patch
@@ -9,11 +9,11 @@ import pandas as pd
 import pytest
 from sklearn.pipeline import Pipeline
 
-from medpipe.pipeline.runner import MedpipeRunner
+from medpipe.pipeline.runner import MedpipeClassifierRunner
 
 
 class TestCalibrateModel:
-    """Unit tests for MedpipeRunner._calibrate_model."""
+    """Unit tests for MedpipeClassifierRunner._calibrate_model."""
 
     @patch("medpipe.pipeline.runner.CalibratedClassifierCV")
     @patch("medpipe.pipeline.runner.FrozenEstimator")
@@ -21,7 +21,7 @@ class TestCalibrateModel:
         self, mock_frozen, mock_calibrated, mock_orchestrator, dummy_data
     ):
         """Test successful calibration with holdout data."""
-        runner = MedpipeRunner(orchestrator=mock_orchestrator)
+        runner = MedpipeClassifierRunner(orchestrator=mock_orchestrator)
         _, _, X_recal, y_recal = dummy_data
 
         mock_pipeline = MagicMock(spec=Pipeline)
@@ -49,7 +49,7 @@ class TestCalibrateModel:
 
     def test_calibrate_model_skip_none_data(self, mock_orchestrator):
         """Test calibration is skipped when X_recal is None."""
-        runner = MedpipeRunner(orchestrator=mock_orchestrator)
+        runner = MedpipeClassifierRunner(orchestrator=mock_orchestrator)
         mock_pipeline = MagicMock(spec=Pipeline)
         model_config = {"recalibration": {"recalibrate": True, "method": "sigmoid"}}
 
@@ -65,7 +65,7 @@ class TestCalibrateModel:
 
     def test_calibrate_model_skip_empty_dataframe(self, mock_orchestrator):
         """Test calibration is skipped when X_recal is an empty DataFrame."""
-        runner = MedpipeRunner(orchestrator=mock_orchestrator)
+        runner = MedpipeClassifierRunner(orchestrator=mock_orchestrator)
         mock_pipeline = MagicMock(spec=Pipeline)
         model_config = {"recalibration": {"recalibrate": True, "method": "sigmoid"}}
 
@@ -82,7 +82,7 @@ class TestCalibrateModel:
     def test_calibrate_model_skip_missing_config(self, mock_orchestrator, dummy_data):
         """Test calibration is skipped when model config lacks recalibration
         settings."""
-        runner = MedpipeRunner(orchestrator=mock_orchestrator)
+        runner = MedpipeClassifierRunner(orchestrator=mock_orchestrator)
         _, _, X_recal, y_recal = dummy_data
 
         mock_pipeline = MagicMock(spec=Pipeline)
@@ -102,7 +102,7 @@ class TestCalibrateModel:
         self, mock_orchestrator, dummy_data
     ):
         """Test calibration is skipped when recalibrate is set to False in config."""
-        runner = MedpipeRunner(orchestrator=mock_orchestrator)
+        runner = MedpipeClassifierRunner(orchestrator=mock_orchestrator)
         _, _, X_recal, y_recal = dummy_data
 
         mock_pipeline = MagicMock(spec=Pipeline)
@@ -123,7 +123,7 @@ class TestCalibrateModel:
     ):
         """Test assertion error is raised if y_recal is None when
         recalibration is enabled."""
-        runner = MedpipeRunner(orchestrator=mock_orchestrator)
+        runner = MedpipeClassifierRunner(orchestrator=mock_orchestrator)
         _, _, X_recal, _ = dummy_data
 
         mock_pipeline = MagicMock(spec=Pipeline)
