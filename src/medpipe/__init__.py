@@ -19,7 +19,7 @@ from medpipe.pipeline import (
 )
 from medpipe.utils import MedpipeClassifierConfig, MedpipeRegressorConfig
 
-__version__ = "0.4.0.dev1"
+__version__ = "0.4.0.dev2"
 
 __all__ = [  # noqa: RUF022 (grouped by category, not alphabetical)
     # Primary API Entry Points

@@ -7,6 +7,8 @@ and this project adheres to Semantic Versioning ([SemVer](https://semver.org/spe
 
 ## [Unreleased]
 
+## [0.4.0.dev2] - 2026-10-05
+
 ### Added
 * Fit time and total run time to debug log.
 * Saving the raw toml configuration file to the `env/` artifact folder.
@@ -41,7 +43,7 @@ target-value data distribution; included in both displayers' `plot_all`.
 ### Removed
 * Custom typings.
 
-## [0.4.0.dev1] 2026-09-12
+## [0.4.0.dev1] - 2026-09-12
 
 ### Added
 * `ruff` as a dev dependency, with lint configuration (`select` rules,
@@ -95,7 +97,7 @@ unescaped regex metacharacters (e.g. `.`) to coincidentally match.
 * Added explicit `strict=True` to a `zip()` call in the evaluator's
 bootstrap-CI fallback path.
 
-## [0.4.0.dev0] 2026-09-09
+## [0.4.0.dev0] - 2026-09-09
 
 ### Added
 * **BREAKING** MedpipeOrchestrator class that handles the loading configuration, data, and creates the ArtifactManager
@@ -166,7 +168,8 @@ bootstrap-CI fallback path.
 ### Removed
 * Class imbalance mitigation methods (data sampling, cost-sensitive learning).
 
-[Unreleased]: https://github.com/Surgical-Recovery-and-Safety-Lab/medpipe/compare/v0.4.0.dev1...HEAD
+[Unreleased]: https://github.com/Surgical-Recovery-and-Safety-Lab/medpipe/compare/v0.4.0.dev2...HEAD
+[v0.4.0.dev2]: https://github.com/Surgical-Recovery-and-Safety-Lab/medpipe/compare/v0.4.0.dev1...v0.4.0.dev2
 [v0.4.0.dev1]: https://github.com/Surgical-Recovery-and-Safety-Lab/medpipe/compare/v0.4.0.dev0...v0.4.0.dev1
 [v0.4.0.dev0]: https://github.com/Surgical-Recovery-and-Safety-Lab/medpipe/compare/v0.3.1...v0.4.0.dev0
 [0.3.1]: https://github.com/Surgical-Recovery-and-Safety-Lab/medpipe/compare/v.0.3.0...v0.3.1
