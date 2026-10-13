@@ -108,7 +108,11 @@ class BaseRunner:
         return estimator
 
     def _create_cv_splitter(
-        self, strategy: str, n_splits: int, random_state: int | None
+        self,
+        strategy: str,
+        n_splits: int,
+        random_state: int | None,
+        shuffle: bool = True,
     ) -> BaseCrossValidator:
         """
         Instantiates the appropriate cross-validation splitter.
@@ -124,7 +128,10 @@ class BaseRunner:
         n_splits : int
             The number of cross-validation folds.
         random_state : int | None
-            The random seed for reproducibility.
+            The random seed for reproducibility. Only used when `shuffle` is
+            True, since scikit-learn rejects a seed for unshuffled splitters.
+        shuffle : bool, default=True
+            Whether to shuffle the samples before splitting into folds.
 
         Returns
         -------
@@ -465,6 +472,7 @@ class BaseRunner:
                 strategy=cv_config.strategy,
                 n_splits=cv_config.n_splits,
                 random_state=self.orchestrator.config.workflow.random_state,
+                shuffle=True if cv_config.shuffle is None else cv_config.shuffle,
             )
             self.logger.debug(
                 f"[{outcome}] CV {type(cv_splitter).__name__} "
@@ -601,7 +609,11 @@ class MedpipeClassifierRunner(BaseRunner):
     _default_metrics: ClassVar[list[str]] = ["roc_auc"]
 
     def _create_cv_splitter(
-        self, strategy: str, n_splits: int, random_state: int | None
+        self,
+        strategy: str,
+        n_splits: int,
+        random_state: int | None,
+        shuffle: bool = True,
     ) -> StratifiedKFold | StratifiedGroupKFold:
         """
         Instantiates the appropriate cross-validation splitter.
@@ -613,7 +625,10 @@ class MedpipeClassifierRunner(BaseRunner):
         n_splits : int
             The number of cross-validation folds.
         random_state : int | None
-            The random seed for reproducibility.
+            The random seed for reproducibility. Only used when `shuffle` is
+            True, since scikit-learn rejects a seed for unshuffled splitters.
+        shuffle : bool, default=True
+            Whether to shuffle the samples before splitting into folds.
 
         Returns
         -------
@@ -626,13 +641,14 @@ class MedpipeClassifierRunner(BaseRunner):
             If an unsupported strategy is provided.
 
         """
+        seed = random_state if shuffle else None
         if strategy == "random":
             return StratifiedKFold(
-                n_splits=n_splits, shuffle=True, random_state=random_state
+                n_splits=n_splits, shuffle=shuffle, random_state=seed
             )
         elif strategy == "group":
             return StratifiedGroupKFold(
-                n_splits=n_splits, shuffle=True, random_state=random_state
+                n_splits=n_splits, shuffle=shuffle, random_state=seed
             )
         else:
             raise ValueError(f"Strategy must be 'random' or 'group', got {strategy}")
@@ -791,7 +807,11 @@ class MedpipeRegressorRunner(BaseRunner):
     _default_metrics: ClassVar[list[str]] = ["rmse"]
 
     def _create_cv_splitter(
-        self, strategy: str, n_splits: int, random_state: int | None
+        self,
+        strategy: str,
+        n_splits: int,
+        random_state: int | None,
+        shuffle: bool = True,
     ) -> KFold | GroupKFold:
         """
         Instantiates the appropriate cross-validation splitter.
@@ -803,7 +823,10 @@ class MedpipeRegressorRunner(BaseRunner):
         n_splits : int
             The number of cross-validation folds.
         random_state : int | None
-            The random seed for reproducibility.
+            The random seed for reproducibility. Only used when `shuffle` is
+            True, since scikit-learn rejects a seed for unshuffled splitters.
+        shuffle : bool, default=True
+            Whether to shuffle the samples before splitting into folds.
 
         Returns
         -------
@@ -816,11 +839,10 @@ class MedpipeRegressorRunner(BaseRunner):
             If an unsupported strategy is provided.
 
         """
+        seed = random_state if shuffle else None
         if strategy == "random":
-            return KFold(n_splits=n_splits, shuffle=True, random_state=random_state)
+            return KFold(n_splits=n_splits, shuffle=shuffle, random_state=seed)
         elif strategy == "group":
-            return GroupKFold(
-                n_splits=n_splits, shuffle=True, random_state=random_state
-            )
+            return GroupKFold(n_splits=n_splits, shuffle=shuffle, random_state=seed)
         else:
             raise ValueError(f"Strategy must be 'random' or 'group', got {strategy}")
