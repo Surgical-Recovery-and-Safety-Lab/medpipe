@@ -216,12 +216,12 @@ class BaseDisplayer:
 
         Examples
         --------
-        >>> BaseDisplayer._format_stratum_label("AGE", "[18, 50]")
-        'AGE: 18-50'
-        >>> BaseDisplayer._format_stratum_label("AGE", "[51, 120]")
-        'AGE: ≥ 51'
-        >>> BaseDisplayer._format_stratum_label("SEX", "F")
-        'SEX: F'
+        >>> BaseDisplayer._format_stratum_label("[18, 50]")
+        '18-50'
+        >>> BaseDisplayer._format_stratum_label("[51, 120]")
+        '≥ 51'
+        >>> BaseDisplayer._format_stratum_label("F")
+        'Female'
 
         """
         cat_str = str(cat_key).strip()
