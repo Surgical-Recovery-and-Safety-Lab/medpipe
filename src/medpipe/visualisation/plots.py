@@ -1082,7 +1082,7 @@ def draw_marginal_calibration(
     ax.axhline(0.0, color=zero_color, linestyle=zero_linestyle, linewidth=1.5)
 
     ax.set_xlabel("Target value", fontweight="bold")
-    ax.set_ylabel("eCDF - mean predicted CDF", fontweight="bold")
+    ax.set_ylabel(r"eCDF - $\mathbf{\overline{CDF}}$", fontweight="bold")
 
     if title:
         ax.set_title(title, fontweight="bold")
