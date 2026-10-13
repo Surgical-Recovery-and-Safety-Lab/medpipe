@@ -198,6 +198,23 @@ class MedpipeClassifier:
         return self._orchestrator.fairness_splits
 
     @property
+    def prepare_data(self) -> Callable[..., tuple]:
+        """Access the orchestrator's data preparation function.
+
+        Ingests the configured dataset and creates the train/recal/test
+        splits, e.g. `X_train, y_train, X_recal, y_recal, X_test, y_test,
+        groups_train = pipeline.prepare_data()`. Keyword arguments are passed
+        to the underlying Pandas reader function.
+
+        Returns
+        -------
+        Callable
+            The bound `MedpipeOrchestrator.prepare_data` method.
+
+        """
+        return self._orchestrator.prepare_data
+
+    @property
     def metrics(self) -> list[str]:
         """Returns metrics used during evaluation.
 
@@ -804,6 +821,23 @@ class MedpipeRegressor:
 
         """
         return self._orchestrator.fairness_splits
+
+    @property
+    def prepare_data(self) -> Callable[..., tuple]:
+        """Access the orchestrator's data preparation function.
+
+        Ingests the configured dataset and creates the train/recal/test
+        splits, e.g. `X_train, y_train, X_recal, y_recal, X_test, y_test,
+        groups_train = pipeline.prepare_data()`. Keyword arguments are passed
+        to the underlying Pandas reader function.
+
+        Returns
+        -------
+        Callable
+            The bound `MedpipeOrchestrator.prepare_data` method.
+
+        """
+        return self._orchestrator.prepare_data
 
     @property
     def metrics(self) -> list[str]:
