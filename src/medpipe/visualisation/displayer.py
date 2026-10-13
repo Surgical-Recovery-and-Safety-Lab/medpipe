@@ -1765,6 +1765,7 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
         self,
         y_true: np.ndarray,
         dist: ContinuousPredictiveDistribution,
+        mapper: BaseBinMapper,
     ) -> tuple[np.ndarray, np.ndarray]:
         """Compute the marginal calibration curve for a predictive distribution.
 
@@ -1774,6 +1775,8 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
             Ground truth continuous target values of shape (n_samples,).
         dist : ContinuousPredictiveDistribution
             Predictive distribution for the same samples.
+        mapper : BaseBinMapper
+            Mapper used by the OrdBoostRegressor.
 
         Returns
         -------
@@ -1784,7 +1787,7 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
 
         """
         y_true_arr = np.asarray(y_true, dtype=float)
-        grid_y, diff = marginal_calibration_curve(y_true_arr, dist)
+        grid_y, diff = marginal_calibration_curve(y_true_arr, dist, mapper)
         return grid_y, diff
 
     def _compute_pit_histogram_data(
@@ -2144,6 +2147,7 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
         self,
         y_true: np.ndarray,
         dist: ContinuousPredictiveDistribution,
+        mapper: BaseBinMapper,
         outcome: str = "default",
         label: str | None = None,
         save: bool | None = None,
@@ -2158,6 +2162,8 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
             Ground truth continuous target values of shape (n_samples,).
         dist : ContinuousPredictiveDistribution
             Predictive distribution for the same samples.
+        mapper : BaseBinMapper
+            Mapper used by the OrdBoostRegressor.
         outcome : str, default="default"
             Outcome identifier used for figure titles and folder structuring.
         label : str, optional
@@ -2188,7 +2194,9 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
         show_val = cfg["show"]
 
         self.logger.info(f"[{outcome}] Starting marginal calibration plotting.")
-        grid_y, diff = self._compute_marginal_calibration_data(y_true=y_true, dist=dist)
+        grid_y, diff = self._compute_marginal_calibration_data(
+            y_true=y_true, dist=dist, mapper=mapper
+        )
 
         display_label = label or "Model"
 
