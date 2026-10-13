@@ -2413,6 +2413,7 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
         plots["marginal_calibration"] = self.plot_marginal_calibration(
             y_true=y_true,
             dist=dist,
+            mapper=mapper,
             outcome=outcome,
             save=save,
             show=show,
