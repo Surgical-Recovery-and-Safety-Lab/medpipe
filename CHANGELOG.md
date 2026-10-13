@@ -7,6 +7,18 @@ and this project adheres to Semantic Versioning ([SemVer](https://semver.org/spe
 
 ## [Unreleased]
 
+### Added
+* An `ideal` flag for the coverage plot to only plot the ideal coverage line once.
+
+### Changed
+* Using `pysplinecalib` instead of `splinecalib`.
+* Updates in the marginal calibration and PIT functions to work with the new
+version of ordboost.
+* Using error bars instead of shaded areas to represent 95% CI in the coverage
+and sharpness plots.
+* The stratum heatmap labels were updated to simpler versions.
+* Small changes to legend locations and labels.
+
 ## [0.4.0.dev2] - 2026-10-05
 
 ### Added
