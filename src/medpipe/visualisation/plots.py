@@ -694,7 +694,7 @@ def draw_coverage_curve(
         Pre-existing Matplotlib axes instance. If None, a new figure and axes
         are created.
     color : str, default=_DEFAULT_THEME.primary_color
-        Color specifier for the main curve and default confidence interval error bars.
+        Color specifier for the main curve and default error bar color.
     ci_color : str, optional
         Custom color specifier for confidence interval error bars. Defaults to `color`.
     ci_alpha : float, default=_DEFAULT_THEME.ci_alpha
@@ -824,7 +824,7 @@ def draw_sharpness_curve(
         Pre-existing Matplotlib axes instance. If None, a new figure and axes
         are created.
     color : str, default=_DEFAULT_THEME.primary_color
-        Color specifier for the main curve and default confidence interval error bars.
+        Color specifier for the main curve and default error bar color.
     ci_color : str, optional
         Custom color specifier for confidence interval error bars. Defaults to `color`.
     ci_alpha : float, default=_DEFAULT_THEME.ci_alpha
@@ -929,20 +929,20 @@ def draw_winkler_curve(
     winkler_values : np.ndarray
         Mean Winkler score at each nominal coverage level (lower is better).
     lower_ci : np.ndarray, optional
-        Lower bound array for 95% confidence interval shading.
+        Lower bound array for 95% confidence interval error bars.
     upper_ci : np.ndarray, optional
-        Upper bound array for 95% confidence interval shading.
+        Upper bound array for 95% confidence interval error bars.
     label : str, default="Model"
         Legend label for the plotted curve.
     ax : matplotlib.axes.Axes, optional
         Pre-existing Matplotlib axes instance. If None, a new figure and axes
         are created.
     color : str, default=_DEFAULT_THEME.primary_color
-        Color specifier for the main curve and default confidence interval fill.
+        Color specifier for the main curve and default error bar color.
     ci_color : str, optional
         Custom color specifier for confidence interval shading. Defaults to `color`.
     ci_alpha : float, default=_DEFAULT_THEME.ci_alpha
-        Opacity level for confidence interval shaded region [0.0, 1.0].
+        Opacity level for confidence interval error bars [0.0, 1.0].
     linestyle : str, default="-"
         Line style for the Winkler score curve.
     linewidth : float, default=_DEFAULT_THEME.linewidth
@@ -954,7 +954,8 @@ def draw_winkler_curve(
     show_spines : bool, default=_DEFAULT_THEME.show_spines
         Whether to keep the top and right border spines visible.
     **line_kwargs : Any
-        Additional Matplotlib keyword arguments forwarded to `ax.plot`.
+        Additional Matplotlib keyword arguments forwarded to `ax.errorbar`
+        (or `ax.plot` when no confidence interval is given).
 
     Returns
     -------
@@ -984,17 +985,22 @@ def draw_winkler_curve(
     if marker:
         plot_kwargs["marker"] = marker
 
-    ax.plot(coverage_levels, winkler_values, **plot_kwargs)
-
     if lower_ci is not None and upper_ci is not None:
-        ax.fill_between(
+        ax.errorbar(
             coverage_levels,
-            lower_ci,
-            upper_ci,
-            color=ci_color or color,
+            winkler_values,
+            yerr=[
+                np.clip(winkler_values - lower_ci, 0, None),
+                np.clip(upper_ci - winkler_values, 0, None),
+            ],
+            ecolor=ci_color or color,
+            elinewidth=linewidth,
+            capsize=4,
             alpha=ci_alpha,
-            label=f"{label} 95% CI",
+            **plot_kwargs,
         )
+    else:
+        ax.plot(coverage_levels, winkler_values, **plot_kwargs)
 
     ax.set_xlabel("Nominal coverage (%)", fontweight="bold")
     ax.set_ylabel("Winkler score", fontweight="bold")
