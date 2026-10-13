@@ -11,6 +11,7 @@ from sklearn.model_selection import (
     GridSearchCV,
     GroupKFold,
     KFold,
+    LeaveOneGroupOut,
     StratifiedGroupKFold,
     StratifiedKFold,
     cross_validate,
@@ -110,7 +111,7 @@ class BaseRunner:
     def _create_cv_splitter(
         self,
         strategy: str,
-        n_splits: int,
+        n_splits: int | None,
         random_state: int | None,
         shuffle: bool = True,
     ) -> BaseCrossValidator:
@@ -123,15 +124,18 @@ class BaseRunner:
 
         Parameters
         ----------
-        strategy : {'random', 'group'}
-            The CV strategy to employ.
-        n_splits : int
-            The number of cross-validation folds.
+        strategy : {'random', 'group', 'loso'}
+            The CV strategy to employ. The 'loso' strategy holds out one
+            group per fold (leave-one-group-out).
+        n_splits : int | None
+            The number of cross-validation folds. Ignored by the 'loso'
+            strategy, which has one fold per group.
         random_state : int | None
             The random seed for reproducibility. Only used when `shuffle` is
             True, since scikit-learn rejects a seed for unshuffled splitters.
         shuffle : bool, default=True
             Whether to shuffle the samples before splitting into folds.
+            Ignored by the 'loso' strategy.
 
         Returns
         -------
@@ -262,7 +266,7 @@ class BaseRunner:
         Raises
         ------
         ValueError
-            If the groups_train is None when strategy is group.
+            If `groups_train` is None when the strategy is 'group' or 'loso'.
 
         """
         # Retrieve the list of metrics from the configuration safely
@@ -277,8 +281,11 @@ class BaseRunner:
         cv_cfg = self.orchestrator.config.workflow.validation.cross_validation
         assert cv_cfg
 
-        if cv_cfg.strategy == "group" and groups_train is None:
-            raise ValueError("The 'groups' parameter should not be None")
+        if cv_cfg.strategy in ("group", "loso") and groups_train is None:
+            raise ValueError(
+                f"The 'groups' parameter should not be None for the "
+                f"'{cv_cfg.strategy}' strategy"
+            )
 
         scorers_dict = build_scorers(configured_metrics)
 
@@ -466,7 +473,7 @@ class BaseRunner:
         # 3. Training Loop
         if self.orchestrator.config.meta.run_mode in ["audit", "cv"]:
             assert cv_config
-            assert cv_config.n_splits
+            assert cv_config.strategy == "loso" or cv_config.n_splits
 
             cv_splitter = self._create_cv_splitter(
                 strategy=cv_config.strategy,
@@ -611,28 +618,31 @@ class MedpipeClassifierRunner(BaseRunner):
     def _create_cv_splitter(
         self,
         strategy: str,
-        n_splits: int,
+        n_splits: int | None,
         random_state: int | None,
         shuffle: bool = True,
-    ) -> StratifiedKFold | StratifiedGroupKFold:
+    ) -> StratifiedKFold | StratifiedGroupKFold | LeaveOneGroupOut:
         """
         Instantiates the appropriate cross-validation splitter.
 
         Parameters
         ----------
-        strategy : {'random', 'group'}
-            The CV strategy to employ.
-        n_splits : int
-            The number of cross-validation folds.
+        strategy : {'random', 'group', 'loso'}
+            The CV strategy to employ. The 'loso' strategy holds out one
+            group per fold (leave-one-group-out).
+        n_splits : int | None
+            The number of cross-validation folds. Ignored by the 'loso'
+            strategy, which has one fold per group.
         random_state : int | None
             The random seed for reproducibility. Only used when `shuffle` is
             True, since scikit-learn rejects a seed for unshuffled splitters.
         shuffle : bool, default=True
             Whether to shuffle the samples before splitting into folds.
+            Ignored by the 'loso' strategy.
 
         Returns
         -------
-        Union[StratifiedKFold, StratifiedGroupKFold]
+        Union[StratifiedKFold, StratifiedGroupKFold, LeaveOneGroupOut]
             The instantiated cross-validation splitter object.
 
         Raises
@@ -650,8 +660,12 @@ class MedpipeClassifierRunner(BaseRunner):
             return StratifiedGroupKFold(
                 n_splits=n_splits, shuffle=shuffle, random_state=seed
             )
+        elif strategy == "loso":
+            return LeaveOneGroupOut()
         else:
-            raise ValueError(f"Strategy must be 'random' or 'group', got {strategy}")
+            raise ValueError(
+                f"Strategy must be 'random', 'group' or 'loso', got {strategy}"
+            )
 
     def _calibrate_model(
         self,
@@ -809,28 +823,31 @@ class MedpipeRegressorRunner(BaseRunner):
     def _create_cv_splitter(
         self,
         strategy: str,
-        n_splits: int,
+        n_splits: int | None,
         random_state: int | None,
         shuffle: bool = True,
-    ) -> KFold | GroupKFold:
+    ) -> KFold | GroupKFold | LeaveOneGroupOut:
         """
         Instantiates the appropriate cross-validation splitter.
 
         Parameters
         ----------
-        strategy : {'random', 'group'}
-            The CV strategy to employ.
-        n_splits : int
-            The number of cross-validation folds.
+        strategy : {'random', 'group', 'loso'}
+            The CV strategy to employ. The 'loso' strategy holds out one
+            group per fold (leave-one-group-out).
+        n_splits : int | None
+            The number of cross-validation folds. Ignored by the 'loso'
+            strategy, which has one fold per group.
         random_state : int | None
             The random seed for reproducibility. Only used when `shuffle` is
             True, since scikit-learn rejects a seed for unshuffled splitters.
         shuffle : bool, default=True
             Whether to shuffle the samples before splitting into folds.
+            Ignored by the 'loso' strategy.
 
         Returns
         -------
-        Union[KFold, GroupKFold]
+        Union[KFold, GroupKFold, LeaveOneGroupOut]
             The instantiated cross-validation splitter object.
 
         Raises
@@ -844,5 +861,9 @@ class MedpipeRegressorRunner(BaseRunner):
             return KFold(n_splits=n_splits, shuffle=shuffle, random_state=seed)
         elif strategy == "group":
             return GroupKFold(n_splits=n_splits, shuffle=shuffle, random_state=seed)
+        elif strategy == "loso":
+            return LeaveOneGroupOut()
         else:
-            raise ValueError(f"Strategy must be 'random' or 'group', got {strategy}")
+            raise ValueError(
+                f"Strategy must be 'random', 'group' or 'loso', got {strategy}"
+            )
