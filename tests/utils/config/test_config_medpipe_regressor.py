@@ -125,18 +125,18 @@ class TestMedpipeRegressorConfig:
             MedpipeRegressorConfig.model_validate(config)
 
     @pytest.mark.parametrize("run_mode", ["audit", "eval"])
-    def test_evaluation(self, tmp_path: Path, run_mode: str) -> None:
-        """Test case when run_mode and evaluation mismatch."""
-        match_expr = (
-            "Evaluation fairness parameters must be specified "
-            "when run_mode is 'audit' or 'eval'"
-        )
+    def test_evaluation_without_fairness_allowed(
+        self, tmp_path: Path, run_mode: str
+    ) -> None:
+        """Test that audit and eval run modes do not require fairness
+        parameters."""
         config = self._get_valid_config_dict(tmp_path)
         config["meta"]["run_mode"] = run_mode
         config["workflow"]["evaluation"]["fairness"] = None
 
-        with pytest.raises(ValueError, match=match_expr):
-            MedpipeRegressorConfig.model_validate(config)
+        validated = MedpipeRegressorConfig.model_validate(config)
+
+        assert validated.workflow.evaluation.fairness is None
 
     @pytest.mark.parametrize("run_mode", ["audit", "eval"])
     def test_display_config_value_error(self, tmp_path: Path, run_mode: str) -> None:
