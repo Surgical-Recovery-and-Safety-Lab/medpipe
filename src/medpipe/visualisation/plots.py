@@ -1015,7 +1015,7 @@ def draw_marginal_calibration(
     linestyle: str = "-",
     linewidth: float = _DEFAULT_THEME.linewidth,
     zero_linestyle: str = "--",
-    zero_color: str = "gray",
+    zero_color: str = "black",
     title: str | None = None,
     show_spines: bool = _DEFAULT_THEME.show_spines,
     **line_kwargs: Any,
@@ -1042,7 +1042,7 @@ def draw_marginal_calibration(
         Width in points for the curve line.
     zero_linestyle : str, default="--"
         Line style for the zero (perfect calibration) reference line.
-    zero_color : str, default="gray"
+    zero_color : str, default="black"
         Color specifier for the zero reference line.
     title : str, optional
         Axes title text.
