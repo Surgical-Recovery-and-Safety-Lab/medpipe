@@ -284,7 +284,7 @@ class TestComputeReliabilityData:
         )
         fake_instance.calibrate.return_value = two_d_output
 
-        with patch("splinecalib.SplineCalib", return_value=fake_instance):
+        with patch("pysplinecalib.SplineCalib", return_value=fake_instance):
             prob_true, _prob_pred, lower_ci, upper_ci = (
                 displayer._compute_reliability_data(
                     y_true=y_true, probas=probas, strategy="spline", n_bootstraps=5

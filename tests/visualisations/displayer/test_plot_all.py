@@ -114,8 +114,8 @@ class TestPlotAll:
         rendered_yticklabels = [label.get_text() for label in ax.get_yticklabels()]
 
         assert "All strata" in rendered_yticklabels
-        assert "SEX: F" in rendered_yticklabels
-        assert "SEX: M" in rendered_yticklabels
-        assert "AGE: 18-50" in rendered_yticklabels
-        assert "AGE: ≥ 51" in rendered_yticklabels
-        assert "AGE: [51, 120]" not in rendered_yticklabels  # Raw string transformed
+        assert "Female" in rendered_yticklabels
+        assert "Male" in rendered_yticklabels
+        assert "18-50" in rendered_yticklabels
+        assert "≥ 51" in rendered_yticklabels
+        assert "[51, 120]" not in rendered_yticklabels  # Raw string transformed

@@ -95,7 +95,7 @@ class TestPlotCoverage:
         lines = [line for line in ax.get_lines() if len(line.get_ydata()) == 10]
         assert len(lines) >= 1
         for line in lines:
-            ydata = np.asarray(line.get_ydata())
+            ydata = np.asarray(line.get_ydata(), dtype=float)
             assert np.all(np.isfinite(ydata))
             assert np.all((ydata >= 0) & (ydata <= 100))
 
@@ -185,18 +185,18 @@ class TestPlotMarginalCalibration:
     ) -> None:
         """Test that the marginal calibration difference stays within
         [-1, 1] (difference of two CDFs) and the figure renders."""
-        y_true, dist, _mapper = fitted_ordboost_dist_and_data
+        y_true, dist, mapper = fitted_ordboost_dist_and_data
         displayer = MedpipeRegressorDisplayer(orchestrator=mock_orchestrator)
 
         _grid_y, diff = displayer._compute_marginal_calibration_data(
-            y_true=y_true, dist=dist
+            y_true=y_true, dist=dist, mapper=mapper
         )
 
         assert np.all(np.isfinite(diff))
         assert np.all(diff >= -1.0) and np.all(diff <= 1.0)
 
         fig, ax = displayer.plot_marginal_calibration(
-            y_true=y_true, dist=dist, save=False, show=False
+            y_true=y_true, dist=dist, mapper=mapper, save=False, show=False
         )
         assert fig is not None
         assert ax is not None
