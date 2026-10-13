@@ -115,8 +115,6 @@ def draw_data_distribution(
         ax.spines["top"].set_visible(False)
         ax.spines["right"].set_visible(False)
 
-    ax.legend(loc="upper right", frameon=False)
-
     return fig, ax
 
 
@@ -541,6 +539,7 @@ def draw_reliability_diagram(
         ax_dist.set_xlabel("Mean predicted probability", fontweight="bold")
         ax_dist.set_ylabel("Count", fontweight="bold")
         ax_dist.set_yscale(dist_yscale)
+        ax_dist.set_ylim(bottom=1, top=30e5)
 
         if not show_spines:
             ax_dist.spines["top"].set_visible(False)
@@ -558,7 +557,7 @@ def draw_strata_heatmap(
     text_data: np.ndarray,
     row_labels: list[str],
     col_labels: list[str],
-    colorbar_label: str = r"|$\Delta$ Score|",
+    colorbar_label: str = r"|$\mathbf{\Delta}$ Score|",
     vmax: float = 0.1,
     ax: Axes | None = None,
     cmap: str = "cividis",
@@ -600,7 +599,7 @@ def draw_strata_heatmap(
 
     """
     if ax is None:
-        fig, ax = plt.subplots(figsize=(8, 6))
+        fig, ax = plt.subplots(figsize=(10, 6))
     else:
         fig = ax.get_figure()
         if fig is None:
@@ -1091,8 +1090,6 @@ def draw_marginal_calibration(
         ax.spines["top"].set_visible(False)
         ax.spines["right"].set_visible(False)
 
-    ax.legend(loc="best", frameon=False)
-
     return fig, ax
 
 
@@ -1169,7 +1166,7 @@ def draw_pit_histogram(
         width=bin_width * 0.9,
         color=color,
         edgecolor=edgecolor,
-        label=f"{label} (alpha score: {alpha_score:.3f})",
+        label=rf"{label} ($\alpha$ score: {alpha_score:.3f})",
         **bar_kwargs,
     )
     ax.axhline(
