@@ -754,17 +754,20 @@ def draw_coverage_curve(
     if marker:
         plot_kwargs["marker"] = marker
 
-    ax.plot(coverage_levels, empirical_coverage, **plot_kwargs)
-
     if lower_ci is not None and upper_ci is not None:
-        ax.fill_between(
+        ax.errorbar(
             coverage_levels,
-            lower_ci,
-            upper_ci,
-            color=ci_color or color,
+            empirical_coverage,
+            yerr=[empirical_coverage - lower_ci, upper_ci - empirical_coverage],
+            ecolor=ci_color or color,
+            elinewidth=linewidth,
+            capsize=4,
             alpha=ci_alpha,
-            label=f"{label} 95% CI",
+            **plot_kwargs,
         )
+
+    else:
+        ax.plot(coverage_levels, empirical_coverage, **plot_kwargs)
 
     ax.set_xlabel("Nominal coverage (%)", fontweight="bold")
     ax.set_ylabel("Empirical coverage (%)", fontweight="bold")
