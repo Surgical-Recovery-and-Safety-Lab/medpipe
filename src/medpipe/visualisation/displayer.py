@@ -356,7 +356,6 @@ class BaseDisplayer:
                 yscale=dist_yscale_val,
                 color=style_kwargs.pop("color", self.theme.primary_color),
                 show_spines=style_kwargs.pop("show_spines", self.theme.show_spines),
-                title=f"Data Distribution - {outcome.capitalize()}",
                 **style_kwargs,
             )
 
@@ -469,7 +468,7 @@ class BaseDisplayer:
 
         is_ici = metric.lower() == "ici"
         vmax = 0.5 if is_ici else 0.1
-        percent = " (%)" if is_ici else ""
+        percent = r" $\times$ 100" if is_ici else ""
 
         if is_ici:
             plot_data *= 100
