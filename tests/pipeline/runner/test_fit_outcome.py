@@ -7,6 +7,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from sklearn.calibration import CalibratedClassifierCV
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import LeaveOneGroupOut
 from sklearn.pipeline import Pipeline
 
 from medpipe.pipeline.runner import MedpipeClassifierRunner
@@ -44,6 +45,7 @@ class TestFitOutcome:
         cv_cfg = MagicMock()
         cv_cfg.strategy = "random"
         cv_cfg.n_splits = 3
+        cv_cfg.shuffle = True
         mock_orchestrator.config.workflow.validation.cross_validation = cv_cfg
         mock_orchestrator.config.workflow.random_state = 42
 
@@ -68,6 +70,72 @@ class TestFitOutcome:
             else:
                 mock_train_cv.assert_not_called()
                 mock_pipeline_fit.assert_called_once_with(X_train, y_train)
+
+    @pytest.mark.parametrize(
+        "config_shuffle, expected",
+        [(None, True), (True, True), (False, False)],
+    )
+    @patch("medpipe.pipeline.runner.MedpipeClassifierRunner._save_model")
+    @patch("medpipe.pipeline.runner.MedpipeClassifierRunner._train_model_cv")
+    def test_fit_outcome_passes_shuffle_to_cv_splitter(
+        self,
+        mock_train_cv,
+        mock_save,
+        mock_orchestrator,
+        dummy_data,
+        config_shuffle,
+        expected,
+    ):
+        """Test the cross-validation `shuffle` flag reaches the splitter,
+        defaulting to shuffling when unset."""
+        mock_orchestrator.config.meta.run_mode = "cv"
+        cv_cfg = MagicMock()
+        cv_cfg.strategy = "random"
+        cv_cfg.n_splits = 3
+        cv_cfg.shuffle = config_shuffle
+        mock_orchestrator.config.workflow.validation.cross_validation = cv_cfg
+        mock_orchestrator.config.workflow.random_state = 42
+
+        mock_model_setup = MagicMock(spec=ModelSetup)
+        mock_model_setup.algorithm = "HistGradientBoostingClassifier"
+        mock_model_setup.hyperparameters = {}
+        mock_model_setup.model_dump.return_value = {}
+        mock_orchestrator.config.resolved_models = {"MORTALITY_30D": mock_model_setup}
+
+        runner = MedpipeClassifierRunner(orchestrator=mock_orchestrator)
+        X_train, y_train, _, _ = dummy_data
+        runner.fit_outcome("MORTALITY_30D", X_train, y_train)
+
+        splitter = mock_train_cv.call_args.kwargs["cv_splitter"]
+        assert splitter.shuffle is expected
+
+    @patch("medpipe.pipeline.runner.MedpipeClassifierRunner._save_model")
+    @patch("medpipe.pipeline.runner.MedpipeClassifierRunner._train_model_cv")
+    def test_fit_outcome_loso_does_not_need_n_splits(
+        self, mock_train_cv, mock_save, mock_orchestrator, dummy_data
+    ):
+        """Test the loso strategy builds a leave-one-group-out splitter
+        without n_splits being configured."""
+        mock_orchestrator.config.meta.run_mode = "cv"
+        cv_cfg = MagicMock()
+        cv_cfg.strategy = "loso"
+        cv_cfg.n_splits = None
+        cv_cfg.shuffle = None
+        mock_orchestrator.config.workflow.validation.cross_validation = cv_cfg
+        mock_orchestrator.config.workflow.random_state = 42
+
+        mock_model_setup = MagicMock(spec=ModelSetup)
+        mock_model_setup.algorithm = "HistGradientBoostingClassifier"
+        mock_model_setup.hyperparameters = {}
+        mock_model_setup.model_dump.return_value = {}
+        mock_orchestrator.config.resolved_models = {"MORTALITY_30D": mock_model_setup}
+
+        runner = MedpipeClassifierRunner(orchestrator=mock_orchestrator)
+        X_train, y_train, _, _ = dummy_data
+        runner.fit_outcome("MORTALITY_30D", X_train, y_train)
+
+        splitter = mock_train_cv.call_args.kwargs["cv_splitter"]
+        assert isinstance(splitter, LeaveOneGroupOut)
 
     def test_fit_outcome_no_algorithm_raises_error(
         self,
@@ -99,6 +167,7 @@ class TestFitOutcome:
         cv_cfg = MagicMock()
         cv_cfg.strategy = "random"
         cv_cfg.n_splits = 3
+        cv_cfg.shuffle = True
         mock_orchestrator.config.workflow.validation.cross_validation = cv_cfg
         mock_orchestrator.config.workflow.random_state = 42
 
@@ -138,6 +207,7 @@ class TestFitOutcome:
         cv_cfg = MagicMock()
         cv_cfg.strategy = "group"
         cv_cfg.n_splits = 3
+        cv_cfg.shuffle = True
         mock_orchestrator.config.workflow.validation.cross_validation = cv_cfg
         mock_orchestrator.config.workflow.random_state = 42
 

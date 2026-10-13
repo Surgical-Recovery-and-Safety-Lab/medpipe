@@ -116,9 +116,7 @@ class BaseEvaluator:
 
         self.metrics = eval_config.metrics.metrics
 
-    def _get_model(
-        self, model: Any | None = None, outcome: str | None = None
-    ) -> Any:
+    def _get_model(self, model: Any | None = None, outcome: str | None = None) -> Any:
         """
         Resolve estimator model from argument, outcome key, or fitted dictionary.
 

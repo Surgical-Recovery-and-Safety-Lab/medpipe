@@ -284,7 +284,7 @@ class TestComputeReliabilityData:
         )
         fake_instance.calibrate.return_value = two_d_output
 
-        with patch("splinecalib.SplineCalib", return_value=fake_instance):
+        with patch("pysplinecalib.SplineCalib", return_value=fake_instance):
             prob_true, _prob_pred, lower_ci, upper_ci = (
                 displayer._compute_reliability_data(
                     y_true=y_true, probas=probas, strategy="spline", n_bootstraps=5
@@ -502,12 +502,8 @@ class TestComputeDcaData:
         probas_2d = np.column_stack((1 - probas_1d, probas_1d))
         displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
 
-        _, nb_model_2d, _ = displayer._compute_dca_data(
-            y_true=y_true, probas=probas_2d
-        )
-        _, nb_model_1d, _ = displayer._compute_dca_data(
-            y_true=y_true, probas=probas_1d
-        )
+        _, nb_model_2d, _ = displayer._compute_dca_data(y_true=y_true, probas=probas_2d)
+        _, nb_model_1d, _ = displayer._compute_dca_data(y_true=y_true, probas=probas_1d)
 
         np.testing.assert_allclose(nb_model_2d, nb_model_1d)
 

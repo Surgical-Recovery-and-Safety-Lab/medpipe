@@ -332,8 +332,7 @@ class TestSplitData:
         with pytest.raises(
             ValueError,
             match=(
-                "test_size or recalibration_size must be specified with "
-                "random strategy"
+                "test_size or recalibration_size must be specified with random strategy"
             ),
         ):
             split_data(pd.DataFrame({}), np.array([]), "random")

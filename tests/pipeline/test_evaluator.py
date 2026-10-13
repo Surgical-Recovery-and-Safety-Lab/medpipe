@@ -542,9 +542,7 @@ class TestMedpipeEvaluatorEvaluate:
         "hospital" for a spatial comparison) is resolved from the separate
         `fairness_data` frame, while the model only ever sees `X` as-is."""
         X, y = sample_data
-        fairness_data = pd.DataFrame(
-            {"hospital": ["A", "B", "A", "B"]}, index=X.index
-        )
+        fairness_data = pd.DataFrame({"hospital": ["A", "B", "A", "B"]}, index=X.index)
         mock_eval_slice.return_value = {"accuracy": {"point_estimate": 0.8}}
 
         evaluator = MedpipeClassifierEvaluator(mock_orchestrator, mock_runner)

@@ -196,7 +196,7 @@ class BaseDisplayer:
 
     # --- Internal Helpers ---
     @staticmethod
-    def _format_stratum_label(stratum_var: str, cat_key: Any) -> str:
+    def _format_stratum_label(cat_key: Any) -> str:
         """Format raw stratum variable names and category keys into clean
         display labels.
 
@@ -206,8 +206,6 @@ class BaseDisplayer:
 
         Parameters
         ----------
-        stratum_var : str
-            Name of the subgroup stratum variable (e.g., 'AGE', 'SEX').
         cat_key : Any
             Category identifier or raw bin string (e.g., '[18, 50]', 'F').
 
@@ -218,12 +216,12 @@ class BaseDisplayer:
 
         Examples
         --------
-        >>> BaseDisplayer._format_stratum_label("AGE", "[18, 50]")
-        'AGE: 18-50'
-        >>> BaseDisplayer._format_stratum_label("AGE", "[51, 120]")
-        'AGE: ≥ 51'
-        >>> BaseDisplayer._format_stratum_label("SEX", "F")
-        'SEX: F'
+        >>> BaseDisplayer._format_stratum_label("[18, 50]")
+        '18-50'
+        >>> BaseDisplayer._format_stratum_label("[51, 120]")
+        '≥ 51'
+        >>> BaseDisplayer._format_stratum_label("F")
+        'Female'
 
         """
         cat_str = str(cat_key).strip()
@@ -235,13 +233,19 @@ class BaseDisplayer:
                     low, high = parsed[0], parsed[1]
 
                     if isinstance(high, (int, float)) and high >= 100:
-                        return f"{stratum_var}: ≥ {low}"
+                        return f"≥ {low}"
 
-                    return f"{stratum_var}: {low}-{high}"
+                    return f"{low}-{high}"
             except (ValueError, SyntaxError):
                 pass
 
-        return f"{stratum_var}: {cat_str}"
+        if cat_str == "F":
+            return "Female"
+
+        elif cat_str == "M":
+            return "Male"
+
+        return f"{cat_str}"
 
     def _save_figure(
         self, fig: Figure | SubFigure, filename: str, outcome: str | None = None
@@ -343,7 +347,9 @@ class BaseDisplayer:
         )
         display_label = label or "Data"
 
-        with (plt.rc_context(self.theme.to_rc_params()),):
+        with (
+            plt.rc_context(self.theme.to_rc_params()),
+        ):
             fig, ax = draw_data_distribution(
                 data=data,
                 n_bins=n_bins_val,
@@ -352,7 +358,6 @@ class BaseDisplayer:
                 yscale=dist_yscale_val,
                 color=style_kwargs.pop("color", self.theme.primary_color),
                 show_spines=style_kwargs.pop("show_spines", self.theme.show_spines),
-                title=f"Data Distribution - {outcome.capitalize()}",
                 **style_kwargs,
             )
 
@@ -465,7 +470,7 @@ class BaseDisplayer:
 
         is_ici = metric.lower() == "ici"
         vmax = 0.5 if is_ici else 0.1
-        percent = " (%)" if is_ici else ""
+        percent = r" $\times$ 100" if is_ici else ""
 
         if is_ici:
             plot_data *= 100
@@ -476,7 +481,9 @@ class BaseDisplayer:
         row_labels = ["All strata", *list(strata)]
 
         # 3. Stateless Drawing Delegate
-        with (plt.rc_context(self.theme.to_rc_params()),):
+        with (
+            plt.rc_context(self.theme.to_rc_params()),
+        ):
             fig, ax = draw_strata_heatmap(
                 plot_data=plot_data,
                 text_data=text_data,
@@ -548,9 +555,7 @@ class BaseDisplayer:
             for cat_key in cat_dict:
                 strata_tuples.append((stratum_var, cat_key))
                 # Use helper to transform raw cat_key into clean label
-                strata_row_labels.append(
-                    self._format_stratum_label(stratum_var, cat_key)
-                )
+                strata_row_labels.append(self._format_stratum_label(cat_key))
 
         if not strata_tuples:
             self.logger.warning(
@@ -673,9 +678,9 @@ def _reliability_bootstrap_iteration(
         return None
 
     if strategy == "spline":
-        from splinecalib import SplineCalib
+        from pysplinecalib import SplineCalib
 
-        sc_b = SplineCalib(cv_spline=cv_splines)  # type: ignore
+        sc_b = SplineCalib(cv_spline=cv_splines)
         sc_b.fit(probas[idx], y_true[idx])
         b_true = sc_b.calibrate(prob_pred)
 
@@ -778,9 +783,7 @@ class MedpipeClassifierDisplayer(BaseDisplayer):
         probas: np.ndarray,
         n_bootstraps: int = 1000,
         random_state: int | None = 42,
-    ) -> tuple[
-        np.ndarray, np.ndarray, float, np.ndarray | None, np.ndarray | None
-    ]:
+    ) -> tuple[np.ndarray, np.ndarray, float, np.ndarray | None, np.ndarray | None]:
         """Compute Receiver Operating Characteristic metrics and bootstrap CIs.
 
         Parameters
@@ -979,7 +982,7 @@ class MedpipeClassifierDisplayer(BaseDisplayer):
         y_true = np.asarray(y_true).squeeze()
 
         if strategy == "spline":
-            from splinecalib import SplineCalib
+            from pysplinecalib import SplineCalib
 
             sc = SplineCalib(cv_spline=cv_splines)
             sc.fit(probas, y_true)
@@ -1154,7 +1157,9 @@ class MedpipeClassifierDisplayer(BaseDisplayer):
         display_label = label or f"Model (AUC = {roc_auc:.3f})"
 
         # Apply global theme context
-        with (plt.rc_context(self.theme.to_rc_params()),):
+        with (
+            plt.rc_context(self.theme.to_rc_params()),
+        ):
             fig, ax = draw_roc_curve(
                 fpr=fpr,
                 tpr=tpr,
@@ -1253,7 +1258,9 @@ class MedpipeClassifierDisplayer(BaseDisplayer):
 
         display_label = label or f"Model (AP = {ap_score:.3f})"
 
-        with (plt.rc_context(self.theme.to_rc_params()),):
+        with (
+            plt.rc_context(self.theme.to_rc_params()),
+        ):
             fig, ax = draw_precision_recall_curve(
                 precision=precision,
                 recall=recall,
@@ -1379,7 +1386,9 @@ class MedpipeClassifierDisplayer(BaseDisplayer):
         if strategy_val == "spline":
             style_kwargs.setdefault("marker", None)
 
-        with (plt.rc_context(self.theme.to_rc_params()),):
+        with (
+            plt.rc_context(self.theme.to_rc_params()),
+        ):
             fig, ax = draw_reliability_diagram(
                 prob_true=prob_true,
                 prob_pred=prob_pred,
@@ -1469,7 +1478,9 @@ class MedpipeClassifierDisplayer(BaseDisplayer):
 
         display_label = label or "Model"
 
-        with (plt.rc_context(self.theme.to_rc_params()),):
+        with (
+            plt.rc_context(self.theme.to_rc_params()),
+        ):
             fig, ax = draw_dca_curve(
                 thresholds=thresh,
                 net_benefit_model=nb_model,
@@ -1765,6 +1776,7 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
         self,
         y_true: np.ndarray,
         dist: ContinuousPredictiveDistribution,
+        mapper: BaseBinMapper,
     ) -> tuple[np.ndarray, np.ndarray]:
         """Compute the marginal calibration curve for a predictive distribution.
 
@@ -1774,6 +1786,8 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
             Ground truth continuous target values of shape (n_samples,).
         dist : ContinuousPredictiveDistribution
             Predictive distribution for the same samples.
+        mapper : BaseBinMapper
+            Mapper used by the OrdBoostRegressor.
 
         Returns
         -------
@@ -1784,7 +1798,7 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
 
         """
         y_true_arr = np.asarray(y_true, dtype=float)
-        grid_y, diff = marginal_calibration_curve(y_true_arr, dist)
+        grid_y, diff = marginal_calibration_curve(y_true_arr, dist, mapper)
         return grid_y, diff
 
     def _compute_pit_histogram_data(
@@ -1917,7 +1931,9 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
 
         display_label = label or "Model"
 
-        with (plt.rc_context(self.theme.to_rc_params()),):
+        with (
+            plt.rc_context(self.theme.to_rc_params()),
+        ):
             fig, ax = draw_coverage_curve(
                 coverage_levels=data["coverage_levels"],
                 empirical_coverage=data["output"]["point"],
@@ -2016,7 +2032,9 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
 
         display_label = label or "Model"
 
-        with (plt.rc_context(self.theme.to_rc_params()),):
+        with (
+            plt.rc_context(self.theme.to_rc_params()),
+        ):
             fig, ax = draw_sharpness_curve(
                 coverage_levels=data["coverage_levels"],
                 sharpness_values=data["output"]["point"],
@@ -2115,7 +2133,9 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
 
         display_label = label or "Model"
 
-        with (plt.rc_context(self.theme.to_rc_params()),):
+        with (
+            plt.rc_context(self.theme.to_rc_params()),
+        ):
             fig, ax = draw_winkler_curve(
                 coverage_levels=data["coverage_levels"],
                 winkler_values=data["output"]["point"],
@@ -2144,6 +2164,7 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
         self,
         y_true: np.ndarray,
         dist: ContinuousPredictiveDistribution,
+        mapper: BaseBinMapper,
         outcome: str = "default",
         label: str | None = None,
         save: bool | None = None,
@@ -2158,6 +2179,8 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
             Ground truth continuous target values of shape (n_samples,).
         dist : ContinuousPredictiveDistribution
             Predictive distribution for the same samples.
+        mapper : BaseBinMapper
+            Mapper used by the OrdBoostRegressor.
         outcome : str, default="default"
             Outcome identifier used for figure titles and folder structuring.
         label : str, optional
@@ -2188,11 +2211,15 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
         show_val = cfg["show"]
 
         self.logger.info(f"[{outcome}] Starting marginal calibration plotting.")
-        grid_y, diff = self._compute_marginal_calibration_data(y_true=y_true, dist=dist)
+        grid_y, diff = self._compute_marginal_calibration_data(
+            y_true=y_true, dist=dist, mapper=mapper
+        )
 
         display_label = label or "Model"
 
-        with (plt.rc_context(self.theme.to_rc_params()),):
+        with (
+            plt.rc_context(self.theme.to_rc_params()),
+        ):
             fig, ax = draw_marginal_calibration(
                 grid_y=grid_y,
                 diff=diff,
@@ -2288,7 +2315,9 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
 
         display_label = label or "Model"
 
-        with (plt.rc_context(self.theme.to_rc_params()),):
+        with (
+            plt.rc_context(self.theme.to_rc_params()),
+        ):
             fig, ax = draw_pit_histogram(
                 bin_centres=bin_centres,
                 hist_values=hist_values,
@@ -2404,6 +2433,7 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
         plots["marginal_calibration"] = self.plot_marginal_calibration(
             y_true=y_true,
             dist=dist,
+            mapper=mapper,
             outcome=outcome,
             save=save,
             show=show,

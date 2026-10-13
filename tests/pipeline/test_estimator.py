@@ -148,9 +148,10 @@ class TestDistributionalPipelineCloneSafety:
         cloned = clone(pipeline)
 
         assert type(cloned) is DistributionalPipeline
-        assert cloned.get_params(deep=False).keys() == pipeline.get_params(
-            deep=False
-        ).keys()
+        assert (
+            cloned.get_params(deep=False).keys()
+            == pipeline.get_params(deep=False).keys()
+        )
 
     def test_cloned_pipeline_still_exposes_predict_dist(self):
         """Test that a cloned, freshly-fitted pipeline still dispatches

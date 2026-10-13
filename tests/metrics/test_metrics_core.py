@@ -408,9 +408,7 @@ class TestPredictionBundleDispatch:
         with patch.dict(MetricRegistry._registry, {}, clear=False):
             MetricRegistry.register_spec(custom_spec)
 
-            with pytest.raises(
-                ValueError, match="does not define a per_sample_func"
-            ):
+            with pytest.raises(ValueError, match="does not define a per_sample_func"):
                 bootstrap_confidence_intervals(
                     ["dist_metric_no_per_sample"], y_true, bundle
                 )

@@ -7,6 +7,30 @@ and this project adheres to Semantic Versioning ([SemVer](https://semver.org/spe
 
 ## [Unreleased]
 
+### Added
+* An `ideal` flag for the coverage plot to only plot the ideal coverage line once.
+* The `prepare_data()` property to the pipelines.
+* A `LeaveOneGroupOut` cross-validation option with the `loso` flag in the 
+cross-validation configuration schema.
+
+### Changed
+* Using `pysplinecalib` instead of `splinecalib`.
+* Updates in the marginal calibration and PIT functions to work with the new
+version of ordboost.
+* Using error bars instead of shaded areas to represent 95% CI in the coverage
+and sharpness plots.
+* The stratum heatmap labels were updated to simpler versions.
+* Small changes to legend locations and labels.
+* Made the ideal calibration line in the marginal calibration plot black.
+* The `audit` and `eval` flags no longer raise a ValidationError if there is no
+fairness data. The heatmaps are not plotted and a message is added to the log.
+
+### Fixed
+* All tests now pass.
+* Docstrings in the `metrics/core.py` file that were not in the Numpy style.
+* The `shuffle` flag now makes it all the way to `_create_cv_splitter`.
+* Formatted with `ruff`.
+
 ## [0.4.0.dev2] - 2026-10-05
 
 ### Added

@@ -186,28 +186,22 @@ class TestFormatStratumLabel:
     """Tests for MedpipeClassifierDisplayer._format_stratum_label static helper."""
 
     @pytest.mark.parametrize(
-        "stratum_var, cat_key, expected",
+        "cat_key, expected",
         [
-            ("AGE", "[18, 50]", "AGE: 18-50"),
-            ("AGE", "[51, 120]", "AGE: ≥ 51"),
-            ("AGE", "[100, 150]", "AGE: ≥ 100"),
-            ("SEX", "F", "SEX: F"),
-            ("SEX", "M", "SEX: M"),
-            ("ETHNICITY", "European", "ETHNICITY: European"),
-            (
-                "AGE",
-                "[18, invalid]",
-                "AGE: [18, invalid]",
-            ),  # Fallback gracefully on syntax error
-            ("STAGE", "Stage 1", "STAGE: Stage 1"),
+            ("[18, 50]", "18-50"),
+            ("[51, 120]", "≥ 51"),
+            ("[100, 150]", "≥ 100"),
+            ("F", "Female"),
+            ("M", "Male"),
+            ("European", "European"),
+            ("[18, invalid]", "[18, invalid]"),  # Fallback gracefully on syntax error
+            ("Stage 1", "Stage 1"),
         ],
     )
-    def test_format_stratum_label_cases(
-        self, stratum_var: str, cat_key: str, expected: str
-    ) -> None:
-        """Test formatting of interval strings, open-ended bounds, and
-        categorical keys."""
-        result = MedpipeClassifierDisplayer._format_stratum_label(stratum_var, cat_key)
+    def test_format_stratum_label_cases(self, cat_key: str, expected: str) -> None:
+        """Test formatting of interval strings, open-ended bounds, sex codes
+        and categorical keys."""
+        result = MedpipeClassifierDisplayer._format_stratum_label(cat_key)
         assert result == expected
 
     def test_format_stratum_label_bracketed_non_pair_falls_back_to_raw(self) -> None:
@@ -215,10 +209,7 @@ class TestFormatStratumLabel:
         list/tuple (e.g. 3 values, or a single value) falls back to the raw
         bracketed string rather than being (mis)treated as a range."""
         assert (
-            MedpipeClassifierDisplayer._format_stratum_label("AGE", "[18, 30, 50]")
-            == "AGE: [18, 30, 50]"
+            MedpipeClassifierDisplayer._format_stratum_label("[18, 30, 50]")
+            == "[18, 30, 50]"
         )
-        assert (
-            MedpipeClassifierDisplayer._format_stratum_label("AGE", "[18]")
-            == "AGE: [18]"
-        )
+        assert MedpipeClassifierDisplayer._format_stratum_label("[18]") == "[18]"

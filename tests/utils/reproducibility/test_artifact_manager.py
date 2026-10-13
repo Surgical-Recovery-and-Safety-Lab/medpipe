@@ -364,8 +364,6 @@ class TestArtifactManagerSaveEnvState:
             run_dir, sample_config, dataset_path=dataset_path
         )
 
-        mock_capture.assert_called_once_with(
-            sample_config, dataset_path=dataset_path
-        )
+        mock_capture.assert_called_once_with(sample_config, dataset_path=dataset_path)
         with open(saved_path, encoding="utf-8") as f:
             assert json.load(f) == {"stub": "state"}

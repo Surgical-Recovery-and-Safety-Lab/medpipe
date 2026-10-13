@@ -98,15 +98,11 @@ class TestWorkflowConfig:
         with pytest.raises(
             ValidationError, match="Input should be greater than or equal to 0"
         ):
-            WorkflowConfig.model_validate(
-                self._get_valid_config_dict(random_state=-1)
-            )
+            WorkflowConfig.model_validate(self._get_valid_config_dict(random_state=-1))
 
     def test_n_jobs_allows_minus_one(self) -> None:
         """Test that n_jobs=-1 is accepted as a valid value."""
-        config = WorkflowConfig.model_validate(
-            self._get_valid_config_dict(n_jobs=-1)
-        )
+        config = WorkflowConfig.model_validate(self._get_valid_config_dict(n_jobs=-1))
 
         assert config.n_jobs == -1
 

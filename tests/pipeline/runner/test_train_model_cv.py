@@ -72,9 +72,7 @@ class TestTrainModelCv:
         """Test _train_model_cv with a non-None groups_train array, which
         both forwards the groups to cross_validate and exercises the
         group-count debug logging branch."""
-        mock_orchestrator.config.workflow.validation.cross_validation.strategy = (
-            "group"
-        )
+        mock_orchestrator.config.workflow.validation.cross_validation.strategy = "group"
         runner = MedpipeClassifierRunner(orchestrator=mock_orchestrator)
 
         X_train, y_train, _, _ = dummy_data
@@ -297,23 +295,28 @@ class TestTrainModelCv:
         assert "roc_auc" in passed_scoring
         mock_save_cv_results.assert_called_once()
 
+    @pytest.mark.parametrize("strategy", ["group", "loso"])
     @patch("medpipe.pipeline.runner.MedpipeClassifierRunner._save_cv_results")
     def test_train_model_cv_group_strategy_without_groups_raises_error(
-        self, mock_save_cv_results, mock_orchestrator, dummy_data
+        self, mock_save_cv_results, mock_orchestrator, dummy_data, strategy
     ):
-        """Test that cross-validation with a group strategy raises an error
-        if groups_train is None."""
-        mock_orchestrator.config.workflow.validation.cross_validation.strategy = "group"
+        """Test that cross-validation with a group-based strategy raises an
+        error if groups_train is None."""
+        mock_orchestrator.config.workflow.validation.cross_validation.strategy = (
+            strategy
+        )
         runner = MedpipeClassifierRunner(orchestrator=mock_orchestrator)
 
         X_train, y_train, _, _ = dummy_data
         mock_pipeline = MagicMock(spec=Pipeline)
-        cv_splitter = runner._create_cv_splitter("group", 2, 42)
+        cv_splitter = runner._create_cv_splitter(strategy, 2, 42)
 
         hyperparams = {"max_depth": 3}
 
         with pytest.raises(
-            ValueError, match="The 'groups' parameter should not be None"
+            ValueError,
+            match=f"The 'groups' parameter should not be None for the "
+            f"'{strategy}' strategy",
         ):
             runner._train_model_cv(
                 outcome="MORTALITY_30D",
