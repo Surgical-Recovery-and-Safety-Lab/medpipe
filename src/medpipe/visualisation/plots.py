@@ -757,7 +757,10 @@ def draw_coverage_curve(
         ax.errorbar(
             coverage_levels,
             empirical_coverage,
-            yerr=[empirical_coverage - lower_ci, upper_ci - empirical_coverage],
+            yerr=[
+                np.clip(empirical_coverage - lower_ci, 0, None),
+                np.clip(upper_ci - empirical_coverage, 0, None),
+            ],
             ecolor=ci_color or color,
             elinewidth=linewidth,
             capsize=4,
@@ -871,7 +874,10 @@ def draw_sharpness_curve(
         ax.errorbar(
             coverage_levels,
             sharpness_values,
-            yerr=[sharpness_values - lower_ci, upper_ci - sharpness_values],
+            yerr=[
+                np.clip(sharpness_values - lower_ci, 0, None),
+                np.clip(upper_ci - sharpness_values, 0, None),
+            ],
             ecolor=ci_color or color,
             elinewidth=linewidth,
             capsize=4,
