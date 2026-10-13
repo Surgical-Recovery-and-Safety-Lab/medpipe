@@ -930,7 +930,7 @@ class TestMedpipeStressIntegration:
 
         try:
             X_train, y_train, X_recal, y_recal, X_test, y_test, groups_train = (
-                pipeline._orchestrator.prepare_data()
+                pipeline.prepare_data()
             )
 
             fitted = pipeline.fit(X_train, y_train, X_recal, y_recal, groups_train)
