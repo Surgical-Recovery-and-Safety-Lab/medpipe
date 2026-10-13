@@ -431,8 +431,43 @@ def _bootstrap_flat_metrics(
     rng: np.random.Generator,
     n_jobs: int | None = 1,
 ) -> dict[str, dict[str, float]]:
-    """Bootstrap CIs for flat-array metrics by resampling (y, y_pred) pairs
-    and recomputing each metric per resample. See `bootstrap_confidence_intervals`.
+    """Bootstrap confidence intervals for flat-array metrics.
+
+    Resamples (y, y_pred) pairs with replacement and recomputes each metric
+    per resample. See `bootstrap_confidence_intervals`.
+
+    Parameters
+    ----------
+    metrics : list[str]
+        Metric identifier keys registered in `MetricRegistry`.
+    y_true_arr : npt.NDArray
+        Ground truth binary target labels of shape (n_samples,).
+    y_pred_arr : npt.NDArray
+        Predicted probabilities or decision values of shape (n_samples,).
+    n_bootstraps : int
+        Number of bootstrap resampling iterations.
+    lower_percentile : float
+        Lower percentile (in [0, 100]) of the bootstrap distribution used as
+        the lower confidence bound.
+    upper_percentile : float
+        Upper percentile (in [0, 100]) of the bootstrap distribution used as
+        the upper confidence bound.
+    rng : np.random.Generator
+        Random generator used to draw the resample indices.
+    n_jobs : int or None, default=1
+        Number of parallel jobs used to compute the per-resample metrics.
+
+    Returns
+    -------
+    dict[str, dict[str, float]]
+        Dictionary mapping each metric key to a dictionary with the keys
+        ``"point_estimate"``, ``"ci_lower"`` and ``"ci_upper"``.
+
+    Raises
+    ------
+    ValueError
+        If all bootstrap iterations fail to compute valid metrics.
+
     """
     n_samples = len(y_true_arr)
 
@@ -487,17 +522,49 @@ def _bootstrap_distributional_metrics(
     upper_percentile: float,
     rng: np.random.Generator,
 ) -> dict[str, dict[str, float]]:
-    """Bootstrap CIs for predict_dist-based metrics (e.g. crps) by resampling
-    their precomputed per-sample values, rather than resampling and
-    re-slicing the distribution object itself.
+    """Bootstrap confidence intervals for predict_dist-based metrics.
+
+    Resamples the precomputed per-sample metric values (e.g. for crps), rather
+    than resampling and re-slicing the distribution object itself.
 
     Not every distributional prediction object supports fancy indexing
     (e.g. OrdBoost's `ContinuousPredictiveDistribution` does not, unlike
-    NGBoost's scipy-backed distributions) - computing the per-sample metric
+    NGBoost's scipy-backed distributions). Computing the per-sample metric
     once and bootstrapping those scalar values is mathematically equivalent
     to resampling the raw (y, dist) pairs and recomputing the mean each time
     (since these metrics are themselves plain means of a per-sample score),
     and works uniformly regardless of that.
+
+    Parameters
+    ----------
+    metrics : list[str]
+        Metric identifier keys registered in `MetricRegistry` that define a
+        `per_sample_func`.
+    y_true_arr : npt.NDArray
+        Ground truth target values of shape (n_samples,).
+    dist : Any
+        Predictive distribution for the same samples.
+    n_bootstraps : int
+        Number of bootstrap resampling iterations.
+    lower_percentile : float
+        Lower percentile (in [0, 100]) of the bootstrap distribution used as
+        the lower confidence bound.
+    upper_percentile : float
+        Upper percentile (in [0, 100]) of the bootstrap distribution used as
+        the upper confidence bound.
+    rng : np.random.Generator
+        Random generator used to draw the resample indices.
+
+    Returns
+    -------
+    dict[str, dict[str, float]]
+        Dictionary mapping each metric key to a dictionary with the keys
+        ``"point_estimate"``, ``"ci_lower"`` and ``"ci_upper"``.
+
+    Raises
+    ------
+    ValueError
+        If a metric does not define a `per_sample_func`.
 
     """
     n_samples = len(y_true_arr)
@@ -537,8 +604,7 @@ def bootstrap_confidence_intervals(
     random_state: int | np.random.Generator | None = None,
     n_jobs: int | None = 1,
 ) -> dict[str, dict[str, float]]:
-    """
-    Compute non-parametric bootstrap confidence intervals for evaluation metrics.
+    """Compute non-parametric bootstrap confidence intervals for metrics.
 
     Resamples paired target labels and predictions with replacement, evaluating
     all specified metrics across bootstrap iterations. Edge cases where resamples
@@ -572,6 +638,7 @@ def bootstrap_confidence_intervals(
     -------
     ci_results : dict[str, dict[str, float]]
         Dictionary mapping each metric key to a dictionary containing:
+
         - ``"point_estimate"``: Metric score computed on the original dataset.
         - ``"ci_lower"``: Lower confidence boundary.
         - ``"ci_upper"``: Upper confidence boundary.
