@@ -514,20 +514,22 @@ class CrossValConfig(BaseModel):
 
     Attributes
     ----------
-    strategy : {"random", "group"}
-        Cross-validation splitting strategy.
+    strategy : {"random", "group", "loso"}
+        Cross-validation splitting strategy. "loso" is leave-one-group-out:
+        each fold holds out one group.
     grid_search : bool or None, default=None
         Whether to perform a grid search over hyperparameters.
     group_column : str or None, default=None
-        Column identifying groups when `strategy` is "group".
+        Column identifying groups when `strategy` is "group" or "loso".
     n_splits : int or None, default=None
-        Number of cross-validation folds.
+        Number of cross-validation folds. Not used when `strategy` is
+        "loso", which has one fold per group.
     shuffle : bool or None, default=None
         Whether to shuffle samples before splitting.
 
     """
 
-    strategy: Literal["random", "group"]
+    strategy: Literal["random", "group", "loso"]
     grid_search: bool | None = None
     group_column: str | None = None
     n_splits: int | None = Field(default=None, ge=2)
@@ -536,7 +538,7 @@ class CrossValConfig(BaseModel):
 
     @model_validator(mode="after")
     def validate_strategy(self) -> CrossValConfig:
-        """Validate that the group strategy has a group column set.
+        """Validate that the group-based strategies have a group column set.
 
         Returns
         -------
@@ -546,12 +548,12 @@ class CrossValConfig(BaseModel):
         Raises
         ------
         ValueError
-            If `strategy` is "group" and `group_column` is not set.
+            If `strategy` is "group" or "loso" and `group_column` is not set.
 
         """
-        if self.strategy == "group" and not self.group_column:
+        if self.strategy in ("group", "loso") and not self.group_column:
             raise ValueError(
-                "The group strategy requires a group column to be specified"
+                f"The {self.strategy} strategy requires a group column to be specified"
             )
         return self
 
