@@ -520,11 +520,18 @@ class MedpipeClassifier:
                     outcome=outcome,
                 )
             # Generate cross-outcome strata heatmaps per metric
-            self._logger.info("Generating subgroup strata heatmaps across outcomes.")
-            strata_heatmaps = self.displayer.plot_all_heatmaps(
-                evaluations=evaluations,
-            )
-            plots["strata_heatmaps"] = strata_heatmaps
+            if fairness_splits is None:
+                self._logger.info(
+                    "No fairness configuration set; skipping subgroup strata heatmaps."
+                )
+            else:
+                self._logger.info(
+                    "Generating subgroup strata heatmaps across outcomes."
+                )
+                strata_heatmaps = self.displayer.plot_all_heatmaps(
+                    evaluations=evaluations,
+                )
+                plots["strata_heatmaps"] = strata_heatmaps
 
         run_duration = time.perf_counter() - run_start_time
         self._logger.debug(
