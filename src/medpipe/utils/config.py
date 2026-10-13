@@ -47,12 +47,17 @@ def _validate_metrics_registered(metrics: list[str]) -> None:
 
     """
     from medpipe.metrics.core import METRICS
+    from medpipe.metrics.registry import MetricRegistry
 
+    # Query the live registry (not the `METRICS` snapshot taken at import
+    # time) so metrics registered by users afterwards are accepted.
+    available = MetricRegistry.list_registered()
     for metric in metrics:
-        if metric not in METRICS:
+        if metric not in available:
             expr = (
                 f"{metric} was not found in available metric "
                 f"list. Available metrics are {METRICS}"
+                f"list. Available metrics are {available}"
             )
             raise ValueError(expr)
 
