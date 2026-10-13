@@ -669,6 +669,7 @@ def draw_coverage_curve(
     linestyle: str = "-",
     linewidth: float = _DEFAULT_THEME.linewidth,
     marker: str | None = "o",
+    ideal: bool = True,
     ideal_linestyle: str = "--",
     ideal_color: str = "black",
     title: str | None = None,
@@ -685,20 +686,20 @@ def draw_coverage_curve(
     empirical_coverage : np.ndarray
         Empirical coverage in percent at each nominal coverage level.
     lower_ci : np.ndarray, optional
-        Lower bound array for 95% confidence interval shading.
+        Lower bound array for 95% confidence interval error bars.
     upper_ci : np.ndarray, optional
-        Upper bound array for 95% confidence interval shading.
+        Upper bound array for 95% confidence interval error bars.
     label : str, default="Model"
         Legend label for the plotted curve.
     ax : matplotlib.axes.Axes, optional
         Pre-existing Matplotlib axes instance. If None, a new figure and axes
         are created.
     color : str, default=_DEFAULT_THEME.primary_color
-        Color specifier for the main curve and default confidence interval fill.
+        Color specifier for the main curve and default confidence interval error bars.
     ci_color : str, optional
-        Custom color specifier for confidence interval shading. Defaults to `color`.
+        Custom color specifier for confidence interval error bars. Defaults to `color`.
     ci_alpha : float, default=_DEFAULT_THEME.ci_alpha
-        Opacity level for confidence interval shaded region [0.0, 1.0].
+        Opacity level for confidence interval error bars [0.0, 1.0].
     linestyle : str, default="-"
         Line style for the coverage curve.
     linewidth : float, default=_DEFAULT_THEME.linewidth
@@ -731,13 +732,14 @@ def draw_coverage_curve(
         if fig is None:
             raise ValueError("The provided Axes instance is not attached to a Figure")
 
-    ax.plot(
-        [0, 100],
-        [0, 100],
-        linestyle=ideal_linestyle,
-        color=ideal_color,
-        label="Ideal",
-    )
+    if ideal:
+        ax.plot(
+            [0, 100],
+            [0, 100],
+            linestyle=ideal_linestyle,
+            color=ideal_color,
+            label="Ideal",
+        )
 
     for key in ("color", "linestyle", "linewidth", "marker", "label"):
         line_kwargs.pop(key, None)
