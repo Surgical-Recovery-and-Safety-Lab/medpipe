@@ -13,6 +13,7 @@ import numpy as np
 import scores.probability as scores_probability
 import xarray as xr
 from joblib import Parallel, delayed
+from pysplinecalib import SplineCalib
 from sklearn.metrics import (
     accuracy_score,
     average_precision_score,
@@ -25,7 +26,6 @@ from sklearn.metrics import (
     roc_auc_score,
     root_mean_squared_error,
 )
-from splinecalib import SplineCalib
 
 from medpipe.metrics.registry import MetricRegistry, MetricSpec
 
@@ -97,7 +97,7 @@ def ici_score(y: npt.NDArray, y_pred: npt.NDArray, cv_splines: int = 3) -> float
     if y_pred.ndim == 2:
         y_pred = y_pred[:, 1]
 
-    spline = SplineCalib(logodds_scale=True, cv_spline=cv_splines)
+    spline = SplineCalib(cv_spline=cv_splines)
     spline.fit(y_pred, y)
     smoothed_outputs = spline.predict(y_pred)
 

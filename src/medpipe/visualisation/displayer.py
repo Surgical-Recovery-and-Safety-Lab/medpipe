@@ -673,9 +673,9 @@ def _reliability_bootstrap_iteration(
         return None
 
     if strategy == "spline":
-        from splinecalib import SplineCalib
+        from pysplinecalib import SplineCalib
 
-        sc_b = SplineCalib(cv_spline=cv_splines)  # type: ignore
+        sc_b = SplineCalib(cv_spline=cv_splines)
         sc_b.fit(probas[idx], y_true[idx])
         b_true = sc_b.calibrate(prob_pred)
 
@@ -979,7 +979,7 @@ class MedpipeClassifierDisplayer(BaseDisplayer):
         y_true = np.asarray(y_true).squeeze()
 
         if strategy == "spline":
-            from splinecalib import SplineCalib
+            from pysplinecalib import SplineCalib
 
             sc = SplineCalib(cv_spline=cv_splines)
             sc.fit(probas, y_true)
