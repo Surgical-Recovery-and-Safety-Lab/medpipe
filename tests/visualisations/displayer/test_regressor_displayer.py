@@ -39,9 +39,7 @@ def fitted_ordboost_dist_and_data():
             "feature2": rng.standard_normal(n_test),
         }
     )
-    y_test = np.exp(X_test["feature1"].to_numpy() * 0.5) + rng.normal(
-        0.0, 0.5, n_test
-    )
+    y_test = np.exp(X_test["feature1"].to_numpy() * 0.5) + rng.normal(0.0, 0.5, n_test)
 
     pipeline = DistributionalPipeline(
         [
@@ -107,8 +105,11 @@ class TestPlotCoverage:
         displayer = MedpipeRegressorDisplayer(orchestrator=mock_orchestrator)
 
         data = displayer._compute_coverage_sharpness_winkler_data(
-            y_true=y_true, dist=dist, coverage_levels=np.arange(5, 100, 10),
-            metric="coverage", n_bootstraps=0,
+            y_true=y_true,
+            dist=dist,
+            coverage_levels=np.arange(5, 100, 10),
+            metric="coverage",
+            n_bootstraps=0,
         )
 
         assert data["output"]["lower_ci"] is None
@@ -127,8 +128,11 @@ class TestPlotSharpness:
         displayer = MedpipeRegressorDisplayer(orchestrator=mock_orchestrator)
 
         data = displayer._compute_coverage_sharpness_winkler_data(
-            y_true=y_true, dist=dist, coverage_levels=np.arange(5, 100, 10),
-            metric="sharpness", n_bootstraps=20,
+            y_true=y_true,
+            dist=dist,
+            coverage_levels=np.arange(5, 100, 10),
+            metric="sharpness",
+            n_bootstraps=20,
         )
 
         sharp = data["output"]["point"]
@@ -150,8 +154,11 @@ class TestPlotSharpness:
         displayer = MedpipeRegressorDisplayer(orchestrator=mock_orchestrator)
 
         data = displayer._compute_coverage_sharpness_winkler_data(
-            y_true=y_true, dist=dist, coverage_levels=np.array([10.0, 90.0]),
-            metric="sharpness", n_bootstraps=0,
+            y_true=y_true,
+            dist=dist,
+            coverage_levels=np.array([10.0, 90.0]),
+            metric="sharpness",
+            n_bootstraps=0,
         )
 
         sharp = data["output"]["point"]

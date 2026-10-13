@@ -35,9 +35,7 @@ class TestRegressorDisplayConfig:
 
         assert config.defaults.n_bootstraps == 1000
         assert config.overrides["residuals"]["n_bootstraps"] == 200
-        assert (
-            config.outcome_overrides["LOS_DAYS"]["residuals"]["n_bootstraps"] == 50
-        )
+        assert config.outcome_overrides["LOS_DAYS"]["residuals"]["n_bootstraps"] == 50
         assert config.theme["primary_color"] == "#2D90D8"
 
     def test_default_values(self) -> None:

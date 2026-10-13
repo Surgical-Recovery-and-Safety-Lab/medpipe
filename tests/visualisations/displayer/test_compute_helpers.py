@@ -502,12 +502,8 @@ class TestComputeDcaData:
         probas_2d = np.column_stack((1 - probas_1d, probas_1d))
         displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
 
-        _, nb_model_2d, _ = displayer._compute_dca_data(
-            y_true=y_true, probas=probas_2d
-        )
-        _, nb_model_1d, _ = displayer._compute_dca_data(
-            y_true=y_true, probas=probas_1d
-        )
+        _, nb_model_2d, _ = displayer._compute_dca_data(y_true=y_true, probas=probas_2d)
+        _, nb_model_1d, _ = displayer._compute_dca_data(y_true=y_true, probas=probas_1d)
 
         np.testing.assert_allclose(nb_model_2d, nb_model_1d)
 

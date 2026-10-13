@@ -2,7 +2,6 @@
 Tests for the medpipe.visualisation.theme module.
 """
 
-
 from medpipe.visualisation.themes import MedpipeTheme
 
 

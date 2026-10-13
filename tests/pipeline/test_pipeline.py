@@ -533,8 +533,9 @@ class TestMedpipeRun:
         mp._orchestrator.fairness_splits = None
 
         # Mock split outputs
-        X_tr, y_tr = pd.DataFrame({"A": [1, 2]}), pd.DataFrame(
-            {"MORTALITY_30D": [0, 1]}
+        X_tr, y_tr = (
+            pd.DataFrame({"A": [1, 2]}),
+            pd.DataFrame({"MORTALITY_30D": [0, 1]}),
         )
         X_te, y_te = pd.DataFrame({"A": [3]}), pd.DataFrame({"MORTALITY_30D": [1]})
         mp._orchestrator.prepare_data.return_value = (
@@ -590,8 +591,9 @@ class TestMedpipeRun:
         mp._orchestrator.config.data.outcomes = ["MORTALITY_30D"]
         mp._orchestrator.get_subgroup_specs.return_value = {}
 
-        X_tr, y_tr = pd.DataFrame({"A": [1, 2]}), pd.DataFrame(
-            {"MORTALITY_30D": [0, 1]}
+        X_tr, y_tr = (
+            pd.DataFrame({"A": [1, 2]}),
+            pd.DataFrame({"MORTALITY_30D": [0, 1]}),
         )
         X_te, y_te = pd.DataFrame({"A": [3]}), pd.DataFrame({"MORTALITY_30D": [1]})
         mp._orchestrator.prepare_data.return_value = (

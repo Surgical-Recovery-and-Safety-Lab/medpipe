@@ -347,7 +347,9 @@ class BaseDisplayer:
         )
         display_label = label or "Data"
 
-        with (plt.rc_context(self.theme.to_rc_params()),):
+        with (
+            plt.rc_context(self.theme.to_rc_params()),
+        ):
             fig, ax = draw_data_distribution(
                 data=data,
                 n_bins=n_bins_val,
@@ -479,7 +481,9 @@ class BaseDisplayer:
         row_labels = ["All strata", *list(strata)]
 
         # 3. Stateless Drawing Delegate
-        with (plt.rc_context(self.theme.to_rc_params()),):
+        with (
+            plt.rc_context(self.theme.to_rc_params()),
+        ):
             fig, ax = draw_strata_heatmap(
                 plot_data=plot_data,
                 text_data=text_data,
@@ -779,9 +783,7 @@ class MedpipeClassifierDisplayer(BaseDisplayer):
         probas: np.ndarray,
         n_bootstraps: int = 1000,
         random_state: int | None = 42,
-    ) -> tuple[
-        np.ndarray, np.ndarray, float, np.ndarray | None, np.ndarray | None
-    ]:
+    ) -> tuple[np.ndarray, np.ndarray, float, np.ndarray | None, np.ndarray | None]:
         """Compute Receiver Operating Characteristic metrics and bootstrap CIs.
 
         Parameters
@@ -1155,7 +1157,9 @@ class MedpipeClassifierDisplayer(BaseDisplayer):
         display_label = label or f"Model (AUC = {roc_auc:.3f})"
 
         # Apply global theme context
-        with (plt.rc_context(self.theme.to_rc_params()),):
+        with (
+            plt.rc_context(self.theme.to_rc_params()),
+        ):
             fig, ax = draw_roc_curve(
                 fpr=fpr,
                 tpr=tpr,
@@ -1254,7 +1258,9 @@ class MedpipeClassifierDisplayer(BaseDisplayer):
 
         display_label = label or f"Model (AP = {ap_score:.3f})"
 
-        with (plt.rc_context(self.theme.to_rc_params()),):
+        with (
+            plt.rc_context(self.theme.to_rc_params()),
+        ):
             fig, ax = draw_precision_recall_curve(
                 precision=precision,
                 recall=recall,
@@ -1380,7 +1386,9 @@ class MedpipeClassifierDisplayer(BaseDisplayer):
         if strategy_val == "spline":
             style_kwargs.setdefault("marker", None)
 
-        with (plt.rc_context(self.theme.to_rc_params()),):
+        with (
+            plt.rc_context(self.theme.to_rc_params()),
+        ):
             fig, ax = draw_reliability_diagram(
                 prob_true=prob_true,
                 prob_pred=prob_pred,
@@ -1470,7 +1478,9 @@ class MedpipeClassifierDisplayer(BaseDisplayer):
 
         display_label = label or "Model"
 
-        with (plt.rc_context(self.theme.to_rc_params()),):
+        with (
+            plt.rc_context(self.theme.to_rc_params()),
+        ):
             fig, ax = draw_dca_curve(
                 thresholds=thresh,
                 net_benefit_model=nb_model,
@@ -1921,7 +1931,9 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
 
         display_label = label or "Model"
 
-        with (plt.rc_context(self.theme.to_rc_params()),):
+        with (
+            plt.rc_context(self.theme.to_rc_params()),
+        ):
             fig, ax = draw_coverage_curve(
                 coverage_levels=data["coverage_levels"],
                 empirical_coverage=data["output"]["point"],
@@ -2020,7 +2032,9 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
 
         display_label = label or "Model"
 
-        with (plt.rc_context(self.theme.to_rc_params()),):
+        with (
+            plt.rc_context(self.theme.to_rc_params()),
+        ):
             fig, ax = draw_sharpness_curve(
                 coverage_levels=data["coverage_levels"],
                 sharpness_values=data["output"]["point"],
@@ -2119,7 +2133,9 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
 
         display_label = label or "Model"
 
-        with (plt.rc_context(self.theme.to_rc_params()),):
+        with (
+            plt.rc_context(self.theme.to_rc_params()),
+        ):
             fig, ax = draw_winkler_curve(
                 coverage_levels=data["coverage_levels"],
                 winkler_values=data["output"]["point"],
@@ -2201,7 +2217,9 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
 
         display_label = label or "Model"
 
-        with (plt.rc_context(self.theme.to_rc_params()),):
+        with (
+            plt.rc_context(self.theme.to_rc_params()),
+        ):
             fig, ax = draw_marginal_calibration(
                 grid_y=grid_y,
                 diff=diff,
@@ -2297,7 +2315,9 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
 
         display_label = label or "Model"
 
-        with (plt.rc_context(self.theme.to_rc_params()),):
+        with (
+            plt.rc_context(self.theme.to_rc_params()),
+        ):
             fig, ax = draw_pit_histogram(
                 bin_centres=bin_centres,
                 hist_values=hist_values,

@@ -145,8 +145,7 @@ class TestMedpipeClassifierConfig:
     ) -> None:
         """Test case when run_mode and cross_validation mismatch."""
         match_expr = (
-            "Cross-validation parameters must be specified "
-            "when run_mode is not 'fast'"
+            "Cross-validation parameters must be specified when run_mode is not 'fast'"
         )
         config = self._get_valid_config_dict(tmp_path)
         config["meta"]["run_mode"] = run_mode
@@ -173,7 +172,7 @@ class TestMedpipeClassifierConfig:
     def test_display_config_value_error(self, tmp_path: Path, run_mode: str) -> None:
         """Test case when run_mode is audit or eval and display config is missing."""
         match_expr = (
-            "Display parameters must be specified " "when run_mode is 'audit' or 'eval'"
+            "Display parameters must be specified when run_mode is 'audit' or 'eval'"
         )
         config = self._get_valid_config_dict(tmp_path)
         config["meta"]["run_mode"] = run_mode
