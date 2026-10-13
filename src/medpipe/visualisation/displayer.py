@@ -196,7 +196,7 @@ class BaseDisplayer:
 
     # --- Internal Helpers ---
     @staticmethod
-    def _format_stratum_label(stratum_var: str, cat_key: Any) -> str:
+    def _format_stratum_label(cat_key: Any) -> str:
         """Format raw stratum variable names and category keys into clean
         display labels.
 
@@ -206,8 +206,6 @@ class BaseDisplayer:
 
         Parameters
         ----------
-        stratum_var : str
-            Name of the subgroup stratum variable (e.g., 'AGE', 'SEX').
         cat_key : Any
             Category identifier or raw bin string (e.g., '[18, 50]', 'F').
 
@@ -235,13 +233,19 @@ class BaseDisplayer:
                     low, high = parsed[0], parsed[1]
 
                     if isinstance(high, (int, float)) and high >= 100:
-                        return f"{stratum_var}: ≥ {low}"
+                        return f"≥ {low}"
 
-                    return f"{stratum_var}: {low}-{high}"
+                    return f"{low}-{high}"
             except (ValueError, SyntaxError):
                 pass
 
-        return f"{stratum_var}: {cat_str}"
+        if cat_str == "F":
+            return "Female"
+
+        elif cat_str == "M":
+            return "Male"
+
+        return f"{cat_str}"
 
     def _save_figure(
         self, fig: Figure | SubFigure, filename: str, outcome: str | None = None
@@ -548,9 +552,7 @@ class BaseDisplayer:
             for cat_key in cat_dict:
                 strata_tuples.append((stratum_var, cat_key))
                 # Use helper to transform raw cat_key into clean label
-                strata_row_labels.append(
-                    self._format_stratum_label(stratum_var, cat_key)
-                )
+                strata_row_labels.append(self._format_stratum_label(cat_key))
 
         if not strata_tuples:
             self.logger.warning(
