@@ -29,6 +29,23 @@ class TestCreateCvSplitter:
         with pytest.raises(ValueError, match="Strategy must be 'random' or 'group'"):
             runner._create_cv_splitter("invalid_strategy", 5, 42)
 
+    @pytest.mark.parametrize("strategy", ["random", "group"])
+    @pytest.mark.parametrize("shuffle", [True, False])
+    def test_create_cv_splitter_shuffle(self, mock_orchestrator, strategy, shuffle):
+        """Test that the shuffle flag reaches the splitter, and that the seed
+        is only set when shuffling (scikit-learn rejects it otherwise)."""
+        runner = MedpipeRegressorRunner(orchestrator=mock_orchestrator)
+
+        cv = runner._create_cv_splitter(strategy, 3, 42, shuffle=shuffle)
+
+        assert cv.shuffle is shuffle
+        assert cv.random_state == (42 if shuffle else None)
+
+    def test_create_cv_splitter_shuffles_by_default(self, mock_orchestrator):
+        runner = MedpipeRegressorRunner(orchestrator=mock_orchestrator)
+
+        assert runner._create_cv_splitter("random", 3, 42).shuffle is True
+
 
 class TestFitOutcomeBuildsDistributionalPipeline:
     """Tests confirming MedpipeRegressorRunner wires up the 'regressor'
