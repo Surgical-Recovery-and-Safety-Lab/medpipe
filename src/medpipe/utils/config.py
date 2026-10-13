@@ -743,8 +743,9 @@ class EvaluationSubConfig(BaseModel):
         Configuration for evaluation metrics and bootstrap confidence
         intervals.
     fairness : FairnessConfig or None, default=None
-        Configuration for subgroup fairness evaluation, required when
-        `run_mode` is "audit" or "eval".
+        Configuration for subgroup fairness evaluation. If not set, no
+        subgroup analysis is performed and the subgroup strata heatmaps are
+        not plotted.
 
     """
 
@@ -1159,7 +1160,7 @@ class MedpipeClassifierConfig(BaseModel):
 
     @model_validator(mode="after")
     def validate_audit_and_eval_run_mode(self) -> MedpipeClassifierConfig:
-        """Check that audit and eval run modes have correct evaluation.
+        """Check that audit and eval run modes have a display configuration.
 
         Returns
         -------
@@ -1169,23 +1170,15 @@ class MedpipeClassifierConfig(BaseModel):
         Raises
         ------
         ValueError
-            If `run_mode` is "audit" or "eval" and either
-            `workflow.evaluation.fairness` or `display` is not set.
+            If `run_mode` is "audit" or "eval" and `display` is not set.
 
         """
         run_mode = self.meta.run_mode
-        if run_mode == "audit" or run_mode == "eval":
-            if self.workflow.evaluation.fairness is None:
-                expr = (
-                    "Evaluation fairness parameters must be specified "
-                    "when run_mode is 'audit' or 'eval'"
-                )
-                raise ValueError(expr)
-            if self.display is None:
-                raise ValueError(
-                    "Display parameters must be specified "
-                    "when run_mode is 'audit' or 'eval'"
-                )
+        if run_mode in ("audit", "eval") and self.display is None:
+            raise ValueError(
+                "Display parameters must be specified "
+                "when run_mode is 'audit' or 'eval'"
+            )
         return self
 
     @model_validator(mode="after")
@@ -1393,8 +1386,9 @@ class RegressorEvaluationSubConfig(BaseModel):
         Configuration for regression evaluation metrics and bootstrap
         confidence intervals.
     fairness : FairnessConfig or None, default=None
-        Configuration for subgroup fairness evaluation, required when
-        `run_mode` is "audit" or "eval".
+        Configuration for subgroup fairness evaluation. If not set, no
+        subgroup analysis is performed and the subgroup strata heatmaps are
+        not plotted.
 
     """
 
@@ -1641,7 +1635,7 @@ class MedpipeRegressorConfig(BaseModel):
 
     @model_validator(mode="after")
     def validate_audit_and_eval_run_mode(self) -> MedpipeRegressorConfig:
-        """Check that audit and eval run modes have correct evaluation.
+        """Check that audit and eval run modes have a display configuration.
 
         Returns
         -------
@@ -1651,23 +1645,15 @@ class MedpipeRegressorConfig(BaseModel):
         Raises
         ------
         ValueError
-            If `run_mode` is "audit" or "eval" and either
-            `workflow.evaluation.fairness` or `display` is not set.
+            If `run_mode` is "audit" or "eval" and `display` is not set.
 
         """
         run_mode = self.meta.run_mode
-        if run_mode == "audit" or run_mode == "eval":
-            if self.workflow.evaluation.fairness is None:
-                expr = (
-                    "Evaluation fairness parameters must be specified "
-                    "when run_mode is 'audit' or 'eval'"
-                )
-                raise ValueError(expr)
-            if self.display is None:
-                raise ValueError(
-                    "Display parameters must be specified "
-                    "when run_mode is 'audit' or 'eval'"
-                )
+        if run_mode in ("audit", "eval") and self.display is None:
+            raise ValueError(
+                "Display parameters must be specified "
+                "when run_mode is 'audit' or 'eval'"
+            )
         return self
 
     @model_validator(mode="after")
