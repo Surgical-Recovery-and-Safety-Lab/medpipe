@@ -16,7 +16,7 @@ To set up a local development environment and contribute to **medpipe**:
 Clone the GitHub repository:
 
 ```bash
-git clone [https://github.com/Surgical-Recovery-and-Safety-Lab/medpipe.git](https://github.com/Surgical-Recovery-and-Safety-Lab/medpipe.git)
+git clone git@github.com:Surgical-Recovery-and-Safety-Lab/medpipe.git
 cd medpipe
 
 ```
