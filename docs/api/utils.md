@@ -3,8 +3,6 @@
 ---
 ::: medpipe.utils.config
 
-::: medpipe.utils.exceptions
-
 ::: medpipe.utils.io
 
 ::: medpipe.utils.logger
