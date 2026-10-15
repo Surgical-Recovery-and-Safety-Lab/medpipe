@@ -694,7 +694,7 @@ class MedpipeRegressor:
     base_artifact_dir : str or Path, default="artifacts"
         Root directory where versioned execution run artifacts, logs, and
         models are stored.
-    verbose : Union[bool, int, str, None], default=None
+    verbose_override : Union[bool, int, str, None], default=None
         Console verbosity setting configuration override.
 
     Attributes
