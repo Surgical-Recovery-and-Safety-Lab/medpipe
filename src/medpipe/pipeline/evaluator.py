@@ -1,5 +1,5 @@
 """
-Evaluator module for Medpipe machine learning models and pipelines.
+Evaluator module for MedpipeClassifier machine learning models and pipelines.
 
 Provides TRIPOD+AI compliant model evaluation, subgroup performance analysis,
 bootstrap confidence interval estimation, logging, and artifact management.
@@ -7,38 +7,49 @@ bootstrap confidence interval estimation, logging, and artifact management.
 
 from __future__ import annotations
 
+from collections.abc import Callable
+from dataclasses import replace
+from functools import partial
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import numpy.typing as npt
 import pandas as pd
 
 from medpipe.data.utils import resolve_subgroup_mask
-from medpipe.metrics.core import bootstrap_confidence_intervals, compute_metrics
+from medpipe.metrics.core import (
+    PredictionBundle,
+    bootstrap_confidence_intervals,
+    compute_metrics,
+    ici_score,
+)
+from medpipe.metrics.registry import MetricRegistry
 from medpipe.utils.logger import get_console_logger
 
 if TYPE_CHECKING:
     from medpipe.pipeline.orchestrator import MedpipeOrchestrator
-    from medpipe.pipeline.runner import MedpipeRunner
+    from medpipe.pipeline.runner import BaseRunner
 
 
-class MedpipeEvaluator:
+class BaseEvaluator:
     """
-    Evaluation engine for Medpipe machine learning models and pipelines.
+    Shared evaluation engine for computing point estimates and bootstrap
+    confidence intervals across full datasets and subgroups, independent of
+    outcome type.
 
-    Provides standard inference interfaces (`predict`, `predict_proba`, `decision_function`)
-    and structured performance evaluation across full datasets and extracted data subgroups.
-    In compliance with TRIPOD+AI reporting guidelines, evaluation metrics include bootstrap
-    confidence intervals. Results are automatically logged and saved to disk using the
-    orchestrator's `ArtifactManager`.
+    Provides model resolution, subgroup extraction, TRIPOD+AI compliant
+    slice evaluation, and artifact persistence. Outcome-type-specific
+    prediction retrieval (e.g. probability/decision scores for
+    classification, point or distributional predictions for regression) is
+    provided by subclasses via the `_get_predictions` hook.
 
     Parameters
     ----------
     orchestrator : MedpipeOrchestrator
         The pipeline orchestrator instance containing workflow configuration,
         run directories, and the `ArtifactManager`.
-    runner : MedpipeRunner
+    runner : BaseRunner
         The pipeline runner instance containing the dictionary of fitted models
         (`fitted_models`).
 
@@ -46,7 +57,7 @@ class MedpipeEvaluator:
     ----------
     orchestrator : MedpipeOrchestrator
         Pipeline orchestrator instance.
-    runner : MedpipeRunner
+    runner : BaseRunner
         Pipeline runner instance.
     fitted_models : dict of str to object
         Dictionary mapping outcome names to fitted estimators or pipelines.
@@ -58,44 +69,54 @@ class MedpipeEvaluator:
         Target confidence interval level.
     random_state : int, np.random.Generator, or None
         Random state instance for resampling.
+    n_jobs : int or None
+        Number of parallel jobs used to compute each slice's bootstrap
+        resamples (see `bootstrap_confidence_intervals`).
     logger : logging.Logger
         Logger instance configured under `"medpipe.evaluator"`.
 
     Methods
     -------
     predict(X, model=None, outcome=None)
-        Predict class labels for samples in X.
-    predict_proba(X, model=None, outcome=None)
-        Predict class probabilities for samples in X.
-    decision_function(X, model=None, outcome=None)
-        Compute decision function scores for samples in X.
+        Predict outcomes for samples in X.
     extract_subgroups(X, subgroup_specs)
         Extract index subsets for specified data subgroups.
     evaluate(X, y, outcome=None, metrics=None, subgroup_specs=None, save_artifacts=True)
-        Evaluate model performance with confidence intervals across full data and subgroups.
+        Evaluate model performance with confidence intervals across full data
+        and subgroups.
 
     """
 
     def __init__(
         self,
         orchestrator: MedpipeOrchestrator,
-        runner: MedpipeRunner,
+        runner: BaseRunner,
     ) -> None:
         self.orchestrator = orchestrator
         self.runner = runner
         eval_config = self.orchestrator.config.workflow.evaluation
 
-        self.fitted_models: Dict[str, Any] = getattr(runner, "fitted_models", {})
+        self.fitted_models: dict[str, Any] = getattr(runner, "fitted_models", {})
         self.n_bootstraps = eval_config.metrics.n_bootstraps
         self.ci_level = eval_config.metrics.ci_level
         self.random_state = self.orchestrator.config.workflow.random_state
+        self.n_jobs = self.orchestrator.config.workflow.n_jobs
+
+        # `ici` is registered globally with a fixed `cv_splines` default;
+        # rebind it to this run's configured value (regression configs have
+        # no such metric/field, hence the fallback).
+        cv_splines = getattr(eval_config.metrics, "cv_splines", 3)
+        MetricRegistry.register_spec(
+            replace(
+                MetricRegistry.get("ici"),
+                func=partial(ici_score, cv_splines=cv_splines),
+            )
+        )
         self.logger = get_console_logger("medpipe.evaluator")
 
         self.metrics = eval_config.metrics.metrics
 
-    def _get_model(
-        self, model: Optional[Any] = None, outcome: Optional[str] = None
-    ) -> Any:
+    def _get_model(self, model: Any | None = None, outcome: str | None = None) -> Any:
         """
         Resolve estimator model from argument, outcome key, or fitted dictionary.
 
@@ -136,12 +157,12 @@ class MedpipeEvaluator:
 
     def predict(
         self,
-        X: Union[pd.DataFrame, npt.NDArray],
-        model: Optional[Any] = None,
-        outcome: Optional[str] = None,
+        X: pd.DataFrame | npt.NDArray,
+        model: Any | None = None,
+        outcome: str | None = None,
     ) -> npt.NDArray:
         """
-        Predict class labels for samples in X.
+        Predict outcomes for samples in X.
 
         Parameters
         ----------
@@ -155,7 +176,7 @@ class MedpipeEvaluator:
         Returns
         -------
         y_pred : numpy.ndarray
-            Predicted class labels of shape (n_samples,).
+            Predicted values of shape (n_samples,).
 
         Raises
         ------
@@ -168,83 +189,41 @@ class MedpipeEvaluator:
             raise AttributeError("The underlying model does not implement 'predict'.")
         return np.asarray(target_model.predict(X))
 
-    def predict_proba(
+    def _get_predictions(
         self,
-        X: Union[pd.DataFrame, npt.NDArray],
-        model: Optional[Any] = None,
-        outcome: Optional[str] = None,
+        X: pd.DataFrame | npt.NDArray,
+        target_model: Any,
+        metrics: list[str],
     ) -> npt.NDArray:
         """
-        Predict class probabilities for samples in X.
+        Retrieve the model predictions used to compute the requested metrics.
+
+        Subclasses must implement this to resolve the outcome-type-specific
+        prediction method.
 
         Parameters
         ----------
         X : pandas.DataFrame or numpy.ndarray
             Features dataset of shape (n_samples, n_features).
-        model : object, optional
-            Fitted model instance. If None, resolved via `outcome` or `fitted_models`.
-        outcome : str, optional
-            Outcome key to look up in `self.fitted_models`.
+        target_model : object
+            The resolved, fitted model to predict with.
+        metrics : list of str
+            The metric names being evaluated, made available so subclasses
+            can decide which prediction method(s) are needed.
 
         Returns
         -------
-        y_proba : numpy.ndarray
-            Predicted class probabilities of shape (n_samples, n_classes) or (n_samples,).
-
-        Raises
-        ------
-        AttributeError
-            If the resolved model does not implement a `predict_proba` method.
+        y_pred : numpy.ndarray
+            Predictions used as input to metric computation.
 
         """
-        target_model = self._get_model(model, outcome)
-        if not hasattr(target_model, "predict_proba"):
-            raise AttributeError(
-                "The underlying model does not implement 'predict_proba'."
-            )
-        return np.asarray(target_model.predict_proba(X))
-
-    def decision_function(
-        self,
-        X: Union[pd.DataFrame, npt.NDArray],
-        model: Optional[Any] = None,
-        outcome: Optional[str] = None,
-    ) -> npt.NDArray:
-        """
-        Compute decision function scores for samples in X.
-
-        Parameters
-        ----------
-        X : pandas.DataFrame or numpy.ndarray
-            Features dataset of shape (n_samples, n_features).
-        model : object, optional
-            Fitted model instance. If None, resolved via `outcome` or `fitted_models`.
-        outcome : str, optional
-            Outcome key to look up in `self.fitted_models`.
-
-        Returns
-        -------
-        scores : numpy.ndarray
-            Confidence scores or decision function values of shape (n_samples,).
-
-        Raises
-        ------
-        AttributeError
-            If the resolved model does not implement a `decision_function` method.
-
-        """
-        target_model = self._get_model(model, outcome)
-        if not hasattr(target_model, "decision_function"):
-            raise AttributeError(
-                "The underlying model does not implement 'decision_function'."
-            )
-        return np.asarray(target_model.decision_function(X))
+        raise NotImplementedError
 
     def extract_subgroups(
         self,
         X: pd.DataFrame,
-        subgroup_specs: Dict[str, Union[str, Callable[[pd.DataFrame], pd.Series]]],
-    ) -> Dict[str, Dict[str, pd.Index]]:
+        subgroup_specs: dict[str, str | Callable[[pd.DataFrame], pd.Series]],
+    ) -> dict[str, dict[str, pd.Index]]:
         """
         Extract sample index subsets for specified data subgroups.
 
@@ -253,14 +232,17 @@ class MedpipeEvaluator:
         X : pandas.DataFrame
             Input feature dataset.
         subgroup_specs : dict of str to (str or callable)
-            Mapping where keys are subgroup category names (e.g., `'age_group'`) and values are:
+            Mapping where keys are subgroup category names (e.g., `'age_group'`)
+            and values are:
             - Column name (`str`): Groups samples by unique column values.
-            - Predicate (`callable`): Function taking `X` and returning a boolean `pd.Series` mask.
+            - Predicate (`callable`): Function taking `X` and returning a
+              boolean `pd.Series` mask.
 
         Returns
         -------
         subgroups : dict of str to dict of str to pandas.Index
-            Nested dictionary structured as `{category_name: {subgroup_val: row_indices}}`.
+            Nested dictionary structured as
+            `{category_name: {subgroup_val: row_indices}}`.
 
         Raises
         ------
@@ -273,10 +255,10 @@ class MedpipeEvaluator:
         self.logger.debug(
             f"Extracting subgroups for {len(subgroup_specs)} categories.",
         )
-        subgroups: Dict[str, Dict[str, pd.Index]] = {}
+        subgroups: dict[str, dict[str, pd.Index]] = {}
 
         for cat_name, spec in subgroup_specs.items():
-            cat_subgroups: Dict[str, pd.Index] = {}
+            cat_subgroups: dict[str, pd.Index] = {}
 
             if isinstance(spec, str) and spec in X.columns:
                 # Column string: discrete categorical groupby
@@ -316,8 +298,8 @@ class MedpipeEvaluator:
         self,
         y_true: npt.NDArray,
         y_pred: npt.NDArray,
-        metrics: List[str],
-    ) -> Dict[str, Dict[str, float]]:
+        metrics: list[str],
+    ) -> dict[str, dict[str, float]]:
         """
         Evaluate a single slice of data with TRIPOD+AI compliant confidence intervals.
 
@@ -347,10 +329,12 @@ class MedpipeEvaluator:
                 n_bootstraps=self.n_bootstraps,
                 ci_level=self.ci_level,
                 random_state=self.random_state,
+                n_jobs=self.n_jobs,
             )
         except Exception as err:
             self.logger.warning(
-                "Bootstrap CI calculation failed for slice (%s). Falling back to point estimates.",
+                "Bootstrap CI calculation failed for slice (%s). "
+                "Falling back to point estimates.",
                 err,
             )
             try:
@@ -361,7 +345,7 @@ class MedpipeEvaluator:
                         "ci_lower": np.nan,
                         "ci_upper": np.nan,
                     }
-                    for metric, score in zip(metrics, point_scores)
+                    for metric, score in zip(metrics, point_scores, strict=True)
                 }
             except Exception:
                 return {
@@ -373,18 +357,104 @@ class MedpipeEvaluator:
                     for metric in metrics
                 }
 
+    def _evaluate_stratum(
+        self,
+        cat_name: str,
+        group_val: str,
+        indices: pd.Index,
+        X: pd.DataFrame,
+        y_arr: npt.NDArray,
+        y_pred: npt.NDArray | PredictionBundle,
+        target_model: Any,
+        eval_metrics: list[str],
+        outcome: str | None,
+    ) -> tuple[str, str, dict[str, dict[str, float]] | None]:
+        """
+        Evaluate a single subgroup slice, isolated from `evaluate`'s stratum
+        loop for readability (the loop itself runs sequentially; parallelism
+        is instead applied to each slice's own bootstrap loop, see
+        `bootstrap_confidence_intervals`'s `n_jobs`).
+
+        Parameters
+        ----------
+        cat_name : str
+            Name of the subgroup category (e.g., 'age_group').
+        group_val : str
+            The specific subgroup value being evaluated (e.g., '[18, 50]').
+        indices : pandas.Index
+            Row indices (into `X`) belonging to this subgroup.
+        X : pandas.DataFrame
+            Full feature dataset used for prediction.
+        y_arr : numpy.ndarray
+            Full ground truth target array aligned with `X`.
+        y_pred : numpy.ndarray or PredictionBundle
+            Full model predictions aligned with `X`.
+        target_model : object
+            Fitted estimator, used to recompute distributional predictions
+            for this stratum when `y_pred` is a `PredictionBundle`.
+        eval_metrics : list of str
+            List of metric names to evaluate.
+        outcome : str, optional
+            Outcome key name, used for logging only.
+
+        Returns
+        -------
+        cat_name : str
+            Echoed subgroup category name, for reassembly by the caller.
+        group_val : str
+            Echoed subgroup value, for reassembly by the caller.
+        scores : dict of str to dict of str to float, or None
+            Metric results as returned by `_evaluate_slice`, or `None` if
+            the subgroup was empty and evaluation was skipped.
+
+        """
+        if len(indices) == 0:
+            self.logger.warning(
+                "Subgroup '%s=%s' is empty. Skipping.", cat_name, group_val
+            )
+            return cat_name, group_val, None
+
+        pos_idx = X.index.get_indexer(indices)
+        y_sub = y_arr[pos_idx]
+
+        if isinstance(y_pred, PredictionBundle):
+            point_sub = y_pred.point[pos_idx] if y_pred.point is not None else None
+            dist_sub = None
+            if y_pred.dist is not None:
+                # Not every distributional prediction object supports
+                # index-based subsetting (e.g. OrdBoost's
+                # ContinuousPredictiveDistribution does not), so recompute
+                # the distribution for this stratum's rows directly rather
+                # than slicing y_pred.dist.
+                X_sub = X.iloc[pos_idx]
+                dist_sub = target_model.predict_dist(X_sub)
+            y_pred_sub = PredictionBundle(point=point_sub, dist=dist_sub)
+        else:
+            y_pred_sub = y_pred[pos_idx]
+
+        self.logger.debug(
+            f"[{outcome}] Evaluating stratum '{cat_name}' matching group: {group_val}.",
+        )
+        self.logger.debug(f"[{outcome}] Number of samples in stratum: {len(y_sub)}.")
+
+        return (
+            cat_name,
+            group_val,
+            self._evaluate_slice(y_sub, y_pred_sub, eval_metrics),
+        )
+
     def evaluate(
         self,
         X: pd.DataFrame,
-        y: Union[pd.Series, npt.NDArray],
-        outcome: Optional[str] = None,
-        model: Optional[Any] = None,
-        metrics: Optional[List[str]] = None,
-        subgroup_specs: Optional[
-            Dict[str, Union[str, Callable[[pd.DataFrame], pd.Series]]]
-        ] = None,
+        y: pd.Series | npt.NDArray,
+        outcome: str | None = None,
+        model: Any | None = None,
+        metrics: list[str] | None = None,
+        subgroup_specs: dict[str, str | Callable[[pd.DataFrame], pd.Series]]
+        | None = None,
+        fairness_data: pd.DataFrame | None = None,
         save_artifacts: bool = True,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Evaluate model performance across the full dataset and optional subgroups.
 
@@ -395,7 +465,8 @@ class MedpipeEvaluator:
         Parameters
         ----------
         X : pandas.DataFrame
-            Feature dataset of shape (n_samples, n_features).
+            Feature dataset of shape (n_samples, n_features), used for
+            prediction. Contains model predictors only.
         y : pandas.Series or numpy.ndarray
             Ground truth target values of shape (n_samples,).
         outcome : str, optional
@@ -406,6 +477,12 @@ class MedpipeEvaluator:
             List of metrics to evaluate. If None, defaults to `self.metrics`.
         subgroup_specs : dict of str to (str or callable), optional
             Specifications for extracting demographic/clinical subgroups.
+        fairness_data : pandas.DataFrame, optional
+            Fairness stratification columns aligned with `X` (see
+            `MedpipeOrchestrator.fairness_splits`), used to resolve
+            `subgroup_specs` instead of `X` when a stratum is not itself a
+            model predictor (e.g. a "HOSPITAL" column). Defaults to `X`
+            when not provided, preserving strata that are also predictors.
         save_artifacts : bool, default=True
             Whether to write evaluation summary results to disk via `ArtifactManager`.
 
@@ -414,7 +491,8 @@ class MedpipeEvaluator:
         results : dict of str to Any
             Nested dictionary containing:
             - `"outcome"`: Name of outcome evaluated.
-            - `"overall"`: Dict mapping metric names to dicts of point estimates and CIs.
+            - `"overall"`: Dict mapping metric names to dicts of point
+              estimates and CIs.
             - `"subgroups"`: Dict mapping subgroup strata to slice metric results.
 
         """
@@ -427,12 +505,7 @@ class MedpipeEvaluator:
         y_arr = np.asarray(y)
 
         # Retrieve model predictions
-        if hasattr(target_model, "predict_proba"):
-            y_pred = self.predict_proba(X, model=target_model)
-        elif hasattr(target_model, "decision_function"):
-            y_pred = self.decision_function(X, model=target_model)
-        else:
-            y_pred = self.predict(X, model=target_model)
+        y_pred = self._get_predictions(X, target_model, eval_metrics)
 
         # 1. Compute overall evaluation with confidence intervals
         self.logger.info(
@@ -441,7 +514,7 @@ class MedpipeEvaluator:
             self.n_bootstraps,
             self.ci_level,
         )
-        results: Dict[str, Any] = {
+        results: dict[str, Any] = {
             "outcome": outcome_name,
             "overall": self._evaluate_slice(y_arr, y_pred, eval_metrics),
         }
@@ -449,32 +522,43 @@ class MedpipeEvaluator:
         # 2. Compute subgroup metrics using identical slice evaluation logic
         if subgroup_specs:
             self.logger.info(f"[{outcome_name}] Evaluating performance across strata.")
-            subgroup_results: Dict[str, Dict[str, Dict[str, Dict[str, float]]]] = {}
-            subgroups = self.extract_subgroups(X, subgroup_specs)
+            subgroup_source = fairness_data if fairness_data is not None else X
+            subgroups = self.extract_subgroups(subgroup_source, subgroup_specs)
 
-            for cat_name, cat_groups in subgroups.items():
-                subgroup_results[cat_name] = {}
-                for group_val, indices in cat_groups.items():
-                    if len(indices) == 0:
-                        self.logger.warning(
-                            "Subgroup '%s=%s' is empty. Skipping.", cat_name, group_val
-                        )
-                        continue
+            stratum_tasks = [
+                (cat_name, group_val, indices)
+                for cat_name, cat_groups in subgroups.items()
+                for group_val, indices in cat_groups.items()
+            ]
 
-                    pos_idx = X.index.get_indexer(indices)
-                    y_sub = y_arr[pos_idx]
-                    y_pred_sub = y_pred[pos_idx]
+            # Evaluated sequentially: the dominant cost is each slice's own
+            # bootstrap loop (see `bootstrap_confidence_intervals`'s
+            # `n_jobs`), which already spends the configured parallelism
+            # budget. Parallelizing this outer loop too would nest
+            # `n_jobs` worker processes inside `n_jobs` worker processes,
+            # oversubscribing cores for comparatively little gain, since
+            # there are far fewer strata than bootstrap resamples.
+            stratum_outputs = [
+                self._evaluate_stratum(
+                    cat_name,
+                    group_val,
+                    indices,
+                    X,
+                    y_arr,
+                    y_pred,
+                    target_model,
+                    eval_metrics,
+                    outcome,
+                )
+                for cat_name, group_val, indices in stratum_tasks
+            ]
 
-                    self.logger.debug(
-                        f"[{outcome}] Evaluating stratum '{cat_name}' "
-                        f"matching group: {group_val}.",
-                    )
-                    self.logger.debug(
-                        f"[{outcome}] Number of samples in stratum: {len(y_sub)}."
-                    )
-                    subgroup_results[cat_name][group_val] = self._evaluate_slice(
-                        y_sub, y_pred_sub, eval_metrics
-                    )
+            subgroup_results: dict[str, dict[str, dict[str, dict[str, float]]]] = {
+                cat_name: {} for cat_name in subgroups
+            }
+            for cat_name, group_val, scores in stratum_outputs:
+                if scores is not None:
+                    subgroup_results[cat_name][group_val] = scores
 
             results["strata"] = subgroup_results
 
@@ -488,7 +572,7 @@ class MedpipeEvaluator:
 
     def _save_evaluation_artifacts(
         self,
-        results: Dict[str, Any],
+        results: dict[str, Any],
         outcome: str,
     ) -> Path:
         """
@@ -508,7 +592,7 @@ class MedpipeEvaluator:
 
         """
         filename = f"{outcome}_evaluation_results.json"
-        saved_path: Optional[Path] = None
+        saved_path: Path | None = None
 
         artifacts_dir = self.orchestrator.run_dir / "results"
         artifact_mgr = self.orchestrator.artifact_manager
@@ -519,3 +603,298 @@ class MedpipeEvaluator:
             f"[{outcome}] Successfully saved evaluation artifacts to {saved_path}.",
         )
         return saved_path
+
+
+class MedpipeClassifierEvaluator(BaseEvaluator):
+    """
+    Evaluation engine for MedpipeClassifier machine learning models and pipelines.
+
+    Provides standard inference interfaces (`predict`, `predict_proba`,
+    `decision_function`) and structured performance evaluation across full
+    datasets and extracted data subgroups. In compliance with TRIPOD+AI
+    reporting guidelines, evaluation metrics include bootstrap confidence
+    intervals. Results are automatically logged and saved to disk using the
+    orchestrator's `ArtifactManager`.
+
+    Parameters
+    ----------
+    orchestrator : MedpipeOrchestrator
+        The pipeline orchestrator instance containing workflow configuration,
+        run directories, and the `ArtifactManager`.
+    runner : MedpipeClassifierRunner
+        The pipeline runner instance containing the dictionary of fitted models
+        (`fitted_models`).
+
+    Attributes
+    ----------
+    orchestrator : MedpipeOrchestrator
+        Pipeline orchestrator instance.
+    runner : MedpipeClassifierRunner
+        Pipeline runner instance.
+    fitted_models : dict of str to object
+        Dictionary mapping outcome names to fitted estimators or pipelines.
+    metrics : list of str
+        List of metric names used during evaluation.
+    n_bootstraps : int
+        Number of bootstrap iterations.
+    ci_level : float
+        Target confidence interval level.
+    random_state : int, np.random.Generator, or None
+        Random state instance for resampling.
+    n_jobs : int or None
+        Number of parallel jobs used to compute each slice's bootstrap
+        resamples (see `bootstrap_confidence_intervals`).
+    logger : logging.Logger
+        Logger instance configured under `"medpipe.evaluator"`.
+
+    Methods
+    -------
+    predict(X, model=None, outcome=None)
+        Predict class labels for samples in X.
+    predict_proba(X, model=None, outcome=None)
+        Predict class probabilities for samples in X.
+    decision_function(X, model=None, outcome=None)
+        Compute decision function scores for samples in X.
+    extract_subgroups(X, subgroup_specs)
+        Extract index subsets for specified data subgroups.
+    evaluate(X, y, outcome=None, metrics=None, subgroup_specs=None, save_artifacts=True)
+        Evaluate model performance with confidence intervals across full data
+        and subgroups.
+
+    """
+
+    def predict_proba(
+        self,
+        X: pd.DataFrame | npt.NDArray,
+        model: Any | None = None,
+        outcome: str | None = None,
+    ) -> npt.NDArray:
+        """
+        Predict class probabilities for samples in X.
+
+        Parameters
+        ----------
+        X : pandas.DataFrame or numpy.ndarray
+            Features dataset of shape (n_samples, n_features).
+        model : object, optional
+            Fitted model instance. If None, resolved via `outcome` or `fitted_models`.
+        outcome : str, optional
+            Outcome key to look up in `self.fitted_models`.
+
+        Returns
+        -------
+        y_proba : numpy.ndarray
+            Predicted class probabilities of shape (n_samples, n_classes) or
+            (n_samples,).
+
+        Raises
+        ------
+        AttributeError
+            If the resolved model does not implement a `predict_proba` method.
+
+        """
+        target_model = self._get_model(model, outcome)
+        if not hasattr(target_model, "predict_proba"):
+            raise AttributeError(
+                "The underlying model does not implement 'predict_proba'."
+            )
+        return np.asarray(target_model.predict_proba(X))
+
+    def decision_function(
+        self,
+        X: pd.DataFrame | npt.NDArray,
+        model: Any | None = None,
+        outcome: str | None = None,
+    ) -> npt.NDArray:
+        """
+        Compute decision function scores for samples in X.
+
+        Parameters
+        ----------
+        X : pandas.DataFrame or numpy.ndarray
+            Features dataset of shape (n_samples, n_features).
+        model : object, optional
+            Fitted model instance. If None, resolved via `outcome` or `fitted_models`.
+        outcome : str, optional
+            Outcome key to look up in `self.fitted_models`.
+
+        Returns
+        -------
+        scores : numpy.ndarray
+            Confidence scores or decision function values of shape (n_samples,).
+
+        Raises
+        ------
+        AttributeError
+            If the resolved model does not implement a `decision_function` method.
+
+        """
+        target_model = self._get_model(model, outcome)
+        if not hasattr(target_model, "decision_function"):
+            raise AttributeError(
+                "The underlying model does not implement 'decision_function'."
+            )
+        return np.asarray(target_model.decision_function(X))
+
+    def _get_predictions(
+        self,
+        X: pd.DataFrame | npt.NDArray,
+        target_model: Any,
+        metrics: list[str],
+    ) -> npt.NDArray:
+        """
+        Resolve predictions using probability, decision, or label output, in
+        that order of preference.
+
+        Parameters
+        ----------
+        X : pandas.DataFrame or numpy.ndarray
+            Features dataset of shape (n_samples, n_features).
+        target_model : object
+            The resolved, fitted model to predict with.
+        metrics : list of str
+            Unused for classification; accepted for interface compatibility
+            with `BaseEvaluator`.
+
+        Returns
+        -------
+        y_pred : numpy.ndarray
+            Predicted probabilities, decision scores, or class labels.
+
+        """
+        if hasattr(target_model, "predict_proba"):
+            return self.predict_proba(X, model=target_model)
+        elif hasattr(target_model, "decision_function"):
+            return self.decision_function(X, model=target_model)
+        return self.predict(X, model=target_model)
+
+
+class MedpipeRegressorEvaluator(BaseEvaluator):
+    """
+    Evaluation engine for MedpipeRegressor machine learning models and
+    pipelines.
+
+    Provides the standard `predict` inference interface and structured
+    performance evaluation across full datasets and extracted data
+    subgroups, using point predictions for metrics such as RMSE and MAE.
+    In compliance with TRIPOD+AI reporting guidelines, evaluation metrics
+    include bootstrap confidence intervals. Results are automatically
+    logged and saved to disk using the orchestrator's `ArtifactManager`.
+
+    Parameters
+    ----------
+    orchestrator : MedpipeOrchestrator
+        The pipeline orchestrator instance containing workflow configuration,
+        run directories, and the `ArtifactManager`.
+    runner : MedpipeRegressorRunner
+        The pipeline runner instance containing the dictionary of fitted models
+        (`fitted_models`).
+
+    Attributes
+    ----------
+    orchestrator : MedpipeOrchestrator
+        Pipeline orchestrator instance.
+    runner : MedpipeRegressorRunner
+        Pipeline runner instance.
+    fitted_models : dict of str to object
+        Dictionary mapping outcome names to fitted estimators or pipelines.
+    metrics : list of str
+        List of metric names used during evaluation.
+    n_bootstraps : int
+        Number of bootstrap iterations.
+    ci_level : float
+        Target confidence interval level.
+    random_state : int, np.random.Generator, or None
+        Random state instance for resampling.
+    n_jobs : int or None
+        Number of parallel jobs used to compute each slice's bootstrap
+        resamples (see `bootstrap_confidence_intervals`).
+    logger : logging.Logger
+        Logger instance configured under `"medpipe.evaluator"`.
+
+    Methods
+    -------
+    predict(X, model=None, outcome=None)
+        Predict continuous values for samples in X.
+    predict_dist(X, model=None, outcome=None)
+        Predict the full predictive distribution for samples in X.
+    extract_subgroups(X, subgroup_specs)
+        Extract index subsets for specified data subgroups.
+    evaluate(X, y, outcome=None, metrics=None, subgroup_specs=None, save_artifacts=True)
+        Evaluate model performance with confidence intervals across full data
+        and subgroups.
+
+    """
+
+    def predict_dist(
+        self,
+        X: pd.DataFrame | npt.NDArray,
+        model: Any | None = None,
+        outcome: str | None = None,
+    ) -> Any:
+        """
+        Predict the full predictive distribution for samples in X.
+
+        Parameters
+        ----------
+        X : pandas.DataFrame or numpy.ndarray
+            Features dataset of shape (n_samples, n_features).
+        model : object, optional
+            Fitted model instance. If None, resolved via `outcome` or `fitted_models`.
+        outcome : str, optional
+            Outcome key to look up in `self.fitted_models`.
+
+        Returns
+        -------
+        Any
+            The distribution object returned by the resolved model's
+            `predict_dist` method (e.g. an `ngboost.distns.Normal` or
+            `ordboost.distributions.ContinuousPredictiveDistribution`).
+
+        Raises
+        ------
+        AttributeError
+            If the resolved model does not implement a `predict_dist` method.
+
+        """
+        target_model = self._get_model(model, outcome)
+        if not hasattr(target_model, "predict_dist"):
+            raise AttributeError(
+                "The underlying model does not implement 'predict_dist'."
+            )
+        return target_model.predict_dist(X)
+
+    def _get_predictions(
+        self,
+        X: pd.DataFrame | npt.NDArray,
+        target_model: Any,
+        metrics: list[str],
+    ) -> PredictionBundle:
+        """
+        Resolve point predictions, and a full predictive distribution when
+        needed, used to compute the requested metrics.
+
+        Parameters
+        ----------
+        X : pandas.DataFrame or numpy.ndarray
+            Features dataset of shape (n_samples, n_features).
+        target_model : object
+            The resolved, fitted model to predict with.
+        metrics : list of str
+            The metric names being evaluated. If any requires a
+            `predict_dist` response method (e.g. crps), `predict_dist(X)`
+            is also called.
+
+        Returns
+        -------
+        PredictionBundle
+            Bundle carrying point predictions and, when needed, the full
+            predictive distribution.
+
+        """
+        needs_dist = any(
+            MetricRegistry.get(m).response_method == "predict_dist" for m in metrics
+        )
+        point = self.predict(X, model=target_model)
+        dist = self.predict_dist(X, model=target_model) if needs_dist else None
+        return PredictionBundle(point=point, dist=dist)

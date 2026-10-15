@@ -10,14 +10,15 @@ for experiment reproducibility.
 import hashlib
 import json
 import platform
+import shutil
 import subprocess
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Dict, Optional, Union
+from typing import Any
 
 
-def compute_file_hash(file_path: Union[str, Path], algorithm: str = "sha256") -> str:
+def compute_file_hash(file_path: str | Path, algorithm: str = "sha256") -> str:
     """Compute the cryptographic hash of a file on disk.
 
     Parameters
@@ -51,7 +52,7 @@ def compute_file_hash(file_path: Union[str, Path], algorithm: str = "sha256") ->
     return hasher.hexdigest()
 
 
-def compute_config_hash(config: Dict[str, Any]) -> str:
+def compute_config_hash(config: dict[str, Any]) -> str:
     """Generate a deterministic SHA-256 hash from a configuration dictionary.
 
     Parameters
@@ -70,7 +71,7 @@ def compute_config_hash(config: Dict[str, Any]) -> str:
     return hashlib.sha256(encoded_config).hexdigest()
 
 
-def get_git_commit_hash() -> Optional[str]:
+def get_git_commit_hash() -> str | None:
     """Retrieve the current Git commit hash of the repository.
 
     Returns
@@ -90,9 +91,9 @@ def get_git_commit_hash() -> Optional[str]:
 
 
 def capture_environment_state(
-    config: Dict[str, Any],
-    dataset_path: Optional[Union[str, Path]] = None,
-) -> Dict[str, Any]:
+    config: dict[str, Any],
+    dataset_path: str | Path | None = None,
+) -> dict[str, Any]:
     """Collect system, Python, package, and data metadata for reproducibility.
 
     Parameters
@@ -108,8 +109,8 @@ def capture_environment_state(
         Dictionary containing environment and runtime metadata.
 
     """
-    env_state: Dict[str, Any] = {
-        "timestamp_utc": datetime.now(timezone.utc).isoformat(),
+    env_state: dict[str, Any] = {
+        "timestamp_utc": datetime.now(UTC).isoformat(),
         "config_hash": compute_config_hash(config),
         "python_version": sys.version.split()[0],
         "platform": platform.platform(),
@@ -149,12 +150,15 @@ class ArtifactManager:
         Saves object as a JSON file.
     saved_resolved_config(config, destination_dir)
         Persist the resolved configuration dictionary as a JSON file.
+    save_toml_config(source_path, destination_dir)
+        Copy the original TOML configuration file into the artifact
+        directory.
     save_env_state(destination_dir, dataset_path)
         Capture and persist the environment state to `env_state.json`.
 
     """
 
-    def __init__(self, base_artifact_dir: Union[str, Path] = "artifacts") -> None:
+    def __init__(self, base_artifact_dir: str | Path = "artifacts") -> None:
         self.base_dir = Path(base_artifact_dir)
         self.base_dir.mkdir(parents=True, exist_ok=True)
 
@@ -194,9 +198,7 @@ class ArtifactManager:
         run_dir.mkdir(parents=True, exist_ok=True)
         return run_dir
 
-    def save_json(
-        self, obj: Any, destination_dir: Union[str, Path], filename: str
-    ) -> Path:
+    def save_json(self, obj: Any, destination_dir: str | Path, filename: str) -> Path:
         """Saves object as a JSON file.
 
         The destination directory is created if it does not exist.
@@ -225,7 +227,7 @@ class ArtifactManager:
         return dest
 
     def save_resolved_config(
-        self, config: Dict[str, Any], destination_dir: Union[str, Path]
+        self, config: dict[str, Any], destination_dir: str | Path
     ) -> Path:
         """Persist the resolved configuration dictionary as a JSON file.
 
@@ -244,11 +246,39 @@ class ArtifactManager:
         """
         return self.save_json(config, destination_dir, "resolved_config.json")
 
+    def save_toml_config(
+        self, source_path: str | Path, destination_dir: str | Path
+    ) -> Path:
+        """Copy the original TOML configuration file into the artifact
+        directory.
+
+        The destination directory is created if it does not exist.
+
+        Parameters
+        ----------
+        source_path : str or Path
+            Path to the original TOML configuration file.
+        destination_dir : str or Path
+            Directory where `config.toml` will be written.
+
+        Returns
+        -------
+        Path
+            Path to the copied TOML file.
+
+        """
+        dest_dir = Path(destination_dir)
+        dest_dir.mkdir(exist_ok=True, parents=True)
+
+        dest = dest_dir / "config.toml"
+        shutil.copy2(source_path, dest)
+        return dest
+
     def save_env_state(
         self,
-        destination_dir: Union[str, Path],
-        config: Dict[str, Any],
-        dataset_path: Optional[Union[str, Path]] = None,
+        destination_dir: str | Path,
+        config: dict[str, Any],
+        dataset_path: str | Path | None = None,
     ) -> Path:
         """Capture and persist the environment state to `env_state.json`.
 

@@ -1,0 +1,786 @@
+"""
+Tests for MedpipeRegressor, mirroring tests/pipeline/test_pipeline.py's
+structure for MedpipeClassifier. `run()` only triggers plotting in
+audit/eval mode, and only models that support `predict_dist` can produce
+plots.
+"""
+
+import json
+from pathlib import Path
+from unittest.mock import MagicMock, patch
+
+import joblib
+import numpy as np
+import pandas as pd
+import pytest
+
+from medpipe.pipeline.pipeline import MedpipeRegressor
+from medpipe.utils.config import MedpipeRegressorConfig
+
+
+class TestMedpipeRegressorUnit:
+    """Unit tests verifying orchestration delegation and argument routing."""
+
+    @patch("medpipe.pipeline.pipeline.MedpipeOrchestrator")
+    @patch("medpipe.pipeline.pipeline.MedpipeRegressorRunner")
+    @patch("medpipe.pipeline.pipeline.MedpipeRegressorEvaluator")
+    def test_medpipe_regressor_initialization(
+        self, mock_eval_cls, mock_runner_cls, mock_orch_cls
+    ):
+        """Verify MedpipeRegressor initializes sub-orchestrators correctly."""
+        mock_config = MagicMock(spec=MedpipeRegressorConfig)
+        mock_orch_instance = mock_orch_cls.return_value
+
+        mp = MedpipeRegressor(config=mock_config)
+
+        mock_orch_cls.assert_called_once_with(
+            mock_config, "artifacts", None, is_classifier=False
+        )
+        mock_runner_cls.assert_called_once_with(orchestrator=mock_orch_instance)
+        mock_eval_cls.assert_called_once_with(
+            orchestrator=mock_orch_instance, runner=mock_runner_cls.return_value
+        )
+        assert mp.mp_config == mock_orch_instance.config
+
+    @patch("medpipe.pipeline.pipeline.MedpipeOrchestrator")
+    @patch("medpipe.pipeline.pipeline.MedpipeRegressorRunner")
+    @patch("medpipe.pipeline.pipeline.MedpipeRegressorEvaluator")
+    def test_medpipe_regressor_forwards_string_path_with_is_classifier_false(
+        self, mock_eval_cls, mock_runner_cls, mock_orch_cls
+    ):
+        """Verify a string/Path config is forwarded to MedpipeOrchestrator
+        unconverted, with `is_classifier=False`, so the orchestrator (not
+        MedpipeRegressor itself) parses it via
+        read_regressor_toml_configuration and can record `_config_path`
+        for reproducibility artifacts."""
+        MedpipeRegressor(config="path/to/regressor_config.toml")
+
+        mock_orch_cls.assert_called_once_with(
+            "path/to/regressor_config.toml",
+            "artifacts",
+            None,
+            is_classifier=False,
+        )
+
+    @patch("medpipe.pipeline.pipeline.MedpipeOrchestrator")
+    @patch("medpipe.pipeline.pipeline.MedpipeRegressorRunner")
+    @patch("medpipe.pipeline.pipeline.MedpipeRegressorEvaluator")
+    def test_inference_delegation(self, mock_eval_cls, mock_runner_cls, mock_orch_cls):
+        """Verify predict and predict_dist delegate to evaluator."""
+        mp = MedpipeRegressor(config=MagicMock())
+        X = pd.DataFrame({"A": [1, 2]})
+
+        mp.predict(X, outcome="LOS_DAYS")
+        mp._evaluator.predict.assert_called_once_with(
+            X=X, model=None, outcome="LOS_DAYS"
+        )
+
+        mp.predict_dist(X, outcome="LOS_DAYS")
+        mp._evaluator.predict_dist.assert_called_once_with(
+            X=X, model=None, outcome="LOS_DAYS"
+        )
+
+    @patch("medpipe.pipeline.pipeline.MedpipeOrchestrator")
+    @patch("medpipe.pipeline.pipeline.MedpipeRegressorRunner")
+    @patch("medpipe.pipeline.pipeline.MedpipeRegressorEvaluator")
+    def test_evaluate_y_dataframe_resolution(
+        self, mock_eval_cls, mock_runner_cls, mock_orch_cls
+    ):
+        """Verify y DataFrame slicing resolution logic in evaluate()."""
+        mp = MedpipeRegressor(config=MagicMock())
+        X = pd.DataFrame({"AGE": [50, 60]})
+        y_df = pd.DataFrame(
+            {
+                "LOS_DAYS": [3.5, 7.2],
+                "BLOOD_LOSS_ML": [120.0, 300.0],
+            }
+        )
+
+        mp.evaluate(X, y_df, outcome="LOS_DAYS")
+        _, kwargs = mp._evaluator.evaluate.call_args
+        pd.testing.assert_series_equal(kwargs["y"], y_df["LOS_DAYS"])
+
+        y_single = pd.DataFrame({"TARGET": [1.0, 2.0]})
+        mp.evaluate(X, y_single)
+        _, kwargs = mp._evaluator.evaluate.call_args
+        pd.testing.assert_series_equal(kwargs["y"], y_single.iloc[:, 0])
+
+        # Multi-column DataFrame with no outcome match: passed through as-is
+        mp.evaluate(X, y_df)
+        _, kwargs = mp._evaluator.evaluate.call_args
+        pd.testing.assert_frame_equal(kwargs["y"], y_df)
+
+
+class TestMedpipeRegressorProperties:
+    """Unit tests for MedpipeRegressor's thin delegating properties."""
+
+    @patch("medpipe.pipeline.pipeline.MedpipeRegressorEvaluator")
+    @patch("medpipe.pipeline.pipeline.MedpipeRegressorRunner")
+    @patch("medpipe.pipeline.pipeline.MedpipeOrchestrator")
+    def test_models_returns_runner_fitted_models(
+        self, mock_orch_cls, mock_runner_cls, mock_eval_cls
+    ):
+        """Test that models delegates to runner.fitted_models."""
+        mp = MedpipeRegressor(config=MagicMock())
+        mp._runner.fitted_models = {"LOS_DAYS": "a_model"}
+
+        assert mp.models == {"LOS_DAYS": "a_model"}
+
+    @patch("medpipe.pipeline.pipeline.MedpipeRegressorEvaluator")
+    @patch("medpipe.pipeline.pipeline.MedpipeRegressorRunner")
+    @patch("medpipe.pipeline.pipeline.MedpipeOrchestrator")
+    def test_is_fitted_false_when_no_models(
+        self, mock_orch_cls, mock_runner_cls, mock_eval_cls
+    ):
+        """Test that is_fitted is False when fitted_models is empty."""
+        mp = MedpipeRegressor(config=MagicMock())
+        mp._runner.fitted_models = {}
+
+        assert mp.is_fitted is False
+
+    @patch("medpipe.pipeline.pipeline.MedpipeRegressorEvaluator")
+    @patch("medpipe.pipeline.pipeline.MedpipeRegressorRunner")
+    @patch("medpipe.pipeline.pipeline.MedpipeOrchestrator")
+    def test_run_dir_returns_orchestrator_run_dir(
+        self, mock_orch_cls, mock_runner_cls, mock_eval_cls
+    ):
+        """Test that run_dir delegates to orchestrator.run_dir."""
+        mp = MedpipeRegressor(config=MagicMock())
+        mp._orchestrator.run_dir = Path("/fake/run/dir")
+
+        assert mp.run_dir == Path("/fake/run/dir")
+
+    @patch("medpipe.pipeline.pipeline.MedpipeRegressorEvaluator")
+    @patch("medpipe.pipeline.pipeline.MedpipeRegressorRunner")
+    @patch("medpipe.pipeline.pipeline.MedpipeOrchestrator")
+    def test_metrics_returns_evaluator_metrics(
+        self, mock_orch_cls, mock_runner_cls, mock_eval_cls
+    ):
+        """Test that metrics delegates to evaluator.metrics."""
+        mp = MedpipeRegressor(config=MagicMock())
+        mp._evaluator.metrics = ["rmse", "mae", "crps"]
+
+        assert mp.metrics == ["rmse", "mae", "crps"]
+
+    @patch("medpipe.pipeline.pipeline.MedpipeRegressorEvaluator")
+    @patch("medpipe.pipeline.pipeline.MedpipeRegressorRunner")
+    @patch("medpipe.pipeline.pipeline.MedpipeOrchestrator")
+    def test_data_split_returns_orchestrator_splits(
+        self, mock_orch_cls, mock_runner_cls, mock_eval_cls
+    ):
+        """Test that data_split delegates to orchestrator.splits."""
+        mp = MedpipeRegressor(config=MagicMock())
+        mp._orchestrator.splits = "fake_splits"
+
+        assert mp.data_split == "fake_splits"
+
+
+class TestMedpipeRegressorFit:
+    """Unit tests for MedpipeRegressor.fit."""
+
+    @patch("medpipe.pipeline.pipeline.MedpipeRegressorEvaluator")
+    @patch("medpipe.pipeline.pipeline.MedpipeRegressorRunner")
+    @patch("medpipe.pipeline.pipeline.MedpipeOrchestrator")
+    def test_fit_delegates_to_runner_run(
+        self, mock_orch_cls, mock_runner_cls, mock_eval_cls
+    ):
+        """Test that fit delegates to runner.run with the expected arguments."""
+        mp = MedpipeRegressor(config=MagicMock())
+        X_train = pd.DataFrame({"A": [1, 2]})
+        y_train = pd.DataFrame({"LOS_DAYS": [3.0, 5.0]})
+        mp._runner.run.return_value = {"LOS_DAYS": "fitted_model"}
+
+        result = mp.fit(X_train=X_train, y_train=y_train, groups_train=None)
+
+        mp._runner.run.assert_called_once_with(
+            X_train=X_train,
+            y_train_df=y_train,
+            X_recal=None,
+            y_recal_df=None,
+            groups_train=None,
+        )
+        assert result == {"LOS_DAYS": "fitted_model"}
+
+
+class TestMedpipeRegressorPlotAll:
+    """Unit tests verifying parameter forwarding in MedpipeRegressor.plot_all."""
+
+    @patch("medpipe.pipeline.pipeline.MedpipeRegressorDisplayer")
+    @patch("medpipe.pipeline.pipeline.MedpipeRegressorEvaluator")
+    @patch("medpipe.pipeline.pipeline.MedpipeRegressorRunner")
+    @patch("medpipe.pipeline.pipeline.MedpipeOrchestrator")
+    def test_plot_all_extracts_mapper_from_fitted_model(
+        self, mock_orch_cls, mock_runner_cls, mock_eval_cls, mock_displayer_cls
+    ):
+        """Verify plot_all resolves the bin mapper from
+        `self.models[outcome]["regressor"].mapper_` and forwards it (plus
+        all other inputs and style kwargs) to the MedpipeRegressorDisplayer,
+        without the caller having to extract it."""
+        mp = MedpipeRegressor(config=MagicMock())
+        y_true = np.array([3.0, 5.0, 2.0])
+        dist = MagicMock()
+        mapper = MagicMock()
+        regressor_step = MagicMock()
+        regressor_step.mapper_ = mapper
+        fitted_pipeline = {"regressor": regressor_step}
+        mp._runner.fitted_models = {"LOS_DAYS": fitted_pipeline}
+        expected_plots = {"coverage": (MagicMock(), MagicMock())}
+        mp.displayer.plot_all.return_value = expected_plots
+
+        plots = mp.plot_all(
+            y_true=y_true,
+            dist=dist,
+            outcome="LOS_DAYS",
+            n_bootstraps=50,
+            save=False,
+            show=True,
+            color="red",
+        )
+
+        mp.displayer.plot_all.assert_called_once_with(
+            y_true=y_true,
+            dist=dist,
+            mapper=mapper,
+            outcome="LOS_DAYS",
+            coverage_levels=None,
+            n_bootstraps=50,
+            save=False,
+            show=True,
+            color="red",
+        )
+        assert plots == expected_plots
+
+    @patch("medpipe.pipeline.pipeline.MedpipeRegressorDisplayer")
+    @patch("medpipe.pipeline.pipeline.MedpipeRegressorEvaluator")
+    @patch("medpipe.pipeline.pipeline.MedpipeRegressorRunner")
+    @patch("medpipe.pipeline.pipeline.MedpipeOrchestrator")
+    def test_plot_all_passes_none_mapper_when_outcome_unmatched(
+        self, mock_orch_cls, mock_runner_cls, mock_eval_cls, mock_displayer_cls
+    ):
+        """Verify plot_all forwards mapper=None (instead of raising) when
+        `outcome` doesn't match any fitted model, leaving the displayer's
+        own clear error to surface only if the PIT histogram is requested."""
+        mp = MedpipeRegressor(config=MagicMock())
+        mp._runner.fitted_models = {"LOS_DAYS": {"regressor": MagicMock()}}
+        mp.displayer.plot_all.return_value = {}
+
+        mp.plot_all(
+            y_true=np.array([3.0, 5.0]),
+            dist=MagicMock(),
+            outcome="OTHER_OUTCOME",
+        )
+
+        _, kwargs = mp.displayer.plot_all.call_args
+        assert kwargs["mapper"] is None
+
+    @patch("medpipe.pipeline.pipeline.MedpipeRegressorDisplayer")
+    @patch("medpipe.pipeline.pipeline.MedpipeRegressorEvaluator")
+    @patch("medpipe.pipeline.pipeline.MedpipeRegressorRunner")
+    @patch("medpipe.pipeline.pipeline.MedpipeOrchestrator")
+    def test_plot_all_passes_none_mapper_when_regressor_has_no_mapper(
+        self, mock_orch_cls, mock_runner_cls, mock_eval_cls, mock_displayer_cls
+    ):
+        """Verify plot_all forwards mapper=None for a fitted regressor step
+        without a `mapper_` attribute (e.g. not OrdBoost-based)."""
+        mp = MedpipeRegressor(config=MagicMock())
+
+        class PlainRegressor:
+            pass
+
+        mp._runner.fitted_models = {"LOS_DAYS": {"regressor": PlainRegressor()}}
+        mp.displayer.plot_all.return_value = {}
+
+        mp.plot_all(
+            y_true=np.array([3.0, 5.0]),
+            dist=MagicMock(),
+            outcome="LOS_DAYS",
+        )
+
+        _, kwargs = mp.displayer.plot_all.call_args
+        assert kwargs["mapper"] is None
+
+
+class TestMedpipeRegressorRun:
+    """Unit tests verifying full workflow sequence in MedpipeRegressor.run."""
+
+    @patch("medpipe.pipeline.pipeline.MedpipeRegressorEvaluator")
+    @patch("medpipe.pipeline.pipeline.MedpipeRegressorRunner")
+    @patch("medpipe.pipeline.pipeline.MedpipeOrchestrator")
+    def test_run_fast_mode_execution_flow_never_generates_plots(
+        self, mock_orch_cls, mock_runner_cls, mock_eval_cls
+    ):
+        """Verify run executes data prep, fit, and test evaluation, and
+        never attempts any plotting outside of audit/eval mode."""
+        mp = MedpipeRegressor(config=MagicMock())
+        mp.mp_config.meta.run_mode = "fast"
+        mp.mp_config.data.kwargs = {"extra_arg": 0.2}
+        mp._orchestrator.config.data.outcomes = ["LOS_DAYS"]
+        mp._orchestrator.get_subgroup_specs.return_value = {"site": "site"}
+        mp._orchestrator.fairness_splits = None
+
+        X_tr, y_tr = pd.DataFrame({"A": [1, 2]}), pd.DataFrame({"LOS_DAYS": [3.0, 5.0]})
+        X_te, y_te = pd.DataFrame({"A": [3]}), pd.DataFrame({"LOS_DAYS": [4.0]})
+        mp._orchestrator.prepare_data.return_value = (
+            X_tr,
+            y_tr,
+            None,
+            None,
+            X_te,
+            y_te,
+            None,
+        )
+
+        mp.fit = MagicMock(return_value={"LOS_DAYS": "fitted_model"})
+        mp.evaluate = MagicMock(return_value={"overall": {"rmse": 1.2}})
+        mp.predict_dist = MagicMock()
+        mp.plot_all = MagicMock()
+
+        results = mp.run(groups_train=None)
+
+        mp._orchestrator.prepare_data.assert_called_once_with(extra_arg=0.2)
+        mp.fit.assert_called_once_with(
+            X_train=X_tr,
+            y_train=y_tr,
+            X_recal=None,
+            y_recal=None,
+            groups_train=None,
+        )
+        mp.evaluate.assert_called_once_with(
+            X=X_te,
+            y=y_te["LOS_DAYS"].to_numpy(),
+            outcome="LOS_DAYS",
+            subgroup_specs={"site": "site"},
+            fairness_data=None,
+            save_artifacts=True,
+        )
+
+        mp.predict_dist.assert_not_called()
+        mp.plot_all.assert_not_called()
+        assert results["fitted_models"] == {"LOS_DAYS": "fitted_model"}
+        assert results["evaluations"] == {"LOS_DAYS": {"overall": {"rmse": 1.2}}}
+        assert "plots" not in results
+
+    @patch("medpipe.pipeline.pipeline.MedpipeRegressorEvaluator")
+    @patch("medpipe.pipeline.pipeline.MedpipeRegressorRunner")
+    @patch("medpipe.pipeline.pipeline.MedpipeOrchestrator")
+    def test_run_audit_mode_triggers_plotting(
+        self, mock_orch_cls, mock_runner_cls, mock_eval_cls
+    ):
+        """Verify run calls predict_dist and plot_all per outcome, and
+        includes the resulting figures in audit/eval mode."""
+        mp = MedpipeRegressor(config=MagicMock())
+        mp.mp_config.meta.run_mode = "audit"
+        mp.mp_config.data.kwargs = {}
+        mp._orchestrator.config.data.outcomes = ["LOS_DAYS"]
+        mp._orchestrator.get_subgroup_specs.return_value = {}
+        mp._orchestrator.fairness_splits = None
+
+        X_tr, y_tr = pd.DataFrame({"A": [1, 2]}), pd.DataFrame({"LOS_DAYS": [3.0, 5.0]})
+        X_te, y_te = pd.DataFrame({"A": [3]}), pd.DataFrame({"LOS_DAYS": [4.0]})
+        mp._orchestrator.prepare_data.return_value = (
+            X_tr,
+            y_tr,
+            None,
+            None,
+            X_te,
+            y_te,
+            None,
+        )
+
+        mp.fit = MagicMock(return_value={"LOS_DAYS": "fitted_model"})
+        mp.evaluate = MagicMock(return_value={"overall": {"rmse": 1.2}})
+        dist_mock = MagicMock()
+        mp.predict_dist = MagicMock(return_value=dist_mock)
+        mp.plot_all = MagicMock(return_value={"coverage": ("fig_obj", "ax_obj")})
+
+        results = mp.run(groups_train=None)
+
+        mp.predict_dist.assert_called_once_with(X=X_te, outcome="LOS_DAYS")
+        mp.plot_all.assert_called_once_with(
+            y_true=y_te["LOS_DAYS"].to_numpy(),
+            dist=dist_mock,
+            outcome="LOS_DAYS",
+        )
+
+        assert "plots" in results
+        assert results["plots"]["LOS_DAYS"] == {"coverage": ("fig_obj", "ax_obj")}
+
+    @patch("medpipe.pipeline.pipeline.MedpipeRegressorEvaluator")
+    @patch("medpipe.pipeline.pipeline.MedpipeRegressorRunner")
+    @patch("medpipe.pipeline.pipeline.MedpipeOrchestrator")
+    def test_run_logs_fit_and_total_duration_at_debug_level(
+        self, mock_orch_cls, mock_runner_cls, mock_eval_cls
+    ):
+        """Verify run logs the model fitting duration and the total run
+        duration at the debug log level."""
+        mp = MedpipeRegressor(config=MagicMock())
+        mp.mp_config.meta.run_mode = "fast"
+        mp.mp_config.data.kwargs = {}
+        mp._orchestrator.config.data.outcomes = ["LOS_DAYS"]
+        mp._orchestrator.get_subgroup_specs.return_value = {}
+
+        X_tr, y_tr = pd.DataFrame({"A": [1, 2]}), pd.DataFrame({"LOS_DAYS": [3.0, 5.0]})
+        X_te, y_te = pd.DataFrame({"A": [3]}), pd.DataFrame({"LOS_DAYS": [4.0]})
+        mp._orchestrator.prepare_data.return_value = (
+            X_tr,
+            y_tr,
+            None,
+            None,
+            X_te,
+            y_te,
+            None,
+        )
+
+        mp.fit = MagicMock(return_value={"LOS_DAYS": "fitted_model"})
+        mp.evaluate = MagicMock(return_value={"overall": {"rmse": 1.2}})
+        mp._logger = MagicMock()
+
+        mp.run(groups_train=None)
+
+        debug_messages = [call.args[0] for call in mp._logger.debug.call_args_list]
+        assert any(
+            "Model fitting completed in" in msg and "seconds" in msg
+            for msg in debug_messages
+        )
+        assert any(
+            "Full pipeline run completed in" in msg and "seconds" in msg
+            for msg in debug_messages
+        )
+
+
+class TestMedpipeRegressorLoad:
+    """Test suite for the MedpipeRegressor.load class factory method."""
+
+    @pytest.fixture
+    def valid_config_dict(self, tmp_path: Path) -> dict:
+        """Provides a minimal valid raw regressor configuration dictionary."""
+        return {
+            "meta": {
+                "project_name": "demo_regressor_project",
+                "run_mode": "fast",
+                "verbose": "compact",
+            },
+            "data": {
+                "path": str(tmp_path / "data.csv"),
+                "predictors": ["AGE", "SEX"],
+                "outcomes": ["LOS_DAYS"],
+            },
+            "default_model": {
+                "algorithm": "OrdBoostRegressor",
+                "hyperparameters": {},
+            },
+            "workflow": {
+                "validation": {
+                    "test_split": {"strategy": "random", "test_size": 0.2},
+                },
+                "evaluation": {
+                    "metrics": {"metrics": ["rmse"]},
+                },
+            },
+        }
+
+    def test_load_missing_config_raises_file_not_found(self, tmp_path: Path) -> None:
+        """Test that FileNotFoundError is raised if resolved_config.json is missing."""
+        empty_run_dir = tmp_path / "empty_run"
+        empty_run_dir.mkdir()
+
+        with pytest.raises(
+            FileNotFoundError,
+            match="Cannot load MedpipeRegressor instance: Configuration JSON missing",
+        ):
+            MedpipeRegressor.load(empty_run_dir)
+
+    def test_load_successful_without_models_directory(
+        self, tmp_path: Path, valid_config_dict: dict
+    ) -> None:
+        """Test successful reconstruction of MedpipeRegressor when no models
+        directory is present."""
+        run_dir = tmp_path / "run_2026_09_13"
+        config_dir = run_dir / "env"
+        config_dir.mkdir(parents=True)
+
+        config_path = config_dir / "resolved_config.json"
+        with open(config_path, "w", encoding="utf-8") as f:
+            json.dump(valid_config_dict, f)
+
+        pipe = MedpipeRegressor.load(run_dir)
+
+        assert isinstance(pipe, MedpipeRegressor)
+        assert pipe.run_dir == run_dir / "eval"
+        assert pipe.displayer.run_dir == run_dir / "eval"
+        assert pipe.mp_config.meta.project_name == "demo_regressor_project"
+
+    def test_load_successful_with_fitted_models(
+        self, tmp_path: Path, valid_config_dict: dict
+    ) -> None:
+        """Test loading and restoring serialized fitted models into both the
+        runner and the evaluator."""
+        run_dir = tmp_path / "run_2026_09_13"
+        models_dir = run_dir / "models"
+        config_dir = run_dir / "env"
+        models_dir.mkdir(parents=True)
+        config_dir.mkdir(parents=True)
+
+        config_path = config_dir / "resolved_config.json"
+        with open(config_path, "w", encoding="utf-8") as f:
+            json.dump(valid_config_dict, f)
+
+        mock_fitted_models = {"LOS_DAYS": "fitted_model_placeholder"}
+        model_artifact = models_dir / "demo_regressor_project_fitted.joblib"
+        joblib.dump(mock_fitted_models, model_artifact)
+
+        pipe = MedpipeRegressor.load(str(run_dir))
+
+        assert isinstance(pipe, MedpipeRegressor)
+        assert pipe.run_dir == run_dir / "eval"
+        assert pipe.displayer.run_dir == run_dir / "eval"
+        assert pipe.models == mock_fitted_models
+        assert pipe._evaluator.fitted_models == mock_fitted_models
+
+
+class TestMedpipeRegressorStressIntegration:
+    """End-to-end integration test executing MedpipeRegressor against a
+    real, small synthetic dataset with a real OrdBoostRegressor - no mocking
+    of the orchestrator/runner/evaluator stack."""
+
+    def test_full_run_with_real_ordboost_regressor(self, tmp_path: Path) -> None:
+        """Test that a full run() completes end-to-end: config parsing,
+        data splitting, real OrdBoostRegressor training with CRPS-scored
+        CV, and held-out evaluation with rmse/mae/crps."""
+        rng = np.random.default_rng(42)
+        n = 120
+        df = pd.DataFrame(
+            {
+                "feature1": rng.standard_normal(n),
+                "feature2": rng.standard_normal(n),
+                "LOS_DAYS": np.exp(rng.standard_normal(n) * 0.5)
+                + rng.normal(0.0, 0.5, n),
+            }
+        )
+        data_path = tmp_path / "data.csv"
+        df.to_csv(data_path, index=False)
+
+        config_path = tmp_path / "config.toml"
+        config_path.write_text(f"""
+[meta]
+project_name = "stress_test"
+run_mode = "cv"
+
+[data]
+path = "{data_path}"
+predictors = ["feature1", "feature2"]
+outcomes = ["LOS_DAYS"]
+
+[default_model]
+algorithm = "OrdBoostRegressor"
+
+[default_model.hyperparameters]
+n_bins = 10
+mapper = "quantile"
+learning_rate = 0.1
+max_iter = 15
+random_state = 42
+
+[workflow.validation.test_split]
+strategy = "random"
+test_size = 0.2
+
+[workflow.validation.cross_validation]
+strategy = "random"
+n_splits = 3
+grid_search = false
+
+[workflow.evaluation.metrics]
+metrics = ["rmse", "crps"]
+""")
+
+        mp = MedpipeRegressor(
+            config=str(config_path), base_artifact_dir=str(tmp_path / "artifacts")
+        )
+        results = mp.run()
+
+        assert mp.is_fitted
+        assert "LOS_DAYS" in results["fitted_models"]
+
+        overall = results["evaluations"]["LOS_DAYS"]["overall"]
+        assert np.isfinite(overall["rmse"]["point_estimate"])
+        assert np.isfinite(overall["crps"]["point_estimate"])
+
+        # plot_all is not auto-wired into run() yet (see class docstring),
+        # but should work end-to-end when called manually against a real
+        # fitted OrdBoostRegressor. The bin mapper is resolved internally
+        # from self.models["LOS_DAYS"]["regressor"].mapper_, so it no
+        # longer needs to be extracted and passed explicitly.
+        X_test = mp.data_split.X_test
+        y_test = mp.data_split.y_test["LOS_DAYS"].to_numpy()
+        dist = mp.predict_dist(X_test, outcome="LOS_DAYS")
+
+        plots = mp.plot_all(
+            y_true=y_test,
+            dist=dist,
+            outcome="LOS_DAYS",
+            n_bootstraps=5,
+            save=True,
+        )
+
+        assert set(plots.keys()) == {
+            "coverage",
+            "sharpness",
+            "winkler",
+            "marginal_calibration",
+            "pit_histogram",
+            "data_distribution",
+        }
+        plot_dir = mp.run_dir / "plots" / "LOS_DAYS"
+        for filename in (
+            "LOS_DAYS_coverage.png",
+            "LOS_DAYS_sharpness.png",
+            "LOS_DAYS_winkler.png",
+            "LOS_DAYS_marginal_calibration.png",
+            "LOS_DAYS_pit_histogram.png",
+            "LOS_DAYS_data_distribution.png",
+        ):
+            assert (plot_dir / filename).exists()
+
+        # Regression test: MedpipeRegressor used to pre-parse a string/Path
+        # config itself before reaching MedpipeOrchestrator, so the
+        # orchestrator's `_config_path` was never set and the original TOML
+        # was silently never copied into the run's reproducibility
+        # artifacts. It now must be.
+        assert (mp.run_dir / "env" / "config.toml").exists()
+
+    def test_full_run_with_real_ngboost_regressor(self, tmp_path: Path) -> None:
+        """Regression test: a full run() with a real NGBRegressor used to
+        raise NotFittedError during evaluate() (Pipeline.predict() calling
+        check_is_fitted(self), which NGBoost estimators always fail since
+        they set no scikit-learn-conventional fitted attribute), even
+        though the model was correctly fitted. Must now complete
+        end-to-end like OrdBoost does."""
+        rng = np.random.default_rng(42)
+        n = 120
+        df = pd.DataFrame(
+            {
+                "feature1": rng.standard_normal(n),
+                "feature2": rng.standard_normal(n),
+                "LOS_DAYS": np.exp(rng.standard_normal(n) * 0.5)
+                + rng.normal(0.0, 0.5, n),
+            }
+        )
+        data_path = tmp_path / "data.csv"
+        df.to_csv(data_path, index=False)
+
+        config_path = tmp_path / "config.toml"
+        config_path.write_text(f"""
+[meta]
+project_name = "stress_test"
+run_mode = "fast"
+
+[data]
+path = "{data_path}"
+predictors = ["feature1", "feature2"]
+outcomes = ["LOS_DAYS"]
+
+[default_model]
+algorithm = "NGBRegressor"
+
+[default_model.hyperparameters]
+n_estimators = 20
+verbose = false
+
+[workflow.validation.test_split]
+strategy = "random"
+test_size = 0.2
+
+[workflow.evaluation.metrics]
+metrics = ["rmse"]
+""")
+
+        mp = MedpipeRegressor(
+            config=str(config_path), base_artifact_dir=str(tmp_path / "artifacts")
+        )
+        results = mp.run()
+
+        assert mp.is_fitted
+        assert "LOS_DAYS" in results["fitted_models"]
+
+        overall = results["evaluations"]["LOS_DAYS"]["overall"]
+        assert np.isfinite(overall["rmse"]["point_estimate"])
+
+    def test_full_run_creates_recalibration_split(self, tmp_path: Path) -> None:
+        """Test that a configured `recalibration_split` produces a
+        non-empty, disjoint X_recal/y_recal holdout set for the regression
+        track, reusing the same SplitRecalibrationConfig schema as the
+        classifier (in preparation for future PIT recalibration). The
+        holdout set is not yet consumed by fitting/evaluation."""
+        rng = np.random.default_rng(42)
+        n = 200
+        df = pd.DataFrame(
+            {
+                "feature1": rng.standard_normal(n),
+                "feature2": rng.standard_normal(n),
+                "LOS_DAYS": np.exp(rng.standard_normal(n) * 0.5)
+                + rng.normal(0.0, 0.5, n),
+            }
+        )
+        data_path = tmp_path / "data.csv"
+        df.to_csv(data_path, index=False)
+
+        config_path = tmp_path / "config.toml"
+        config_path.write_text(f"""
+[meta]
+project_name = "stress_test"
+run_mode = "cv"
+
+[data]
+path = "{data_path}"
+predictors = ["feature1", "feature2"]
+outcomes = ["LOS_DAYS"]
+
+[default_model]
+algorithm = "OrdBoostRegressor"
+
+[default_model.hyperparameters]
+n_bins = 10
+mapper = "quantile"
+learning_rate = 0.1
+max_iter = 15
+random_state = 42
+
+[workflow.validation.test_split]
+strategy = "random"
+test_size = 0.2
+
+[workflow.validation.recalibration_split]
+strategy = "random"
+recalibration_size = 0.1
+
+[workflow.validation.cross_validation]
+strategy = "random"
+n_splits = 3
+grid_search = false
+
+[workflow.evaluation.metrics]
+metrics = ["rmse", "crps"]
+""")
+
+        mp = MedpipeRegressor(
+            config=str(config_path), base_artifact_dir=str(tmp_path / "artifacts")
+        )
+        mp.run()
+
+        assert mp.is_fitted
+
+        splits = mp.data_split
+        assert splits.X_recal is not None
+        assert splits.y_recal is not None
+        assert len(splits.X_recal) > 0
+
+        # Train/recal/test partitions are disjoint and together cover the
+        # full ingested dataset.
+        train_idx = set(splits.X_train.index)
+        recal_idx = set(splits.X_recal.index)
+        test_idx = set(splits.X_test.index)
+        assert train_idx.isdisjoint(recal_idx)
+        assert train_idx.isdisjoint(test_idx)
+        assert recal_idx.isdisjoint(test_idx)
+        assert len(train_idx) + len(recal_idx) + len(test_idx) == n

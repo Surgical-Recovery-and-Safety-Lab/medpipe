@@ -1,0 +1,95 @@
+"""
+Tests for MedpipeClassifierRunner._instantiate_estimator and _create_cv_splitter.
+"""
+
+import pytest
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.linear_model import LinearRegression
+from sklearn.model_selection import (
+    LeaveOneGroupOut,
+    StratifiedGroupKFold,
+    StratifiedKFold,
+)
+
+from medpipe.pipeline.runner import MedpipeClassifierRunner
+
+
+class TestInstantiateEstimator:
+    """Unit tests for MedpipeClassifierRunner._instantiate_estimator."""
+
+    def test_instantiate_estimator_classifier(self, mock_orchestrator):
+        runner = MedpipeClassifierRunner(orchestrator=mock_orchestrator)
+        estimator = runner._instantiate_estimator(
+            "RandomForestClassifier", {"n_estimators": 10}
+        )
+
+        assert isinstance(estimator, RandomForestClassifier)
+        assert estimator.n_estimators == 10
+
+    def test_instantiate_estimator_regressor_returned_unwrapped(
+        self, mock_orchestrator
+    ):
+        """Test that regressors are returned as plain estimators, with no
+        target-transformation wrapping applied."""
+        runner = MedpipeClassifierRunner(orchestrator=mock_orchestrator)
+        estimator = runner._instantiate_estimator("LinearRegression", {})
+
+        assert isinstance(estimator, LinearRegression)
+
+    def test_instantiate_estimator_list_params_filtered(self, mock_orchestrator):
+        """Test that list hyperparameters are reduced to scalars for initial
+        instantiation."""
+        runner = MedpipeClassifierRunner(orchestrator=mock_orchestrator)
+        params = {"n_estimators": [10, 50, 100], "max_depth": 5}
+
+        estimator = runner._instantiate_estimator("RandomForestClassifier", params)
+        assert isinstance(estimator, RandomForestClassifier)
+        assert estimator.n_estimators == 10
+        assert estimator.max_depth == 5
+
+
+class TestCreateCvSplitter:
+    """Unit tests for MedpipeClassifierRunner._create_cv_splitter."""
+
+    def test_create_cv_splitter(self, mock_orchestrator):
+        runner = MedpipeClassifierRunner(orchestrator=mock_orchestrator)
+
+        random_cv = runner._create_cv_splitter("random", 3, 42)
+        assert isinstance(random_cv, StratifiedKFold)
+        assert random_cv.n_splits == 3
+
+        group_cv = runner._create_cv_splitter("group", 5, 42)
+        assert isinstance(group_cv, StratifiedGroupKFold)
+
+        with pytest.raises(
+            ValueError, match="Strategy must be 'random', 'group' or 'loso'"
+        ):
+            runner._create_cv_splitter("invalid_strategy", 5, 42)
+
+    @pytest.mark.parametrize("n_splits", [None, 3])
+    @pytest.mark.parametrize("shuffle", [True, False])
+    def test_create_cv_splitter_loso(self, mock_orchestrator, n_splits, shuffle):
+        """Test that the loso strategy returns a leave-one-group-out splitter
+        that ignores n_splits and shuffle."""
+        runner = MedpipeClassifierRunner(orchestrator=mock_orchestrator)
+
+        cv = runner._create_cv_splitter("loso", n_splits, 42, shuffle=shuffle)
+
+        assert isinstance(cv, LeaveOneGroupOut)
+
+    @pytest.mark.parametrize("strategy", ["random", "group"])
+    @pytest.mark.parametrize("shuffle", [True, False])
+    def test_create_cv_splitter_shuffle(self, mock_orchestrator, strategy, shuffle):
+        """Test that the shuffle flag reaches the splitter, and that the seed
+        is only set when shuffling (scikit-learn rejects it otherwise)."""
+        runner = MedpipeClassifierRunner(orchestrator=mock_orchestrator)
+
+        cv = runner._create_cv_splitter(strategy, 3, 42, shuffle=shuffle)
+
+        assert cv.shuffle is shuffle
+        assert cv.random_state == (42 if shuffle else None)
+
+    def test_create_cv_splitter_shuffles_by_default(self, mock_orchestrator):
+        runner = MedpipeClassifierRunner(orchestrator=mock_orchestrator)
+
+        assert runner._create_cv_splitter("random", 3, 42).shuffle is True

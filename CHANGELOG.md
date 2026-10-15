@@ -5,7 +5,123 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to Semantic Versioning ([SemVer](https://semver.org/spec/v2.0.0.html)).
 
-## [0.4.0.dev0] 2026-09-09
+## [Unreleased]
+
+### Added
+* An `ideal` flag for the coverage plot to only plot the ideal coverage line once.
+* The `prepare_data()` property to the pipelines.
+* A `LeaveOneGroupOut` cross-validation option with the `loso` flag in the 
+cross-validation configuration schema.
+
+### Changed
+* Using `pysplinecalib` instead of `splinecalib`.
+* Updates in the marginal calibration and PIT functions to work with the new
+version of ordboost.
+* Using error bars instead of shaded areas to represent 95% CI in the coverage
+and sharpness plots.
+* The stratum heatmap labels were updated to simpler versions.
+* Small changes to legend locations and labels.
+* Made the ideal calibration line in the marginal calibration plot black.
+* The `audit` and `eval` flags no longer raise a ValidationError if there is no
+fairness data. The heatmaps are not plotted and a message is added to the log.
+
+### Fixed
+* All tests now pass.
+* Docstrings in the `metrics/core.py` file that were not in the Numpy style.
+* The `shuffle` flag now makes it all the way to `_create_cv_splitter`.
+* Formatted with `ruff`.
+
+## [0.4.0.dev2] - 2026-10-05
+
+### Added
+* Fit time and total run time to debug log.
+* Saving the raw toml configuration file to the `env/` artifact folder.
+* Tests for new features.
+* Splitting classes (`Medpipe`, `MedpipeEvaluator`, `MedpipeRunner`) into classifier and regressor. 
+* Renamed `Medpipe` to `MedpipeClassifier`.
+* Regression configuration schemas.
+* Tests for the regression configuration schemas.
+* New regression objects `MedpipeRegressionRunner` and `MedpipeRegressionEvaluator`.
+* The CRPS as a score for cross-validation and evaluation for the regressor.
+* A `MedpipeRegressor` class mirroring `MedpipeClassifier` for regression tasks.
+* A `FairnessSplits` mirroring the `DataSplits` class that is used for the 
+fairness evaluation.
+* Renamed `read_toml_configuration` to `read_classifier_toml_configuration`.
+* An `is_classifier` flag to `MedpipeOrchestrator` to load configuration correctly.
+* Split the `MedipeDisplayer` into a base and a classifier version.
+* The `MedipeRegressorDisplayer` and test cases.
+* Parallel loop for stratum bootstrap evaluation.
+* Parallel loop for spline bootstrap reliability diagram.
+* `cv_splines` with a default value of 3 to ICI and reliability diagram 
+`SplineCalib` computations.
+* Moved `plot_probability_distribution` to `BaseDisplayer` as
+`plot_data_distribution`, so `MedpipeRegressorDisplayer` can also plot the
+target-value data distribution; included in both displayers' `plot_all`.
+
+### Fixed
+* Docstring in the `config.py` script.
+* Bug in the default override values for the displayer.
+* Bug in the `compute_metrics` function. 
+* Bug in the `load` methods that did not load the fitted models to the evaluator.
+
+### Removed
+* Custom typings.
+
+## [0.4.0.dev1] - 2026-09-12
+
+### Added
+* `ruff` as a dev dependency, with lint configuration (`select` rules,
+line length, target Python version) in `pyproject.toml`.
+* Separate files for the `config` tests with increased coverage.
+* Separate files for the `logger` tests with increased coverage.
+* Separate files for the `reproducibility` tests with increased coverage.
+* Separate files for the `io` tests with increased coverage.
+* Separate files for the `visualisation/displayer` tests with increased coverage.
+* The `openpyxl` package as an optional dependency.
+* Ignoring thrid-party warnings about `pyarrow.feather` in tests.
+* Renamed `exceptions.py` to `validation.py` for clarity.
+* Safety check in the `BaseRegistry` _fallback_module.
+* Increased coverage in the `registry` tests.
+* Test coverage for the `metrics/core.py` functions.
+* Test coverage for the `metrics/registry.py` functions.
+* Test coverage for the `data` functions.
+* Test coverage for the `models` functions.
+* Test coverage for the `visualisation` functions.
+* Separate files for the `orchestrator` tests with increased coverage.
+* Separate files for the `runner` tests with increased coverage.
+* Test coverage for the `evaluator` functions.
+* Test coverage for the `pipeline` functions.
+
+### Removed
+* Monolithic `test_config.py` file.
+* Monolithic `test_logger.py` file.
+* Monolithic `test_reproducibility.py` file.
+* Monolithic `test_io.py` file.
+* Monolithic `test_displayer.py` file.
+* The `array_check` and `array_dim_check` functions, replaced with sklearn
+functions instead.
+* The `BoundedLogitTransformer` for regression.
+* Monolithic `test_orchestrator.py` file.
+* Monolithic `test_runner.py` file.
+
+### Changed
+* Reformatted the package and test suite to satisfy `ruff` lint rules:
+import sorting, modernized type hints (PEP 604/585/695), collapsed
+nested conditionals, and wrapped long lines.
+* Replaced the ambiguous en dash with a hyphen in stratum range labels
+(e.g. `"AGE: 18-50"`).
+
+### Fixed
+* Bug in `io.py` that was case-sensitive for the file extensions.
+* Bug in data split which never had `random_state` reach it.
+* Bug with the 'spline' strategy for the calibration curve that did not remove the
+markers when plotting.
+* Tightened several `pytest.raises(match=...)` patterns that relied on
+unescaped regex metacharacters (e.g. `.`) to coincidentally match.
+* Added explicit `strict=True` to a `zip()` call in the evaluator's
+bootstrap-CI fallback path.
+
+## [0.4.0.dev0] - 2026-09-09
 
 ### Added
 * **BREAKING** MedpipeOrchestrator class that handles the loading configuration, data, and creates the ArtifactManager
@@ -86,6 +202,9 @@ and this project adheres to Semantic Versioning ([SemVer](https://semver.org/spe
 ### Removed
 * Class imbalance mitigation methods (data sampling, cost-sensitive learning).
 
-[Unreleased]: https://github.com/Surgical-Recovery-and-Safety-Lab/medpipe/compare/v0.4.0.dev0...HEAD
+[Unreleased]: https://github.com/Surgical-Recovery-and-Safety-Lab/medpipe/compare/v0.4.0.dev2...HEAD
+[v0.4.0.dev2]: https://github.com/Surgical-Recovery-and-Safety-Lab/medpipe/compare/v0.4.0.dev1...v0.4.0.dev2
+[v0.4.0.dev1]: https://github.com/Surgical-Recovery-and-Safety-Lab/medpipe/compare/v0.4.0.dev0...v0.4.0.dev1
+[v0.4.0.dev0]: https://github.com/Surgical-Recovery-and-Safety-Lab/medpipe/compare/v0.3.1...v0.4.0.dev0
 [0.3.1]: https://github.com/Surgical-Recovery-and-Safety-Lab/medpipe/compare/v.0.3.0...v0.3.1
 [0.3.0]: https://github.com/Surgical-Recovery-and-Safety-Lab/medpipe/compare/v.0.2.1...v0.3.0

@@ -1,30 +1,32 @@
 """
 medpipe.utils
 -------------
-Core utility functions and infrastructure for the Medpipe package.
+Core utility functions and infrastructure for the medpipe package.
 
 Exposes configuration schemas, I/O handlers, centralized logging,
-component registries, reproducibility management, and assertion utilities.
+component registries, reproducibility management, and validation utilities.
 """
 
-from medpipe.utils.config import MedpipeConfig
-from medpipe.utils.exceptions import (
-    array_check,
-    array_dim_check,
-    file_checks,
-    path_checks,
+from medpipe.utils.config import MedpipeClassifierConfig, MedpipeRegressorConfig
+from medpipe.utils.io import (
+    DataLoaderRegistry,
+    load_data,
+    read_classifier_toml_configuration,
+    read_regressor_toml_configuration,
 )
-from medpipe.utils.io import DataLoaderRegistry, load_data, read_toml_configuration
 from medpipe.utils.logger import add_file_handler, get_console_logger
 from medpipe.utils.registry import BaseRegistry
 from medpipe.utils.reproducibility import ArtifactManager
+from medpipe.utils.validation import file_checks, path_checks
 
-__all__ = [
+__all__ = [  # noqa: RUF022 (grouped by category, not alphabetical)
     # Configuration
-    "MedpipeConfig",
+    "MedpipeClassifierConfig",
+    "MedpipeRegressorConfig",
     # I/O utilities
     "load_data",
-    "read_toml_configuration",
+    "read_classifier_toml_configuration",
+    "read_regressor_toml_configuration",
     "DataLoaderRegistry",
     # Logging
     "get_console_logger",
@@ -33,9 +35,7 @@ __all__ = [
     "BaseRegistry",
     # Reproducibility & Artifacts
     "ArtifactManager",
-    # Exception & Validation Checks
+    # Validation Checks
     "file_checks",
     "path_checks",
-    "array_check",
-    "array_dim_check",
 ]

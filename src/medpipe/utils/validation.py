@@ -1,26 +1,17 @@
 """
-Execption functions module.
+Validation functions module.
 
-This module provides functions for execption handling and raising.
+This module provides functions for validating files and paths, raising
+the appropriate exception when a check fails.
 
 Functions:
 - file_checks: Checks if the file is correct.
 - path_checks: Checks if the path is correct.
-- array_check: Checks for an array-like.
-- array_dim_check: Checks that the dimension of two arrays agree.
 """
 
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
-
-from numpy import ndarray
-from pandas import Series
-
-if TYPE_CHECKING:
-    import numpy.typing as npt
-    import pandas as pd
 
 
 def file_checks(
@@ -57,10 +48,10 @@ def file_checks(
 
     """
     if not isinstance(file, (str, Path)):
-        raise TypeError(f"File should be a string or Path")
+        raise TypeError("File should be a string or Path")
 
     if not isinstance(extension, (str, list)):
-        raise TypeError(f"Extension should be a string or list of strings")
+        raise TypeError("Extension should be a string or list of strings")
 
     path_object = Path(file).expanduser().resolve()  # Create a Path object
 
@@ -109,7 +100,7 @@ def path_checks(path: str | Path) -> None:
 
     """
     if not isinstance(path, (str, Path)):
-        raise TypeError(f"Path should be a string or a Path")
+        raise TypeError("Path should be a string or a Path")
 
     path_object = Path(path).expanduser().resolve()  # Create a Path object
 
@@ -118,70 +109,3 @@ def path_checks(path: str | Path) -> None:
 
     if not path_object.is_dir():
         raise NotADirectoryError(f"{path} should be a directory")
-
-
-def array_check(arr: npt.NDArray | pd.Series | list[Any]) -> None:
-    """
-    Checks that the input is an array-like.
-
-    Parameters
-    ----------
-    arr : npt.NDArray | pd.Series | list
-        Array to check.
-
-    Returns
-    -------
-    None
-        Nothing is returned.
-
-    Raises
-    ------
-    TypeError
-        If arr is not an array-like.
-
-    """
-    target_types = (list, ndarray, Series)
-    if not isinstance(arr, target_types):
-        raise TypeError(f"Input should be an array-like but instead got {type(arr)}")
-
-
-def array_dim_check(
-    arr1: npt.NDArray | pd.Series, arr2: npt.NDArray | pd.Series, dim: int | None = None
-) -> None:
-    """
-    Checks that the dimensions of the arrays match.
-
-    Parameters
-    ----------
-    arr1 : npt.NDArray | pd.Series
-        First array.
-    arr2 : npt.NDArray | pd.Series
-        Second array.
-    dim : int | None, default: None
-        Dimension to compare. If None shape is used.
-
-    Returns
-    -------
-    None
-        Nothing is returned.
-
-    Raises
-    ------
-    TypeError
-        If dim is not an integer.
-    ValueError
-        If the arrays do not have the same dimensions.
-
-    """
-    # Check arrays
-    array_check(arr1)
-    array_check(arr2)
-
-    if dim is None:
-        if arr1.shape != arr2.shape:
-            raise ValueError("The dimensions do not agree")
-    else:
-        if type(dim) is not int:
-            raise TypeError("Input dim should be an integer")
-        if arr1.shape[dim] != arr2.shape[dim]:
-            raise ValueError(f"The {dim} axis does not agree")

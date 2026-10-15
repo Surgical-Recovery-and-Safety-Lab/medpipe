@@ -11,17 +11,13 @@ Functions:
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Literal, cast
+from typing import Any, Literal, cast
 
 import numpy as np
+import numpy.typing as npt
 import pandas as pd
 from sklearn.model_selection import train_test_split
-
-from medpipe._types import Labels
-from medpipe.utils.exceptions import array_check, array_dim_check
-
-if TYPE_CHECKING:
-    import numpy.typing as npt
+from sklearn.utils import check_array, check_consistent_length
 
 
 def get_split_idx(
@@ -55,7 +51,7 @@ def get_split_idx(
         If values is not a list or a np.ndarray.
 
     """
-    array_check(idx_list)
+    check_array(idx_list, ensure_2d=False)
 
     # Standardize groups to numpy
     if isinstance(column, pd.Series):
@@ -63,7 +59,7 @@ def get_split_idx(
     elif not isinstance(column, np.ndarray):
         raise TypeError(f"column should be pd.Series or np.array, got {type(column)}")
 
-    array_dim_check(idx_list, column, dim=0)  # Ensure dimension match
+    check_consistent_length(idx_list, column)  # Ensure dimension match
 
     # Type checking validation
     if not isinstance(values, (list, np.ndarray)):
@@ -83,13 +79,14 @@ def get_split_idx(
 
 def split_data(
     features: pd.DataFrame,
-    labels: Labels,
+    labels: npt.NDArray,
     strategy: Literal["random", "group"],
     group_column: str | None = None,
     values: list[str] | list[int] | None = None,
     test_size: float | None = None,
     recalibration_size: float | None = None,
-) -> tuple[pd.DataFrame, Labels, pd.DataFrame, Labels]:
+    random_state: int | None = None,
+) -> tuple[pd.DataFrame, npt.NDArray, pd.DataFrame, npt.NDArray]:
     """
     Split data into train and test or train and recalibration sets.
 
@@ -101,7 +98,7 @@ def split_data(
     ----------
     features : pd.DataFrame
         Features to split.
-    labels : Labels
+    labels : npt.NDArray
         Labels to split.
     strategy : {"random", "group"}
         Strategy used to split the data.
@@ -113,12 +110,15 @@ def split_data(
         Test set size if the strategy is random.
     recalibration_size : float | None, default: None
         Recalibration set size if the strategy is random.
+    random_state : int | None, default: None
+        Seed controlling the shuffling applied before the random split, for
+        reproducibility. Ignored when strategy is group.
 
     Returns
     -------
     X_train, X_test : pd.DataFrame
         Train and test / recalibration set.
-    y_train, y_test : Labels
+    y_train, y_test : npt.NDArray
         Train and test / recalibration labels.
 
     Raises
@@ -164,7 +164,7 @@ def split_data(
             )
 
         X_train, X_test, y_train, y_test = train_test_split(
-            features, labels, test_size=size
+            features, labels, test_size=size, random_state=random_state
         )
 
     else:
@@ -172,15 +172,15 @@ def split_data(
 
     return (
         cast(pd.DataFrame, X_train),
-        cast(Labels, y_train),
+        cast(npt.NDArray, y_train),
         cast(pd.DataFrame, X_test),
-        cast(Labels, y_test),
+        cast(npt.NDArray, y_test),
     )
 
 
 def extract_labels(
     data: pd.DataFrame, labels: list[str]
-) -> tuple[pd.DataFrame, Labels]:
+) -> tuple[pd.DataFrame, npt.NDArray]:
     """
     Extracts the prediction labels from the training data.
 
@@ -195,7 +195,7 @@ def extract_labels(
     -------
     X : pd.DataFrame
         DataFrame containing the data.
-    y : Labels
+    y : npt.NDArray
         Array containing the prediction labels.
 
     Raises
@@ -256,7 +256,7 @@ def resolve_subgroup_mask(
     KeyError
         If `column` is not present in `df`.
     ValueError
-        If `group` interval format cannot be parsed.
+        If `group` is a tuple or list that does not have exactly 2 elements.
 
     """
     if column not in df.columns:
@@ -272,6 +272,15 @@ def resolve_subgroup_mask(
     elif isinstance(group, (tuple, list)) and len(group) == 2:
         lower, upper = group[0], group[1]
         return (col_data >= lower) & (col_data <= upper)
+
+    # A tuple/list of any other length is not a valid range definition, and
+    # would otherwise silently fall through to a positional/length-mismatched
+    # equality comparison below.
+    elif isinstance(group, (tuple, list)):
+        raise ValueError(
+            "Range group definitions must have exactly 2 elements (min, max), "
+            f"but got {len(group)}: {group!r}"
+        )
 
     # Standard discrete scalar equality (e.g. string, int, float)
     return col_data == group
