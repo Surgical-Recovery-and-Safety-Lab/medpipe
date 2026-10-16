@@ -1,10 +1,10 @@
 [meta]
-project_name = "medpipe_demo"
+project_name = "medpipe_classifier_demo"
 run_mode = "audit"
 verbose = 1
 
 [data]
-path = "/home/mroe734/Documents/srs/medpipe/tests/test_data.csv"
+path = "../tests/test_data.csv"
 predictors = [
   "AGE",
   "SEX",
@@ -60,12 +60,7 @@ n_jobs = 2
 [workflow.preprocessing]
 preprocess = true
 operations = [
-  { name = "OrdinalEncoder", columns = [
-    "SEX",
-    "ADMISSION_ACUITY",
-    "ADMISSION_SOURCE",
-    "CATEGORY_LEVEL_1"
-  ] },
+  { name = "OrdinalEncoder", columns = ["SEX", "ADMISSION_ACUITY", "ADMISSION_SOURCE", "CATEGORY_LEVEL_1"] },
   { name = "StandardScaler", columns = ["CATEGORY_LEVEL_1", "AGE"], with_mean = true },
 ]
 
