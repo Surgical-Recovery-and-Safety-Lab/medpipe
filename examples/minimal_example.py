@@ -1,9 +1,9 @@
 from pydantic import ValidationError
 
-from medpipe import Medpipe
+from medpipe import MedpipeClassifier
 
 try:
-    pipe = Medpipe("default_config.toml")
+    pipe = MedpipeClassifier("default_classifier_config.toml")
     pipe.run()
 except ValidationError as err:
     print(err)
