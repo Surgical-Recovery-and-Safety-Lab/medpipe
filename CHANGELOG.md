@@ -12,6 +12,8 @@ and this project adheres to Semantic Versioning ([SemVer](https://semver.org/spe
 * The `prepare_data()` property to the pipelines.
 * A `LeaveOneGroupOut` cross-validation option with the `loso` flag in the 
 cross-validation configuration schema.
+* The `validation` submodule to the API reference list in MkDocs.
+* The `quickstart.md` docs files.
 
 ### Changed
 * Using `pysplinecalib` instead of `splinecalib`.
@@ -24,12 +26,22 @@ and sharpness plots.
 * Made the ideal calibration line in the marginal calibration plot black.
 * The `audit` and `eval` flags no longer raise a ValidationError if there is no
 fairness data. The heatmaps are not plotted and a message is added to the log.
+* The `default_config.toml` was renamed to `default_classifier_config.toml`
+because there will be a `default_regressor_config.toml`.
+
 
 ### Fixed
 * All tests now pass.
 * Docstrings in the `metrics/core.py` file that were not in the Numpy style.
 * The `shuffle` flag now makes it all the way to `_create_cv_splitter`.
 * Formatted with `ruff`.
+* Typo in the `MedpipeRegressor` docstring.
+* Clone command in the `install.md` file to use ssh rather than https.
+* The `BaseRegistry` class docstring.
+
+
+### Removed
+* Old references to modules that no longer exist in the MkDocs API section.
 
 ## [0.4.0.dev2] - 2026-10-05
 
