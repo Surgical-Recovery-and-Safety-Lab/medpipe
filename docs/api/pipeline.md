@@ -2,6 +2,8 @@
 
 ---
 
+::: medpipe.pipeline.estimator
+
 ::: medpipe.pipeline.evaluator
 
 ::: medpipe.pipeline.orchestrator
