@@ -39,8 +39,9 @@ Use these when you need more control than the entry points give you, for example
 ## Reference pages
 
 * [Pipeline](pipeline.md): entry points, orchestrator, runners and evaluators.
+* [Configuration](config.md): the configuration schemas behind each section of the TOML file.
 * [Data](data.md): preprocessing registry, label extraction and dataset splitting.
 * [Models](models.md): the model registry.
 * [Metrics](metrics.md): the available metrics and how to add your own.
 * [Visualisation](visualisation.md): displayers, plotting functions and themes.
-* [Utils](utils.md): configuration schemas, I/O, logging, reproducibility and validation.
+* [Utils](utils.md): bootstrapping, I/O, logging, reproducibility and validation.

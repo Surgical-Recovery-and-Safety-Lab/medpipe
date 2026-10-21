@@ -2,15 +2,6 @@
 
 ---
 
-::: medpipe.utils.config
-    options:
-      filters:
-        - "!^_"
-        - "!^validate_"
-        - "!^resolve_"
-        - "!^check_"
-        - "!^handle_"
-
 ::: medpipe.utils.bootstrap
 
 ::: medpipe.utils.io
