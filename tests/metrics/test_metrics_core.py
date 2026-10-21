@@ -358,6 +358,38 @@ class TestCrpsScore:
         idx = np.array([3, 0, 7])
         np.testing.assert_allclose(_crps_values(y_true[idx], dist[idx]), values[idx])
 
+    def test_crps_ordboost_fast_path_matches_generic_grid_path(self) -> None:
+        """Test that the OrdBoost fast path agrees (up to the generic path's
+        threshold-grid approximation) with the generic `.ppf`/`.cdf` path."""
+        from ordboost.distributions import ContinuousPredictiveDistribution
+
+        from medpipe.metrics.core import _crps_values
+
+        class _DuckTypedDist:
+            """Hides the OrdBoost type so the generic path is taken."""
+
+            def __init__(self, inner: ContinuousPredictiveDistribution) -> None:
+                self._inner = inner
+
+            def ppf(self, q):
+                return self._inner.ppf(q)
+
+            def cdf(self, x):
+                return self._inner.cdf(x)
+
+        rng = np.random.default_rng(2)
+        grid_y = np.linspace(0.0, 10.0, 21)
+        grid_cdf = np.sort(rng.uniform(size=(25, 21)), axis=1)
+        grid_cdf[:, 0] = 0.0
+        grid_cdf[:, -1] = 1.0
+        dist = ContinuousPredictiveDistribution(grid_y, grid_cdf)
+        y_true = rng.uniform(0.0, 10.0, size=25)
+
+        fast = _crps_values(y_true, dist)
+        generic = _crps_values(y_true, _DuckTypedDist(dist))
+
+        np.testing.assert_allclose(fast, generic, atol=5e-3)
+
     def test_crps_score_degenerate_zero_width_range(self) -> None:
         """Test that a degenerate distribution/observation range (upper ==
         lower, e.g. a constant predictive distribution matching a constant
