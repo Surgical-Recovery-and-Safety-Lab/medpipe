@@ -6,7 +6,12 @@ of the config module.
 import pytest
 from pydantic import ValidationError
 
-from medpipe.utils.config import ModelSetup, RecalibrationConfig
+from medpipe.utils.config import (
+    ModelOverride,
+    ModelSetup,
+    RecalibrationConfig,
+    RecalibrationOverrideConfig,
+)
 
 
 class TestRecalibrationConfig:
@@ -116,3 +121,40 @@ class TestModelSetupConfig:
         """Test that extra fields at the model setup level are strictly forbidden."""
         with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
             ModelSetup(algorithm="RF", unexpected_flag=True)  # type: ignore
+
+
+class TestRecalibrationOverrideConfig:
+    """Test class for the RecalibrationOverrideConfig class"""
+
+    def test_all_fields_optional(self) -> None:
+        """Test that an empty override is valid and sets no field."""
+        config = RecalibrationOverrideConfig.model_validate({})
+
+        assert config.model_fields_set == set()
+
+    def test_extra_fields_forbidden(self) -> None:
+        """Test that extra fields are forbidden."""
+        with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
+            RecalibrationOverrideConfig.model_validate({"unexpected_flag": True})
+
+
+class TestModelOverride:
+    """Test class for the ModelOverride class"""
+
+    def test_all_fields_optional(self) -> None:
+        """Test that an empty override is valid and sets no field."""
+        override = ModelOverride.model_validate({})
+
+        assert override.model_fields_set == set()
+
+    def test_partial_override(self) -> None:
+        """Test that only the fields that are given are set."""
+        override = ModelOverride.model_validate({"hyperparameters": {"max_depth": 3}})
+
+        assert override.model_fields_set == {"hyperparameters"}
+        assert override.algorithm is None
+
+    def test_extra_fields_forbidden(self) -> None:
+        """Test that extra fields are forbidden."""
+        with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
+            ModelOverride.model_validate({"unexpected_flag": True})

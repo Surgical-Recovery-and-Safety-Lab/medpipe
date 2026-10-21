@@ -316,3 +316,37 @@ class TestMedpipeRegressorConfig:
 
         with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
             MedpipeRegressorConfig.model_validate(raw_config)
+
+    def test_cascade_override_without_algorithm_merges_hyperparameters(
+        self, tmp_path: Path
+    ) -> None:
+        """Test that an override without an algorithm keeps the default
+        algorithm and merges its hyperparameters."""
+        raw_config = self._get_valid_config_dict(tmp_path)
+        raw_config["outcome_overrides"] = {
+            "BLOOD_LOSS_ML": {"hyperparameters": {"learning_rate": 0.1}}
+        }
+
+        config = MedpipeRegressorConfig.model_validate(raw_config)
+
+        model = config.resolved_models["BLOOD_LOSS_ML"]
+        assert model.algorithm == "NGBRegressor"
+        assert model.hyperparameters == {"n_estimators": 300, "learning_rate": 0.1}
+
+    def test_no_recalibration_field_on_override(self, tmp_path: Path) -> None:
+        """Test that recalibration is rejected in an outcome override."""
+        raw_config = self._get_valid_config_dict(tmp_path)
+        raw_config["outcome_overrides"] = {
+            "BLOOD_LOSS_ML": {"recalibration": {"recalibrate": True}}
+        }
+
+        with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
+            MedpipeRegressorConfig.model_validate(raw_config)
+
+    def test_unknown_algorithm_raises(self, tmp_path: Path) -> None:
+        """Test that an algorithm unknown to ModelRegistry is rejected."""
+        raw_config = self._get_valid_config_dict(tmp_path)
+        raw_config["default_model"]["algorithm"] = "NotAModel"
+
+        with pytest.raises(ValidationError, match="NotAModel"):
+            MedpipeRegressorConfig.model_validate(raw_config)
