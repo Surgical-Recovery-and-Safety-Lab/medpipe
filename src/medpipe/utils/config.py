@@ -567,8 +567,8 @@ class ValidationSubConfig(BaseModel):
     test_split : SplitTestConfig
         Configuration for the train/test split.
     cross_validation : CrossValConfig or None, default=None
-        Configuration for cross-validation, required unless `run_mode`
-        is "fast".
+        Configuration for cross-validation, required when `run_mode`
+        is "cv" or "audit".
     recalibration_split : SplitRecalibrationConfig or None, default=None
         Configuration for the recalibration split, required when a
         recalibration method is used.
@@ -1145,17 +1145,17 @@ class MedpipeClassifierConfig(BaseModel):
         Raises
         ------
         ValueError
-            If `meta.run_mode` is not "fast" and
+            If `meta.run_mode` is "cv" or "audit" and
             `workflow.validation.cross_validation` is not set.
 
         """
         if (
-            self.meta.run_mode != "fast"
+            self.meta.run_mode in ("cv", "audit")
             and self.workflow.validation.cross_validation is None
         ):
             expr = (
                 "Cross-validation parameters must be specified "
-                "when run_mode is not 'fast'"
+                "when run_mode is 'cv' or 'audit'"
             )
             raise ValueError(expr)
         return self
@@ -1302,8 +1302,8 @@ class RegressorValidationSubConfig(BaseModel):
     test_split : SplitTestConfig
         Configuration for the train/test split.
     cross_validation : CrossValConfig or None, default=None
-        Configuration for cross-validation, required unless `run_mode`
-        is "fast".
+        Configuration for cross-validation, required when `run_mode`
+        is "cv" or "audit".
     recalibration_split : SplitRecalibrationConfig or None, default=None
         Configuration for the recalibration split.
 
@@ -1620,17 +1620,17 @@ class MedpipeRegressorConfig(BaseModel):
         Raises
         ------
         ValueError
-            If `meta.run_mode` is not "fast" and
+            If `meta.run_mode` is "cv" or "audit" and
             `workflow.validation.cross_validation` is not set.
 
         """
         if (
-            self.meta.run_mode != "fast"
+            self.meta.run_mode in ("cv", "audit")
             and self.workflow.validation.cross_validation is None
         ):
             expr = (
                 "Cross-validation parameters must be specified "
-                "when run_mode is not 'fast'"
+                "when run_mode is 'cv' or 'audit'"
             )
             raise ValueError(expr)
         return self
