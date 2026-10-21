@@ -12,6 +12,12 @@ and this project adheres to Semantic Versioning ([SemVer](https://semver.org/spe
 * The `prepare_data()` property to the pipelines.
 * A `LeaveOneGroupOut` cross-validation option with the `loso` flag in the 
 cross-validation configuration schema.
+* The `decimals` parameter to the coverage, sharpness, and Winkler score 
+calculations to round the intervals.
+* Updated the dependencies list to include `mypy` and `pandas-stubs`.
+* Bootstrap parallel computation for ROC, PR, coverage, sharpnes, and Winkler 
+score. 
+* Optimised the DCA computation loop to be more efficient.
 
 ### Changed
 * Using `pysplinecalib` instead of `splinecalib`.
@@ -24,12 +30,19 @@ and sharpness plots.
 * Made the ideal calibration line in the marginal calibration plot black.
 * The `audit` and `eval` flags no longer raise a ValidationError if there is no
 fairness data. The heatmaps are not plotted and a message is added to the log.
+* Updated the ordboost version to 0.6.0 or higher.
+* The ROC, precision-recall, coverage, sharpness and Winkler score bootstraps now
+use the `n_jobs` of the display configuration (threads for the ROC and
+precision-recall curves, processes for the interval metrics).
+* An `n_jobs` argument to the bootstrapped plot methods and `plot_all` to override
+the `n_jobs` of the display configuration at runtime.
 
 ### Fixed
 * All tests now pass.
 * Docstrings in the `metrics/core.py` file that were not in the Numpy style.
 * The `shuffle` flag now makes it all the way to `_create_cv_splitter`.
 * Formatted with `ruff`.
+* Typing errors with `mypy`.
 
 ## [0.4.0.dev2] - 2026-10-05
 
