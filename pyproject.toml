@@ -50,11 +50,28 @@ dev = [
   "pytest>=8.0.0",
   "pytest-mock>=3.12.0",
   "ruff>=0.16.7",
+  "mypy>=2.3.0",
+  "pandas-stubs",
 ]
 
 [build-system]
 requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
+
+[tool.mypy]
+
+# These libraries ship neither inline types nor stubs.
+[[tool.mypy.overrides]]
+module = [
+  "joblib.*",
+  "mpl_toolkits.*",
+  "ngboost.*",
+  "ordboost.*",
+  "pysplinecalib.*",
+  "scores.*",
+  "sklearn.*",
+]
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 addopts = "-ra -q"
