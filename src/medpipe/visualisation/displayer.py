@@ -3,13 +3,11 @@ High-level display and visualisation manager module.
 """
 
 import ast
-from collections.abc import Callable
 from pathlib import Path
 from typing import Any, ClassVar, Literal
 
 import matplotlib.pyplot as plt
 import numpy as np
-from joblib import Parallel, delayed
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure, SubFigure
 from ordboost.distributions import ContinuousPredictiveDistribution
@@ -31,6 +29,7 @@ from sklearn.metrics import (
 
 from medpipe.metrics.registry import MetricRegistry
 from medpipe.pipeline.orchestrator import MedpipeOrchestrator
+from medpipe.utils.bootstrap import draw_bootstrap_indices, run_bootstraps
 from medpipe.utils.logger import get_console_logger
 from medpipe.visualisation.plots import (
     draw_coverage_curve,
@@ -634,75 +633,6 @@ class BaseDisplayer:
         return heatmap_plots
 
 
-def _draw_bootstrap_indices(
-    rng: np.random.Generator, n_samples: int, n_bootstraps: int
-) -> list[np.ndarray]:
-    """Draw all bootstrap resample indices up front, sequentially, so the
-    random draw sequence (and thus reproducibility for a given random_state)
-    is independent of how the resamples are dispatched to workers.
-
-    Parameters
-    ----------
-    rng : numpy.random.Generator
-        Random generator the resamples are drawn from.
-    n_samples : int
-        Number of samples in the data being resampled.
-    n_bootstraps : int
-        Number of resamples to draw.
-
-    Returns
-    -------
-    list of numpy.ndarray
-        `n_bootstraps` index arrays of length `n_samples`, drawn with
-        replacement.
-
-    """
-    return [
-        rng.choice(n_samples, size=n_samples, replace=True) for _ in range(n_bootstraps)
-    ]
-
-
-def _run_bootstraps(
-    worker: Callable[..., Any],
-    bootstrap_indices: list[np.ndarray],
-    *args: Any,
-    n_jobs: int | None,
-    backend: Literal["threading", "loky"],
-) -> list[Any]:
-    """Apply `worker(idx, *args)` to every bootstrap resample, in parallel
-    when `n_jobs` allows it, and drop resamples the worker rejected.
-
-    Parameters
-    ----------
-    worker : callable
-        Module-level function taking a resample's indices followed by `args`
-        and returning its result, or `None` if the resample is unusable.
-    bootstrap_indices : list of numpy.ndarray
-        Resample indices, as returned by `_draw_bootstrap_indices`.
-    *args : Any
-        Extra positional arguments forwarded unchanged to every `worker`
-        call.
-    n_jobs : int or None
-        Number of parallel jobs (the display section's `n_jobs`).
-    backend : {"threading", "loky"}
-        Joblib backend. Benchmarks showed numpy-bound resamples (ROC/PR
-        curves) gain from threads, since process start-up and pickling
-        outweigh their millisecond cost, while resamples dominated by
-        Python-level loops (predictive-distribution intervals, spline
-        fitting) only gain from processes.
-
-    Returns
-    -------
-    list
-        The non-`None` results, in resample order.
-
-    """
-    results = Parallel(n_jobs=n_jobs, backend=backend)(
-        delayed(worker)(idx, *args) for idx in bootstrap_indices
-    )
-    return [r for r in results if r is not None]
-
-
 def _roc_bootstrap_iteration(
     idx: np.ndarray, y_true: np.ndarray, probas: np.ndarray, fpr: np.ndarray
 ) -> np.ndarray | None:
@@ -950,12 +880,12 @@ class MedpipeClassifierDisplayer(BaseDisplayer):
             return fpr, tpr, roc_auc, None, None
 
         rng = np.random.default_rng(random_state)
-        bootstrap_indices = _draw_bootstrap_indices(rng, len(y_true), n_bootstraps)
+        bootstrap_indices = draw_bootstrap_indices(rng, len(y_true), n_bootstraps)
 
         # Threads: each resample is a millisecond-scale numpy sort that
         # releases the GIL, so worker processes only add start-up and
         # pickling cost (resamples lacking a class are dropped).
-        boots = _run_bootstraps(
+        boots = run_bootstraps(
             _roc_bootstrap_iteration,
             bootstrap_indices,
             y_true,
@@ -1032,13 +962,13 @@ class MedpipeClassifierDisplayer(BaseDisplayer):
             return precision, recall, ap_score, baseline, None, None
 
         rng = np.random.default_rng(random_state)
-        bootstrap_indices = _draw_bootstrap_indices(rng, len(y_true), n_bootstraps)
+        bootstrap_indices = draw_bootstrap_indices(rng, len(y_true), n_bootstraps)
 
         # Scikit-learn precision_recall_curve outputs recall in descending order
         rev_recall = recall[::-1]
 
         # Threads, for the same reason as in `_compute_roc_data`.
-        boots = _run_bootstraps(
+        boots = run_bootstraps(
             _pr_bootstrap_iteration,
             bootstrap_indices,
             y_true,
@@ -1134,14 +1064,14 @@ class MedpipeClassifierDisplayer(BaseDisplayer):
             return prob_true, prob_pred, None, None
 
         rng = np.random.default_rng(random_state)
-        bootstrap_indices = _draw_bootstrap_indices(rng, len(y_true), n_bootstraps)
+        bootstrap_indices = draw_bootstrap_indices(rng, len(y_true), n_bootstraps)
 
         # Processes for the spline strategy: each resample's fit (a
         # SplineCalib fit via scipy's L-BFGS-B) spends its time in a
         # Python-level optimizer loop that holds the GIL, so threads add
         # contention instead of speedup. The binned strategies are cheap
         # numpy work, where threads avoid the process overhead.
-        boots = _run_bootstraps(
+        boots = run_bootstraps(
             _reliability_bootstrap_iteration,
             bootstrap_indices,
             y_true,
@@ -1912,7 +1842,7 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
             return result
 
         rng = np.random.default_rng(random_state)
-        bootstrap_indices = _draw_bootstrap_indices(rng, len(y_true_arr), n_bootstraps)
+        bootstrap_indices = draw_bootstrap_indices(rng, len(y_true_arr), n_bootstraps)
 
         # Processes: each resample evaluates the predictive distribution's
         # intervals at every level, which is dominated by Python-level
@@ -1920,7 +1850,7 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
         # distribution inside the worker keeps the (memory-mapped) full CDF
         # matrix from being re-serialised per resample.
         boot = np.array(
-            _run_bootstraps(
+            run_bootstraps(
                 _interval_bootstrap_iteration,
                 bootstrap_indices,
                 y_true_arr,

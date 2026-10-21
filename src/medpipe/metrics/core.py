@@ -12,7 +12,6 @@ from typing import TYPE_CHECKING
 import numpy as np
 import scores.probability as scores_probability
 import xarray as xr
-from joblib import Parallel, delayed
 from ordboost.distributions import ContinuousPredictiveDistribution
 from pysplinecalib import SplineCalib
 from sklearn.metrics import (
@@ -29,6 +28,7 @@ from sklearn.metrics import (
 )
 
 from medpipe.metrics.registry import MetricRegistry, MetricSpec
+from medpipe.utils.bootstrap import draw_bootstrap_indices, run_bootstraps
 
 if TYPE_CHECKING:
     from typing import Any
@@ -497,21 +497,21 @@ def _bootstrap_flat_metrics(
     # sequence (and thus reproducibility for a given rng state) is
     # unaffected by dispatching the per-resample metric computation below
     # to parallel workers.
-    boot_indices = [
-        rng.integers(0, n_samples, size=n_samples) for _ in range(n_bootstraps)
-    ]
+    boot_indices = draw_bootstrap_indices(rng, n_samples, n_bootstraps)
 
     # Process-based (the joblib default): metrics like `ici` fit a fresh
     # SplineCalib per resample via scipy's L-BFGS-B, which spends its time
     # in a Python-level optimizer loop holding the GIL, so a threading
     # backend would add contention instead of speedup here.
-    results = Parallel(n_jobs=n_jobs)(
-        delayed(_flat_metric_bootstrap_iteration)(
-            boot_idx, metrics, y_true_arr, y_pred_arr
-        )
-        for boot_idx in boot_indices
+    bootstrapped_scores = run_bootstraps(
+        _flat_metric_bootstrap_iteration,
+        boot_indices,
+        metrics,
+        y_true_arr,
+        y_pred_arr,
+        n_jobs=n_jobs,
+        backend="loky",
     )
-    bootstrapped_scores = [scores for scores in results if scores is not None]
 
     if not bootstrapped_scores:
         raise ValueError(
@@ -597,11 +597,11 @@ def _bootstrap_distributional_metrics(
             )
         per_sample_map[metric_name] = np.asarray(spec.per_sample_func(y_true_arr, dist))
 
-    boot_means = {m: np.empty(n_bootstraps) for m in metrics}
-    for b in range(n_bootstraps):
-        boot_idx = rng.integers(0, n_samples, size=n_samples)
-        for metric_name in metrics:
-            boot_means[metric_name][b] = np.mean(per_sample_map[metric_name][boot_idx])
+    boot_indices = draw_bootstrap_indices(rng, n_samples, n_bootstraps)
+    boot_means = {
+        metric_name: per_sample_map[metric_name][boot_indices].mean(axis=1)
+        for metric_name in metrics
+    }
 
     return {
         metric_name: {
