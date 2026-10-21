@@ -27,7 +27,7 @@ dependencies = [
   "matplotlib>=3.10.0",
   "ngboost>=0.5.10",
   "numpy>=2.0.0",
-  "ordboost>=0.4.0",
+  "ordboost>=0.6.0",
   "pandas>=2.2.0",
   "pyarrow>=15.0.0",
   "pydantic>=2.0.0",
@@ -56,11 +56,28 @@ docs = [
   "mkdocstrings[python]>=0.24.0",
   "mkdocs-include-markdown-plugin",
   "ruff>=0.16.7",
+  "mypy>=2.3.0",
+  "pandas-stubs",
 ]
 
 [build-system]
 requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
+
+[tool.mypy]
+
+# These libraries ship neither inline types nor stubs.
+[[tool.mypy.overrides]]
+module = [
+  "joblib.*",
+  "mpl_toolkits.*",
+  "ngboost.*",
+  "ordboost.*",
+  "pysplinecalib.*",
+  "scores.*",
+  "sklearn.*",
+]
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 addopts = "-ra -q"

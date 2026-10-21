@@ -469,7 +469,7 @@ class MedpipeOrchestrator:
         self.logger.debug(f"Loaded data shape: {data.shape}")
 
         # Collect required columns (predictors & outcomes)
-        required_cols = []
+        required_cols: list[str] = []
         if hasattr(self.config, "data"):
             required_cols.extend(getattr(self.config.data, "predictors", []))
             required_cols.extend(getattr(self.config.data, "outcomes", []))

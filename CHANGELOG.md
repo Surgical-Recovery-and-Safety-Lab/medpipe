@@ -14,6 +14,16 @@ and this project adheres to Semantic Versioning ([SemVer](https://semver.org/spe
 cross-validation configuration schema.
 * The `validation` submodule to the API reference list in MkDocs.
 * The `quickstart.md` docs files.
+* The `decimals` parameter to the coverage, sharpness, and Winkler score 
+calculations to round the intervals.
+* Updated the dependencies list to include `mypy` and `pandas-stubs`.
+* Bootstrap parallel computation for ROC, PR, coverage, sharpnes, and Winkler 
+score. 
+* Optimised the DCA computation loop to be more efficient.
+* Workflows to check that `ruff` and `mypy` checks pass.
+* A `bootstrap` module in `utils` to handle all boostrapping functions.
+* A helper function in to check the length of a predictive distribution.
+* New tests to cover the additional functions.
 
 ### Changed
 * Using `pysplinecalib` instead of `splinecalib`.
@@ -28,7 +38,18 @@ and sharpness plots.
 fairness data. The heatmaps are not plotted and a message is added to the log.
 * The `default_config.toml` was renamed to `default_classifier_config.toml`
 because there will be a `default_regressor_config.toml`.
-
+* Updated the ordboost version to 0.6.0 or higher.
+* The ROC, precision-recall, coverage, sharpness and Winkler score bootstraps now
+use the `n_jobs` of the display configuration (threads for the ROC and
+precision-recall curves, processes for the interval metrics).
+* An `n_jobs` argument to the bootstrapped plot methods and `plot_all` to override
+the `n_jobs` of the display configuration at runtime.
+* Subgroup evaluation in the `MedpipeRegressor` no longer re-runs the model 
+because `OrdBoost` supports row-indexing as of v0.6.0.
+* Updated docstrings that mentionned that `OrdBoost` did not support row-indexing.
+* Optimised the CRPS calculation for `OrdBoost` by using the stored CDF directly.
+* The `per_sample_func` is no longer needed to compute confidence intervals and 
+will no longer raise a warning if not specified.
 
 ### Fixed
 * All tests now pass.
@@ -42,6 +63,7 @@ because there will be a `default_regressor_config.toml`.
 
 ### Removed
 * Old references to modules that no longer exist in the MkDocs API section.
+* Typing errors with `mypy`.
 
 ## [0.4.0.dev2] - 2026-10-05
 

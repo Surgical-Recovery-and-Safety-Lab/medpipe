@@ -194,7 +194,7 @@ class BaseEvaluator:
         X: pd.DataFrame | npt.NDArray,
         target_model: Any,
         metrics: list[str],
-    ) -> npt.NDArray:
+    ) -> npt.NDArray | PredictionBundle:
         """
         Retrieve the model predictions used to compute the requested metrics.
 
@@ -297,7 +297,7 @@ class BaseEvaluator:
     def _evaluate_slice(
         self,
         y_true: npt.NDArray,
-        y_pred: npt.NDArray,
+        y_pred: npt.NDArray | PredictionBundle,
         metrics: list[str],
     ) -> dict[str, dict[str, float]]:
         """
@@ -365,7 +365,6 @@ class BaseEvaluator:
         X: pd.DataFrame,
         y_arr: npt.NDArray,
         y_pred: npt.NDArray | PredictionBundle,
-        target_model: Any,
         eval_metrics: list[str],
         outcome: str | None,
     ) -> tuple[str, str, dict[str, dict[str, float]] | None]:
@@ -389,9 +388,6 @@ class BaseEvaluator:
             Full ground truth target array aligned with `X`.
         y_pred : numpy.ndarray or PredictionBundle
             Full model predictions aligned with `X`.
-        target_model : object
-            Fitted estimator, used to recompute distributional predictions
-            for this stratum when `y_pred` is a `PredictionBundle`.
         eval_metrics : list of str
             List of metric names to evaluate.
         outcome : str, optional
@@ -417,17 +413,10 @@ class BaseEvaluator:
         pos_idx = X.index.get_indexer(indices)
         y_sub = y_arr[pos_idx]
 
+        y_pred_sub: npt.NDArray | PredictionBundle
         if isinstance(y_pred, PredictionBundle):
             point_sub = y_pred.point[pos_idx] if y_pred.point is not None else None
-            dist_sub = None
-            if y_pred.dist is not None:
-                # Not every distributional prediction object supports
-                # index-based subsetting (e.g. OrdBoost's
-                # ContinuousPredictiveDistribution does not), so recompute
-                # the distribution for this stratum's rows directly rather
-                # than slicing y_pred.dist.
-                X_sub = X.iloc[pos_idx]
-                dist_sub = target_model.predict_dist(X_sub)
+            dist_sub = y_pred.dist[pos_idx] if y_pred.dist is not None else None
             y_pred_sub = PredictionBundle(point=point_sub, dist=dist_sub)
         else:
             y_pred_sub = y_pred[pos_idx]
@@ -546,7 +535,6 @@ class BaseEvaluator:
                     X,
                     y_arr,
                     y_pred,
-                    target_model,
                     eval_metrics,
                     outcome,
                 )

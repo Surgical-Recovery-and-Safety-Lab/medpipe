@@ -26,10 +26,9 @@ pipe.fit(X_train, y_train, X_recal, y_recal)  # Fit the pipeline
 
 # Make predictions for each outcome and plot some figures using predictor
 for outcome in pipe.outcomes:
-	y_preds = pipe.predict_proba(X_test, outcome, "predictor")[0]
-	mp.plot_ROC_curve(y_test, y_preds, "ROC curve")
-	mp.plot_reliability_diagram(y_test, y_preds, "Calibration", strategy="quantile")
-	
+    y_preds = pipe.predict_proba(X_test, outcome, "predictor")[0]
+    mp.plot_ROC_curve(y_test, y_preds, "ROC curve")
+    mp.plot_reliability_diagram(y_test, y_preds, "Calibration", strategy="quantile")
 ```
 
 ### Load a fitted MedpipePipeline
@@ -61,10 +60,12 @@ y_preds = pipe.predict_proba(X_test, pipe.outcomes, "predictor")
 y_preds_recalibrated = pipe.predict(X_test, pipe.outcomes, "recalibrator")
 
 for i, outcome in enumerate(pipe.outcomes):
-	results = mp.compute_metrics(pipe.metrics, y_test[:, i], y_preds[i])
-	results_recalibrated = mp.compute_metrics(pipe.metrics, y_test[:, i], y_preds_recalibrated[i])
-	
-	print(f"{outcome} results:")
-	print(f"Raw: {results}")
-	print(f"Recalibrated: {results_recalibrated}")
+    results = mp.compute_metrics(pipe.metrics, y_test[:, i], y_preds[i])
+    results_recalibrated = mp.compute_metrics(
+        pipe.metrics, y_test[:, i], y_preds_recalibrated[i]
+    )
+
+    print(f"{outcome} results:")
+    print(f"Raw: {results}")
+    print(f"Recalibrated: {results_recalibrated}")
 ```
