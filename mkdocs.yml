@@ -1,4 +1,6 @@
 site_name: Medpipe
+repo_url: https://github.com/Surgical-Recovery-and-Safety-Lab/medpipe
+repo_name: Surgical-Recovery-and-Safety-Lab/medpipe
 theme:
   name: material
   palette:
