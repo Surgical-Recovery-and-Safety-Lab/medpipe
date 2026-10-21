@@ -108,13 +108,27 @@ class TestMedpipeRegressorConfig:
         assert config.workflow.validation.cross_validation is None
         assert config.display is None
 
+    @pytest.mark.parametrize("run_mode", ["fast", "eval"])
+    def test_cross_validation_not_required(
+        self, tmp_path: Path, run_mode: Literal["fast", "eval"]
+    ) -> None:
+        """Test that run modes without cross-validation do not require it."""
+        config = self._get_valid_config_dict(tmp_path)
+        config["meta"]["run_mode"] = run_mode
+        config["workflow"]["validation"]["cross_validation"] = None
+
+        validated = MedpipeRegressorConfig.model_validate(config)
+
+        assert validated.workflow.validation.cross_validation is None
+
     @pytest.mark.parametrize("run_mode", ["audit", "cv"])
     def test_cross_validation_run_mode(
         self, tmp_path: Path, run_mode: Literal["audit", "cv"]
     ) -> None:
         """Test case when run_mode and cross_validation mismatch."""
         match_expr = (
-            "Cross-validation parameters must be specified when run_mode is not 'fast'"
+            "Cross-validation parameters must be specified "
+            "when run_mode is 'cv' or 'audit'"
         )
         config = self._get_valid_config_dict(tmp_path)
         config["meta"]["run_mode"] = run_mode
