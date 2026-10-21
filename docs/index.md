@@ -16,14 +16,22 @@ By automatically logging execution details and persisting models, environment me
 * **Integrated Recalibration & Fairness**: Native probability recalibration and stratified subgroup analysis to evaluate algorithmic fairness across patient cohorts.
 * **Clinical Metrics & Visualizations**: Automatic generation of Decision Curve Analysis (DCA), reliability diagrams, ROC/PR curves, and bootstrapped 95% confidence intervals.
 * **Standardized Artifact Tracking**: Automatic, structured output management for models, metrics, environment metadata, and execution logs in a unified `artifacts/` hierarchy.
-___
+---
+
+## Where to go next
+
+* [Installation](start/install.md): install the package.
+* [Quickstart](start/quickstart.md): run your first pipeline.
+* [Configuration guide](guide/config.md): describe an experiment in TOML.
+* [API reference](api/pipeline.md): documentation of the public classes and functions.
+
+---
 
 ## Contributing
 
 We welcome contributions from the community! Whether you are fixing bugs, improving documentation, or proposing new features:
 
 1. Feel free to open an issue or start a discussion on our **[GitHub Repository](https://github.com/Surgical-Recovery-and-Safety-Lab/medpipe)**.
-
 2. Submit Pull Requests targeting the `main` branch.
 3. Ensure all unit tests pass before submitting (`pytest`).
 
