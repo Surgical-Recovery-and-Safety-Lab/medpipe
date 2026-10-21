@@ -871,13 +871,13 @@ def test_data_path(repo_root: Path) -> Path:
 
 @pytest.fixture
 def base_config_path(repo_root: Path) -> Path:
-    """Locate examples/default_config.toml relative to repo root."""
-    return repo_root / "examples" / "default_config.toml"
+    """Locate examples/default_classifier_config.toml relative to repo root."""
+    return repo_root / "examples" / "default_classifier_config.toml"
 
 
 @pytest.fixture
 def build_medpipe_config(test_data_path: Path, base_config_path: Path):
-    """Factory fixture loading default_config.toml and updating data.path
+    """Factory fixture loading default_classifier_config.toml and updating data.path
     dynamically."""
 
     def _factory(
