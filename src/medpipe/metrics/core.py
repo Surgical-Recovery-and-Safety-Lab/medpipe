@@ -532,13 +532,11 @@ def _bootstrap_distributional_metrics(
     Resamples the precomputed per-sample metric values (e.g. for crps), rather
     than resampling and re-slicing the distribution object itself.
 
-    Not every distributional prediction object supports fancy indexing
-    (e.g. OrdBoost's `ContinuousPredictiveDistribution` does not, unlike
-    NGBoost's scipy-backed distributions). Computing the per-sample metric
-    once and bootstrapping those scalar values is mathematically equivalent
-    to resampling the raw (y, dist) pairs and recomputing the mean each time
-    (since these metrics are themselves plain means of a per-sample score),
-    and works uniformly regardless of that.
+    Computing the per-sample metric once and bootstrapping those scalar values
+    is mathematically equivalent to resampling the raw (y, dist) pairs and
+    recomputing the mean each time (since these metrics are themselves plain
+    means of a per-sample score), and avoids re-evaluating the distribution
+    for every resample.
 
     Parameters
     ----------
