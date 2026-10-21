@@ -1,34 +1,44 @@
----- 
+# Installation
 
-### Standard Installation
+**medpipe** requires Python 3.12 or later.
 
-Install the published package directly from PyPI:
+## Standard installation
+
+Install the published package from PyPI:
 
 ```bash
 pip install medpipe
-
 ```
 
-### Installing from source (Developer setup)
+Check that the installation worked:
 
-To set up a local development environment and contribute to **medpipe**:
+```bash
+python -c "import medpipe; print(medpipe.__version__)"
+```
 
-Clone the GitHub repository:
+## Installing from source (developer setup)
+
+To set up a local development environment and contribute to **medpipe**, clone the GitHub repository:
 
 ```bash
 git clone git@github.com:Surgical-Recovery-and-Safety-Lab/medpipe.git
 cd medpipe
-
 ```
 
-Install the package in editable mode with development dependencies:
+Install the package in editable mode with the development dependencies:
+
 ```bash
 pip install -e ".[dev]"
+```
 
+The `dev` extra includes the test tools (`pytest`) and the `docs` extra (`mkdocs`, linting and type-checking tools). To preview this documentation locally:
+
+```bash
+mkdocs serve
 ```
 
 ---
 
-### Next step
+## Next step
 
-Once the package has been installed, try the [quickstart example](quickstart.md#quickstart-example).
+Once the package has been installed, try the [quickstart example](quickstart.md).
