@@ -479,11 +479,11 @@ class TestPredictionBundleDispatch:
         ):
             bootstrap_confidence_intervals(["crps"], y_true, np.zeros(4))
 
-    def test_bootstrap_distributional_metric_missing_per_sample_func_raises(
+    def test_bootstrap_distributional_metric_without_per_sample_func_needs_indexing(
         self,
     ) -> None:
-        """Test that a registered predict_dist metric without a
-        per_sample_func raises a clear ValueError when bootstrapped."""
+        """Test that a predict_dist metric without a per_sample_func, given a
+        distribution that cannot be row-indexed, raises a clear ValueError."""
         custom_spec = MetricSpec(
             name="dist_metric_no_per_sample",
             func=lambda y, dist: 0.5,
@@ -496,7 +496,50 @@ class TestPredictionBundleDispatch:
         with patch.dict(MetricRegistry._registry, {}, clear=False):
             MetricRegistry.register_spec(custom_spec)
 
-            with pytest.raises(ValueError, match="does not define a per_sample_func"):
+            with pytest.raises(ValueError, match="supporting row indexing"):
                 bootstrap_confidence_intervals(
                     ["dist_metric_no_per_sample"], y_true, bundle
                 )
+
+    @pytest.mark.parametrize("n_jobs", [1, 2])
+    def test_bootstrap_distributional_pair_resampling_fallback(
+        self, n_jobs: int
+    ) -> None:
+        """Test that a predict_dist metric without a per_sample_func is
+        bootstrapped by resampling (y, dist) pairs: for crps (a plain mean of
+        per-sample scores) it matches the per_sample_func path exactly, and
+        it is identical across `n_jobs`."""
+        from ordboost.distributions import ContinuousPredictiveDistribution
+
+        rng = np.random.default_rng(4)
+        grid_y = np.linspace(0.0, 10.0, 11)
+        grid_cdf = np.sort(rng.uniform(size=(30, 11)), axis=1)
+        grid_cdf[:, 0] = 0.0
+        grid_cdf[:, -1] = 1.0
+        dist = ContinuousPredictiveDistribution(grid_y, grid_cdf)
+        y_true = rng.uniform(0.0, 10.0, size=30)
+        bundle = PredictionBundle(point=None, dist=dist)
+
+        spec = MetricSpec(
+            name="crps_pairs",
+            func=crps_score,
+            response_method="predict_dist",
+            display_name="CRPS (pairs)",
+        )
+        with patch.dict(MetricRegistry._registry, {}, clear=False):
+            MetricRegistry.register_spec(spec)
+            fallback = bootstrap_confidence_intervals(
+                ["crps_pairs"],
+                y_true,
+                bundle,
+                n_bootstraps=25,
+                random_state=11,
+                n_jobs=n_jobs,
+            )["crps_pairs"]
+
+        fast = bootstrap_confidence_intervals(
+            ["crps"], y_true, bundle, n_bootstraps=25, random_state=11
+        )["crps"]
+
+        for key in ("point_estimate", "ci_lower", "ci_upper"):
+            assert fallback[key] == pytest.approx(fast[key])
