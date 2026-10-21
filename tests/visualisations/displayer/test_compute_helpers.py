@@ -593,3 +593,63 @@ class TestBootstrapParallelism:
 
         for a, b in zip(serial, parallel, strict=True):
             np.testing.assert_array_equal(a, b)
+
+
+class TestRuntimeNJobsOverride:
+    """Tests that a runtime `n_jobs` reaches the bootstrap computations."""
+
+    def test_plot_roc_curve_n_jobs_overrides_config(
+        self, mock_orchestrator, sample_binary_data
+    ) -> None:
+        y_true, probas = sample_binary_data
+        displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
+
+        with patch.object(
+            displayer, "_compute_roc_data", wraps=displayer._compute_roc_data
+        ) as spy:
+            displayer.plot_roc_curve(
+                y_true, probas, n_bootstraps=4, n_jobs=2, save=False, show=False
+            )
+
+        assert spy.call_args.kwargs["n_jobs"] == 2
+
+    def test_plot_roc_curve_n_jobs_defaults_to_config(
+        self, mock_orchestrator, sample_binary_data
+    ) -> None:
+        y_true, probas = sample_binary_data
+        displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
+
+        with patch.object(
+            displayer, "_compute_roc_data", wraps=displayer._compute_roc_data
+        ) as spy:
+            displayer.plot_roc_curve(
+                y_true, probas, n_bootstraps=4, save=False, show=False
+            )
+
+        assert spy.call_args.kwargs["n_jobs"] == 1
+
+    def test_plot_all_forwards_n_jobs(
+        self, mock_orchestrator, sample_binary_data
+    ) -> None:
+        y_true, probas = sample_binary_data
+        displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
+        spies = {
+            name: patch.object(displayer, name, wraps=getattr(displayer, name))
+            for name in (
+                "_compute_roc_data",
+                "_compute_precision_recall_data",
+                "_compute_reliability_data",
+            )
+        }
+
+        started = {name: p.start() for name, p in spies.items()}
+        try:
+            displayer.plot_all(
+                y_true, probas, n_bootstraps=4, n_jobs=2, save=False, show=False
+            )
+        finally:
+            for p in spies.values():
+                p.stop()
+
+        for spy in started.values():
+            assert spy.call_args.kwargs["n_jobs"] == 2

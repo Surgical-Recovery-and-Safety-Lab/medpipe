@@ -378,3 +378,28 @@ def test_plot_all_forwards_decimals(mock_orchestrator, fitted_ordboost_dist_and_
 
     assert seen
     assert set(seen) == {1}
+
+
+def test_plot_all_forwards_n_jobs(mock_orchestrator, fitted_ordboost_dist_and_data):
+    """`plot_all` forwards a runtime `n_jobs` to the bootstrapped plots."""
+    y_true, dist, mapper = fitted_ordboost_dist_and_data
+    displayer = MedpipeRegressorDisplayer(orchestrator=mock_orchestrator)
+
+    with patch.object(
+        displayer,
+        "_compute_coverage_sharpness_winkler_data",
+        wraps=displayer._compute_coverage_sharpness_winkler_data,
+    ) as spy:
+        displayer.plot_all(
+            y_true=y_true,
+            dist=dist,
+            mapper=mapper,
+            coverage_levels=np.array([50, 90]),
+            n_bootstraps=2,
+            n_jobs=2,
+            save=False,
+            show=False,
+        )
+
+    assert spy.call_count == 3
+    assert all(c.kwargs["n_jobs"] == 2 for c in spy.call_args_list)
