@@ -3,6 +3,8 @@
 ---
 ::: medpipe.utils.config
 
+::: medpipe.utils.bootstrap
+
 ::: medpipe.utils.io
 
 ::: medpipe.utils.logger
