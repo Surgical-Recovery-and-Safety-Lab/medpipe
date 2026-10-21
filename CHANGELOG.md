@@ -44,6 +44,8 @@ the `n_jobs` of the display configuration at runtime.
 because `OrdBoost` supports row-indexing as of v0.6.0.
 * Updated docstrings that mentionned that `OrdBoost` did not support row-indexing.
 * Optimised the CRPS calculation for `OrdBoost` by using the stored CDF directly.
+* The `per_sample_func` is no longer needed to compute confidence intervals and 
+will no longer raise a warning if not specified.
 
 ### Fixed
 * All tests now pass.
