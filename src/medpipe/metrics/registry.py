@@ -36,7 +36,9 @@ class MetricSpec:
         array of shape (n_samples,)` returning the metric's per-sample
         values. Used by `bootstrap_confidence_intervals` to compute CIs by
         resampling precomputed per-sample scores rather than resampling
-        (and re-slicing) the distribution object itself.
+        (and re-slicing) the distribution object itself. Metrics without it
+        fall back to resampling the (y, dist) pairs, which is exact for any
+        metric but slower.
 
     """
 
