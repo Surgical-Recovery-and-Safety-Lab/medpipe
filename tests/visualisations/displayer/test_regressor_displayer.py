@@ -5,7 +5,7 @@ bootstrapped), marginal calibration, and PIT histogram diagnostics.
 """
 
 from pathlib import Path
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pandas as pd
@@ -350,3 +350,31 @@ def test_interval_bootstrap_identical_across_n_jobs(
 
     for key in ("point", "lower_ci", "upper_ci"):
         np.testing.assert_array_equal(results[0][key], results[1][key])
+
+
+def test_plot_all_forwards_decimals(mock_orchestrator, fitted_ordboost_dist_and_data):
+    """`plot_all` forwards `decimals` to the interval-based plots."""
+    y_true, dist, mapper = fitted_ordboost_dist_and_data
+    displayer = MedpipeRegressorDisplayer(orchestrator=mock_orchestrator)
+
+    seen = []
+    original = type(dist).interval
+
+    def spy_interval(self, *args, **kwargs):
+        seen.append(kwargs.get("decimals"))
+        return original(self, *args, **kwargs)
+
+    with patch.object(type(dist), "interval", spy_interval):
+        displayer.plot_all(
+            y_true=y_true,
+            dist=dist,
+            mapper=mapper,
+            coverage_levels=np.array([50, 90]),
+            n_bootstraps=0,
+            decimals=1,
+            save=False,
+            show=False,
+        )
+
+    assert seen
+    assert set(seen) == {1}
