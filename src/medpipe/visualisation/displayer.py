@@ -2518,6 +2518,7 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
         n_bootstraps: int | None = None,
         save: bool | None = None,
         show: bool | None = None,
+        decimals: int | None = None,
         **style_kwargs: Any,
     ) -> dict[str, tuple[Figure | SubFigure, Axes]]:
         """Execute all core distributional diagnostic visualization routines
@@ -2548,6 +2549,10 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
             Automatically save all generated plot artifacts to the run directory.
         show : bool, optional
             Whether to display figures interactively before closing.
+        decimals : int, optional
+            Number of decimals the predictive interval bounds are rounded to
+            for the coverage, sharpness, and Winkler score curves. If None,
+            no rounding is applied.
         **style_kwargs : Any
             Additional style parameters forwarded to underlying drawing functions.
 
@@ -2571,6 +2576,7 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
             n_bootstraps=n_bootstraps,
             save=save,
             show=show,
+            decimals=decimals,
             **style_kwargs.copy(),
         )
 
@@ -2582,6 +2588,7 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
             n_bootstraps=n_bootstraps,
             save=save,
             show=show,
+            decimals=decimals,
             **style_kwargs.copy(),
         )
 
@@ -2593,6 +2600,7 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
             n_bootstraps=n_bootstraps,
             save=save,
             show=show,
+            decimals=decimals,
             **style_kwargs.copy(),
         )
 
