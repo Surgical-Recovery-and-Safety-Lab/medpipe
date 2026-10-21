@@ -19,6 +19,9 @@ calculations to round the intervals.
 score. 
 * Optimised the DCA computation loop to be more efficient.
 * Workflows to check that `ruff` and `mypy` checks pass.
+* A `bootstrap` module in `utils` to handle all boostrapping functions.
+* A helper function in to check the length of a predictive distribution.
+* New tests to cover the additional functions.
 
 ### Changed
 * Using `pysplinecalib` instead of `splinecalib`.
@@ -37,6 +40,10 @@ use the `n_jobs` of the display configuration (threads for the ROC and
 precision-recall curves, processes for the interval metrics).
 * An `n_jobs` argument to the bootstrapped plot methods and `plot_all` to override
 the `n_jobs` of the display configuration at runtime.
+* Subgroup evaluation in the `MedpipeRegressor` no longer re-runs the model 
+because `OrdBoost` supports row-indexing as of v0.6.0.
+* Updated docstrings that mentionned that `OrdBoost` did not support row-indexing.
+* Optimised the CRPS calculation for `OrdBoost` by using the stored CDF directly.
 
 ### Fixed
 * All tests now pass.
