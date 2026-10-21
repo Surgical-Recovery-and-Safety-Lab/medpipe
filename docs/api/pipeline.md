@@ -2,12 +2,12 @@
 
 ---
 
-::: medpipe.pipeline.estimator
-
-::: medpipe.pipeline.evaluator
+::: medpipe.pipeline.pipeline
 
 ::: medpipe.pipeline.orchestrator
 
-::: medpipe.pipeline.pipeline
-
 ::: medpipe.pipeline.runner
+
+::: medpipe.pipeline.evaluator
+
+::: medpipe.pipeline.estimator
