@@ -62,6 +62,103 @@ def _validate_metrics_registered(metrics: list[str]) -> None:
             raise ValueError(expr)
 
 
+def _validate_algorithms_registered(algorithms: dict[str, str]) -> None:
+    """Validate that all given algorithm names can be resolved by ModelRegistry.
+
+    Parameters
+    ----------
+    algorithms : dict of str to str
+        Mapping of outcome name to the algorithm name configured for it.
+
+    Raises
+    ------
+    ValueError
+        If an algorithm is neither registered nor found in the fallback
+        modules of `ModelRegistry`.
+
+    """
+    from medpipe.models.registry import ModelRegistry
+
+    for outcome, algorithm in algorithms.items():
+        try:
+            ModelRegistry.get(algorithm)
+        except ValueError as err:
+            raise ValueError(
+                f"Algorithm for outcome '{outcome}' could not be resolved: {err}"
+            ) from err
+
+
+def _cascade_model_setup(
+    base_setup: dict[str, Any], override: dict[str, Any]
+) -> dict[str, Any]:
+    """Apply an outcome override on top of the default model setup.
+
+    Parameters
+    ----------
+    base_setup : dict of str to Any
+        Dump of the default model setup. It is modified in place.
+    override : dict of str to Any
+        Dump of the outcome override, containing only the fields that were
+        explicitly set.
+
+    Returns
+    -------
+    dict of str to Any
+        The resolved model setup.
+
+    Raises
+    ------
+    ValueError
+        If the override introduces a recalibration for a model without one
+        and does not set `recalibrate`.
+
+    """
+    # 1. Algorithm & hyperparameters
+    algorithm = override.get("algorithm")
+    if algorithm is not None and algorithm != base_setup["algorithm"]:
+        base_setup["algorithm"] = algorithm
+        # Algorithm changed: replace hyperparameters entirely to prevent
+        # collisions
+        base_setup["hyperparameters"] = override.get("hyperparameters") or {}
+    elif override.get("hyperparameters"):
+        # Same (or omitted) algorithm: merge hyperparameters
+        base_setup["hyperparameters"].update(override["hyperparameters"])
+
+    # 2. Recalibration
+    if "recalibration" not in override:
+        return base_setup
+
+    override_recal = override["recalibration"]
+    base_recal = base_setup.get("recalibration")
+
+    if override_recal is None:
+        # Explicitly disable recalibration for this outcome
+        base_setup["recalibration"] = None
+    elif base_recal is None:
+        if "recalibrate" not in override_recal:
+            raise ValueError(
+                "'recalibrate' must be set in an outcome override that adds "
+                "a recalibration to a default model without one"
+            )
+        base_setup["recalibration"] = {
+            "recalibrate": override_recal["recalibrate"],
+            "method": override_recal.get("method", "isotonic"),
+            "hyperparameters": override_recal.get("hyperparameters") or {},
+        }
+    else:
+        method = override_recal.get("method")
+        if method is not None and method != base_recal["method"]:
+            # Method changed: replace hyperparameters entirely
+            base_recal["method"] = method
+            base_recal["hyperparameters"] = override_recal.get("hyperparameters") or {}
+        elif override_recal.get("hyperparameters"):
+            base_recal["hyperparameters"].update(override_recal["hyperparameters"])
+        if "recalibrate" in override_recal:
+            base_recal["recalibrate"] = override_recal["recalibrate"]
+
+    return base_setup
+
+
 def _validate_plot_type_keys(
     v: dict[str, Any], valid_plots: set[str]
 ) -> dict[str, Any]:
@@ -808,6 +905,32 @@ class RecalibrationConfig(BaseModel):
     model_config = {"extra": "forbid"}
 
 
+class RecalibrationOverrideConfig(BaseModel):
+    """Outcome-specific changes to the default recalibration.
+
+    Only the fields that are set are applied on top of the default
+    recalibration of the model.
+
+    Attributes
+    ----------
+    recalibrate : bool or None, default=None
+        Whether to recalibrate the fitted model. Required when the default
+        model has no recalibration.
+    method : {"isotonic", "sigmoid", "temperature"} or None, default=None
+        Recalibration method. A method different from the default replaces
+        the default hyperparameters.
+    hyperparameters : dict of str to Any or None, default=None
+        Hyperparameters forwarded to the recalibration method, merged into
+        the default ones when the method is unchanged.
+
+    """
+
+    recalibrate: bool | None = None
+    method: Literal["isotonic", "sigmoid", "temperature"] | None = None
+    hyperparameters: dict[str, Any] | None = None
+    model_config = {"extra": "forbid"}
+
+
 class ModelSetup(BaseModel):
     """Configuration for a model, recalibrator, and their hyperparameters.
 
@@ -825,6 +948,33 @@ class ModelSetup(BaseModel):
     algorithm: str
     hyperparameters: dict[str, Any] = Field(default_factory=dict)
     recalibration: RecalibrationConfig | None = None
+    model_config = {"extra": "forbid"}
+
+
+class ModelOverride(BaseModel):
+    """Outcome-specific changes to the default model.
+
+    Only the fields that are set are applied on top of the default model.
+    Setting `recalibration` to None disables the recalibration of the
+    outcome.
+
+    Attributes
+    ----------
+    algorithm : str or None, default=None
+        Name of the registered model class. Defaults to the algorithm of the
+        default model.
+    hyperparameters : dict of str to Any or None, default=None
+        Hyperparameters forwarded to the model constructor. They are merged
+        into the default ones when the algorithm is unchanged, and replace
+        them otherwise.
+    recalibration : RecalibrationOverrideConfig or None, default=None
+        Changes to the recalibration of the default model.
+
+    """
+
+    algorithm: str | None = None
+    hyperparameters: dict[str, Any] | None = None
+    recalibration: RecalibrationOverrideConfig | None = None
     model_config = {"extra": "forbid"}
 
 
@@ -1009,7 +1159,7 @@ class MedpipeClassifierConfig(BaseModel):
     default_model : ModelSetup
         Default model, hyperparameter, and recalibration setup applied
         to all outcomes.
-    outcome_overrides : dict of str to ModelSetup, default={}
+    outcome_overrides : dict of str to ModelOverride, default={}
         Per-outcome overrides cascaded onto `default_model`.
     resolved_models : dict of str to ModelSetup, default={}
         Fully resolved per-outcome model configurations, generated
@@ -1026,7 +1176,7 @@ class MedpipeClassifierConfig(BaseModel):
     default_model: ModelSetup
 
     # Optional overrides keyed by outcome name
-    outcome_overrides: dict[str, ModelSetup] = Field(default_factory=dict)
+    outcome_overrides: dict[str, ModelOverride] = Field(default_factory=dict)
 
     # Dynamically generated during validation: fully resolved configurations per outcome
     resolved_models: dict[str, ModelSetup] = Field(default_factory=dict, init_var=False)
@@ -1043,65 +1193,47 @@ class MedpipeClassifierConfig(BaseModel):
             The validated configuration instance, with `resolved_models`
             populated.
 
+        Raises
+        ------
+        ValueError
+            If an override adds a recalibration to a default model that has
+            none without setting `recalibrate`.
+
         """
         resolved = {}
         for outcome in self.data.outcomes:
             base_setup = self.default_model.model_dump()
-
             if outcome in self.outcome_overrides:
                 override_setup = self.outcome_overrides[outcome].model_dump(
                     exclude_unset=True
                 )
-
-                # 1. Algorithm & Hyperparameters
-                if (
-                    "algorithm" in override_setup
-                    and override_setup["algorithm"] != base_setup["algorithm"]
-                ):
-                    base_setup["algorithm"] = override_setup["algorithm"]
-                    # Algorithm changed: replace hyperparameters entirely
-                    # to prevent collisions
-                    base_setup["hyperparameters"] = override_setup.get(
-                        "hyperparameters", {}
-                    )
-                elif "hyperparameters" in override_setup:
-                    # Same algorithm: deep-merge hyperparameters
-                    base_setup["hyperparameters"].update(
-                        override_setup["hyperparameters"]
-                    )
-
-                # 2. Recalibration
-                if "recalibration" in override_setup:
-                    override_recal = override_setup["recalibration"]
-                    if override_recal is None:
-                        # Explicitly disable recalibration for this outcome
-                        base_setup["recalibration"] = None
-                    elif base_setup.get("recalibration") is None:
-                        base_setup["recalibration"] = override_recal
-                    else:
-                        if (
-                            "method" in override_recal
-                            and override_recal["method"]
-                            != base_setup["recalibration"]["method"]
-                        ):
-                            base_setup["recalibration"] = override_recal
-                        else:
-                            if "recalibrate" in override_recal:
-                                base_setup["recalibration"]["recalibrate"] = (
-                                    override_recal["recalibrate"]
-                                )
-                            if "method" in override_recal:
-                                base_setup["recalibration"]["method"] = override_recal[
-                                    "method"
-                                ]
-                            if "hyperparameters" in override_recal:
-                                base_setup["recalibration"]["hyperparameters"].update(
-                                    override_recal["hyperparameters"]
-                                )
-
+                try:
+                    base_setup = _cascade_model_setup(base_setup, override_setup)
+                except ValueError as err:
+                    raise ValueError(f"Outcome override '{outcome}': {err}") from err
             resolved[outcome] = ModelSetup(**base_setup)
 
         self.resolved_models = resolved
+        return self
+
+    @model_validator(mode="after")
+    def validate_algorithms_registered(self) -> MedpipeClassifierConfig:
+        """Validate that every resolved algorithm is known to ModelRegistry.
+
+        Returns
+        -------
+        MedpipeClassifierConfig
+            The validated configuration instance.
+
+        Raises
+        ------
+        ValueError
+            If an algorithm cannot be resolved.
+
+        """
+        _validate_algorithms_registered(
+            {name: model.algorithm for name, model in self.resolved_models.items()}
+        )
         return self
 
     @model_validator(mode="after")
@@ -1117,14 +1249,16 @@ class MedpipeClassifierConfig(BaseModel):
         Raises
         ------
         ValueError
-            If `default_model.recalibration` is set but
-            `workflow.validation.recalibration_split` is not.
+            If `default_model.recalibration` is set, or if an outcome
+            override enables recalibration, but
+            `workflow.validation.recalibration_split` is not set.
 
         """
-        if (
-            self.default_model.recalibration  # Recalibration is present
-            and not self.workflow.validation.recalibration_split
-        ):
+        needs_split = self.default_model.recalibration is not None or any(
+            model.recalibration is not None and model.recalibration.recalibrate
+            for model in self.resolved_models.values()
+        )
+        if needs_split and not self.workflow.validation.recalibration_split:
             expr = (
                 "Recalibration validation split must be "
                 "specified when a recalibration method is used"
@@ -1243,6 +1377,28 @@ class RegressorModelSetup(BaseModel):
 
     algorithm: str
     hyperparameters: dict[str, Any] = Field(default_factory=dict)
+    model_config = {"extra": "forbid"}
+
+
+class RegressorModelOverride(BaseModel):
+    """Outcome-specific changes to the default regression model.
+
+    Only the fields that are set are applied on top of the default model.
+
+    Attributes
+    ----------
+    algorithm : str or None, default=None
+        Name of the registered model class. Defaults to the algorithm of the
+        default model.
+    hyperparameters : dict of str to Any or None, default=None
+        Hyperparameters forwarded to the model constructor. They are merged
+        into the default ones when the algorithm is unchanged, and replace
+        them otherwise.
+
+    """
+
+    algorithm: str | None = None
+    hyperparameters: dict[str, Any] | None = None
     model_config = {"extra": "forbid"}
 
 
@@ -1539,7 +1695,7 @@ class MedpipeRegressorConfig(BaseModel):
         or "eval".
     default_model : RegressorModelSetup
         Default model and hyperparameter setup applied to all outcomes.
-    outcome_overrides : dict of str to RegressorModelSetup, default={}
+    outcome_overrides : dict of str to RegressorModelOverride, default={}
         Per-outcome overrides cascaded onto `default_model`.
     resolved_models : dict of str to RegressorModelSetup, default={}
         Fully resolved per-outcome model configurations, generated
@@ -1556,7 +1712,7 @@ class MedpipeRegressorConfig(BaseModel):
     default_model: RegressorModelSetup
 
     # Optional overrides keyed by outcome name
-    outcome_overrides: dict[str, RegressorModelSetup] = Field(default_factory=dict)
+    outcome_overrides: dict[str, RegressorModelOverride] = Field(default_factory=dict)
 
     # Dynamically generated during validation: fully resolved configurations per outcome
     resolved_models: dict[str, RegressorModelSetup] = Field(
@@ -1579,32 +1735,34 @@ class MedpipeRegressorConfig(BaseModel):
         resolved = {}
         for outcome in self.data.outcomes:
             base_setup = self.default_model.model_dump()
-
             if outcome in self.outcome_overrides:
                 override_setup = self.outcome_overrides[outcome].model_dump(
                     exclude_unset=True
                 )
-
-                # Algorithm & Hyperparameters
-                if (
-                    "algorithm" in override_setup
-                    and override_setup["algorithm"] != base_setup["algorithm"]
-                ):
-                    base_setup["algorithm"] = override_setup["algorithm"]
-                    # Algorithm changed: replace hyperparameters entirely
-                    # to prevent collisions
-                    base_setup["hyperparameters"] = override_setup.get(
-                        "hyperparameters", {}
-                    )
-                elif "hyperparameters" in override_setup:
-                    # Same algorithm: deep-merge hyperparameters
-                    base_setup["hyperparameters"].update(
-                        override_setup["hyperparameters"]
-                    )
-
+                base_setup = _cascade_model_setup(base_setup, override_setup)
             resolved[outcome] = RegressorModelSetup(**base_setup)
 
         self.resolved_models = resolved
+        return self
+
+    @model_validator(mode="after")
+    def validate_algorithms_registered(self) -> MedpipeRegressorConfig:
+        """Validate that every resolved algorithm is known to ModelRegistry.
+
+        Returns
+        -------
+        MedpipeRegressorConfig
+            The validated configuration instance.
+
+        Raises
+        ------
+        ValueError
+            If an algorithm cannot be resolved.
+
+        """
+        _validate_algorithms_registered(
+            {name: model.algorithm for name, model in self.resolved_models.items()}
+        )
         return self
 
     @model_validator(mode="after")
