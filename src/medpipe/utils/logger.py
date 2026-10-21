@@ -34,6 +34,20 @@ class CompactProgressFilter(logging.Filter):
     )
 
     def filter(self, record: logging.LogRecord) -> bool:
+        """Decide whether a log record is emitted in compact mode.
+
+        Parameters
+        ----------
+        record : logging.LogRecord
+            The log record to check.
+
+        Returns
+        -------
+        bool
+            True for records of level WARNING or above and for messages
+            containing one of `PROGRESS_KEYWORDS`, False otherwise.
+
+        """
         # Always allow WARNING, ERROR, and CRITICAL messages
         if record.levelno >= logging.WARNING:
             return True

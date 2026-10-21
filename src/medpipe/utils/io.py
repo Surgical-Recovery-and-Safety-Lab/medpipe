@@ -41,7 +41,21 @@ class DataLoaderRegistry:
 
     @classmethod
     def register(cls, extension: str) -> Callable[[Callable], Callable]:
-        """Decorator or function to register a custom file reader for an extension."""
+        """Decorator to register a custom file reader for an extension.
+
+        Parameters
+        ----------
+        extension : str
+            File extension the reader handles, with or without the leading
+            dot (e.g., '.rds' or 'rds'). Matching is case-insensitive.
+
+        Returns
+        -------
+        decorator : Callable[[Callable], Callable]
+            Decorator registering a function that accepts a file path and
+            returns a DataFrame.
+
+        """
 
         def decorator(func: Callable[..., pd.DataFrame]) -> Callable[..., pd.DataFrame]:
             ext = cls._normalize_ext(extension)
@@ -52,7 +66,24 @@ class DataLoaderRegistry:
 
     @classmethod
     def get(cls, extension: str) -> Callable[..., pd.DataFrame]:
-        """Retrieve the reader function for a given file extension."""
+        """Retrieve the reader function for a given file extension.
+
+        Parameters
+        ----------
+        extension : str
+            File extension, with or without the leading dot.
+
+        Returns
+        -------
+        Callable[..., pandas.DataFrame]
+            Reader function registered for the extension.
+
+        Raises
+        ------
+        ValueError
+            If no reader is registered for the extension.
+
+        """
         ext = cls._normalize_ext(extension)
         if ext not in cls._registry:
             raise ValueError(
@@ -63,7 +94,14 @@ class DataLoaderRegistry:
 
     @classmethod
     def list_registered(cls) -> list[str]:
-        """List all supported file extensions."""
+        """List all supported file extensions.
+
+        Returns
+        -------
+        list of str
+            Registered file extensions, each with a leading dot.
+
+        """
         return list(cls._registry.keys())
 
     @staticmethod
