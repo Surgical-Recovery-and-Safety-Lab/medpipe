@@ -75,7 +75,35 @@ class PredictionBundle:
     """
 
     point: npt.NDArray | None = None
-    dist: Any | None = None
+    dist: PredictiveDistribution | None = None
+
+
+def _check_dist_length(y: npt.NDArray, dist: PredictiveDistribution | None) -> None:
+    """Raise a clear error if `dist` and `y` hold different numbers of samples.
+
+    Duck-typed distributions without `__len__` (e.g. a frozen scipy
+    distribution) cannot be checked and are let through.
+
+    Parameters
+    ----------
+    y : npt.NDArray
+        Ground truth target values of shape (n_samples,).
+    dist : PredictiveDistribution or None
+        Predictive distribution for the same samples, if any.
+
+    Raises
+    ------
+    ValueError
+        If `dist` reports a sample count different from `len(y)`.
+
+    """
+    if dist is None or not hasattr(dist, "__len__"):
+        return
+    if len(dist) != len(y):
+        raise ValueError(
+            f"Sample count mismatch: y has {len(y)} samples, but the predictive "
+            f"distribution has {len(dist)}."
+        )
 
 
 def ici_score(y: npt.NDArray, y_pred: npt.NDArray, cv_splines: int = 3) -> float:
@@ -367,6 +395,8 @@ def compute_metrics(
     else:
         point = y_pred[:, 1] if y_pred.ndim == 2 else y_pred
         bundle = PredictionBundle(point=point, dist=None)
+
+    _check_dist_length(y, bundle.dist)
 
     scores = np.zeros(len(metrics))
 
@@ -680,6 +710,8 @@ def bootstrap_confidence_intervals(
         y_pred_arr = np.asarray(y_pred)
         point = y_pred_arr[:, 1] if y_pred_arr.ndim == 2 else y_pred_arr.ravel()
         bundle = PredictionBundle(point=point, dist=None)
+
+    _check_dist_length(y_true_arr, bundle.dist)
 
     rng = (
         random_state
