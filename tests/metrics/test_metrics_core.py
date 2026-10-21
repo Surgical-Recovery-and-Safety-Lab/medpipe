@@ -332,6 +332,32 @@ class TestCrpsScore:
 
         assert approx == pytest.approx(exact_mean, abs=0.01)
 
+    def test_crps_score_ordboost_matches_ordboost_crps(self) -> None:
+        """Test that crps_score on an OrdBoost distribution equals
+        ordboost's own crps_score, and that the per-sample values have
+        shape (n_samples,) and are unchanged by row-slicing."""
+        from ordboost.distributions import ContinuousPredictiveDistribution
+        from ordboost.metrics import crps_score as ordboost_crps_score
+
+        from medpipe.metrics.core import _crps_values
+
+        rng = np.random.default_rng(1)
+        grid_y = np.linspace(0.0, 10.0, 11)
+        grid_cdf = np.sort(rng.uniform(size=(15, 11)), axis=1)
+        grid_cdf[:, 0] = 0.0
+        grid_cdf[:, -1] = 1.0
+        dist = ContinuousPredictiveDistribution(grid_y, grid_cdf)
+        y_true = rng.uniform(0.0, 10.0, size=15)
+
+        values = _crps_values(y_true, dist)
+
+        assert values.shape == (15,)
+        assert crps_score(y_true, dist) == pytest.approx(
+            ordboost_crps_score(y_true, dist)
+        )
+        idx = np.array([3, 0, 7])
+        np.testing.assert_allclose(_crps_values(y_true[idx], dist[idx]), values[idx])
+
     def test_crps_score_degenerate_zero_width_range(self) -> None:
         """Test that a degenerate distribution/observation range (upper ==
         lower, e.g. a constant predictive distribution matching a constant
