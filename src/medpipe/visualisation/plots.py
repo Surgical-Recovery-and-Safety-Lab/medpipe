@@ -72,6 +72,7 @@ def draw_data_distribution(
         If ax is provided but not attached to a Figure.
 
     """
+    fig: Figure | SubFigure | None
     if ax is None:
         fig, ax = plt.subplots(figsize=(6, 6))
     else:
@@ -188,6 +189,7 @@ def draw_roc_curve(
         If ax is not attached to a Figure.
 
     """
+    fig: Figure | SubFigure | None
     if ax is None:
         fig, ax = plt.subplots(figsize=(6, 6))
     else:
@@ -321,6 +323,7 @@ def draw_precision_recall_curve(
         If ax is provided but not attached to a Figure.
 
     """
+    fig: Figure | SubFigure | None
     if ax is None:
         fig, ax = plt.subplots(figsize=(6, 6))
     else:
@@ -463,6 +466,7 @@ def draw_reliability_diagram(
         Matplotlib axes containing the main calibration diagram.
 
     """
+    fig: Figure | SubFigure | None
     if ax is None:
         fig, ax = plt.subplots(figsize=(6, 6))
     else:
@@ -598,6 +602,7 @@ def draw_strata_heatmap(
         Matplotlib axes containing the rendered heatmap.
 
     """
+    fig: Figure | SubFigure | None
     if ax is None:
         fig, ax = plt.subplots(figsize=(10, 6))
     else:
@@ -724,6 +729,7 @@ def draw_coverage_curve(
         Matplotlib axes containing the rendered coverage curve.
 
     """
+    fig: Figure | SubFigure | None
     if ax is None:
         fig, ax = plt.subplots(figsize=(6, 6))
     else:
@@ -850,6 +856,7 @@ def draw_sharpness_curve(
         Matplotlib axes containing the rendered sharpness curve.
 
     """
+    fig: Figure | SubFigure | None
     if ax is None:
         fig, ax = plt.subplots(figsize=(6, 6))
     else:
@@ -965,6 +972,7 @@ def draw_winkler_curve(
         Matplotlib axes containing the rendered Winkler score curve.
 
     """
+    fig: Figure | SubFigure | None
     if ax is None:
         fig, ax = plt.subplots(figsize=(6, 6))
     else:
@@ -1071,6 +1079,7 @@ def draw_marginal_calibration(
         Matplotlib axes containing the rendered marginal calibration curve.
 
     """
+    fig: Figure | SubFigure | None
     if ax is None:
         fig, ax = plt.subplots(figsize=(7, 5))
     else:
@@ -1161,6 +1170,7 @@ def draw_pit_histogram(
         Matplotlib axes containing the rendered PIT histogram.
 
     """
+    fig: Figure | SubFigure | None
     if ax is None:
         fig, ax = plt.subplots(figsize=(7, 5))
     else:
@@ -1273,6 +1283,7 @@ def draw_dca_curve(
         If ax is provided but not attached to a Figure.
 
     """
+    fig: Figure | SubFigure | None
     if ax is None:
         fig, ax = plt.subplots(figsize=(6, 6))
     else:

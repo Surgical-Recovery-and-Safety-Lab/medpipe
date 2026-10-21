@@ -366,6 +366,11 @@ def compute_metrics(
                     "compute_metrics(); pass a PredictionBundle with `dist` set."
                 )
             scores[i] = float(spec.func(y, bundle.dist))
+        elif bundle.point is None:
+            raise ValueError(
+                f"'{metric_name}' requires point predictions, but the "
+                "PredictionBundle has `point=None`."
+            )
         elif spec.needs_threshold:
             scores[i] = float(spec.func(y, np.round(bundle.point)))
         else:
@@ -683,6 +688,11 @@ def bootstrap_confidence_intervals(
     ci_results: dict[str, dict[str, float]] = {}
 
     if flat_metrics:
+        if bundle.point is None:
+            raise ValueError(
+                "Point predictions are required for flat metrics, but the "
+                "PredictionBundle has `point=None`."
+            )
         ci_results.update(
             _bootstrap_flat_metrics(
                 flat_metrics,

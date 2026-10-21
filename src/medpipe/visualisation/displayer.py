@@ -272,7 +272,9 @@ class BaseDisplayer:
         plot_dir.mkdir(parents=True, exist_ok=True)
 
         save_path = plot_dir / f"{filename}.png"
-        fig.savefig(save_path, dpi=self.theme.dpi, bbox_inches="tight")
+        fig.get_figure(root=True).savefig(
+            save_path, dpi=self.theme.dpi, bbox_inches="tight"
+        )
         self.logger.info(f"Saved plot artifact to {save_path}")
         return save_path
 
@@ -371,7 +373,7 @@ class BaseDisplayer:
         if show_val:
             plt.show()
         elif save_val:
-            plt.close(fig)
+            plt.close(fig.get_figure(root=True))
 
         return fig, ax
 
@@ -501,7 +503,7 @@ class BaseDisplayer:
         if show_val:
             plt.show()
         elif save_val:
-            plt.close(fig)
+            plt.close(fig.get_figure(root=True))
 
         return fig, ax
 
@@ -592,7 +594,7 @@ class BaseDisplayer:
             scores = np.array(scores_list)
 
             # Extract stratum point estimates matrix (shape: n_strata_rows, n_outcomes)
-            strata_scores_list = []
+            strata_scores_list: list[list[float]] = []
             for stratum_var, cat_key in strata_tuples:
                 row = []
                 for out in outcomes:
@@ -1180,7 +1182,7 @@ class MedpipeClassifierDisplayer(BaseDisplayer):
         if show_val:
             plt.show()
         elif save_val:
-            plt.close(fig)
+            plt.close(fig.get_figure(root=True))
 
         return fig, ax
 
@@ -1282,7 +1284,7 @@ class MedpipeClassifierDisplayer(BaseDisplayer):
         if show_val:
             plt.show()
         elif save_val:
-            plt.close(fig)
+            plt.close(fig.get_figure(root=True))
 
         return fig, ax
 
@@ -1414,7 +1416,7 @@ class MedpipeClassifierDisplayer(BaseDisplayer):
         if show_val:
             plt.show()
         elif save_val:
-            plt.close(fig)
+            plt.close(fig.get_figure(root=True))
 
         return fig, ax
 
@@ -1499,7 +1501,7 @@ class MedpipeClassifierDisplayer(BaseDisplayer):
         if show_val:
             plt.show()
         elif save_val:
-            plt.close(fig)
+            plt.close(fig.get_figure(root=True))
 
         return fig, ax
 
@@ -1965,7 +1967,7 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
         if show_val:
             plt.show()
         elif save_val:
-            plt.close(fig)
+            plt.close(fig.get_figure(root=True))
 
         return fig, ax
 
@@ -2071,7 +2073,7 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
         if show_val:
             plt.show()
         elif save_val:
-            plt.close(fig)
+            plt.close(fig.get_figure(root=True))
 
         return fig, ax
 
@@ -2177,7 +2179,7 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
         if show_val:
             plt.show()
         elif save_val:
-            plt.close(fig)
+            plt.close(fig.get_figure(root=True))
 
         return fig, ax
 
@@ -2260,7 +2262,7 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
         if show_val:
             plt.show()
         elif save_val:
-            plt.close(fig)
+            plt.close(fig.get_figure(root=True))
 
         return fig, ax
 
@@ -2359,7 +2361,7 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
         if show_val:
             plt.show()
         elif save_val:
-            plt.close(fig)
+            plt.close(fig.get_figure(root=True))
 
         return fig, ax
 
