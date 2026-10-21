@@ -407,6 +407,36 @@ class TestPredictionBundleDispatch:
         assert scores.shape == (1,)
         assert scores[0] == pytest.approx(crps_score(y_true, dist))
 
+    def test_compute_metrics_dist_length_mismatch_raises(self) -> None:
+        """Test that a distribution with a different sample count than y
+        raises a clear ValueError instead of an opaque downstream error."""
+        from ordboost.distributions import ContinuousPredictiveDistribution
+
+        grid_y = np.linspace(0.0, 1.0, 5)
+        grid_cdf = np.tile(np.linspace(0.0, 1.0, 5), (3, 1))
+        dist = ContinuousPredictiveDistribution(grid_y, grid_cdf)
+        bundle = PredictionBundle(point=None, dist=dist)
+
+        with pytest.raises(ValueError, match="Sample count mismatch"):
+            compute_metrics(["crps"], np.array([0.1, 0.2, 0.3, 0.4]), bundle)
+
+    def test_bootstrap_confidence_intervals_dist_length_mismatch_raises(
+        self,
+    ) -> None:
+        """Test that bootstrap_confidence_intervals rejects a distribution
+        whose sample count differs from y_true."""
+        from ordboost.distributions import ContinuousPredictiveDistribution
+
+        grid_y = np.linspace(0.0, 1.0, 5)
+        grid_cdf = np.tile(np.linspace(0.0, 1.0, 5), (3, 1))
+        dist = ContinuousPredictiveDistribution(grid_y, grid_cdf)
+        bundle = PredictionBundle(point=None, dist=dist)
+
+        with pytest.raises(ValueError, match="Sample count mismatch"):
+            bootstrap_confidence_intervals(
+                ["crps"], np.array([0.1, 0.2, 0.3, 0.4]), bundle, n_bootstraps=5
+            )
+
     def test_bootstrap_confidence_intervals_crps_without_dist_raises(self) -> None:
         """Test that requesting crps without a distribution (bare ndarray,
         or a PredictionBundle with dist=None) raises a clear ValueError."""
