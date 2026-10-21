@@ -107,8 +107,7 @@ pipe.fit(X_train, y_train, X_recal, y_recal)  # Fit the pipeline
 
 # Make predictions for each outcome and plot some figures
 for outcome in pipe.outcomes:
-	y_preds = pipe.predict_proba(X_test, outcome)[0]
-	mp.plot_ROC_curve(y_test, y_preds, "ROC curve")
-	mp.plot_reliability_diagram(y_test, y_preds, "Calibration", strategy="quantile")
-	
+    y_preds = pipe.predict_proba(X_test, outcome)[0]
+    mp.plot_ROC_curve(y_test, y_preds, "ROC curve")
+    mp.plot_reliability_diagram(y_test, y_preds, "Calibration", strategy="quantile")
 ```
