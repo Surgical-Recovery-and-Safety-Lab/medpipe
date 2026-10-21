@@ -31,9 +31,24 @@ plugins:
       handlers:
         python:
           options:
+            docstring_style: numpy
             show_source: true
             show_root_heading: true
-            docstring_style: numpy
+            show_root_full_path: false
+            show_root_toc_entry: false
+            heading_level: 2
+            members_order: source
+            inherited_members: false
+            separate_signature: true
+            show_signature_annotations: true
+            signature_crossrefs: true
+            filters:
+              - "!^_"
+            inventories:
+              - https://docs.python.org/3/objects.inv
+              - https://numpy.org/doc/stable/objects.inv
+              - https://pandas.pydata.org/docs/objects.inv
+              - https://scikit-learn.org/stable/objects.inv
 
 
 nav:
