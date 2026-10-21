@@ -13,6 +13,7 @@ import numpy as np
 import scores.probability as scores_probability
 import xarray as xr
 from joblib import Parallel, delayed
+from ordboost.distributions import ContinuousPredictiveDistribution
 from pysplinecalib import SplineCalib
 from sklearn.metrics import (
     accuracy_score,
@@ -39,12 +40,12 @@ if TYPE_CHECKING:
 # ------------------------------------------------------------------------------
 
 # Grid resolution and tail coverage used to build the CDF threshold grid that
-# `crps_score` integrates over. Both NGBoost's and OrdBoost's distribution
-# objects implement `.ppf(q)`/`.cdf(x)` for a scalar argument, returning an
-# (n_samples,) array, regardless of the distribution family/library that
-# produced them (e.g. NGBoost's parametric Normal, OrdBoost's non-parametric
-# binned distribution) - so this grid-based approach works uniformly across
-# libraries without special-casing any specific distribution type.
+# `crps_score` integrates over for generic distribution objects. NGBoost's
+# distribution objects implement `.ppf(q)`/`.cdf(x)` for a scalar argument,
+# returning an (n_samples,) array, regardless of the distribution family - so
+# this grid-based approach works without special-casing any specific
+# distribution type. OrdBoost's `ContinuousPredictiveDistribution` bypasses
+# the grid, since it already stores its piecewise-linear CDF.
 _CRPS_THRESHOLD_GRID_SIZE = 200
 _CRPS_EXTREME_QUANTILES = (0.001, 0.999)
 
@@ -112,9 +113,10 @@ def _crps_values(y: npt.NDArray, dist: Any) -> npt.NDArray:
     for a predictive distribution, via `scores.probability.crps_cdf`'s exact
     piecewise-linear integration over a shared CDF threshold grid.
 
-    Works with any distribution object exposing scipy-style `.ppf(q)` and
-    `.cdf(x)` methods for a scalar argument (e.g. NGBoost's or OrdBoost's
-    distribution objects), regardless of the underlying distribution family.
+    OrdBoost's `ContinuousPredictiveDistribution` is integrated exactly over
+    its own stored CDF grid. Any other distribution object exposing
+    scipy-style `.ppf(q)` and `.cdf(x)` methods for a scalar argument (e.g.
+    NGBoost's) is integrated over a shared threshold grid instead.
 
     Parameters
     ----------
@@ -130,6 +132,19 @@ def _crps_values(y: npt.NDArray, dist: Any) -> npt.NDArray:
 
     """
     y_arr = np.asarray(y)
+
+    if isinstance(dist, ContinuousPredictiveDistribution):
+        fcst = xr.DataArray(
+            dist.grid_cdf,
+            dims=["sample", "threshold"],
+            coords={"threshold": dist.grid_y},
+        )
+        obs = xr.DataArray(y_arr.astype(float), dims=["sample"])
+        result = scores_probability.crps_cdf(
+            fcst, obs, threshold_dim="threshold", preserve_dims=["sample"]
+        )
+        return np.asarray(result["total"].values)
+
     low_q, high_q = _CRPS_EXTREME_QUANTILES
 
     lower = float(min(np.min(dist.ppf(low_q)), np.min(y_arr)))
