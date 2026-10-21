@@ -60,6 +60,7 @@ nav:
     - Configuration guide: guide/config.md
   - API reference:
     - Overview: api/index.md
+    - Configuration: api/config.md
     - Data: api/data.md
     - Metrics: api/metrics.md
     - Models: api/models.md
