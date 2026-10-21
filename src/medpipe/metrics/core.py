@@ -12,7 +12,10 @@ from typing import TYPE_CHECKING
 import numpy as np
 import scores.probability as scores_probability
 import xarray as xr
-from ordboost.distributions import ContinuousPredictiveDistribution
+from ordboost.distributions import (
+    ContinuousPredictiveDistribution,
+    PredictiveDistribution,
+)
 from pysplinecalib import SplineCalib
 from sklearn.metrics import (
     accuracy_score,
@@ -31,8 +34,6 @@ from medpipe.metrics.registry import MetricRegistry, MetricSpec
 from medpipe.utils.bootstrap import draw_bootstrap_indices, run_bootstraps
 
 if TYPE_CHECKING:
-    from typing import Any
-
     import numpy.typing as npt
 
 # ------------------------------------------------------------------------------
@@ -67,10 +68,12 @@ class PredictionBundle:
         Flat point predictions (or probabilities/decision scores for
         classification), used by every metric except `predict_dist`-based
         ones.
-    dist : Any or None, default=None
+    dist : PredictiveDistribution or None, default=None
         A full predictive distribution object (e.g. returned by
         `DistributionalPipeline.predict_dist`), used only by
-        `predict_dist`-based metrics such as crps.
+        `predict_dist`-based metrics such as crps. Duck-typed objects exposing
+        scipy-style `.ppf(q)` and `.cdf(x)` (e.g. NGBoost's) are also
+        accepted at runtime by the crps metric.
 
     """
 
@@ -136,7 +139,7 @@ def ici_score(y: npt.NDArray, y_pred: npt.NDArray, cv_splines: int = 3) -> float
         raise ValueError("Error predicting probabilities with spline")
 
 
-def _crps_values(y: npt.NDArray, dist: Any) -> npt.NDArray:
+def _crps_values(y: npt.NDArray, dist: PredictiveDistribution) -> npt.NDArray:
     """Computes the per-sample Continuous Ranked Probability Score (CRPS)
     for a predictive distribution, via `scores.probability.crps_cdf`'s exact
     piecewise-linear integration over a shared CDF threshold grid.
@@ -150,7 +153,7 @@ def _crps_values(y: npt.NDArray, dist: Any) -> npt.NDArray:
     ----------
     y : npt.NDArray
         Ground truth continuous target values of shape (n_samples,).
-    dist : Any
+    dist : PredictiveDistribution
         A predictive distribution object exposing `.ppf(q)` and `.cdf(x)`.
 
     Returns
@@ -196,7 +199,7 @@ def _crps_values(y: npt.NDArray, dist: Any) -> npt.NDArray:
     return np.asarray(result["total"].values)
 
 
-def crps_score(y: npt.NDArray, dist: Any) -> float:
+def crps_score(y: npt.NDArray, dist: PredictiveDistribution) -> float:
     """Computes the mean Continuous Ranked Probability Score (CRPS) for a
     predictive distribution. See `_crps_values` for the per-sample
     computation.
@@ -205,7 +208,7 @@ def crps_score(y: npt.NDArray, dist: Any) -> float:
     ----------
     y : npt.NDArray
         Ground truth continuous target values of shape (n_samples,).
-    dist : Any
+    dist : PredictiveDistribution
         A predictive distribution object exposing `.ppf(q)` and `.cdf(x)`.
 
     Returns
@@ -368,6 +371,7 @@ def compute_metrics(
         If there is only one class for AUROC and AP calculations.
         If a `predict_dist`-based metric is requested but no distribution
         is available.
+        If the distribution and y have different numbers of samples.
 
     """
     if not isinstance(metrics, (list, np.ndarray)):
@@ -566,7 +570,7 @@ def _bootstrap_flat_metrics(
 def _bootstrap_distributional_metrics(
     metrics: list[str],
     y_true_arr: npt.NDArray,
-    dist: Any,
+    dist: PredictiveDistribution,
     n_bootstraps: int,
     lower_percentile: float,
     upper_percentile: float,
@@ -590,7 +594,7 @@ def _bootstrap_distributional_metrics(
         `per_sample_func`.
     y_true_arr : npt.NDArray
         Ground truth target values of shape (n_samples,).
-    dist : Any
+    dist : PredictiveDistribution
         Predictive distribution for the same samples.
     n_bootstraps : int
         Number of bootstrap resampling iterations.
@@ -695,8 +699,9 @@ def bootstrap_confidence_intervals(
     ------
     ValueError
         If ``ci_level`` is not strictly between 0.0 and 1.0, if all bootstrap
-        iterations fail due to severe class imbalance, or if a
-        `predict_dist`-based metric is requested without a distribution.
+        iterations fail due to severe class imbalance, if a
+        `predict_dist`-based metric is requested without a distribution, or
+        if the distribution and ``y_true`` have different numbers of samples.
 
     """
     if not (0.0 < ci_level < 1.0):
