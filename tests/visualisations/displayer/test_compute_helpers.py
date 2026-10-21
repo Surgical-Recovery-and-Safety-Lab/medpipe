@@ -507,6 +507,26 @@ class TestComputeDcaData:
 
         np.testing.assert_allclose(nb_model_2d, nb_model_1d)
 
+    def test_compute_dca_data_matches_threshold_loop(self, mock_orchestrator) -> None:
+        """Test the vectorised net benefit equals a direct per-threshold loop,
+        including probabilities that fall exactly on a threshold."""
+        rng = np.random.default_rng(3)
+        y_true = rng.integers(0, 2, size=200)
+        probas = np.round(rng.uniform(0.0, 1.0, size=200), 2)
+        thresholds = np.linspace(0.01, 0.99, 99)
+        displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
+
+        _, nb_model, _ = displayer._compute_dca_data(y_true, probas, thresholds)
+
+        expected = []
+        for p_t in thresholds:
+            y_pred = probas >= p_t
+            tp = np.sum(y_pred & (y_true == 1))
+            fp = np.sum(y_pred & (y_true == 0))
+            expected.append(tp / len(y_true) - fp / len(y_true) * (p_t / (1.0 - p_t)))
+
+        np.testing.assert_allclose(nb_model, expected)
+
 
 class TestSaveFigure:
     """Tests for the internal `_save_figure` method."""
