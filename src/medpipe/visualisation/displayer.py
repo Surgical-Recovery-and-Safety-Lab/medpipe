@@ -1206,16 +1206,16 @@ class MedpipeClassifierDisplayer(BaseDisplayer):
             thresholds / (1.0 - thresholds)
         )
 
-        # Calculate Model Net Benefit
-        nb_model_list = []
-        for p_t in thresholds:
-            y_pred = probas >= p_t
-            tp = np.sum((y_pred == 1) & (y_true == 1))
-            fp = np.sum((y_pred == 1) & (y_true == 0))
-            nb = (tp / n_samples) - (fp / n_samples) * (p_t / (1.0 - p_t))
-            nb_model_list.append(nb)
-
-        net_benefit_model = np.array(nb_model_list)
+        # Calculate Model Net Benefit. Sorting each class's probabilities
+        # once lets `searchsorted` count the predictions at or above every
+        # threshold, without a pass over the samples per threshold.
+        pos_probas = np.sort(probas[y_true == 1])
+        neg_probas = np.sort(probas[y_true == 0])
+        tp = len(pos_probas) - np.searchsorted(pos_probas, thresholds, side="left")
+        fp = len(neg_probas) - np.searchsorted(neg_probas, thresholds, side="left")
+        net_benefit_model = (tp / n_samples) - (fp / n_samples) * (
+            thresholds / (1.0 - thresholds)
+        )
 
         return thresholds, net_benefit_model, net_benefit_all
 
