@@ -567,6 +567,42 @@ def _bootstrap_flat_metrics(
     }
 
 
+def _dist_metric_bootstrap_iteration(
+    boot_idx: npt.NDArray,
+    funcs: list[Callable],
+    y_true_arr: npt.NDArray,
+    dist: PredictiveDistribution,
+) -> npt.NDArray:
+    """Compute predict_dist-based metrics for one resampled (y, dist) pair set.
+
+    Isolated to a module-level function so each resample can be dispatched to
+    a `joblib.Parallel` worker independently of the others.
+
+    Parameters
+    ----------
+    boot_idx : npt.NDArray
+        Bootstrap resample indices (with replacement) into `y_true_arr` and
+        the rows of `dist`.
+    funcs : list of Callable
+        Metric functions `(y, dist) -> float`. Passed directly rather than
+        looked up by name, since a worker process may not have the parent's
+        custom registrations.
+    y_true_arr : npt.NDArray
+        Full ground truth target values.
+    dist : PredictiveDistribution
+        Full predictive distribution, row-indexed by `boot_idx`.
+
+    Returns
+    -------
+    npt.NDArray
+        Score array of shape (n_funcs,) for this resample.
+
+    """
+    y_boot = y_true_arr[boot_idx]
+    dist_boot = dist[boot_idx]
+    return np.array([float(func(y_boot, dist_boot)) for func in funcs])
+
+
 def _bootstrap_distributional_metrics(
     metrics: list[str],
     y_true_arr: npt.NDArray,
@@ -575,23 +611,28 @@ def _bootstrap_distributional_metrics(
     lower_percentile: float,
     upper_percentile: float,
     rng: np.random.Generator,
+    n_jobs: int | None = 1,
 ) -> dict[str, dict[str, float]]:
     """Bootstrap confidence intervals for predict_dist-based metrics.
 
-    Resamples the precomputed per-sample metric values (e.g. for crps), rather
-    than resampling and re-slicing the distribution object itself.
+    Metrics that define a `per_sample_func` (e.g. crps) are bootstrapped by
+    resampling their precomputed per-sample values. Computing the per-sample
+    metric once is mathematically equivalent to resampling the raw
+    (y, dist) pairs and recomputing the mean each time (since these metrics
+    are themselves plain means of a per-sample score), and avoids
+    re-evaluating the distribution for every resample.
 
-    Computing the per-sample metric once and bootstrapping those scalar values
-    is mathematically equivalent to resampling the raw (y, dist) pairs and
-    recomputing the mean each time (since these metrics are themselves plain
-    means of a per-sample score), and avoids re-evaluating the distribution
-    for every resample.
+    Any other metric falls back to resampling the (y, dist) pairs directly:
+    each resample row-indexes the distribution (``dist[boot_idx]``) and
+    re-evaluates the metric on it. This is exact for any metric, but slower,
+    and needs a distribution supporting row indexing.
+
+    Both kinds share the same resample indices.
 
     Parameters
     ----------
     metrics : list[str]
-        Metric identifier keys registered in `MetricRegistry` that define a
-        `per_sample_func`.
+        Metric identifier keys registered in `MetricRegistry`.
     y_true_arr : npt.NDArray
         Ground truth target values of shape (n_samples,).
     dist : PredictiveDistribution
@@ -606,6 +647,9 @@ def _bootstrap_distributional_metrics(
         the upper confidence bound.
     rng : np.random.Generator
         Random generator used to draw the resample indices.
+    n_jobs : int or None, default=1
+        Number of parallel jobs used for the pair-resampling fallback. Not
+        used for metrics with a `per_sample_func`.
 
     Returns
     -------
@@ -616,32 +660,59 @@ def _bootstrap_distributional_metrics(
     Raises
     ------
     ValueError
-        If a metric does not define a `per_sample_func`.
+        If a metric has no `per_sample_func` and `dist` does not support row
+        indexing.
 
     """
     n_samples = len(y_true_arr)
 
-    per_sample_map: dict[str, npt.NDArray] = {}
-    for metric_name in metrics:
-        spec = MetricRegistry.get(metric_name)
-        if spec.per_sample_func is None:
-            raise ValueError(
-                f"'{metric_name}' does not define a per_sample_func and "
-                "cannot be bootstrapped."
-            )
-        per_sample_map[metric_name] = np.asarray(spec.per_sample_func(y_true_arr, dist))
+    specs = {m: MetricRegistry.get(m) for m in metrics}
+    fast_metrics = [m for m in metrics if specs[m].per_sample_func is not None]
+    fallback_metrics = [m for m in metrics if specs[m].per_sample_func is None]
+
+    if fallback_metrics and not hasattr(dist, "__getitem__"):
+        raise ValueError(
+            f"{fallback_metrics} do not define a per_sample_func, so they are "
+            "bootstrapped by resampling (y, dist) pairs, which requires a "
+            "distribution supporting row indexing (`dist[idx]`)."
+        )
 
     boot_indices = draw_bootstrap_indices(rng, n_samples, n_bootstraps)
-    boot_means = {
-        metric_name: per_sample_map[metric_name][boot_indices].mean(axis=1)
-        for metric_name in metrics
-    }
+
+    points: dict[str, float] = {}
+    boot_scores: dict[str, npt.NDArray] = {}
+
+    for metric_name in fast_metrics:
+        per_sample_func = specs[metric_name].per_sample_func
+        assert per_sample_func is not None
+        per_sample = np.asarray(per_sample_func(y_true_arr, dist))
+        points[metric_name] = float(np.mean(per_sample))
+        boot_scores[metric_name] = per_sample[boot_indices].mean(axis=1)
+
+    if fallback_metrics:
+        results = run_bootstraps(
+            _dist_metric_bootstrap_iteration,
+            boot_indices,
+            [specs[m].func for m in fallback_metrics],
+            y_true_arr,
+            dist,
+            n_jobs=n_jobs,
+            backend="loky",
+        )
+        scores_matrix = np.array(results)
+        for col, metric_name in enumerate(fallback_metrics):
+            points[metric_name] = float(specs[metric_name].func(y_true_arr, dist))
+            boot_scores[metric_name] = scores_matrix[:, col]
 
     return {
         metric_name: {
-            "point_estimate": float(np.mean(per_sample_map[metric_name])),
-            "ci_lower": float(np.percentile(boot_means[metric_name], lower_percentile)),
-            "ci_upper": float(np.percentile(boot_means[metric_name], upper_percentile)),
+            "point_estimate": points[metric_name],
+            "ci_lower": float(
+                np.percentile(boot_scores[metric_name], lower_percentile)
+            ),
+            "ci_upper": float(
+                np.percentile(boot_scores[metric_name], upper_percentile)
+            ),
         }
         for metric_name in metrics
     }
@@ -682,9 +753,10 @@ def bootstrap_confidence_intervals(
     random_state : int, np.random.Generator, or None, default=None
         Seed or random generator instance to ensure reproducible resampling.
     n_jobs : int or None, default=1
-        Number of parallel jobs used to compute flat-metric bootstrap
-        resamples (e.g. `ici`'s per-resample `SplineCalib` fits). Not used
-        for `predict_dist`-based metrics.
+        Number of parallel jobs used to compute the per-resample metrics
+        (e.g. `ici`'s per-resample `SplineCalib` fits, or the pair-resampling
+        fallback for `predict_dist`-based metrics without a
+        `per_sample_func`). Not used for metrics with a `per_sample_func`.
 
     Returns
     -------
@@ -771,6 +843,7 @@ def bootstrap_confidence_intervals(
                 lower_percentile,
                 upper_percentile,
                 rng,
+                n_jobs,
             )
         )
 
