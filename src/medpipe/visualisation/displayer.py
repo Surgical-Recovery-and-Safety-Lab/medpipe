@@ -900,7 +900,6 @@ class MedpipeClassifierDisplayer(BaseDisplayer):
         "dist_n_bins": 10,
         "dist_yscale": "linear",
         "strategy": "uniform",
-        "n_jobs": 1,
         "cv_splines": 3,
     }
 
@@ -1230,6 +1229,7 @@ class MedpipeClassifierDisplayer(BaseDisplayer):
         n_bootstraps: int | None = None,
         save: bool | None = None,
         show: bool | None = None,
+        n_jobs: int | None = None,
         **style_kwargs: Any,
     ) -> tuple[Figure | SubFigure, Axes]:
         """Compute ROC metrics, render curve with confidence intervals, and save figure.
@@ -1251,6 +1251,9 @@ class MedpipeClassifierDisplayer(BaseDisplayer):
             Automatically save the generated plot to the run directory.
         show : bool, optional
             Whether to display the plot interactively before closing.
+        n_jobs : int, optional
+            Number of parallel jobs used for the bootstrap resamples. Overrides
+            the display configuration's `n_jobs` when given.
         **style_kwargs : Any
             Additional style parameters forwarded to `draw_roc_curve`.
 
@@ -1266,6 +1269,7 @@ class MedpipeClassifierDisplayer(BaseDisplayer):
             plot_type="roc",
             outcome=outcome,
             n_bootstraps=n_bootstraps,
+            n_jobs=n_jobs,
             save=save,
             show=show,
             **style_kwargs,
@@ -1327,6 +1331,7 @@ class MedpipeClassifierDisplayer(BaseDisplayer):
         n_bootstraps: int | None = None,
         save: bool | None = None,
         show: bool | None = None,
+        n_jobs: int | None = None,
         **style_kwargs: Any,
     ) -> tuple[Figure | SubFigure, Axes]:
         """Compute PR metrics, render curve with confidence intervals, and save figure.
@@ -1348,6 +1353,9 @@ class MedpipeClassifierDisplayer(BaseDisplayer):
             Automatically save the generated plot to the run directory.
         show : bool, optional
             Whether to display the plot interactively before closing.
+        n_jobs : int, optional
+            Number of parallel jobs used for the bootstrap resamples. Overrides
+            the display configuration's `n_jobs` when given.
         **style_kwargs : Any
             Additional style parameters forwarded to `draw_precision_recall_curve`.
 
@@ -1363,6 +1371,7 @@ class MedpipeClassifierDisplayer(BaseDisplayer):
             plot_type="precision_recall",
             outcome=outcome,
             n_bootstraps=n_bootstraps,
+            n_jobs=n_jobs,
             save=save,
             show=show,
             **style_kwargs,
@@ -1435,6 +1444,7 @@ class MedpipeClassifierDisplayer(BaseDisplayer):
         n_bootstraps: int | None = None,
         save: bool | None = None,
         show: bool | None = None,
+        n_jobs: int | None = None,
         **style_kwargs: Any,
     ) -> tuple[Figure | SubFigure, Axes]:
         """Compute calibration data, render a reliability diagram with a
@@ -1465,6 +1475,9 @@ class MedpipeClassifierDisplayer(BaseDisplayer):
             Automatically save the generated plot to the run directory.
         show : bool, optional
             Whether to display the plot interactively before closing.
+        n_jobs : int, optional
+            Number of parallel jobs used for the bootstrap resamples. Overrides
+            the display configuration's `n_jobs` when given.
         **style_kwargs : Any
             Additional style parameters forwarded to `draw_reliability_diagram`.
 
@@ -1484,6 +1497,7 @@ class MedpipeClassifierDisplayer(BaseDisplayer):
             dist_yscale=dist_yscale,
             strategy=strategy,
             n_bootstraps=n_bootstraps,
+            n_jobs=n_jobs,
             save=save,
             show=show,
             **style_kwargs,
@@ -1647,6 +1661,7 @@ class MedpipeClassifierDisplayer(BaseDisplayer):
         n_bootstraps: int | None = None,
         save: bool | None = None,
         show: bool | None = None,
+        n_jobs: int | None = None,
         **style_kwargs: Any,
     ) -> dict[str, tuple[Figure | SubFigure, Axes]]:
         """Execute all core evaluation visualization routines for a given outcome.
@@ -1669,6 +1684,9 @@ class MedpipeClassifierDisplayer(BaseDisplayer):
             Automatically save all generated plot artifacts to the run directory.
         show : bool, optional
             Whether to display figures interactively before closing.
+        n_jobs : int, optional
+            Number of parallel jobs used for the bootstrap resamples. Overrides
+            the display configuration's `n_jobs` when given.
         **style_kwargs : Any
             Additional style parameters forwarded to underlying drawing functions.
 
@@ -1689,6 +1707,7 @@ class MedpipeClassifierDisplayer(BaseDisplayer):
             probas=probas,
             outcome=outcome,
             n_bootstraps=n_bootstraps,
+            n_jobs=n_jobs,
             save=save,
             show=show,
             **style_kwargs.copy(),
@@ -1699,6 +1718,7 @@ class MedpipeClassifierDisplayer(BaseDisplayer):
             probas=probas,
             outcome=outcome,
             n_bootstraps=n_bootstraps,
+            n_jobs=n_jobs,
             save=save,
             show=show,
             **style_kwargs.copy(),
@@ -1717,6 +1737,7 @@ class MedpipeClassifierDisplayer(BaseDisplayer):
             probas=probas,
             outcome=outcome,
             n_bootstraps=n_bootstraps,
+            n_jobs=n_jobs,
             save=save,
             show=show,
             **style_kwargs.copy(),
@@ -2013,6 +2034,7 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
         save: bool | None = None,
         show: bool | None = None,
         decimals: int | None = None,
+        n_jobs: int | None = None,
         **style_kwargs: Any,
     ) -> tuple[Figure | SubFigure, Axes]:
         """Compute coverage reliability, render curve with confidence
@@ -2041,6 +2063,9 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
         decimals : int, optional
             Number of decimals the predictive interval bounds are rounded to.
             If None, no rounding is applied.
+        n_jobs : int, optional
+            Number of parallel jobs used for the bootstrap resamples. Overrides
+            the display configuration's `n_jobs` when given.
         **style_kwargs : Any
             Additional style parameters forwarded to `draw_coverage_curve`.
 
@@ -2056,6 +2081,7 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
             plot_type="coverage",
             outcome=outcome,
             n_bootstraps=n_bootstraps,
+            n_jobs=n_jobs,
             save=save,
             show=show,
             **style_kwargs,
@@ -2121,6 +2147,7 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
         save: bool | None = None,
         show: bool | None = None,
         decimals: int | None = None,
+        n_jobs: int | None = None,
         **style_kwargs: Any,
     ) -> tuple[Figure | SubFigure, Axes]:
         """Compute sharpness, render curve with confidence intervals, and
@@ -2149,6 +2176,9 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
         decimals : int, optional
             Number of decimals the predictive interval bounds are rounded to.
             If None, no rounding is applied.
+        n_jobs : int, optional
+            Number of parallel jobs used for the bootstrap resamples. Overrides
+            the display configuration's `n_jobs` when given.
         **style_kwargs : Any
             Additional style parameters forwarded to `draw_sharpness_curve`.
 
@@ -2164,6 +2194,7 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
             plot_type="sharpness",
             outcome=outcome,
             n_bootstraps=n_bootstraps,
+            n_jobs=n_jobs,
             save=save,
             show=show,
             **style_kwargs,
@@ -2229,6 +2260,7 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
         save: bool | None = None,
         show: bool | None = None,
         decimals: int | None = None,
+        n_jobs: int | None = None,
         **style_kwargs: Any,
     ) -> tuple[Figure | SubFigure, Axes]:
         """Compute Winkler score, render curve with confidence intervals,
@@ -2257,6 +2289,9 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
         decimals : int, optional
             Number of decimals the predictive interval bounds are rounded to.
             If None, no rounding is applied.
+        n_jobs : int, optional
+            Number of parallel jobs used for the bootstrap resamples. Overrides
+            the display configuration's `n_jobs` when given.
         **style_kwargs : Any
             Additional style parameters forwarded to `draw_winkler_curve`.
 
@@ -2272,6 +2307,7 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
             plot_type="winkler",
             outcome=outcome,
             n_bootstraps=n_bootstraps,
+            n_jobs=n_jobs,
             save=save,
             show=show,
             **style_kwargs,
@@ -2519,6 +2555,7 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
         save: bool | None = None,
         show: bool | None = None,
         decimals: int | None = None,
+        n_jobs: int | None = None,
         **style_kwargs: Any,
     ) -> dict[str, tuple[Figure | SubFigure, Axes]]:
         """Execute all core distributional diagnostic visualization routines
@@ -2553,6 +2590,9 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
             Number of decimals the predictive interval bounds are rounded to
             for the coverage, sharpness, and Winkler score curves. If None,
             no rounding is applied.
+        n_jobs : int, optional
+            Number of parallel jobs used for the bootstrap resamples. Overrides
+            the display configuration's `n_jobs` when given.
         **style_kwargs : Any
             Additional style parameters forwarded to underlying drawing functions.
 
@@ -2574,6 +2614,7 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
             outcome=outcome,
             coverage_levels=coverage_levels,
             n_bootstraps=n_bootstraps,
+            n_jobs=n_jobs,
             save=save,
             show=show,
             decimals=decimals,
@@ -2586,6 +2627,7 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
             outcome=outcome,
             coverage_levels=coverage_levels,
             n_bootstraps=n_bootstraps,
+            n_jobs=n_jobs,
             save=save,
             show=show,
             decimals=decimals,
@@ -2598,6 +2640,7 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
             outcome=outcome,
             coverage_levels=coverage_levels,
             n_bootstraps=n_bootstraps,
+            n_jobs=n_jobs,
             save=save,
             show=show,
             decimals=decimals,
