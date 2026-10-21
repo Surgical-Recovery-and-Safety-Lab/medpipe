@@ -330,3 +330,23 @@ class TestPlotAll:
         }
         actual_files = {p.name for p in plot_dir.iterdir()}
         assert expected_files <= actual_files
+
+
+@pytest.mark.parametrize("metric", ["coverage", "sharpness", "winkler"])
+def test_interval_bootstrap_identical_across_n_jobs(
+    mock_orchestrator, fitted_ordboost_dist_and_data, metric
+):
+    """`n_jobs` only changes how bootstraps are dispatched, not the result."""
+    y_true, dist, _mapper = fitted_ordboost_dist_and_data
+    displayer = MedpipeRegressorDisplayer(orchestrator=mock_orchestrator)
+    levels = np.array([50, 90])
+
+    results = [
+        displayer._compute_coverage_sharpness_winkler_data(
+            y_true, dist, levels, metric, n_bootstraps=6, n_jobs=n_jobs
+        )["output"]
+        for n_jobs in (1, 2)
+    ]
+
+    for key in ("point", "lower_ci", "upper_ci"):
+        np.testing.assert_array_equal(results[0][key], results[1][key])

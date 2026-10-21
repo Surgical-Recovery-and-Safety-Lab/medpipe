@@ -538,3 +538,38 @@ class TestSaveFigure:
         expected_path = tmp_path / "plots" / "mortality" / "roc_curve.png"
         assert saved_path == expected_path
         assert saved_path.exists()
+
+
+class TestBootstrapParallelism:
+    """Tests that `n_jobs` changes only how bootstraps are dispatched, not
+    their results."""
+
+    def test_roc_data_identical_across_n_jobs(
+        self, mock_orchestrator, sample_binary_data
+    ):
+        y_true, probas = sample_binary_data
+        displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
+
+        serial = displayer._compute_roc_data(y_true, probas, n_bootstraps=20, n_jobs=1)
+        parallel = displayer._compute_roc_data(
+            y_true, probas, n_bootstraps=20, n_jobs=2
+        )
+
+        for a, b in zip(serial, parallel, strict=True):
+            np.testing.assert_array_equal(a, b)
+
+    def test_precision_recall_data_identical_across_n_jobs(
+        self, mock_orchestrator, sample_binary_data
+    ):
+        y_true, probas = sample_binary_data
+        displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
+
+        serial = displayer._compute_precision_recall_data(
+            y_true, probas, n_bootstraps=20, n_jobs=1
+        )
+        parallel = displayer._compute_precision_recall_data(
+            y_true, probas, n_bootstraps=20, n_jobs=2
+        )
+
+        for a, b in zip(serial, parallel, strict=True):
+            np.testing.assert_array_equal(a, b)
