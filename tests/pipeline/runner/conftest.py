@@ -30,6 +30,7 @@ def mock_orchestrator() -> MagicMock:
     mock_config.workflow.n_jobs = 4
     mock_config.workflow.validation.cross_validation.strategy = "random"
     mock_config.workflow.validation.cross_validation.n_splits = 2
+    mock_config.workflow.validation.cross_validation.shuffle = True
     mock_config.workflow.validation.cross_validation.random_state = 42
     mock_config.workflow.validation.cross_validation.grid_search = False
     mock_config.workflow.evaluation.metrics.metrics = ["accuracy"]

@@ -93,9 +93,7 @@ class TestTrainModelCvRegressorCrps:
         # negates the raw (positive) CRPS loss, fold scores should be <= 0.
         assert np.all(saved_cv_results_df["test_crps"] <= 0)
 
-    def test_build_scorers_crps_scorer_direct_call(
-        self, continuous_regression_data
-    ):
+    def test_build_scorers_crps_scorer_direct_call(self, continuous_regression_data):
         """Test build_scorers(['crps']) produces a scorer that, called
         directly against a fitted DistributionalPipeline(OrdBoostRegressor),
         returns a finite, non-positive value."""

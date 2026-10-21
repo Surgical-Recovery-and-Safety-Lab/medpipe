@@ -67,9 +67,7 @@ class TestLoadDataFormats:
         loaded_df = load_data(feather_file)
         pd.testing.assert_frame_equal(loaded_df, sample_df)
 
-    def test_load_xlsx_success(
-        self, tmp_path: Path, sample_df: pd.DataFrame
-    ) -> None:
+    def test_load_xlsx_success(self, tmp_path: Path, sample_df: pd.DataFrame) -> None:
         """Test reading an .xlsx file (requires the openpyxl engine)."""
         pytest.importorskip("openpyxl")
         xlsx_file = tmp_path / "data.xlsx"

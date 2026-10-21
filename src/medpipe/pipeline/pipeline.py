@@ -198,6 +198,23 @@ class MedpipeClassifier:
         return self._orchestrator.fairness_splits
 
     @property
+    def prepare_data(self) -> Callable[..., tuple]:
+        """Access the orchestrator's data preparation function.
+
+        Ingests the configured dataset and creates the train/recal/test
+        splits, e.g. `X_train, y_train, X_recal, y_recal, X_test, y_test,
+        groups_train = pipeline.prepare_data()`. Keyword arguments are passed
+        to the underlying Pandas reader function.
+
+        Returns
+        -------
+        Callable
+            The bound `MedpipeOrchestrator.prepare_data` method.
+
+        """
+        return self._orchestrator.prepare_data
+
+    @property
     def metrics(self) -> list[str]:
         """Returns metrics used during evaluation.
 
@@ -503,11 +520,18 @@ class MedpipeClassifier:
                     outcome=outcome,
                 )
             # Generate cross-outcome strata heatmaps per metric
-            self._logger.info("Generating subgroup strata heatmaps across outcomes.")
-            strata_heatmaps = self.displayer.plot_all_heatmaps(
-                evaluations=evaluations,
-            )
-            plots["strata_heatmaps"] = strata_heatmaps
+            if fairness_splits is None:
+                self._logger.info(
+                    "No fairness configuration set; skipping subgroup strata heatmaps."
+                )
+            else:
+                self._logger.info(
+                    "Generating subgroup strata heatmaps across outcomes."
+                )
+                strata_heatmaps = self.displayer.plot_all_heatmaps(
+                    evaluations=evaluations,
+                )
+                plots["strata_heatmaps"] = strata_heatmaps
 
         run_duration = time.perf_counter() - run_start_time
         self._logger.debug(
@@ -804,6 +828,23 @@ class MedpipeRegressor:
 
         """
         return self._orchestrator.fairness_splits
+
+    @property
+    def prepare_data(self) -> Callable[..., tuple]:
+        """Access the orchestrator's data preparation function.
+
+        Ingests the configured dataset and creates the train/recal/test
+        splits, e.g. `X_train, y_train, X_recal, y_recal, X_test, y_test,
+        groups_train = pipeline.prepare_data()`. Keyword arguments are passed
+        to the underlying Pandas reader function.
+
+        Returns
+        -------
+        Callable
+            The bound `MedpipeOrchestrator.prepare_data` method.
+
+        """
+        return self._orchestrator.prepare_data
 
     @property
     def metrics(self) -> list[str]:

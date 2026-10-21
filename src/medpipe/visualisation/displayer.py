@@ -8,7 +8,6 @@ from typing import Any, ClassVar, Literal
 
 import matplotlib.pyplot as plt
 import numpy as np
-from joblib import Parallel, delayed
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure, SubFigure
 from ordboost.distributions import ContinuousPredictiveDistribution
@@ -30,6 +29,7 @@ from sklearn.metrics import (
 
 from medpipe.metrics.registry import MetricRegistry
 from medpipe.pipeline.orchestrator import MedpipeOrchestrator
+from medpipe.utils.bootstrap import draw_bootstrap_indices, run_bootstraps
 from medpipe.utils.logger import get_console_logger
 from medpipe.visualisation.plots import (
     draw_coverage_curve,
@@ -196,7 +196,7 @@ class BaseDisplayer:
 
     # --- Internal Helpers ---
     @staticmethod
-    def _format_stratum_label(stratum_var: str, cat_key: Any) -> str:
+    def _format_stratum_label(cat_key: Any) -> str:
         """Format raw stratum variable names and category keys into clean
         display labels.
 
@@ -206,8 +206,6 @@ class BaseDisplayer:
 
         Parameters
         ----------
-        stratum_var : str
-            Name of the subgroup stratum variable (e.g., 'AGE', 'SEX').
         cat_key : Any
             Category identifier or raw bin string (e.g., '[18, 50]', 'F').
 
@@ -218,12 +216,12 @@ class BaseDisplayer:
 
         Examples
         --------
-        >>> BaseDisplayer._format_stratum_label("AGE", "[18, 50]")
-        'AGE: 18-50'
-        >>> BaseDisplayer._format_stratum_label("AGE", "[51, 120]")
-        'AGE: ≥ 51'
-        >>> BaseDisplayer._format_stratum_label("SEX", "F")
-        'SEX: F'
+        >>> BaseDisplayer._format_stratum_label("[18, 50]")
+        '18-50'
+        >>> BaseDisplayer._format_stratum_label("[51, 120]")
+        '≥ 51'
+        >>> BaseDisplayer._format_stratum_label("F")
+        'Female'
 
         """
         cat_str = str(cat_key).strip()
@@ -235,13 +233,19 @@ class BaseDisplayer:
                     low, high = parsed[0], parsed[1]
 
                     if isinstance(high, (int, float)) and high >= 100:
-                        return f"{stratum_var}: ≥ {low}"
+                        return f"≥ {low}"
 
-                    return f"{stratum_var}: {low}-{high}"
+                    return f"{low}-{high}"
             except (ValueError, SyntaxError):
                 pass
 
-        return f"{stratum_var}: {cat_str}"
+        if cat_str == "F":
+            return "Female"
+
+        elif cat_str == "M":
+            return "Male"
+
+        return f"{cat_str}"
 
     def _save_figure(
         self, fig: Figure | SubFigure, filename: str, outcome: str | None = None
@@ -268,7 +272,9 @@ class BaseDisplayer:
         plot_dir.mkdir(parents=True, exist_ok=True)
 
         save_path = plot_dir / f"{filename}.png"
-        fig.savefig(save_path, dpi=self.theme.dpi, bbox_inches="tight")
+        fig.get_figure(root=True).savefig(
+            save_path, dpi=self.theme.dpi, bbox_inches="tight"
+        )
         self.logger.info(f"Saved plot artifact to {save_path}")
         return save_path
 
@@ -343,7 +349,9 @@ class BaseDisplayer:
         )
         display_label = label or "Data"
 
-        with (plt.rc_context(self.theme.to_rc_params()),):
+        with (
+            plt.rc_context(self.theme.to_rc_params()),
+        ):
             fig, ax = draw_data_distribution(
                 data=data,
                 n_bins=n_bins_val,
@@ -352,7 +360,6 @@ class BaseDisplayer:
                 yscale=dist_yscale_val,
                 color=style_kwargs.pop("color", self.theme.primary_color),
                 show_spines=style_kwargs.pop("show_spines", self.theme.show_spines),
-                title=f"Data Distribution - {outcome.capitalize()}",
                 **style_kwargs,
             )
 
@@ -366,7 +373,7 @@ class BaseDisplayer:
         if show_val:
             plt.show()
         elif save_val:
-            plt.close(fig)
+            plt.close(fig.get_figure(root=True))
 
         return fig, ax
 
@@ -465,7 +472,7 @@ class BaseDisplayer:
 
         is_ici = metric.lower() == "ici"
         vmax = 0.5 if is_ici else 0.1
-        percent = " (%)" if is_ici else ""
+        percent = r" $\times$ 100" if is_ici else ""
 
         if is_ici:
             plot_data *= 100
@@ -476,7 +483,9 @@ class BaseDisplayer:
         row_labels = ["All strata", *list(strata)]
 
         # 3. Stateless Drawing Delegate
-        with (plt.rc_context(self.theme.to_rc_params()),):
+        with (
+            plt.rc_context(self.theme.to_rc_params()),
+        ):
             fig, ax = draw_strata_heatmap(
                 plot_data=plot_data,
                 text_data=text_data,
@@ -494,7 +503,7 @@ class BaseDisplayer:
         if show_val:
             plt.show()
         elif save_val:
-            plt.close(fig)
+            plt.close(fig.get_figure(root=True))
 
         return fig, ax
 
@@ -548,9 +557,7 @@ class BaseDisplayer:
             for cat_key in cat_dict:
                 strata_tuples.append((stratum_var, cat_key))
                 # Use helper to transform raw cat_key into clean label
-                strata_row_labels.append(
-                    self._format_stratum_label(stratum_var, cat_key)
-                )
+                strata_row_labels.append(self._format_stratum_label(cat_key))
 
         if not strata_tuples:
             self.logger.warning(
@@ -587,7 +594,7 @@ class BaseDisplayer:
             scores = np.array(scores_list)
 
             # Extract stratum point estimates matrix (shape: n_strata_rows, n_outcomes)
-            strata_scores_list = []
+            strata_scores_list: list[list[float]] = []
             for stratum_var, cat_key in strata_tuples:
                 row = []
                 for out in outcomes:
@@ -624,6 +631,61 @@ class BaseDisplayer:
                 f"--- Finished heatmap plotting for metric: {disp_name} ---"
             )
         return heatmap_plots
+
+
+def _roc_bootstrap_iteration(
+    idx: np.ndarray, y_true: np.ndarray, probas: np.ndarray, fpr: np.ndarray
+) -> np.ndarray | None:
+    """Compute one bootstrap resample's ROC curve, interpolated onto `fpr`,
+    or `None` if the resample lacks one of the two classes."""
+    if len(np.unique(y_true[idx])) < 2:
+        return None
+    fpr_b, tpr_b, _ = roc_curve(y_true[idx], probas[idx])
+    return np.interp(fpr, fpr_b, tpr_b)
+
+
+def _pr_bootstrap_iteration(
+    idx: np.ndarray, y_true: np.ndarray, probas: np.ndarray, rev_recall: np.ndarray
+) -> np.ndarray | None:
+    """Compute one bootstrap resample's precision curve, interpolated onto
+    the (ascending) recall grid `rev_recall` and returned in descending
+    recall order, or `None` if the resample lacks one of the two classes."""
+    if len(np.unique(y_true[idx])) < 2:
+        return None
+    prec_b, rec_b, _ = precision_recall_curve(y_true[idx], probas[idx])
+    return np.interp(rev_recall, rec_b[::-1], prec_b[::-1])[::-1]
+
+
+def _interval_metric_value(
+    metric: Literal["coverage", "sharpness", "winkler"],
+    y: np.ndarray,
+    dist: ContinuousPredictiveDistribution,
+    alpha: float,
+    decimals: int | None,
+) -> float:
+    """Evaluate one OrdBoost interval metric at significance level `alpha`
+    (coverage is returned as a percentage)."""
+    if metric == "coverage":
+        return interval_coverage_rate(y, dist, alpha=alpha, decimals=decimals) * 100.0
+    if metric == "sharpness":
+        return sharpness(dist, alpha=alpha, decimals=decimals)
+    return winkler_score(y, dist, alpha=alpha, decimals=decimals)
+
+
+def _interval_bootstrap_iteration(
+    idx: np.ndarray,
+    y_true: np.ndarray,
+    dist: ContinuousPredictiveDistribution,
+    alphas: np.ndarray,
+    metric: Literal["coverage", "sharpness", "winkler"],
+    decimals: int | None,
+) -> np.ndarray:
+    """Compute one bootstrap resample's interval metric at every `alpha`."""
+    dist_b = dist[idx]
+    y_b = y_true[idx]
+    return np.array(
+        [_interval_metric_value(metric, y_b, dist_b, a, decimals) for a in alphas]
+    )
 
 
 def _reliability_bootstrap_iteration(
@@ -673,9 +735,9 @@ def _reliability_bootstrap_iteration(
         return None
 
     if strategy == "spline":
-        from splinecalib import SplineCalib
+        from pysplinecalib import SplineCalib
 
-        sc_b = SplineCalib(cv_spline=cv_splines)  # type: ignore
+        sc_b = SplineCalib(cv_spline=cv_splines)
         sc_b.fit(probas[idx], y_true[idx])
         b_true = sc_b.calibrate(prob_pred)
 
@@ -768,7 +830,6 @@ class MedpipeClassifierDisplayer(BaseDisplayer):
         "dist_n_bins": 10,
         "dist_yscale": "linear",
         "strategy": "uniform",
-        "n_jobs": 1,
         "cv_splines": 3,
     }
 
@@ -778,9 +839,8 @@ class MedpipeClassifierDisplayer(BaseDisplayer):
         probas: np.ndarray,
         n_bootstraps: int = 1000,
         random_state: int | None = 42,
-    ) -> tuple[
-        np.ndarray, np.ndarray, float, np.ndarray | None, np.ndarray | None
-    ]:
+        n_jobs: int | None = 1,
+    ) -> tuple[np.ndarray, np.ndarray, float, np.ndarray | None, np.ndarray | None]:
         """Compute Receiver Operating Characteristic metrics and bootstrap CIs.
 
         Parameters
@@ -820,16 +880,20 @@ class MedpipeClassifierDisplayer(BaseDisplayer):
             return fpr, tpr, roc_auc, None, None
 
         rng = np.random.default_rng(random_state)
-        n_samples = len(y_true)
-        boots = []
+        bootstrap_indices = draw_bootstrap_indices(rng, len(y_true), n_bootstraps)
 
-        for _ in range(n_bootstraps):
-            idx = rng.choice(n_samples, size=n_samples, replace=True)
-            # Ensure bootstrap resample includes both binary classes
-            if len(np.unique(y_true[idx])) < 2:
-                continue
-            fpr_b, tpr_b, _ = roc_curve(y_true[idx], probas[idx])
-            boots.append(np.interp(fpr, fpr_b, tpr_b))
+        # Threads: each resample is a millisecond-scale numpy sort that
+        # releases the GIL, so worker processes only add start-up and
+        # pickling cost (resamples lacking a class are dropped).
+        boots = run_bootstraps(
+            _roc_bootstrap_iteration,
+            bootstrap_indices,
+            y_true,
+            probas,
+            fpr,
+            n_jobs=n_jobs,
+            backend="threading",
+        )
 
         if not boots:
             return fpr, tpr, roc_auc, None, None
@@ -845,6 +909,7 @@ class MedpipeClassifierDisplayer(BaseDisplayer):
         probas: np.ndarray,
         n_bootstraps: int = 1000,
         random_state: int | None = 42,
+        n_jobs: int | None = 1,
     ) -> tuple[
         np.ndarray,
         np.ndarray,
@@ -897,20 +962,21 @@ class MedpipeClassifierDisplayer(BaseDisplayer):
             return precision, recall, ap_score, baseline, None, None
 
         rng = np.random.default_rng(random_state)
-        n_samples = len(y_true)
-        boots = []
+        bootstrap_indices = draw_bootstrap_indices(rng, len(y_true), n_bootstraps)
 
         # Scikit-learn precision_recall_curve outputs recall in descending order
         rev_recall = recall[::-1]
 
-        for _ in range(n_bootstraps):
-            idx = rng.choice(n_samples, size=n_samples, replace=True)
-            if len(np.unique(y_true[idx])) < 2:
-                continue
-
-            prec_b, rec_b, _ = precision_recall_curve(y_true[idx], probas[idx])
-            interp_prec = np.interp(rev_recall, rec_b[::-1], prec_b[::-1])
-            boots.append(interp_prec[::-1])
+        # Threads, for the same reason as in `_compute_roc_data`.
+        boots = run_bootstraps(
+            _pr_bootstrap_iteration,
+            bootstrap_indices,
+            y_true,
+            probas,
+            rev_recall,
+            n_jobs=n_jobs,
+            backend="threading",
+        )
 
         if not boots:
             return precision, recall, ap_score, baseline, None, None
@@ -979,7 +1045,7 @@ class MedpipeClassifierDisplayer(BaseDisplayer):
         y_true = np.asarray(y_true).squeeze()
 
         if strategy == "spline":
-            from splinecalib import SplineCalib
+            from pysplinecalib import SplineCalib
 
             sc = SplineCalib(cv_spline=cv_splines)
             sc.fit(probas, y_true)
@@ -998,27 +1064,25 @@ class MedpipeClassifierDisplayer(BaseDisplayer):
             return prob_true, prob_pred, None, None
 
         rng = np.random.default_rng(random_state)
-        n_samples = len(y_true)
-        # Draw all resample indices up front, sequentially, so the random
-        # draw sequence (and thus reproducibility for a given random_state)
-        # is unaffected by dispatching the actual curve-fitting work below
-        # to parallel workers.
-        bootstrap_indices = [
-            rng.choice(n_samples, size=n_samples, replace=True)
-            for _ in range(n_bootstraps)
-        ]
+        bootstrap_indices = draw_bootstrap_indices(rng, len(y_true), n_bootstraps)
 
-        # Process-based (the joblib default): each resample's fit (e.g. a
+        # Processes for the spline strategy: each resample's fit (a
         # SplineCalib fit via scipy's L-BFGS-B) spends its time in a
-        # Python-level optimizer loop that holds the GIL, so a threading
-        # backend adds contention instead of speedup here.
-        boot_results = Parallel(n_jobs=n_jobs)(
-            delayed(_reliability_bootstrap_iteration)(
-                idx, y_true, probas, prob_pred, strategy, n_bins, cv_splines
-            )
-            for idx in bootstrap_indices
+        # Python-level optimizer loop that holds the GIL, so threads add
+        # contention instead of speedup. The binned strategies are cheap
+        # numpy work, where threads avoid the process overhead.
+        boots = run_bootstraps(
+            _reliability_bootstrap_iteration,
+            bootstrap_indices,
+            y_true,
+            probas,
+            prob_pred,
+            strategy,
+            n_bins,
+            cv_splines,
+            n_jobs=n_jobs,
+            backend="loky" if strategy == "spline" else "threading",
         )
-        boots = [b for b in boot_results if b is not None]
 
         if not boots:
             return prob_true, prob_pred, None, None
@@ -1071,16 +1135,16 @@ class MedpipeClassifierDisplayer(BaseDisplayer):
             thresholds / (1.0 - thresholds)
         )
 
-        # Calculate Model Net Benefit
-        nb_model_list = []
-        for p_t in thresholds:
-            y_pred = probas >= p_t
-            tp = np.sum((y_pred == 1) & (y_true == 1))
-            fp = np.sum((y_pred == 1) & (y_true == 0))
-            nb = (tp / n_samples) - (fp / n_samples) * (p_t / (1.0 - p_t))
-            nb_model_list.append(nb)
-
-        net_benefit_model = np.array(nb_model_list)
+        # Calculate Model Net Benefit. Sorting each class's probabilities
+        # once lets `searchsorted` count the predictions at or above every
+        # threshold, without a pass over the samples per threshold.
+        pos_probas = np.sort(probas[y_true == 1])
+        neg_probas = np.sort(probas[y_true == 0])
+        tp = len(pos_probas) - np.searchsorted(pos_probas, thresholds, side="left")
+        fp = len(neg_probas) - np.searchsorted(neg_probas, thresholds, side="left")
+        net_benefit_model = (tp / n_samples) - (fp / n_samples) * (
+            thresholds / (1.0 - thresholds)
+        )
 
         return thresholds, net_benefit_model, net_benefit_all
 
@@ -1095,6 +1159,7 @@ class MedpipeClassifierDisplayer(BaseDisplayer):
         n_bootstraps: int | None = None,
         save: bool | None = None,
         show: bool | None = None,
+        n_jobs: int | None = None,
         **style_kwargs: Any,
     ) -> tuple[Figure | SubFigure, Axes]:
         """Compute ROC metrics, render curve with confidence intervals, and save figure.
@@ -1116,6 +1181,9 @@ class MedpipeClassifierDisplayer(BaseDisplayer):
             Automatically save the generated plot to the run directory.
         show : bool, optional
             Whether to display the plot interactively before closing.
+        n_jobs : int, optional
+            Number of parallel jobs used for the bootstrap resamples. Overrides
+            the display configuration's `n_jobs` when given.
         **style_kwargs : Any
             Additional style parameters forwarded to `draw_roc_curve`.
 
@@ -1131,12 +1199,14 @@ class MedpipeClassifierDisplayer(BaseDisplayer):
             plot_type="roc",
             outcome=outcome,
             n_bootstraps=n_bootstraps,
+            n_jobs=n_jobs,
             save=save,
             show=show,
             **style_kwargs,
         )
 
         n_bootstraps_val = cfg["n_bootstraps"]
+        n_jobs_val = cfg["n_jobs"]
         save_val = cfg["save"]
         show_val = cfg["show"]
 
@@ -1149,12 +1219,15 @@ class MedpipeClassifierDisplayer(BaseDisplayer):
             y_true=y_true,
             probas=probas,
             n_bootstraps=n_bootstraps_val,
+            n_jobs=n_jobs_val,
         )
 
         display_label = label or f"Model (AUC = {roc_auc:.3f})"
 
         # Apply global theme context
-        with (plt.rc_context(self.theme.to_rc_params()),):
+        with (
+            plt.rc_context(self.theme.to_rc_params()),
+        ):
             fig, ax = draw_roc_curve(
                 fpr=fpr,
                 tpr=tpr,
@@ -1175,7 +1248,7 @@ class MedpipeClassifierDisplayer(BaseDisplayer):
         if show_val:
             plt.show()
         elif save_val:
-            plt.close(fig)
+            plt.close(fig.get_figure(root=True))
 
         return fig, ax
 
@@ -1188,6 +1261,7 @@ class MedpipeClassifierDisplayer(BaseDisplayer):
         n_bootstraps: int | None = None,
         save: bool | None = None,
         show: bool | None = None,
+        n_jobs: int | None = None,
         **style_kwargs: Any,
     ) -> tuple[Figure | SubFigure, Axes]:
         """Compute PR metrics, render curve with confidence intervals, and save figure.
@@ -1209,6 +1283,9 @@ class MedpipeClassifierDisplayer(BaseDisplayer):
             Automatically save the generated plot to the run directory.
         show : bool, optional
             Whether to display the plot interactively before closing.
+        n_jobs : int, optional
+            Number of parallel jobs used for the bootstrap resamples. Overrides
+            the display configuration's `n_jobs` when given.
         **style_kwargs : Any
             Additional style parameters forwarded to `draw_precision_recall_curve`.
 
@@ -1224,12 +1301,14 @@ class MedpipeClassifierDisplayer(BaseDisplayer):
             plot_type="precision_recall",
             outcome=outcome,
             n_bootstraps=n_bootstraps,
+            n_jobs=n_jobs,
             save=save,
             show=show,
             **style_kwargs,
         )
 
         n_bootstraps_val = cfg["n_bootstraps"]
+        n_jobs_val = cfg["n_jobs"]
         save_val = cfg["save"]
         show_val = cfg["show"]
 
@@ -1249,11 +1328,14 @@ class MedpipeClassifierDisplayer(BaseDisplayer):
             y_true=y_true,
             probas=probas,
             n_bootstraps=n_bootstraps_val,
+            n_jobs=n_jobs_val,
         )
 
         display_label = label or f"Model (AP = {ap_score:.3f})"
 
-        with (plt.rc_context(self.theme.to_rc_params()),):
+        with (
+            plt.rc_context(self.theme.to_rc_params()),
+        ):
             fig, ax = draw_precision_recall_curve(
                 precision=precision,
                 recall=recall,
@@ -1275,7 +1357,7 @@ class MedpipeClassifierDisplayer(BaseDisplayer):
         if show_val:
             plt.show()
         elif save_val:
-            plt.close(fig)
+            plt.close(fig.get_figure(root=True))
 
         return fig, ax
 
@@ -1292,6 +1374,7 @@ class MedpipeClassifierDisplayer(BaseDisplayer):
         n_bootstraps: int | None = None,
         save: bool | None = None,
         show: bool | None = None,
+        n_jobs: int | None = None,
         **style_kwargs: Any,
     ) -> tuple[Figure | SubFigure, Axes]:
         """Compute calibration data, render a reliability diagram with a
@@ -1322,6 +1405,9 @@ class MedpipeClassifierDisplayer(BaseDisplayer):
             Automatically save the generated plot to the run directory.
         show : bool, optional
             Whether to display the plot interactively before closing.
+        n_jobs : int, optional
+            Number of parallel jobs used for the bootstrap resamples. Overrides
+            the display configuration's `n_jobs` when given.
         **style_kwargs : Any
             Additional style parameters forwarded to `draw_reliability_diagram`.
 
@@ -1341,6 +1427,7 @@ class MedpipeClassifierDisplayer(BaseDisplayer):
             dist_yscale=dist_yscale,
             strategy=strategy,
             n_bootstraps=n_bootstraps,
+            n_jobs=n_jobs,
             save=save,
             show=show,
             **style_kwargs,
@@ -1379,7 +1466,9 @@ class MedpipeClassifierDisplayer(BaseDisplayer):
         if strategy_val == "spline":
             style_kwargs.setdefault("marker", None)
 
-        with (plt.rc_context(self.theme.to_rc_params()),):
+        with (
+            plt.rc_context(self.theme.to_rc_params()),
+        ):
             fig, ax = draw_reliability_diagram(
                 prob_true=prob_true,
                 prob_pred=prob_pred,
@@ -1405,7 +1494,7 @@ class MedpipeClassifierDisplayer(BaseDisplayer):
         if show_val:
             plt.show()
         elif save_val:
-            plt.close(fig)
+            plt.close(fig.get_figure(root=True))
 
         return fig, ax
 
@@ -1469,7 +1558,9 @@ class MedpipeClassifierDisplayer(BaseDisplayer):
 
         display_label = label or "Model"
 
-        with (plt.rc_context(self.theme.to_rc_params()),):
+        with (
+            plt.rc_context(self.theme.to_rc_params()),
+        ):
             fig, ax = draw_dca_curve(
                 thresholds=thresh,
                 net_benefit_model=nb_model,
@@ -1488,7 +1579,7 @@ class MedpipeClassifierDisplayer(BaseDisplayer):
         if show_val:
             plt.show()
         elif save_val:
-            plt.close(fig)
+            plt.close(fig.get_figure(root=True))
 
         return fig, ax
 
@@ -1500,6 +1591,7 @@ class MedpipeClassifierDisplayer(BaseDisplayer):
         n_bootstraps: int | None = None,
         save: bool | None = None,
         show: bool | None = None,
+        n_jobs: int | None = None,
         **style_kwargs: Any,
     ) -> dict[str, tuple[Figure | SubFigure, Axes]]:
         """Execute all core evaluation visualization routines for a given outcome.
@@ -1522,6 +1614,9 @@ class MedpipeClassifierDisplayer(BaseDisplayer):
             Automatically save all generated plot artifacts to the run directory.
         show : bool, optional
             Whether to display figures interactively before closing.
+        n_jobs : int, optional
+            Number of parallel jobs used for the bootstrap resamples. Overrides
+            the display configuration's `n_jobs` when given.
         **style_kwargs : Any
             Additional style parameters forwarded to underlying drawing functions.
 
@@ -1542,6 +1637,7 @@ class MedpipeClassifierDisplayer(BaseDisplayer):
             probas=probas,
             outcome=outcome,
             n_bootstraps=n_bootstraps,
+            n_jobs=n_jobs,
             save=save,
             show=show,
             **style_kwargs.copy(),
@@ -1552,6 +1648,7 @@ class MedpipeClassifierDisplayer(BaseDisplayer):
             probas=probas,
             outcome=outcome,
             n_bootstraps=n_bootstraps,
+            n_jobs=n_jobs,
             save=save,
             show=show,
             **style_kwargs.copy(),
@@ -1570,6 +1667,7 @@ class MedpipeClassifierDisplayer(BaseDisplayer):
             probas=probas,
             outcome=outcome,
             n_bootstraps=n_bootstraps,
+            n_jobs=n_jobs,
             save=save,
             show=show,
             **style_kwargs.copy(),
@@ -1688,6 +1786,8 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
         metric: Literal["coverage", "sharpness", "winkler"],
         n_bootstraps: int = 1000,
         random_state: int | None = 42,
+        decimals: int | None = None,
+        n_jobs: int | None = 1,
     ) -> dict[str, Any]:
         """Compute one of empirical coverage, sharpness, or Winkler score
         across nominal coverage levels, with bootstrap CIs.
@@ -1707,6 +1807,11 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
             Number of bootstrap iterations for 95% confidence interval estimation.
         random_state : int, optional, default=42
             Random seed for bootstrap resampling reproducibility.
+        decimals : int, optional
+            Number of decimals the predictive interval bounds are rounded to
+            before computing the metric. If None, no rounding is applied.
+        n_jobs : int or None, default=1
+            Number of parallel jobs used for the bootstrap resamples.
 
         Returns
         -------
@@ -1717,22 +1822,16 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
 
         """
 
-        def _metric_value(
-            y: np.ndarray, d: ContinuousPredictiveDistribution, alpha: float
-        ) -> float:
-            if metric == "coverage":
-                return interval_coverage_rate(y, d, alpha=alpha) * 100.0
-            if metric == "sharpness":
-                return sharpness(d, alpha=alpha)
-            return winkler_score(y, d, alpha=alpha)
-
         y_true_arr = np.asarray(y_true, dtype=float)
         coverage_levels_arr = np.asarray(coverage_levels, dtype=float)
         alphas = 1.0 - coverage_levels_arr / 100.0
 
-        point = np.empty_like(alphas)
-        for i, alpha in enumerate(alphas):
-            point[i] = _metric_value(y_true_arr, dist, alpha)
+        point = np.array(
+            [
+                _interval_metric_value(metric, y_true_arr, dist, alpha, decimals)
+                for alpha in alphas
+            ]
+        )
 
         result: dict[str, Any] = {
             "coverage_levels": coverage_levels_arr,
@@ -1743,18 +1842,26 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
             return result
 
         rng = np.random.default_rng(random_state)
-        n_samples = len(y_true_arr)
-        n_levels = len(alphas)
-        boot = np.empty((n_bootstraps, n_levels))
+        bootstrap_indices = draw_bootstrap_indices(rng, len(y_true_arr), n_bootstraps)
 
-        for b in range(n_bootstraps):
-            idx = rng.choice(n_samples, size=n_samples, replace=True)
-            y_b = y_true_arr[idx]
-            dist_b = ContinuousPredictiveDistribution(
-                grid_y=dist.grid_y, grid_cdf=dist.grid_cdf[idx]
+        # Processes: each resample evaluates the predictive distribution's
+        # intervals at every level, which is dominated by Python-level
+        # overhead, so threads give no speedup. Row-indexing the
+        # distribution inside the worker keeps the (memory-mapped) full CDF
+        # matrix from being re-serialised per resample.
+        boot = np.array(
+            run_bootstraps(
+                _interval_bootstrap_iteration,
+                bootstrap_indices,
+                y_true_arr,
+                dist,
+                alphas,
+                metric,
+                decimals,
+                n_jobs=n_jobs,
+                backend="loky",
             )
-            for j, alpha in enumerate(alphas):
-                boot[b, j] = _metric_value(y_b, dist_b, alpha)
+        )
 
         result["output"]["lower_ci"] = np.percentile(boot, 2.5, axis=0)
         result["output"]["upper_ci"] = np.percentile(boot, 97.5, axis=0)
@@ -1765,6 +1872,7 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
         self,
         y_true: np.ndarray,
         dist: ContinuousPredictiveDistribution,
+        mapper: BaseBinMapper,
     ) -> tuple[np.ndarray, np.ndarray]:
         """Compute the marginal calibration curve for a predictive distribution.
 
@@ -1774,6 +1882,8 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
             Ground truth continuous target values of shape (n_samples,).
         dist : ContinuousPredictiveDistribution
             Predictive distribution for the same samples.
+        mapper : BaseBinMapper
+            Mapper used by the OrdBoostRegressor.
 
         Returns
         -------
@@ -1784,7 +1894,7 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
 
         """
         y_true_arr = np.asarray(y_true, dtype=float)
-        grid_y, diff = marginal_calibration_curve(y_true_arr, dist)
+        grid_y, diff = marginal_calibration_curve(y_true_arr, dist, mapper)
         return grid_y, diff
 
     def _compute_pit_histogram_data(
@@ -1853,6 +1963,8 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
         label: str | None = None,
         save: bool | None = None,
         show: bool | None = None,
+        decimals: int | None = None,
+        n_jobs: int | None = None,
         **style_kwargs: Any,
     ) -> tuple[Figure | SubFigure, Axes]:
         """Compute coverage reliability, render curve with confidence
@@ -1878,6 +1990,12 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
             Automatically save the generated plot to the run directory.
         show : bool, optional
             Whether to display the plot interactively before closing.
+        decimals : int, optional
+            Number of decimals the predictive interval bounds are rounded to.
+            If None, no rounding is applied.
+        n_jobs : int, optional
+            Number of parallel jobs used for the bootstrap resamples. Overrides
+            the display configuration's `n_jobs` when given.
         **style_kwargs : Any
             Additional style parameters forwarded to `draw_coverage_curve`.
 
@@ -1893,11 +2011,13 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
             plot_type="coverage",
             outcome=outcome,
             n_bootstraps=n_bootstraps,
+            n_jobs=n_jobs,
             save=save,
             show=show,
             **style_kwargs,
         )
         n_bootstraps_val = cfg["n_bootstraps"]
+        n_jobs_val = cfg["n_jobs"]
         save_val = cfg["save"]
         show_val = cfg["show"]
         levels = (
@@ -1913,11 +2033,15 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
             coverage_levels=levels,
             metric="coverage",
             n_bootstraps=n_bootstraps_val,
+            decimals=decimals,
+            n_jobs=n_jobs_val,
         )
 
         display_label = label or "Model"
 
-        with (plt.rc_context(self.theme.to_rc_params()),):
+        with (
+            plt.rc_context(self.theme.to_rc_params()),
+        ):
             fig, ax = draw_coverage_curve(
                 coverage_levels=data["coverage_levels"],
                 empirical_coverage=data["output"]["point"],
@@ -1938,7 +2062,7 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
         if show_val:
             plt.show()
         elif save_val:
-            plt.close(fig)
+            plt.close(fig.get_figure(root=True))
 
         return fig, ax
 
@@ -1952,6 +2076,8 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
         label: str | None = None,
         save: bool | None = None,
         show: bool | None = None,
+        decimals: int | None = None,
+        n_jobs: int | None = None,
         **style_kwargs: Any,
     ) -> tuple[Figure | SubFigure, Axes]:
         """Compute sharpness, render curve with confidence intervals, and
@@ -1977,6 +2103,12 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
             Automatically save the generated plot to the run directory.
         show : bool, optional
             Whether to display the plot interactively before closing.
+        decimals : int, optional
+            Number of decimals the predictive interval bounds are rounded to.
+            If None, no rounding is applied.
+        n_jobs : int, optional
+            Number of parallel jobs used for the bootstrap resamples. Overrides
+            the display configuration's `n_jobs` when given.
         **style_kwargs : Any
             Additional style parameters forwarded to `draw_sharpness_curve`.
 
@@ -1992,11 +2124,13 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
             plot_type="sharpness",
             outcome=outcome,
             n_bootstraps=n_bootstraps,
+            n_jobs=n_jobs,
             save=save,
             show=show,
             **style_kwargs,
         )
         n_bootstraps_val = cfg["n_bootstraps"]
+        n_jobs_val = cfg["n_jobs"]
         save_val = cfg["save"]
         show_val = cfg["show"]
         levels = (
@@ -2012,11 +2146,15 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
             coverage_levels=levels,
             metric="sharpness",
             n_bootstraps=n_bootstraps_val,
+            decimals=decimals,
+            n_jobs=n_jobs_val,
         )
 
         display_label = label or "Model"
 
-        with (plt.rc_context(self.theme.to_rc_params()),):
+        with (
+            plt.rc_context(self.theme.to_rc_params()),
+        ):
             fig, ax = draw_sharpness_curve(
                 coverage_levels=data["coverage_levels"],
                 sharpness_values=data["output"]["point"],
@@ -2037,7 +2175,7 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
         if show_val:
             plt.show()
         elif save_val:
-            plt.close(fig)
+            plt.close(fig.get_figure(root=True))
 
         return fig, ax
 
@@ -2051,6 +2189,8 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
         label: str | None = None,
         save: bool | None = None,
         show: bool | None = None,
+        decimals: int | None = None,
+        n_jobs: int | None = None,
         **style_kwargs: Any,
     ) -> tuple[Figure | SubFigure, Axes]:
         """Compute Winkler score, render curve with confidence intervals,
@@ -2076,6 +2216,12 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
             Automatically save the generated plot to the run directory.
         show : bool, optional
             Whether to display the plot interactively before closing.
+        decimals : int, optional
+            Number of decimals the predictive interval bounds are rounded to.
+            If None, no rounding is applied.
+        n_jobs : int, optional
+            Number of parallel jobs used for the bootstrap resamples. Overrides
+            the display configuration's `n_jobs` when given.
         **style_kwargs : Any
             Additional style parameters forwarded to `draw_winkler_curve`.
 
@@ -2091,11 +2237,13 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
             plot_type="winkler",
             outcome=outcome,
             n_bootstraps=n_bootstraps,
+            n_jobs=n_jobs,
             save=save,
             show=show,
             **style_kwargs,
         )
         n_bootstraps_val = cfg["n_bootstraps"]
+        n_jobs_val = cfg["n_jobs"]
         save_val = cfg["save"]
         show_val = cfg["show"]
         levels = (
@@ -2111,11 +2259,15 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
             coverage_levels=levels,
             metric="winkler",
             n_bootstraps=n_bootstraps_val,
+            decimals=decimals,
+            n_jobs=n_jobs_val,
         )
 
         display_label = label or "Model"
 
-        with (plt.rc_context(self.theme.to_rc_params()),):
+        with (
+            plt.rc_context(self.theme.to_rc_params()),
+        ):
             fig, ax = draw_winkler_curve(
                 coverage_levels=data["coverage_levels"],
                 winkler_values=data["output"]["point"],
@@ -2136,7 +2288,7 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
         if show_val:
             plt.show()
         elif save_val:
-            plt.close(fig)
+            plt.close(fig.get_figure(root=True))
 
         return fig, ax
 
@@ -2144,6 +2296,7 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
         self,
         y_true: np.ndarray,
         dist: ContinuousPredictiveDistribution,
+        mapper: BaseBinMapper,
         outcome: str = "default",
         label: str | None = None,
         save: bool | None = None,
@@ -2158,6 +2311,8 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
             Ground truth continuous target values of shape (n_samples,).
         dist : ContinuousPredictiveDistribution
             Predictive distribution for the same samples.
+        mapper : BaseBinMapper
+            Mapper used by the OrdBoostRegressor.
         outcome : str, default="default"
             Outcome identifier used for figure titles and folder structuring.
         label : str, optional
@@ -2188,11 +2343,15 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
         show_val = cfg["show"]
 
         self.logger.info(f"[{outcome}] Starting marginal calibration plotting.")
-        grid_y, diff = self._compute_marginal_calibration_data(y_true=y_true, dist=dist)
+        grid_y, diff = self._compute_marginal_calibration_data(
+            y_true=y_true, dist=dist, mapper=mapper
+        )
 
         display_label = label or "Model"
 
-        with (plt.rc_context(self.theme.to_rc_params()),):
+        with (
+            plt.rc_context(self.theme.to_rc_params()),
+        ):
             fig, ax = draw_marginal_calibration(
                 grid_y=grid_y,
                 diff=diff,
@@ -2212,7 +2371,7 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
         if show_val:
             plt.show()
         elif save_val:
-            plt.close(fig)
+            plt.close(fig.get_figure(root=True))
 
         return fig, ax
 
@@ -2288,7 +2447,9 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
 
         display_label = label or "Model"
 
-        with (plt.rc_context(self.theme.to_rc_params()),):
+        with (
+            plt.rc_context(self.theme.to_rc_params()),
+        ):
             fig, ax = draw_pit_histogram(
                 bin_centres=bin_centres,
                 hist_values=hist_values,
@@ -2309,7 +2470,7 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
         if show_val:
             plt.show()
         elif save_val:
-            plt.close(fig)
+            plt.close(fig.get_figure(root=True))
 
         return fig, ax
 
@@ -2323,6 +2484,8 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
         n_bootstraps: int | None = None,
         save: bool | None = None,
         show: bool | None = None,
+        decimals: int | None = None,
+        n_jobs: int | None = None,
         **style_kwargs: Any,
     ) -> dict[str, tuple[Figure | SubFigure, Axes]]:
         """Execute all core distributional diagnostic visualization routines
@@ -2353,6 +2516,13 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
             Automatically save all generated plot artifacts to the run directory.
         show : bool, optional
             Whether to display figures interactively before closing.
+        decimals : int, optional
+            Number of decimals the predictive interval bounds are rounded to
+            for the coverage, sharpness, and Winkler score curves. If None,
+            no rounding is applied.
+        n_jobs : int, optional
+            Number of parallel jobs used for the bootstrap resamples. Overrides
+            the display configuration's `n_jobs` when given.
         **style_kwargs : Any
             Additional style parameters forwarded to underlying drawing functions.
 
@@ -2374,8 +2544,10 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
             outcome=outcome,
             coverage_levels=coverage_levels,
             n_bootstraps=n_bootstraps,
+            n_jobs=n_jobs,
             save=save,
             show=show,
+            decimals=decimals,
             **style_kwargs.copy(),
         )
 
@@ -2385,8 +2557,10 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
             outcome=outcome,
             coverage_levels=coverage_levels,
             n_bootstraps=n_bootstraps,
+            n_jobs=n_jobs,
             save=save,
             show=show,
+            decimals=decimals,
             **style_kwargs.copy(),
         )
 
@@ -2396,14 +2570,17 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
             outcome=outcome,
             coverage_levels=coverage_levels,
             n_bootstraps=n_bootstraps,
+            n_jobs=n_jobs,
             save=save,
             show=show,
+            decimals=decimals,
             **style_kwargs.copy(),
         )
 
         plots["marginal_calibration"] = self.plot_marginal_calibration(
             y_true=y_true,
             dist=dist,
+            mapper=mapper,
             outcome=outcome,
             save=save,
             show=show,

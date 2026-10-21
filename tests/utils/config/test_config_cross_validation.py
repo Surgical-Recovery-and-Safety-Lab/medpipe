@@ -53,13 +53,14 @@ class TestCrossValConfig:
         "strategy, group_column",
         [
             ("group", "DHB_NAME"),
+            ("loso", "DHB_NAME"),
             ("random", "DHB_NAME"),
             ("random", None),
         ],
     )
     def test_valid_config_group(
         self,
-        strategy: Literal["group", "random"],
+        strategy: Literal["group", "loso", "random"],
         group_column: str | None,
     ) -> None:
         """Pass valid configuration from _get_valid_group_config_dict
@@ -89,7 +90,7 @@ class TestCrossValConfig:
     def test_invalid_strategy(self) -> None:
         """Test that an invalid strategy literal raises a ValidationError."""
         with pytest.raises(
-            ValidationError, match="Input should be 'random' or 'group'"
+            ValidationError, match="Input should be 'random', 'group' or 'loso'"
         ):
             CrossValConfig.model_validate(
                 self._get_valid_random_config_dict(strategy="unsupported")
@@ -110,16 +111,27 @@ class TestCrossValConfig:
         ):
             CrossValConfig.model_validate(config_dict)
 
-    def test_group_stragey_interactions(self) -> None:
-        """Tests interactions between group stragey flag and
+    @pytest.mark.parametrize("strategy", ["group", "loso"])
+    def test_group_strategy_interactions(self, strategy: str) -> None:
+        """Tests interactions between the group-based strategy flags and
         other parameters."""
         with pytest.raises(
             ValidationError,
-            match="The group strategy requires a group column to be specified",
+            match=f"The {strategy} strategy requires a group column to be specified",
         ):
             CrossValConfig.model_validate(
-                self._get_valid_group_config_dict(group_column=None)
+                self._get_valid_group_config_dict(strategy=strategy, group_column=None)
             )
+
+    def test_loso_does_not_require_n_splits(self) -> None:
+        """Test that the loso strategy is valid without n_splits, since it
+        has one fold per group."""
+        config = CrossValConfig.model_validate(
+            {"strategy": "loso", "group_column": "DHB_NAME"}
+        )
+
+        assert config.strategy == "loso"
+        assert config.n_splits is None
 
     def test_extra_fields_forbidden(self) -> None:
         """Test that extra fields at the cross validation config level are

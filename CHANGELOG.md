@@ -7,6 +7,53 @@ and this project adheres to Semantic Versioning ([SemVer](https://semver.org/spe
 
 ## [Unreleased]
 
+### Added
+* An `ideal` flag for the coverage plot to only plot the ideal coverage line once.
+* The `prepare_data()` property to the pipelines.
+* A `LeaveOneGroupOut` cross-validation option with the `loso` flag in the 
+cross-validation configuration schema.
+* The `decimals` parameter to the coverage, sharpness, and Winkler score 
+calculations to round the intervals.
+* Updated the dependencies list to include `mypy` and `pandas-stubs`.
+* Bootstrap parallel computation for ROC, PR, coverage, sharpnes, and Winkler 
+score. 
+* Optimised the DCA computation loop to be more efficient.
+* Workflows to check that `ruff` and `mypy` checks pass.
+* A `bootstrap` module in `utils` to handle all boostrapping functions.
+* A helper function in to check the length of a predictive distribution.
+* New tests to cover the additional functions.
+
+### Changed
+* Using `pysplinecalib` instead of `splinecalib`.
+* Updates in the marginal calibration and PIT functions to work with the new
+version of ordboost.
+* Using error bars instead of shaded areas to represent 95% CI in the coverage
+and sharpness plots.
+* The stratum heatmap labels were updated to simpler versions.
+* Small changes to legend locations and labels.
+* Made the ideal calibration line in the marginal calibration plot black.
+* The `audit` and `eval` flags no longer raise a ValidationError if there is no
+fairness data. The heatmaps are not plotted and a message is added to the log.
+* Updated the ordboost version to 0.6.0 or higher.
+* The ROC, precision-recall, coverage, sharpness and Winkler score bootstraps now
+use the `n_jobs` of the display configuration (threads for the ROC and
+precision-recall curves, processes for the interval metrics).
+* An `n_jobs` argument to the bootstrapped plot methods and `plot_all` to override
+the `n_jobs` of the display configuration at runtime.
+* Subgroup evaluation in the `MedpipeRegressor` no longer re-runs the model 
+because `OrdBoost` supports row-indexing as of v0.6.0.
+* Updated docstrings that mentionned that `OrdBoost` did not support row-indexing.
+* Optimised the CRPS calculation for `OrdBoost` by using the stored CDF directly.
+* The `per_sample_func` is no longer needed to compute confidence intervals and 
+will no longer raise a warning if not specified.
+
+### Fixed
+* All tests now pass.
+* Docstrings in the `metrics/core.py` file that were not in the Numpy style.
+* The `shuffle` flag now makes it all the way to `_create_cv_splitter`.
+* Formatted with `ruff`.
+* Typing errors with `mypy`.
+
 ## [0.4.0.dev2] - 2026-10-05
 
 ### Added

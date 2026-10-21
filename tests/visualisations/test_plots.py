@@ -163,7 +163,8 @@ class TestDrawRocCurve:
         # Check that PolyCollection (fill_between) artist was added
         assert len(ax.collections) == 1
         labels = [
-            text.get_text() for text in ax.get_legend().get_texts()  # type: ignore
+            text.get_text()
+            for text in ax.get_legend().get_texts()  # type: ignore
         ]
         assert "Model with CI 95% CI" in labels
 

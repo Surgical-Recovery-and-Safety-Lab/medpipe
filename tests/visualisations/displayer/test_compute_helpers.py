@@ -284,7 +284,7 @@ class TestComputeReliabilityData:
         )
         fake_instance.calibrate.return_value = two_d_output
 
-        with patch("splinecalib.SplineCalib", return_value=fake_instance):
+        with patch("pysplinecalib.SplineCalib", return_value=fake_instance):
             prob_true, _prob_pred, lower_ci, upper_ci = (
                 displayer._compute_reliability_data(
                     y_true=y_true, probas=probas, strategy="spline", n_bootstraps=5
@@ -502,14 +502,30 @@ class TestComputeDcaData:
         probas_2d = np.column_stack((1 - probas_1d, probas_1d))
         displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
 
-        _, nb_model_2d, _ = displayer._compute_dca_data(
-            y_true=y_true, probas=probas_2d
-        )
-        _, nb_model_1d, _ = displayer._compute_dca_data(
-            y_true=y_true, probas=probas_1d
-        )
+        _, nb_model_2d, _ = displayer._compute_dca_data(y_true=y_true, probas=probas_2d)
+        _, nb_model_1d, _ = displayer._compute_dca_data(y_true=y_true, probas=probas_1d)
 
         np.testing.assert_allclose(nb_model_2d, nb_model_1d)
+
+    def test_compute_dca_data_matches_threshold_loop(self, mock_orchestrator) -> None:
+        """Test the vectorised net benefit equals a direct per-threshold loop,
+        including probabilities that fall exactly on a threshold."""
+        rng = np.random.default_rng(3)
+        y_true = rng.integers(0, 2, size=200)
+        probas = np.round(rng.uniform(0.0, 1.0, size=200), 2)
+        thresholds = np.linspace(0.01, 0.99, 99)
+        displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
+
+        _, nb_model, _ = displayer._compute_dca_data(y_true, probas, thresholds)
+
+        expected = []
+        for p_t in thresholds:
+            y_pred = probas >= p_t
+            tp = np.sum(y_pred & (y_true == 1))
+            fp = np.sum(y_pred & (y_true == 0))
+            expected.append(tp / len(y_true) - fp / len(y_true) * (p_t / (1.0 - p_t)))
+
+        np.testing.assert_allclose(nb_model, expected)
 
 
 class TestSaveFigure:
@@ -542,3 +558,98 @@ class TestSaveFigure:
         expected_path = tmp_path / "plots" / "mortality" / "roc_curve.png"
         assert saved_path == expected_path
         assert saved_path.exists()
+
+
+class TestBootstrapParallelism:
+    """Tests that `n_jobs` changes only how bootstraps are dispatched, not
+    their results."""
+
+    def test_roc_data_identical_across_n_jobs(
+        self, mock_orchestrator, sample_binary_data
+    ):
+        y_true, probas = sample_binary_data
+        displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
+
+        serial = displayer._compute_roc_data(y_true, probas, n_bootstraps=20, n_jobs=1)
+        parallel = displayer._compute_roc_data(
+            y_true, probas, n_bootstraps=20, n_jobs=2
+        )
+
+        for a, b in zip(serial, parallel, strict=True):
+            np.testing.assert_array_equal(a, b)
+
+    def test_precision_recall_data_identical_across_n_jobs(
+        self, mock_orchestrator, sample_binary_data
+    ):
+        y_true, probas = sample_binary_data
+        displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
+
+        serial = displayer._compute_precision_recall_data(
+            y_true, probas, n_bootstraps=20, n_jobs=1
+        )
+        parallel = displayer._compute_precision_recall_data(
+            y_true, probas, n_bootstraps=20, n_jobs=2
+        )
+
+        for a, b in zip(serial, parallel, strict=True):
+            np.testing.assert_array_equal(a, b)
+
+
+class TestRuntimeNJobsOverride:
+    """Tests that a runtime `n_jobs` reaches the bootstrap computations."""
+
+    def test_plot_roc_curve_n_jobs_overrides_config(
+        self, mock_orchestrator, sample_binary_data
+    ) -> None:
+        y_true, probas = sample_binary_data
+        displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
+
+        with patch.object(
+            displayer, "_compute_roc_data", wraps=displayer._compute_roc_data
+        ) as spy:
+            displayer.plot_roc_curve(
+                y_true, probas, n_bootstraps=4, n_jobs=2, save=False, show=False
+            )
+
+        assert spy.call_args.kwargs["n_jobs"] == 2
+
+    def test_plot_roc_curve_n_jobs_defaults_to_config(
+        self, mock_orchestrator, sample_binary_data
+    ) -> None:
+        y_true, probas = sample_binary_data
+        displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
+
+        with patch.object(
+            displayer, "_compute_roc_data", wraps=displayer._compute_roc_data
+        ) as spy:
+            displayer.plot_roc_curve(
+                y_true, probas, n_bootstraps=4, save=False, show=False
+            )
+
+        assert spy.call_args.kwargs["n_jobs"] == 1
+
+    def test_plot_all_forwards_n_jobs(
+        self, mock_orchestrator, sample_binary_data
+    ) -> None:
+        y_true, probas = sample_binary_data
+        displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
+        spies = {
+            name: patch.object(displayer, name, wraps=getattr(displayer, name))
+            for name in (
+                "_compute_roc_data",
+                "_compute_precision_recall_data",
+                "_compute_reliability_data",
+            )
+        }
+
+        started = {name: p.start() for name, p in spies.items()}
+        try:
+            displayer.plot_all(
+                y_true, probas, n_bootstraps=4, n_jobs=2, save=False, show=False
+            )
+        finally:
+            for p in spies.values():
+                p.stop()
+
+        for spy in started.values():
+            assert spy.call_args.kwargs["n_jobs"] == 2

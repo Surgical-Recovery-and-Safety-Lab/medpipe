@@ -146,7 +146,7 @@ class TestPlotStrataHeatmap:
             show=False,
         )
 
-        assert "(%)" in ax.get_title()
+        assert r"$\times$ 100" in ax.get_title()
 
     def test_plot_strata_heatmap_not_2d_strata_scores_raises(
         self, mock_orchestrator

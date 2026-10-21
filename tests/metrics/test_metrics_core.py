@@ -332,6 +332,64 @@ class TestCrpsScore:
 
         assert approx == pytest.approx(exact_mean, abs=0.01)
 
+    def test_crps_score_ordboost_matches_ordboost_crps(self) -> None:
+        """Test that crps_score on an OrdBoost distribution equals
+        ordboost's own crps_score, and that the per-sample values have
+        shape (n_samples,) and are unchanged by row-slicing."""
+        from ordboost.distributions import ContinuousPredictiveDistribution
+        from ordboost.metrics import crps_score as ordboost_crps_score
+
+        from medpipe.metrics.core import _crps_values
+
+        rng = np.random.default_rng(1)
+        grid_y = np.linspace(0.0, 10.0, 11)
+        grid_cdf = np.sort(rng.uniform(size=(15, 11)), axis=1)
+        grid_cdf[:, 0] = 0.0
+        grid_cdf[:, -1] = 1.0
+        dist = ContinuousPredictiveDistribution(grid_y, grid_cdf)
+        y_true = rng.uniform(0.0, 10.0, size=15)
+
+        values = _crps_values(y_true, dist)
+
+        assert values.shape == (15,)
+        assert crps_score(y_true, dist) == pytest.approx(
+            ordboost_crps_score(y_true, dist)
+        )
+        idx = np.array([3, 0, 7])
+        np.testing.assert_allclose(_crps_values(y_true[idx], dist[idx]), values[idx])
+
+    def test_crps_ordboost_fast_path_matches_generic_grid_path(self) -> None:
+        """Test that the OrdBoost fast path agrees (up to the generic path's
+        threshold-grid approximation) with the generic `.ppf`/`.cdf` path."""
+        from ordboost.distributions import ContinuousPredictiveDistribution
+
+        from medpipe.metrics.core import _crps_values
+
+        class _DuckTypedDist:
+            """Hides the OrdBoost type so the generic path is taken."""
+
+            def __init__(self, inner: ContinuousPredictiveDistribution) -> None:
+                self._inner = inner
+
+            def ppf(self, q):
+                return self._inner.ppf(q)
+
+            def cdf(self, x):
+                return self._inner.cdf(x)
+
+        rng = np.random.default_rng(2)
+        grid_y = np.linspace(0.0, 10.0, 21)
+        grid_cdf = np.sort(rng.uniform(size=(25, 21)), axis=1)
+        grid_cdf[:, 0] = 0.0
+        grid_cdf[:, -1] = 1.0
+        dist = ContinuousPredictiveDistribution(grid_y, grid_cdf)
+        y_true = rng.uniform(0.0, 10.0, size=25)
+
+        fast = _crps_values(y_true, dist)
+        generic = _crps_values(y_true, _DuckTypedDist(dist))
+
+        np.testing.assert_allclose(fast, generic, atol=5e-3)
+
     def test_crps_score_degenerate_zero_width_range(self) -> None:
         """Test that a degenerate distribution/observation range (upper ==
         lower, e.g. a constant predictive distribution matching a constant
@@ -381,6 +439,36 @@ class TestPredictionBundleDispatch:
         assert scores.shape == (1,)
         assert scores[0] == pytest.approx(crps_score(y_true, dist))
 
+    def test_compute_metrics_dist_length_mismatch_raises(self) -> None:
+        """Test that a distribution with a different sample count than y
+        raises a clear ValueError instead of an opaque downstream error."""
+        from ordboost.distributions import ContinuousPredictiveDistribution
+
+        grid_y = np.linspace(0.0, 1.0, 5)
+        grid_cdf = np.tile(np.linspace(0.0, 1.0, 5), (3, 1))
+        dist = ContinuousPredictiveDistribution(grid_y, grid_cdf)
+        bundle = PredictionBundle(point=None, dist=dist)
+
+        with pytest.raises(ValueError, match="Sample count mismatch"):
+            compute_metrics(["crps"], np.array([0.1, 0.2, 0.3, 0.4]), bundle)
+
+    def test_bootstrap_confidence_intervals_dist_length_mismatch_raises(
+        self,
+    ) -> None:
+        """Test that bootstrap_confidence_intervals rejects a distribution
+        whose sample count differs from y_true."""
+        from ordboost.distributions import ContinuousPredictiveDistribution
+
+        grid_y = np.linspace(0.0, 1.0, 5)
+        grid_cdf = np.tile(np.linspace(0.0, 1.0, 5), (3, 1))
+        dist = ContinuousPredictiveDistribution(grid_y, grid_cdf)
+        bundle = PredictionBundle(point=None, dist=dist)
+
+        with pytest.raises(ValueError, match="Sample count mismatch"):
+            bootstrap_confidence_intervals(
+                ["crps"], np.array([0.1, 0.2, 0.3, 0.4]), bundle, n_bootstraps=5
+            )
+
     def test_bootstrap_confidence_intervals_crps_without_dist_raises(self) -> None:
         """Test that requesting crps without a distribution (bare ndarray,
         or a PredictionBundle with dist=None) raises a clear ValueError."""
@@ -391,11 +479,11 @@ class TestPredictionBundleDispatch:
         ):
             bootstrap_confidence_intervals(["crps"], y_true, np.zeros(4))
 
-    def test_bootstrap_distributional_metric_missing_per_sample_func_raises(
+    def test_bootstrap_distributional_metric_without_per_sample_func_needs_indexing(
         self,
     ) -> None:
-        """Test that a registered predict_dist metric without a
-        per_sample_func raises a clear ValueError when bootstrapped."""
+        """Test that a predict_dist metric without a per_sample_func, given a
+        distribution that cannot be row-indexed, raises a clear ValueError."""
         custom_spec = MetricSpec(
             name="dist_metric_no_per_sample",
             func=lambda y, dist: 0.5,
@@ -408,9 +496,50 @@ class TestPredictionBundleDispatch:
         with patch.dict(MetricRegistry._registry, {}, clear=False):
             MetricRegistry.register_spec(custom_spec)
 
-            with pytest.raises(
-                ValueError, match="does not define a per_sample_func"
-            ):
+            with pytest.raises(ValueError, match="supporting row indexing"):
                 bootstrap_confidence_intervals(
                     ["dist_metric_no_per_sample"], y_true, bundle
                 )
+
+    @pytest.mark.parametrize("n_jobs", [1, 2])
+    def test_bootstrap_distributional_pair_resampling_fallback(
+        self, n_jobs: int
+    ) -> None:
+        """Test that a predict_dist metric without a per_sample_func is
+        bootstrapped by resampling (y, dist) pairs: for crps (a plain mean of
+        per-sample scores) it matches the per_sample_func path exactly, and
+        it is identical across `n_jobs`."""
+        from ordboost.distributions import ContinuousPredictiveDistribution
+
+        rng = np.random.default_rng(4)
+        grid_y = np.linspace(0.0, 10.0, 11)
+        grid_cdf = np.sort(rng.uniform(size=(30, 11)), axis=1)
+        grid_cdf[:, 0] = 0.0
+        grid_cdf[:, -1] = 1.0
+        dist = ContinuousPredictiveDistribution(grid_y, grid_cdf)
+        y_true = rng.uniform(0.0, 10.0, size=30)
+        bundle = PredictionBundle(point=None, dist=dist)
+
+        spec = MetricSpec(
+            name="crps_pairs",
+            func=crps_score,
+            response_method="predict_dist",
+            display_name="CRPS (pairs)",
+        )
+        with patch.dict(MetricRegistry._registry, {}, clear=False):
+            MetricRegistry.register_spec(spec)
+            fallback = bootstrap_confidence_intervals(
+                ["crps_pairs"],
+                y_true,
+                bundle,
+                n_bootstraps=25,
+                random_state=11,
+                n_jobs=n_jobs,
+            )["crps_pairs"]
+
+        fast = bootstrap_confidence_intervals(
+            ["crps"], y_true, bundle, n_bootstraps=25, random_state=11
+        )["crps"]
+
+        for key in ("point_estimate", "ci_lower", "ci_upper"):
+            assert fallback[key] == pytest.approx(fast[key])

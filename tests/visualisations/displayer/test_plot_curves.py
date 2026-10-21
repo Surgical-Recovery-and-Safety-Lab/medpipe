@@ -308,9 +308,7 @@ class TestPlotDcaCurve:
         y_true, probas = sample_binary_data
         displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
 
-        displayer.plot_dca_curve(
-            y_true=y_true, probas=probas, save=False, show=False
-        )
+        displayer.plot_dca_curve(y_true=y_true, probas=probas, save=False, show=False)
 
         assert not (tmp_path / "plots").exists()
 
@@ -322,9 +320,7 @@ class TestPlotDcaCurve:
         y_true, probas = sample_binary_data
         displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
 
-        displayer.plot_dca_curve(
-            y_true=y_true, probas=probas, save=False, show=True
-        )
+        displayer.plot_dca_curve(y_true=y_true, probas=probas, save=False, show=True)
 
         mock_show.assert_called_once()
 

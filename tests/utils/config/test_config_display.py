@@ -209,7 +209,5 @@ class TestDisplayConfig:
     def test_non_dict_input_skips_legacy_key_handling(self) -> None:
         """Test that a non-dict input bypasses legacy key handling and
         fails standard pydantic model validation instead."""
-        with pytest.raises(
-            ValidationError, match="Input should be a valid dictionary"
-        ):
+        with pytest.raises(ValidationError, match="Input should be a valid dictionary"):
             DisplayConfig.model_validate("not_a_dict")  # type: ignore

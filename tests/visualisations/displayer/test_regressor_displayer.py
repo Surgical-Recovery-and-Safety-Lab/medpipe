@@ -5,7 +5,7 @@ bootstrapped), marginal calibration, and PIT histogram diagnostics.
 """
 
 from pathlib import Path
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pandas as pd
@@ -39,9 +39,7 @@ def fitted_ordboost_dist_and_data():
             "feature2": rng.standard_normal(n_test),
         }
     )
-    y_test = np.exp(X_test["feature1"].to_numpy() * 0.5) + rng.normal(
-        0.0, 0.5, n_test
-    )
+    y_test = np.exp(X_test["feature1"].to_numpy() * 0.5) + rng.normal(0.0, 0.5, n_test)
 
     pipeline = DistributionalPipeline(
         [
@@ -95,7 +93,7 @@ class TestPlotCoverage:
         lines = [line for line in ax.get_lines() if len(line.get_ydata()) == 10]
         assert len(lines) >= 1
         for line in lines:
-            ydata = np.asarray(line.get_ydata())
+            ydata = np.asarray(line.get_ydata(), dtype=float)
             assert np.all(np.isfinite(ydata))
             assert np.all((ydata >= 0) & (ydata <= 100))
 
@@ -107,8 +105,11 @@ class TestPlotCoverage:
         displayer = MedpipeRegressorDisplayer(orchestrator=mock_orchestrator)
 
         data = displayer._compute_coverage_sharpness_winkler_data(
-            y_true=y_true, dist=dist, coverage_levels=np.arange(5, 100, 10),
-            metric="coverage", n_bootstraps=0,
+            y_true=y_true,
+            dist=dist,
+            coverage_levels=np.arange(5, 100, 10),
+            metric="coverage",
+            n_bootstraps=0,
         )
 
         assert data["output"]["lower_ci"] is None
@@ -127,8 +128,11 @@ class TestPlotSharpness:
         displayer = MedpipeRegressorDisplayer(orchestrator=mock_orchestrator)
 
         data = displayer._compute_coverage_sharpness_winkler_data(
-            y_true=y_true, dist=dist, coverage_levels=np.arange(5, 100, 10),
-            metric="sharpness", n_bootstraps=20,
+            y_true=y_true,
+            dist=dist,
+            coverage_levels=np.arange(5, 100, 10),
+            metric="sharpness",
+            n_bootstraps=20,
         )
 
         sharp = data["output"]["point"]
@@ -150,8 +154,11 @@ class TestPlotSharpness:
         displayer = MedpipeRegressorDisplayer(orchestrator=mock_orchestrator)
 
         data = displayer._compute_coverage_sharpness_winkler_data(
-            y_true=y_true, dist=dist, coverage_levels=np.array([10.0, 90.0]),
-            metric="sharpness", n_bootstraps=0,
+            y_true=y_true,
+            dist=dist,
+            coverage_levels=np.array([10.0, 90.0]),
+            metric="sharpness",
+            n_bootstraps=0,
         )
 
         sharp = data["output"]["point"]
@@ -185,18 +192,18 @@ class TestPlotMarginalCalibration:
     ) -> None:
         """Test that the marginal calibration difference stays within
         [-1, 1] (difference of two CDFs) and the figure renders."""
-        y_true, dist, _mapper = fitted_ordboost_dist_and_data
+        y_true, dist, mapper = fitted_ordboost_dist_and_data
         displayer = MedpipeRegressorDisplayer(orchestrator=mock_orchestrator)
 
         _grid_y, diff = displayer._compute_marginal_calibration_data(
-            y_true=y_true, dist=dist
+            y_true=y_true, dist=dist, mapper=mapper
         )
 
         assert np.all(np.isfinite(diff))
         assert np.all(diff >= -1.0) and np.all(diff <= 1.0)
 
         fig, ax = displayer.plot_marginal_calibration(
-            y_true=y_true, dist=dist, save=False, show=False
+            y_true=y_true, dist=dist, mapper=mapper, save=False, show=False
         )
         assert fig is not None
         assert ax is not None
@@ -323,3 +330,76 @@ class TestPlotAll:
         }
         actual_files = {p.name for p in plot_dir.iterdir()}
         assert expected_files <= actual_files
+
+
+@pytest.mark.parametrize("metric", ["coverage", "sharpness", "winkler"])
+def test_interval_bootstrap_identical_across_n_jobs(
+    mock_orchestrator, fitted_ordboost_dist_and_data, metric
+):
+    """`n_jobs` only changes how bootstraps are dispatched, not the result."""
+    y_true, dist, _mapper = fitted_ordboost_dist_and_data
+    displayer = MedpipeRegressorDisplayer(orchestrator=mock_orchestrator)
+    levels = np.array([50, 90])
+
+    results = [
+        displayer._compute_coverage_sharpness_winkler_data(
+            y_true, dist, levels, metric, n_bootstraps=6, n_jobs=n_jobs
+        )["output"]
+        for n_jobs in (1, 2)
+    ]
+
+    for key in ("point", "lower_ci", "upper_ci"):
+        np.testing.assert_array_equal(results[0][key], results[1][key])
+
+
+def test_plot_all_forwards_decimals(mock_orchestrator, fitted_ordboost_dist_and_data):
+    """`plot_all` forwards `decimals` to the interval-based plots."""
+    y_true, dist, mapper = fitted_ordboost_dist_and_data
+    displayer = MedpipeRegressorDisplayer(orchestrator=mock_orchestrator)
+
+    seen = []
+    original = type(dist).interval
+
+    def spy_interval(self, *args, **kwargs):
+        seen.append(kwargs.get("decimals"))
+        return original(self, *args, **kwargs)
+
+    with patch.object(type(dist), "interval", spy_interval):
+        displayer.plot_all(
+            y_true=y_true,
+            dist=dist,
+            mapper=mapper,
+            coverage_levels=np.array([50, 90]),
+            n_bootstraps=0,
+            decimals=1,
+            save=False,
+            show=False,
+        )
+
+    assert seen
+    assert set(seen) == {1}
+
+
+def test_plot_all_forwards_n_jobs(mock_orchestrator, fitted_ordboost_dist_and_data):
+    """`plot_all` forwards a runtime `n_jobs` to the bootstrapped plots."""
+    y_true, dist, mapper = fitted_ordboost_dist_and_data
+    displayer = MedpipeRegressorDisplayer(orchestrator=mock_orchestrator)
+
+    with patch.object(
+        displayer,
+        "_compute_coverage_sharpness_winkler_data",
+        wraps=displayer._compute_coverage_sharpness_winkler_data,
+    ) as spy:
+        displayer.plot_all(
+            y_true=y_true,
+            dist=dist,
+            mapper=mapper,
+            coverage_levels=np.array([50, 90]),
+            n_bootstraps=2,
+            n_jobs=2,
+            save=False,
+            show=False,
+        )
+
+    assert spy.call_count == 3
+    assert all(c.kwargs["n_jobs"] == 2 for c in spy.call_args_list)

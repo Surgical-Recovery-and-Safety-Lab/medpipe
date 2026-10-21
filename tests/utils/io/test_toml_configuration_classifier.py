@@ -118,7 +118,7 @@ class TestReadClassifierTOMLConfiguration:
         schema surfaces a pydantic ValidationError."""
         invalid_file = tmp_path / "invalid.toml"
         # Missing every required field.
-        invalid_file.write_text("[meta]\nproject_name = \"only_meta\"\n")
+        invalid_file.write_text('[meta]\nproject_name = "only_meta"\n')
 
         with pytest.raises(ValidationError):
             read_classifier_toml_configuration(invalid_file)

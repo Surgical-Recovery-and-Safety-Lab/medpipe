@@ -256,7 +256,9 @@ class MedpipeOrchestrator:
             self.artifact_manager.save_toml_config(self._config_path, dest_dir)
         self.logger.info("Reproducibility artifacts saved successfully.")
 
-    def prepare_data(self, **kwargs) -> tuple[
+    def prepare_data(
+        self, **kwargs
+    ) -> tuple[
         pd.DataFrame,
         pd.DataFrame,
         pd.DataFrame | None,
@@ -467,7 +469,7 @@ class MedpipeOrchestrator:
         self.logger.debug(f"Loaded data shape: {data.shape}")
 
         # Collect required columns (predictors & outcomes)
-        required_cols = []
+        required_cols: list[str] = []
         if hasattr(self.config, "data"):
             required_cols.extend(getattr(self.config.data, "predictors", []))
             required_cols.extend(getattr(self.config.data, "outcomes", []))
@@ -679,10 +681,11 @@ class MedpipeOrchestrator:
                     ]
 
                     self.logger.debug(
-                        f"Creating operation {i+1}: {operation} on columns {ct_columns}"
+                        f"Creating operation {i + 1}: {operation} on columns "
+                        f"{ct_columns}"
                     )
                     ct = ColumnTransformer(
-                        [(f"op_{i+1}", op_type(**op_extras), ct_columns)],
+                        [(f"op_{i + 1}", op_type(**op_extras), ct_columns)],
                         remainder="passthrough",
                     )
                     ct.set_output(transform="pandas")
@@ -690,13 +693,13 @@ class MedpipeOrchestrator:
                     if i == len(preprocessing_dict.operations) - 1:
                         ct.set_output(transform="default")
 
-                    steps.append((f"transformer_{i+1}", ct))
+                    steps.append((f"transformer_{i + 1}", ct))
 
                     ct_columns_dict = {
                         pred: (
                             f"remainder__{column}"
                             if column not in ct_columns
-                            else f"op_{i+1}__{column}"
+                            else f"op_{i + 1}__{column}"
                         )
                         for (pred, column) in ct_columns_dict.items()
                     }
