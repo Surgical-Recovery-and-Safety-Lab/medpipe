@@ -2,12 +2,11 @@
 Integration tests for MedpipeRegressorEvaluator.evaluate() with CRPS,
 exercising a real fitted OrdBoostRegressor end-to-end: point predictions,
 distributional predictions, bootstrap confidence intervals, and per-subgroup
-re-evaluation (since OrdBoost's distribution object does not support index
-slicing, subgroup CRPS must be recomputed via predict_dist on the subgroup's
-rows rather than sliced from the full-dataset distribution).
+evaluation (subgroup CRPS is computed on the subgroup's rows sliced from the
+full-dataset distribution).
 """
 
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pandas as pd
@@ -105,13 +104,12 @@ class TestRegressorEvaluatorCrpsIntegration:
             assert np.isfinite(entry["ci_upper"])
             assert entry["ci_lower"] <= entry["point_estimate"] <= entry["ci_upper"]
 
-    def test_evaluate_with_crps_and_subgroups_recomputes_distribution(
+    def test_evaluate_with_crps_and_subgroups_slices_distribution(
         self, fitted_ordboost_pipeline_and_data
     ):
-        """Test that requesting crps alongside subgroup_specs correctly
-        recomputes predict_dist per-stratum (rather than failing on
-        OrdBoost's non-sliceable distribution object), producing finite
-        per-subgroup CRPS results."""
+        """Test that requesting crps alongside subgroup_specs slices the
+        full-dataset distribution per-stratum without re-calling
+        predict_dist, producing finite per-subgroup CRPS results."""
         pipeline, X_test, y_test = fitted_ordboost_pipeline_and_data
 
         mock_orchestrator = _make_mock_orchestrator()
@@ -119,14 +117,17 @@ class TestRegressorEvaluatorCrpsIntegration:
 
         evaluator = MedpipeRegressorEvaluator(mock_orchestrator, mock_runner)
 
-        results = evaluator.evaluate(
-            X_test,
-            y_test,
-            outcome="LOS_DAYS",
-            metrics=["rmse", "crps"],
-            subgroup_specs={"site": "site"},
-            save_artifacts=False,
-        )
+        with patch.object(pipeline, "predict_dist", wraps=pipeline.predict_dist) as spy:
+            results = evaluator.evaluate(
+                X_test,
+                y_test,
+                outcome="LOS_DAYS",
+                metrics=["rmse", "crps"],
+                subgroup_specs={"site": "site"},
+                save_artifacts=False,
+            )
+
+        assert spy.call_count == 1
 
         strata = results["strata"]["site"]
         assert set(strata) <= {"0", "1"}
