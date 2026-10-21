@@ -18,6 +18,7 @@ calculations to round the intervals.
 * Bootstrap parallel computation for ROC, PR, coverage, sharpnes, and Winkler 
 score. 
 * Optimised the DCA computation loop to be more efficient.
+* Workflows to check that `ruff` and `mypy` checks pass.
 
 ### Changed
 * Using `pysplinecalib` instead of `splinecalib`.
