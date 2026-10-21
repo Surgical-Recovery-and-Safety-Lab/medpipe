@@ -67,42 +67,10 @@ class MedpipeClassifier:
 
     Attributes
     ----------
+    mp_config : MedpipeClassifierConfig
+        Validated configuration driving the pipeline.
     displayer : MedpipeClassifierDisplayer
         Visualisation engine rendering and persisting evaluation figures.
-    _orchestrator : MedpipeOrchestrator
-        Pipeline orchestrator instance driving data preparation and
-        reproducibility artifacts.
-    _runner : MedpipeClassifierRunner
-        Pipeline execution engine responsible for model training and
-        cross-validation loops.
-    _evaluator : MedpipeClassifierEvaluator
-        Pipeline evaluation engine computing point estimates and
-        bootstrap confidence intervals.
-    _logger : logging.Logger
-        Centralized logger instance configured under `"medpipe"`.
-
-    Methods
-    -------
-    fit(X_train, y_train, X_recal=None, y_recal=None, groups_train=None)
-        Fit machine learning models across configured target outcomes via
-        MedpipeClassifierRunner.
-    predict(X, model=None, outcome=None)
-        Predict class labels for input samples.
-    predict_proba(X, model=None, outcome=None)
-        Predict class probabilities for input samples.
-    decision_function(X, model=None, outcome=None)
-        Compute decision function confidence scores for input samples.
-    evaluate(X, y, outcome=None, model=None, metrics=None, subgroup_specs=None,
-    fairness_data=None, save_artifacts=True)
-        Evaluate model performance with confidence intervals on full datasets
-        and subgroups.
-    plot_all(y_true, probas, outcome="default", n_bootstraps=None, save=None,
-    show=None, **style_kwargs)
-        Generate and persist all standard evaluation figures for
-        a specific outcome.
-    run(subgroup_specs=None, groups_train=None)
-        Execute full end-to-end pipeline (data preparation, model fitting, and
-        test evaluation).
 
     """
 
@@ -699,42 +667,11 @@ class MedpipeRegressor:
 
     Attributes
     ----------
+    mp_config : MedpipeRegressorConfig
+        Validated configuration driving the pipeline.
     displayer : MedpipeRegressorDisplayer
         Visualisation engine rendering and persisting distributional
         diagnostic figures.
-    _orchestrator : MedpipeOrchestrator
-        Pipeline orchestrator instance driving data preparation and
-        reproducibility artifacts.
-    _runner : MedpipeRegressorRunner
-        Pipeline execution engine responsible for model training and
-        cross-validation loops.
-    _evaluator : MedpipeRegressorEvaluator
-        Pipeline evaluation engine computing point estimates and
-        bootstrap confidence intervals.
-    _logger : logging.Logger
-        Centralized logger instance configured under `"medpipe"`.
-
-    Methods
-    -------
-    fit(X_train, y_train, X_recal=None, y_recal=None, groups_train=None)
-        Fit machine learning models across configured target outcomes via
-        MedpipeRegressorRunner.
-    predict(X, model=None, outcome=None)
-        Predict continuous values for input samples.
-    predict_dist(X, model=None, outcome=None)
-        Predict the full predictive distribution for input samples.
-    evaluate(X, y, outcome=None, model=None, metrics=None, subgroup_specs=None,
-    fairness_data=None, save_artifacts=True)
-        Evaluate model performance with confidence intervals on full datasets
-        and subgroups.
-    plot_all(y_true, dist, outcome="default", coverage_levels=None,
-    n_bootstraps=None, save=None, show=None, **style_kwargs)
-        Execute all core distributional diagnostic visualization routines
-        for a given outcome (coverage, sharpness, Winkler, marginal
-        calibration, PIT histogram, data distribution).
-    run(subgroup_specs=None, groups_train=None)
-        Execute full end-to-end pipeline (data preparation, model fitting, and
-        test evaluation).
 
     """
 

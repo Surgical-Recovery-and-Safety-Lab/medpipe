@@ -17,7 +17,7 @@ class DistributionalPipeline(Pipeline):
 
     Different probabilistic boosting libraries name their distributional
     prediction method differently (e.g. NGBoost's `NGBRegressor.pred_dist`,
-    OrdBoost's presumed `predict_dist`). This subclass lets the rest of
+    OrdBoost's `predict_dist`). This subclass lets the rest of
     medpipe call a single, consistent method regardless of which library
     produced the final estimator.
 
