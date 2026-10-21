@@ -1699,6 +1699,7 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
         metric: Literal["coverage", "sharpness", "winkler"],
         n_bootstraps: int = 1000,
         random_state: int | None = 42,
+        decimals: int | None = None,
     ) -> dict[str, Any]:
         """Compute one of empirical coverage, sharpness, or Winkler score
         across nominal coverage levels, with bootstrap CIs.
@@ -1718,6 +1719,9 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
             Number of bootstrap iterations for 95% confidence interval estimation.
         random_state : int, optional, default=42
             Random seed for bootstrap resampling reproducibility.
+        decimals : int, optional
+            Number of decimals the predictive interval bounds are rounded to
+            before computing the metric. If None, no rounding is applied.
 
         Returns
         -------
@@ -1732,10 +1736,12 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
             y: np.ndarray, d: ContinuousPredictiveDistribution, alpha: float
         ) -> float:
             if metric == "coverage":
-                return interval_coverage_rate(y, d, alpha=alpha) * 100.0
+                return (
+                    interval_coverage_rate(y, d, alpha=alpha, decimals=decimals) * 100.0
+                )
             if metric == "sharpness":
-                return sharpness(d, alpha=alpha)
-            return winkler_score(y, d, alpha=alpha)
+                return sharpness(d, alpha=alpha, decimals=decimals)
+            return winkler_score(y, d, alpha=alpha, decimals=decimals)
 
         y_true_arr = np.asarray(y_true, dtype=float)
         coverage_levels_arr = np.asarray(coverage_levels, dtype=float)
@@ -1867,6 +1873,7 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
         label: str | None = None,
         save: bool | None = None,
         show: bool | None = None,
+        decimals: int | None = None,
         **style_kwargs: Any,
     ) -> tuple[Figure | SubFigure, Axes]:
         """Compute coverage reliability, render curve with confidence
@@ -1892,6 +1899,9 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
             Automatically save the generated plot to the run directory.
         show : bool, optional
             Whether to display the plot interactively before closing.
+        decimals : int, optional
+            Number of decimals the predictive interval bounds are rounded to.
+            If None, no rounding is applied.
         **style_kwargs : Any
             Additional style parameters forwarded to `draw_coverage_curve`.
 
@@ -1927,6 +1937,7 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
             coverage_levels=levels,
             metric="coverage",
             n_bootstraps=n_bootstraps_val,
+            decimals=decimals,
         )
 
         display_label = label or "Model"
@@ -1968,6 +1979,7 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
         label: str | None = None,
         save: bool | None = None,
         show: bool | None = None,
+        decimals: int | None = None,
         **style_kwargs: Any,
     ) -> tuple[Figure | SubFigure, Axes]:
         """Compute sharpness, render curve with confidence intervals, and
@@ -1993,6 +2005,9 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
             Automatically save the generated plot to the run directory.
         show : bool, optional
             Whether to display the plot interactively before closing.
+        decimals : int, optional
+            Number of decimals the predictive interval bounds are rounded to.
+            If None, no rounding is applied.
         **style_kwargs : Any
             Additional style parameters forwarded to `draw_sharpness_curve`.
 
@@ -2028,6 +2043,7 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
             coverage_levels=levels,
             metric="sharpness",
             n_bootstraps=n_bootstraps_val,
+            decimals=decimals,
         )
 
         display_label = label or "Model"
@@ -2069,6 +2085,7 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
         label: str | None = None,
         save: bool | None = None,
         show: bool | None = None,
+        decimals: int | None = None,
         **style_kwargs: Any,
     ) -> tuple[Figure | SubFigure, Axes]:
         """Compute Winkler score, render curve with confidence intervals,
@@ -2094,6 +2111,9 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
             Automatically save the generated plot to the run directory.
         show : bool, optional
             Whether to display the plot interactively before closing.
+        decimals : int, optional
+            Number of decimals the predictive interval bounds are rounded to.
+            If None, no rounding is applied.
         **style_kwargs : Any
             Additional style parameters forwarded to `draw_winkler_curve`.
 
@@ -2129,6 +2149,7 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
             coverage_levels=levels,
             metric="winkler",
             n_bootstraps=n_bootstraps_val,
+            decimals=decimals,
         )
 
         display_label = label or "Model"
