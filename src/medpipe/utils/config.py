@@ -159,6 +159,36 @@ def _cascade_model_setup(
     return base_setup
 
 
+def _validate_preprocessing_columns(
+    preprocessing: PreprocessingConfig | None, predictors: list[str]
+) -> None:
+    """Validate that preprocessing operations only act on predictors.
+
+    Parameters
+    ----------
+    preprocessing : PreprocessingConfig or None
+        Preprocessing configuration of the workflow.
+    predictors : list of str
+        Predictor columns declared in the data configuration.
+
+    Raises
+    ------
+    ValueError
+        If an operation refers to a column that is not a predictor.
+
+    """
+    if not preprocessing or not preprocessing.preprocess:
+        return
+
+    for operation in preprocessing.operations or []:
+        unknown = [col for col in operation.columns if col not in predictors]
+        if unknown:
+            raise ValueError(
+                f"Preprocessing operation '{operation.name}' refers to columns "
+                f"that are not in data.predictors: {unknown}"
+            )
+
+
 def _validate_plot_type_keys(
     v: dict[str, Any], valid_plots: set[str]
 ) -> dict[str, Any]:
@@ -556,8 +586,9 @@ class SplitRecalibrationConfig(BaseModel):
 
     Attributes
     ----------
-    strategy : {"random", "group"} or None, default=None
-        Strategy used to split the recalibration set.
+    strategy : {"random", "group"}
+        Strategy used to split the recalibration set. It must match the
+        strategy of the test split.
     group_column : str or None, default=None
         Column identifying groups when `strategy` is "group".
     values : list of (str or int), or None, default=None
@@ -569,7 +600,7 @@ class SplitRecalibrationConfig(BaseModel):
 
     """
 
-    strategy: Literal["random", "group"] | None = None
+    strategy: Literal["random", "group"]
     group_column: str | None = None
     values: list[str | int] | None = None
     recalibration_size: float | None = Field(default=None, gt=0.0, lt=1.0)
@@ -619,8 +650,9 @@ class CrossValConfig(BaseModel):
     group_column : str or None, default=None
         Column identifying groups when `strategy` is "group" or "loso".
     n_splits : int or None, default=None
-        Number of cross-validation folds. Not used when `strategy` is
-        "loso", which has one fold per group.
+        Number of cross-validation folds, required when `strategy` is
+        "random" or "group". Not used when `strategy` is "loso", which has
+        one fold per group.
     shuffle : bool or None, default=None
         Whether to shuffle samples before splitting.
 
@@ -645,12 +677,18 @@ class CrossValConfig(BaseModel):
         Raises
         ------
         ValueError
-            If `strategy` is "group" or "loso" and `group_column` is not set.
+            If `strategy` is "group" or "loso" and `group_column` is not set,
+            or if `strategy` is "random" or "group" and `n_splits` is not set.
 
         """
         if self.strategy in ("group", "loso") and not self.group_column:
             raise ValueError(
                 f"The {self.strategy} strategy requires a group column to be specified"
+            )
+        if self.strategy in ("random", "group") and self.n_splits is None:
+            raise ValueError(
+                f"The {self.strategy} strategy requires the number of splits "
+                "(n_splits) to be specified"
             )
         return self
 
@@ -895,7 +933,8 @@ class RecalibrationConfig(BaseModel):
     method : {"isotonic", "sigmoid", "temperature"}, default="isotonic"
         Recalibration method to apply.
     hyperparameters : dict of str to Any, default={}
-        Hyperparameters forwarded to the recalibration method.
+        Reserved for hyperparameters of the recalibration method. Currently
+        not used: the values are accepted but not passed to the recalibrator.
 
     """
 
@@ -1214,6 +1253,27 @@ class MedpipeClassifierConfig(BaseModel):
             resolved[outcome] = ModelSetup(**base_setup)
 
         self.resolved_models = resolved
+        return self
+
+    @model_validator(mode="after")
+    def validate_preprocessing_columns(self) -> MedpipeClassifierConfig:
+        """Validate that preprocessing operations only act on predictors.
+
+        Returns
+        -------
+        MedpipeClassifierConfig
+            The validated configuration instance.
+
+        Raises
+        ------
+        ValueError
+            If an operation refers to a column that is not in
+            `data.predictors`.
+
+        """
+        _validate_preprocessing_columns(
+            self.workflow.preprocessing, self.data.predictors
+        )
         return self
 
     @model_validator(mode="after")
@@ -1743,6 +1803,27 @@ class MedpipeRegressorConfig(BaseModel):
             resolved[outcome] = RegressorModelSetup(**base_setup)
 
         self.resolved_models = resolved
+        return self
+
+    @model_validator(mode="after")
+    def validate_preprocessing_columns(self) -> MedpipeRegressorConfig:
+        """Validate that preprocessing operations only act on predictors.
+
+        Returns
+        -------
+        MedpipeRegressorConfig
+            The validated configuration instance.
+
+        Raises
+        ------
+        ValueError
+            If an operation refers to a column that is not in
+            `data.predictors`.
+
+        """
+        _validate_preprocessing_columns(
+            self.workflow.preprocessing, self.data.predictors
+        )
         return self
 
     @model_validator(mode="after")
