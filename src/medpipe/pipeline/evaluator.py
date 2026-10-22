@@ -321,6 +321,10 @@ class BaseEvaluator:
             - `"ci_upper"`: Upper bound of the bootstrap confidence interval.
 
         """
+        if self.n_bootstraps == 0:
+            # No bootstrap requested: report point estimates only
+            return self._point_estimates(metrics, y_true, y_pred)
+
         try:
             return bootstrap_confidence_intervals(
                 metrics=metrics,
@@ -337,25 +341,53 @@ class BaseEvaluator:
                 "Falling back to point estimates.",
                 err,
             )
-            try:
-                point_scores = compute_metrics(metrics, y_true, y_pred)
-                return {
-                    metric: {
-                        "point_estimate": float(score),
-                        "ci_lower": np.nan,
-                        "ci_upper": np.nan,
-                    }
-                    for metric, score in zip(metrics, point_scores, strict=True)
+            return self._point_estimates(metrics, y_true, y_pred)
+
+    @staticmethod
+    def _point_estimates(
+        metrics: list[str],
+        y_true: npt.NDArray,
+        y_pred: npt.NDArray | PredictionBundle,
+    ) -> dict[str, dict[str, float]]:
+        """
+        Compute the metrics on a slice of data without confidence intervals.
+
+        Parameters
+        ----------
+        y_true : numpy.ndarray
+            Ground truth target array for the data slice.
+        y_pred : numpy.ndarray
+            Predicted probabilities or scores for the data slice.
+        metrics : list of str
+            List of metric names to evaluate.
+
+        Returns
+        -------
+        scores : dict of str to dict of str to float
+            Nested dictionary mapping metric names to dictionaries with the
+            `"point_estimate"` and NaN `"ci_lower"` and `"ci_upper"` bounds.
+            The point estimate is NaN if the metrics cannot be computed.
+
+        """
+        try:
+            point_scores = compute_metrics(metrics, y_true, y_pred)
+            return {
+                metric: {
+                    "point_estimate": float(score),
+                    "ci_lower": np.nan,
+                    "ci_upper": np.nan,
                 }
-            except Exception:
-                return {
-                    metric: {
-                        "point_estimate": np.nan,
-                        "ci_lower": np.nan,
-                        "ci_upper": np.nan,
-                    }
-                    for metric in metrics
+                for metric, score in zip(metrics, point_scores, strict=True)
+            }
+        except Exception:
+            return {
+                metric: {
+                    "point_estimate": np.nan,
+                    "ci_lower": np.nan,
+                    "ci_upper": np.nan,
                 }
+                for metric in metrics
+            }
 
     def _evaluate_stratum(
         self,
@@ -497,12 +529,19 @@ class BaseEvaluator:
         y_pred = self._get_predictions(X, target_model, eval_metrics)
 
         # 1. Compute overall evaluation with confidence intervals
-        self.logger.info(
-            "[%s] Computing overall metrics with %d bootstrap iterations (CI=%.2f).",
-            outcome_name,
-            self.n_bootstraps,
-            self.ci_level,
-        )
+        if self.n_bootstraps == 0:
+            self.logger.info(
+                "[%s] Computing overall metrics without confidence intervals.",
+                outcome_name,
+            )
+        else:
+            self.logger.info(
+                "[%s] Computing overall metrics with %d bootstrap iterations "
+                "(CI=%.2f).",
+                outcome_name,
+                self.n_bootstraps,
+                self.ci_level,
+            )
         results: dict[str, Any] = {
             "outcome": outcome_name,
             "overall": self._evaluate_slice(y_arr, y_pred, eval_metrics),
