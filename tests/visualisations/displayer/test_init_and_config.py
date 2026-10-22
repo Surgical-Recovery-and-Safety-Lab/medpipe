@@ -15,6 +15,35 @@ from medpipe.visualisation.themes import MedpipeTheme
 class TestMedpipeDisplayerInit:
     """Tests for MedpipeClassifierDisplayer initialization."""
 
+    def test_init_theme_from_config(self, mock_orchestrator) -> None:
+        """Test that the theme is built from display.theme when none is given."""
+        mock_orchestrator.config.display = DisplayConfig(
+            theme={"dpi": 120, "primary_color": "#00FF00"}
+        )
+
+        displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
+
+        assert displayer.theme.dpi == 120
+        assert displayer.theme.primary_color == "#00FF00"
+
+    def test_init_explicit_theme_overrides_config(self, mock_orchestrator) -> None:
+        """Test that an explicit theme takes precedence over display.theme."""
+        mock_orchestrator.config.display = DisplayConfig(theme={"dpi": 120})
+
+        displayer = MedpipeClassifierDisplayer(
+            orchestrator=mock_orchestrator, theme=MedpipeTheme(dpi=75)
+        )
+
+        assert displayer.theme.dpi == 75
+
+    def test_init_no_theme_in_config_uses_default(self, mock_orchestrator) -> None:
+        """Test that a display config without theme gives the default theme."""
+        mock_orchestrator.config.display = DisplayConfig()
+
+        displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
+
+        assert displayer.theme == MedpipeTheme()
+
     def test_init_default_theme(self, mock_orchestrator) -> None:
         """Test initialization with default MedpipeTheme."""
         displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
@@ -49,6 +78,8 @@ class TestNormalizePlotType:
             ("distribution", "data_distribution"),
             ("dist", "data_distribution"),
             ("dca_curve", "dca"),
+            ("heatmap", "strata_heatmap"),
+            ("strata_heatmap", "strata_heatmap"),
             ("roc", "roc"),
             ("dca", "dca"),
             ("custom_plot", "custom_plot"),
@@ -213,3 +244,34 @@ class TestFormatStratumLabel:
             == "[18, 30, 50]"
         )
         assert MedpipeClassifierDisplayer._format_stratum_label("[18]") == "[18]"
+
+
+class TestHeatmapOverrides:
+    """Tests that heatmap overrides reach the strata heatmap configuration."""
+
+    def test_heatmap_override_applies_to_strata_heatmap(
+        self, mock_orchestrator
+    ) -> None:
+        """Test that an override under the 'heatmap' alias is applied."""
+        mock_orchestrator.config.display = DisplayConfig(
+            overrides={"heatmap": {"save": False}}
+        )
+        displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
+
+        resolved = displayer._resolve_plot_config(plot_type="strata_heatmap")
+
+        assert resolved["save"] is False
+
+    def test_heatmap_override_applies_for_regressor(self, mock_orchestrator) -> None:
+        """Test that the regressor displayer also resolves the alias."""
+        from medpipe.utils.config import RegressorDisplayConfig
+        from medpipe.visualisation.displayer import MedpipeRegressorDisplayer
+
+        mock_orchestrator.config.display = RegressorDisplayConfig(
+            overrides={"heatmap": {"save": False}}
+        )
+        displayer = MedpipeRegressorDisplayer(orchestrator=mock_orchestrator)
+
+        resolved = displayer._resolve_plot_config(plot_type="strata_heatmap")
+
+        assert resolved["save"] is False
