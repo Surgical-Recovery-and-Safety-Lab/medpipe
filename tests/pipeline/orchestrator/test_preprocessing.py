@@ -111,6 +111,27 @@ class TestBuildPreprocessor:
         ):
             orchestrator.build_preprocessor()
 
+    def test_build_preprocessor_unknown_column_raises_error(
+        self, mock_add_handler, mock_get_logger, mock_artifact_mgr, mock_config
+    ):
+        """Test that an operation on a column that is not a predictor raises a
+        ValueError naming the operation and the column."""
+        mock_config.data.predictors = ["AGE", "BMI"]
+
+        op = MagicMock()
+        op.name = "StandardScaler"
+        op.columns = ["AGE", "OP_YEAR"]
+        op.model_extra = {}
+        mock_config.workflow.preprocessing.operations = [op]
+
+        orchestrator = MedpipeOrchestrator(config=mock_config)
+
+        with pytest.raises(
+            ValueError,
+            match=r"'StandardScaler'.*not in data.predictors: \['OP_YEAR'\]",
+        ):
+            orchestrator.build_preprocessor()
+
 
 class TestCheckOperation:
     """Unit test suite for MedpipeOrchestrator._check_operation."""

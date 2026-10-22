@@ -729,3 +729,33 @@ class TestMedpipeClassifierConfig:
             assert config.default_model.algorithm == "RegisteredTestModel"
         finally:
             ModelRegistry._registry.pop("RegisteredTestModel", None)
+
+    def test_preprocessing_column_must_be_predictor(self, tmp_path: Path) -> None:
+        """Test that a preprocessing operation on a column that is not a
+        predictor is rejected."""
+        raw_config = self._get_valid_config_dict(tmp_path)
+        raw_config["workflow"]["preprocessing"] = {
+            "preprocess": True,
+            "operations": [{"name": "StandardScaler", "columns": ["OP_YEAR"]}],
+        }
+
+        with pytest.raises(
+            ValidationError, match=r"not in data\.predictors: .*OP_YEAR"
+        ):
+            MedpipeClassifierConfig.model_validate(raw_config)
+
+    def test_preprocessing_columns_not_checked_when_disabled(
+        self, tmp_path: Path
+    ) -> None:
+        """Test that the operations are not checked when preprocessing is
+        disabled."""
+        raw_config = self._get_valid_config_dict(tmp_path)
+        raw_config["workflow"]["preprocessing"] = {
+            "preprocess": False,
+            "operations": [{"name": "StandardScaler", "columns": ["OP_YEAR"]}],
+        }
+
+        config = MedpipeClassifierConfig.model_validate(raw_config)
+
+        assert config.workflow.preprocessing is not None
+        assert config.workflow.preprocessing.preprocess is False
