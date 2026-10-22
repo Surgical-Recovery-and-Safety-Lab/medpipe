@@ -22,7 +22,7 @@ By automatically logging execution details and persisting models, environment me
 
 * [Installation](start/install.md): install the package.
 * [Quickstart](start/quickstart.md): run your first pipeline.
-* [Configuration guide](guide/config.md): describe an experiment in TOML.
+* [Configuration guide](guide/config/index.md): describe an experiment in TOML.
 * [API reference](api/index.md): documentation of the public classes and functions.
 
 ---

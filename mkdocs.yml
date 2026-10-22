@@ -12,6 +12,9 @@ theme:
     - content.code.copy
     - search.suggest
 
+validation:
+  anchors: warn
+
 markdown_extensions:
   - pymdownx.highlight:
       anchor_linenums: true
@@ -56,8 +59,14 @@ nav:
   - Getting started:
     - Installation: start/install.md
     - Quickstart example: start/quickstart.md
-  - User guides:
-    - Configuration guide: guide/config.md
+  - Configuration guide:
+    - Overview: guide/config/index.md
+    - Meta: guide/config/meta.md
+    - Data: guide/config/data.md
+    - Default model: guide/config/default_model.md
+    - Outcome overrides: guide/config/outcome_overrides.md
+    - Workflow: guide/config/workflow.md
+    - Display: guide/config/display.md
   - API reference:
     - Overview: api/index.md
     - Configuration: api/config.md

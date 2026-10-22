@@ -2,7 +2,7 @@
 
 ---
 
-Each class below is the schema of one section of the TOML configuration file. For a description of the sections and how to use them, see the [configuration guide](../guide/config.md).
+Each class below is the schema of one section of the TOML configuration file. For a description of the sections and how to use them, see the [configuration guide](../guide/config/index.md).
 
 ::: medpipe.utils.config
     options:
