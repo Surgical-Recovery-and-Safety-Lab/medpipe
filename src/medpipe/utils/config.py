@@ -189,6 +189,35 @@ def _validate_preprocessing_columns(
             )
 
 
+def _validate_theme_keys(theme: dict[str, Any] | None) -> None:
+    """Validate that theme parameters are attributes of `MedpipeTheme`.
+
+    Parameters
+    ----------
+    theme : dict of str to Any or None
+        Candidate theme parameters.
+
+    Raises
+    ------
+    ValueError
+        If a key is not an attribute of `MedpipeTheme`.
+
+    """
+    if not theme:
+        return
+
+    from dataclasses import fields
+
+    from medpipe.visualisation.themes import MedpipeTheme
+
+    valid = {f.name for f in fields(MedpipeTheme)}
+    unknown = sorted(set(theme) - valid)
+    if unknown:
+        raise ValueError(
+            f"Unknown theme parameters {unknown}. Valid parameters are {sorted(valid)}"
+        )
+
+
 def _validate_plot_type_keys(
     v: dict[str, Any], valid_plots: set[str]
 ) -> dict[str, Any]:
@@ -1031,7 +1060,11 @@ class DisplayDefaultsConfig(BaseModel):
     show : bool, default=False
         Whether to display generated plots interactively.
     n_bins : int, default=10
-        Number of bins used for histogram and calibration plots.
+        Number of bins used for the reliability diagram.
+    dist_n_bins : int, default=10
+        Number of bins used for the data distribution histogram.
+    dist_yscale : {"linear", "log", "symlog", "logit"}, default="linear"
+        Scale of the y-axis of the data distribution histogram.
     strategy : {"uniform", "quantile", "spline"}, default="uniform"
         Strategy used to compute calibration curves.
     n_jobs : int or None, default=1
@@ -1052,6 +1085,8 @@ class DisplayDefaultsConfig(BaseModel):
     save: bool = True
     show: bool = False
     n_bins: int = Field(default=10, ge=1)
+    dist_n_bins: int = Field(default=10, ge=1)
+    dist_yscale: Literal["linear", "log", "symlog", "logit"] = "linear"
     strategy: Literal["uniform", "quantile", "spline"] = "uniform"
     n_jobs: int | None = Field(default=1, ge=-1)
     cv_splines: int = Field(default=3, ge=2)
@@ -1071,7 +1106,7 @@ class DisplayConfig(BaseModel):
         Outcome-specific plot parameter overrides, keyed by outcome name
         then plot type, as ``{outcome: {plot_type: {param: value}}}``.
     theme : dict of str to Any, or None, default=None
-        Theme parameters forwarded to `MedpipeTheme`.
+        Parameters of `MedpipeTheme` (e.g. `dpi`, `primary_color`, `font_family`).
 
     """
 
@@ -1120,6 +1155,30 @@ class DisplayConfig(BaseModel):
             if defaults:
                 data["defaults"] = defaults
         return data
+
+    @field_validator("theme")
+    @classmethod
+    def validate_theme_keys(cls, v: dict[str, Any] | None) -> dict[str, Any] | None:
+        """Ensure theme parameters are attributes of `MedpipeTheme`.
+
+        Parameters
+        ----------
+        v : dict of str to Any or None
+            Candidate `theme` mapping.
+
+        Returns
+        -------
+        dict of str to Any or None
+            The validated mapping.
+
+        Raises
+        ------
+        ValueError
+            If a key is not a theme parameter.
+
+        """
+        _validate_theme_keys(v)
+        return v
 
     @field_validator("overrides", "outcome_overrides")
     @classmethod
@@ -1661,7 +1720,7 @@ class RegressorDisplayConfig(BaseModel):
         Outcome-specific plot parameter overrides, keyed by outcome name
         then plot type, as ``{outcome: {plot_type: {param: value}}}``.
     theme : dict of str to Any, or None, default=None
-        Theme parameters forwarded to `MedpipeTheme`.
+        Parameters of `MedpipeTheme` (e.g. `dpi`, `primary_color`, `font_family`).
 
     """
 
@@ -1673,6 +1732,30 @@ class RegressorDisplayConfig(BaseModel):
     theme: dict[str, Any] | None = Field(default=None)
 
     model_config = {"extra": "forbid"}
+
+    @field_validator("theme")
+    @classmethod
+    def validate_theme_keys(cls, v: dict[str, Any] | None) -> dict[str, Any] | None:
+        """Ensure theme parameters are attributes of `MedpipeTheme`.
+
+        Parameters
+        ----------
+        v : dict of str to Any or None
+            Candidate `theme` mapping.
+
+        Returns
+        -------
+        dict of str to Any or None
+            The validated mapping.
+
+        Raises
+        ------
+        ValueError
+            If a key is not a theme parameter.
+
+        """
+        _validate_theme_keys(v)
+        return v
 
     @field_validator("overrides", "outcome_overrides")
     @classmethod
