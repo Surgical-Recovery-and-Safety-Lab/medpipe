@@ -94,7 +94,9 @@ class BaseDisplayer:
 
     """
 
-    _PLOT_TYPE_ALIASES: ClassVar[dict[str, str]] = {}
+    _PLOT_TYPE_ALIASES: ClassVar[dict[str, str]] = {
+        "heatmap": "strata_heatmap",
+    }
     _FALLBACK_DISPLAY_DEFAULTS: ClassVar[dict[str, Any]] = {
         "n_bootstraps": 1000,
         "save": True,
@@ -109,8 +111,30 @@ class BaseDisplayer:
     ) -> None:
         self.orchestrator = orchestrator
         self.run_dir = orchestrator.run_dir
-        self.theme = theme or MedpipeTheme()
+        self.theme = theme or self._theme_from_config(orchestrator)
         self.logger = get_console_logger("medpipe.displayer")
+
+    @staticmethod
+    def _theme_from_config(orchestrator: MedpipeOrchestrator) -> MedpipeTheme:
+        """Build the theme from the `display.theme` configuration.
+
+        Parameters
+        ----------
+        orchestrator : MedpipeOrchestrator
+            Pipeline orchestrator holding the validated configuration.
+
+        Returns
+        -------
+        MedpipeTheme
+            Theme built from the configured parameters, or the default theme
+            if none are configured. Unrecognised keys are ignored.
+
+        """
+        display_cfg = getattr(orchestrator.config, "display", None)
+        theme_cfg = getattr(display_cfg, "theme", None)
+        if isinstance(theme_cfg, dict) and theme_cfg:
+            return MedpipeTheme.from_dict(theme_cfg)
+        return MedpipeTheme()
 
     # --- Config Resolution ---
 
@@ -815,6 +839,7 @@ class MedpipeClassifierDisplayer(BaseDisplayer):
     """
 
     _PLOT_TYPE_ALIASES: ClassVar[dict[str, str]] = {
+        **BaseDisplayer._PLOT_TYPE_ALIASES,
         "calibration": "reliability",
         "reliability_diagram": "reliability",
         "pr": "precision_recall",
@@ -1758,6 +1783,7 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
     """
 
     _PLOT_TYPE_ALIASES: ClassVar[dict[str, str]] = {
+        **BaseDisplayer._PLOT_TYPE_ALIASES,
         "coverage_curve": "coverage",
         "sharpness_curve": "sharpness",
         "winkler_curve": "winkler",
