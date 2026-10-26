@@ -1,6 +1,6 @@
 # `[display]`
 
-The figures produced for each outcome. The table is required when `run_mode` is `"audit"` or `"eval"`, the modes that produce figures, and it can be left out otherwise.
+The figures produced for each outcome. This page describes the figures of a classifier. The regressor has its own defaults and figures, which are described on the [regression](regression.md#display) page. The table is required when `run_mode` is `"audit"` or `"eval"`, the modes that produce figures, and it can be left out otherwise.
 
 ```toml
 [display.defaults]
