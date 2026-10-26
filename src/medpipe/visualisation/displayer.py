@@ -97,6 +97,11 @@ class BaseDisplayer:
     _PLOT_TYPE_ALIASES: ClassVar[dict[str, str]] = {
         "heatmap": "strata_heatmap",
     }
+    # Metrics expressed in the units of the target, for which the heatmap colour
+    # scale is set from the data instead of a fixed value.
+    _SCALE_DEPENDENT_METRICS: ClassVar[frozenset[str]] = frozenset(
+        {"rmse", "mae", "crps"}
+    )
     _FALLBACK_DISPLAY_DEFAULTS: ClassVar[dict[str, Any]] = {
         "n_bootstraps": 1000,
         "save": True,
@@ -496,6 +501,9 @@ class BaseDisplayer:
 
         is_ici = metric.lower() == "ici"
         vmax = 0.5 if is_ici else 0.1
+        if metric.lower() in self._SCALE_DEPENDENT_METRICS:
+            # Errors in the units of the target: no fixed scale applies
+            vmax = float(np.max(plot_data)) or 1.0
         percent = r" $\times$ 100" if is_ici else ""
 
         if is_ici:
@@ -1795,14 +1803,11 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
     }
     _FALLBACK_DISPLAY_DEFAULTS: ClassVar[dict[str, Any]] = {
         **BaseDisplayer._FALLBACK_DISPLAY_DEFAULTS,
-        "dist_n_bins": 10,
+        "dist_n_bins": 20,
         "dist_yscale": "linear",
+        "coverage_levels": list(range(5, 100, 10)),
+        "pit_n_bins": 20,
     }
-    # Hardcoded defaults (not yet exposed via DisplayDefaultsConfig): nominal
-    # coverage grid (percent) for coverage/sharpness/Winkler, and PIT
-    # histogram bin count.
-    _DEFAULT_COVERAGE_LEVELS: ClassVar[np.ndarray] = np.arange(5, 100, 10)
-    _DEFAULT_PIT_N_BINS: ClassVar[int] = 20
 
     def _compute_coverage_sharpness_winkler_data(
         self,
@@ -2036,6 +2041,7 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
         cfg = self._resolve_plot_config(
             plot_type="coverage",
             outcome=outcome,
+            coverage_levels=coverage_levels,
             n_bootstraps=n_bootstraps,
             n_jobs=n_jobs,
             save=save,
@@ -2046,11 +2052,7 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
         n_jobs_val = cfg["n_jobs"]
         save_val = cfg["save"]
         show_val = cfg["show"]
-        levels = (
-            coverage_levels
-            if coverage_levels is not None
-            else self._DEFAULT_COVERAGE_LEVELS
-        )
+        levels = np.asarray(cfg["coverage_levels"])
 
         self.logger.info(f"[{outcome}] Starting coverage curve plotting.")
         data = self._compute_coverage_sharpness_winkler_data(
@@ -2149,6 +2151,7 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
         cfg = self._resolve_plot_config(
             plot_type="sharpness",
             outcome=outcome,
+            coverage_levels=coverage_levels,
             n_bootstraps=n_bootstraps,
             n_jobs=n_jobs,
             save=save,
@@ -2159,11 +2162,7 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
         n_jobs_val = cfg["n_jobs"]
         save_val = cfg["save"]
         show_val = cfg["show"]
-        levels = (
-            coverage_levels
-            if coverage_levels is not None
-            else self._DEFAULT_COVERAGE_LEVELS
-        )
+        levels = np.asarray(cfg["coverage_levels"])
 
         self.logger.info(f"[{outcome}] Starting sharpness curve plotting.")
         data = self._compute_coverage_sharpness_winkler_data(
@@ -2262,6 +2261,7 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
         cfg = self._resolve_plot_config(
             plot_type="winkler",
             outcome=outcome,
+            coverage_levels=coverage_levels,
             n_bootstraps=n_bootstraps,
             n_jobs=n_jobs,
             save=save,
@@ -2272,11 +2272,7 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
         n_jobs_val = cfg["n_jobs"]
         save_val = cfg["save"]
         show_val = cfg["show"]
-        levels = (
-            coverage_levels
-            if coverage_levels is not None
-            else self._DEFAULT_COVERAGE_LEVELS
-        )
+        levels = np.asarray(cfg["coverage_levels"])
 
         self.logger.info(f"[{outcome}] Starting Winkler score curve plotting.")
         data = self._compute_coverage_sharpness_winkler_data(
@@ -2454,15 +2450,12 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
         cfg = self._resolve_plot_config(
             plot_type="pit_histogram",
             outcome=outcome,
+            pit_n_bins=n_bins,
             save=save,
             show=show,
             **style_kwargs,
         )
-        # Hardcoded for now rather than routed through `_resolve_plot_config`,
-        # since DisplayDefaultsConfig.n_bins is shared with the classifier's
-        # calibration-bin default (10); revisit once regressor-specific
-        # display defaults are added to the config schema.
-        n_bins_val = n_bins if n_bins is not None else self._DEFAULT_PIT_N_BINS
+        n_bins_val = cfg["pit_n_bins"]
         save_val = cfg["save"]
         show_val = cfg["show"]
 
