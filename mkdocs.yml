@@ -67,6 +67,7 @@ nav:
     - Outcome overrides: guide/config/outcome_overrides.md
     - Workflow: guide/config/workflow.md
     - Display: guide/config/display.md
+    - Regression: guide/config/regression.md
   - API reference:
     - Overview: api/index.md
     - Configuration: api/config.md
