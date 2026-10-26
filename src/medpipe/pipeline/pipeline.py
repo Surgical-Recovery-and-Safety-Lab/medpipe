@@ -649,9 +649,10 @@ class MedpipeRegressor:
     a meaningful concept for regression outcomes). Distributional diagnostic
     figures (coverage, sharpness, Winkler score, marginal calibration, PIT
     histogram, and target-value data distribution) are available via
-    `plot_all`, but only for models producing a predictive CDF through
-    `predict_dist` (currently OrdBoost only); `run()` does not call it
-    automatically yet.
+    `plot_all`, which `run()` calls in the "audit" and "eval" run modes. The
+    figures are only available for models producing a predictive CDF through
+    `predict_dist` (currently OrdBoost only); `run()` skips them with a
+    warning for any other model.
 
     Parameters
     ----------
@@ -1056,6 +1057,14 @@ class MedpipeRegressor:
         if run_mode == "audit" or run_mode == "eval":
             self._logger.info(f"Step 4/{n_steps}: Plotting graphs.")
             for outcome in outcomes:
+                if not self._supports_distribution_plots(outcome):
+                    self._logger.warning(
+                        f"[{outcome}] Skipping the figures: the model "
+                        f"{self._model_name(outcome)} does not provide a predictive "
+                        "distribution that the figures support (OrdBoost "
+                        "models only)."
+                    )
+                    continue
                 y_true_outcome = y_test[outcome].to_numpy()
                 dist_outcome = self.predict_dist(X=X_test, outcome=outcome)
 
@@ -1064,6 +1073,19 @@ class MedpipeRegressor:
                     dist=dist_outcome,
                     outcome=outcome,
                 )
+            # Generate cross-outcome strata heatmaps per metric
+            if fairness_splits is None:
+                self._logger.info(
+                    "No fairness configuration set; skipping subgroup strata heatmaps."
+                )
+            else:
+                self._logger.info(
+                    "Generating subgroup strata heatmaps across outcomes."
+                )
+                strata_heatmaps = self.displayer.plot_all_heatmaps(
+                    evaluations=evaluations,
+                )
+                plots["strata_heatmaps"] = strata_heatmaps
 
         run_duration = time.perf_counter() - run_start_time
         self._logger.debug(
@@ -1081,6 +1103,40 @@ class MedpipeRegressor:
             results["plots"] = plots
 
         return results
+
+    def _model_name(self, outcome: str) -> str:
+        """Return the class name of the final estimator fitted for an outcome."""
+        model = self.models.get(outcome)
+        if model is None:
+            return "unknown"
+        return type(model["regressor"]).__name__
+
+    def _supports_distribution_plots(self, outcome: str) -> bool:
+        """Check that the model of an outcome supports the distributional figures.
+
+        The figures need a model that provides `predict_dist` and exposes the
+        bin mapper used by the PIT histogram and the marginal calibration
+        curve, which is the case of the OrdBoost models.
+
+        Parameters
+        ----------
+        outcome : str
+            Name of the outcome.
+
+        Returns
+        -------
+        bool
+            True if the figures can be drawn for the model of the outcome.
+
+        """
+        model = self.models.get(outcome)
+        if model is None:
+            return False
+        regressor = model["regressor"]
+        return (
+            hasattr(regressor, "predict_dist")
+            and getattr(regressor, "mapper_", None) is not None
+        )
 
     def plot_all(
         self,
@@ -1108,9 +1164,8 @@ class MedpipeRegressor:
         render; it stays skipped-with-a-clear-error otherwise, same as
         when no mapper is available.
 
-        Not called automatically by `run()` yet, since not every regression
-        algorithm supports `predict_dist` — call this manually once you know
-        the fitted model is distribution-capable (e.g. `OrdBoostRegressor`).
+        Called by `run()` in the "audit" and "eval" run modes for the outcomes
+        whose model is distribution-capable (e.g. `OrdBoostRegressor`).
 
         Parameters
         ----------
