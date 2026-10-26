@@ -1706,13 +1706,84 @@ class RegressorWorkflowConfig(BaseModel):
 
 
 # --- REGRESSOR DISPLAY SCHEMAS ---
+class RegressorDisplayDefaultsConfig(BaseModel):
+    """Default visualization parameters across all regression plot types.
+
+    Attributes
+    ----------
+    n_bootstraps : int, default=1000
+        Number of bootstrap resamples used to compute the confidence bands of
+        the coverage, sharpness, and Winkler score curves.
+    save : bool, default=True
+        Whether to persist generated plots to disk.
+    show : bool, default=False
+        Whether to display generated plots interactively.
+    n_jobs : int or None, default=1
+        Number of parallel jobs used to compute bootstrap resamples.
+        Independent of `workflow.n_jobs`.
+    dist_n_bins : int, default=20
+        Number of bins used for the histogram of the target values.
+    dist_yscale : {"linear", "log", "symlog", "logit"}, default="linear"
+        Scale of the y-axis of the histogram of the target values.
+    coverage_levels : list of (int or float), default=[5, 15, ..., 95]
+        Nominal central-interval coverage levels, in percent, evaluated by
+        the coverage, sharpness, and Winkler score curves. Each level must be
+        strictly between 0 and 100.
+    pit_n_bins : int, default=20
+        Number of bins of the probability integral transform (PIT) histogram.
+
+    """
+
+    n_bootstraps: int = Field(default=1000, ge=0)
+    save: bool = True
+    show: bool = False
+    n_jobs: int | None = Field(default=1, ge=-1)
+    dist_n_bins: int = Field(default=20, ge=1)
+    dist_yscale: Literal["linear", "log", "symlog", "logit"] = "linear"
+    coverage_levels: list[int | float] = Field(
+        default_factory=lambda: [*range(5, 100, 10)]
+    )
+    pit_n_bins: int = Field(default=20, ge=1)
+    model_config = {"extra": "forbid"}
+
+    @field_validator("coverage_levels")
+    @classmethod
+    def validate_coverage_levels(cls, v: list[int | float]) -> list[int | float]:
+        """Validate that the coverage levels are percentages.
+
+        Parameters
+        ----------
+        v : list of (int or float)
+            Candidate coverage levels.
+
+        Returns
+        -------
+        list of (int or float)
+            The validated coverage levels.
+
+        Raises
+        ------
+        ValueError
+            If the list is empty or a level is not strictly between 0 and 100.
+
+        """
+        if not v:
+            raise ValueError("coverage_levels should not be empty")
+        invalid = [level for level in v if not 0 < level < 100]
+        if invalid:
+            raise ValueError(
+                f"coverage_levels should be strictly between 0 and 100, got {invalid}"
+            )
+        return v
+
+
 class RegressorDisplayConfig(BaseModel):
     """Configuration settings for regression pipeline evaluation graphics
     and themes.
 
     Attributes
     ----------
-    defaults : DisplayDefaultsConfig
+    defaults : RegressorDisplayDefaultsConfig
         Default visualization parameters applied across all plot types.
     overrides : dict of str to dict of str to Any, default={}
         Plot-type-specific parameter overrides, keyed by plot type.
@@ -1724,7 +1795,9 @@ class RegressorDisplayConfig(BaseModel):
 
     """
 
-    defaults: DisplayDefaultsConfig = Field(default_factory=DisplayDefaultsConfig)
+    defaults: RegressorDisplayDefaultsConfig = Field(
+        default_factory=RegressorDisplayDefaultsConfig
+    )
     overrides: dict[str, dict[str, Any]] = Field(default_factory=dict)
     outcome_overrides: dict[str, dict[str, dict[str, Any]]] = Field(
         default_factory=dict
@@ -1780,10 +1853,6 @@ class RegressorDisplayConfig(BaseModel):
 
         """
         valid_plots = {
-            "predicted_vs_actual",
-            "pred_vs_actual",
-            "residuals",
-            "residual_plot",
             "coverage",
             "coverage_curve",
             "sharpness",
