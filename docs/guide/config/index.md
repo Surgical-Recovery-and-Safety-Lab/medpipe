@@ -4,9 +4,6 @@ A medpipe experiment is described by a single [TOML](https://toml.io) file. The 
 
 The reference for everything that can be written in a configuration file is [`examples/default_classifier_config.toml`](https://github.com/Surgical-Recovery-and-Safety-Lab/medpipe/blob/main/examples/default_classifier_config.toml). This guide explains each section of that file and shows the matching snippet.
 
-!!! note "Work in progress"
-    The notes on the regression configuration are still being written.
-
 ## Overview
 
 ### Loading a configuration
@@ -35,7 +32,7 @@ The file is organised in top-level tables, one per topic:
 | [`[workflow]`](workflow.md) | Preprocessing, data splits, cross-validation, metrics and fairness analysis. | Yes |
 | [`[display]`](display.md) | Figure settings. | When `run_mode` is `"audit"` or `"eval"` |
 
-Each section has its own page. The classifier and regressor configurations share the same layout. The differences are summarised in a separate section at the end of this guide.
+Each section has its own page. The classifier and regressor configurations share the same layout, and the differences are described on the [regression](regression.md) page.
 
 ### Validation
 
