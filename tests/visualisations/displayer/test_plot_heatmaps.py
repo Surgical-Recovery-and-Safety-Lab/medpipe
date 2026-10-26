@@ -15,6 +15,58 @@ from medpipe.metrics.registry import MetricRegistry, MetricSpec
 from medpipe.visualisation.displayer import MedpipeClassifierDisplayer
 
 
+class TestStrataHeatmapScale:
+    """Tests of the colour scale of `plot_strata_heatmap`."""
+
+    @staticmethod
+    def _color_limit(displayer, metric: str, scores, strata_scores) -> float:
+        _, ax = displayer.plot_strata_heatmap(
+            outcomes=["A", "B"],
+            metric=metric,
+            strata=["x", "y"],
+            scores=np.array(scores),
+            strata_scores=np.array(strata_scores),
+            save=False,
+            show=False,
+        )
+        return float(ax.images[0].get_clim()[1])
+
+    def test_bounded_metric_keeps_fixed_scale(self, mock_orchestrator) -> None:
+        """Test that a metric in [0, 1] keeps the fixed scale."""
+        displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
+
+        limit = self._color_limit(
+            displayer, "auc", [0.8, 0.7], [[0.7, 0.6], [0.9, 0.8]]
+        )
+
+        assert limit == pytest.approx(0.1)
+
+    @pytest.mark.parametrize("metric", ["rmse", "mae", "crps"])
+    def test_scale_dependent_metric_uses_data_scale(
+        self, mock_orchestrator, metric: str
+    ) -> None:
+        """Test that errors in target units get a colour scale from the data."""
+        displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
+
+        limit = self._color_limit(
+            displayer, metric, [10.0, 12.0], [[16.0, 11.0], [9.0, 20.0]]
+        )
+
+        assert limit == pytest.approx(8.0)
+
+    def test_scale_dependent_metric_without_differences(
+        self, mock_orchestrator
+    ) -> None:
+        """Test that identical scores do not produce a zero-width scale."""
+        displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
+
+        limit = self._color_limit(
+            displayer, "rmse", [10.0, 12.0], [[10.0, 12.0], [10.0, 12.0]]
+        )
+
+        assert limit == pytest.approx(1.0)
+
+
 class TestPlotStrataHeatmap:
     """Tests for the high-level `plot_strata_heatmap` method."""
 

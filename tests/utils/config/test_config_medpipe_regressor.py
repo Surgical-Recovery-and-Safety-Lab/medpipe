@@ -70,7 +70,7 @@ class TestMedpipeRegressorConfig:
                     "show": False,
                 },
                 "overrides": {
-                    "residuals": {"n_bootstraps": 200},
+                    "coverage": {"n_bootstraps": 200},
                 },
             },
         }
@@ -272,8 +272,8 @@ class TestMedpipeRegressorConfig:
         raw_config = self._get_valid_config_dict(tmp_path)
 
         raw_config["display"]["outcome_overrides"] = {
-            "LOS_DAYS": {"residuals": {"n_bootstraps": 10}},
-            "BLOOD_LOSS_ML": {"residuals": {"n_bootstraps": 20}},
+            "LOS_DAYS": {"coverage": {"n_bootstraps": 10}},
+            "BLOOD_LOSS_ML": {"coverage": {"n_bootstraps": 20}},
         }
 
         config = MedpipeRegressorConfig.model_validate(raw_config)
@@ -292,7 +292,7 @@ class TestMedpipeRegressorConfig:
 
         raw_config["display"]["outcome_overrides"] = {
             "UNLISTED_OUTCOME": {
-                "residuals": {"n_bootstraps": 10},
+                "coverage": {"n_bootstraps": 10},
             }
         }
 
