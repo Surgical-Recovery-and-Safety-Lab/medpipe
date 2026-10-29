@@ -46,7 +46,6 @@ def _validate_metrics_registered(metrics: list[str]) -> None:
         If any entry in `metrics` is not a registered metric.
 
     """
-    from medpipe.metrics.core import METRICS
     from medpipe.metrics.registry import MetricRegistry
 
     # Query the live registry (not the `METRICS` snapshot taken at import
@@ -56,10 +55,107 @@ def _validate_metrics_registered(metrics: list[str]) -> None:
         if metric not in available:
             expr = (
                 f"{metric} was not found in available metric "
-                f"list. Available metrics are {METRICS}"
                 f"list. Available metrics are {available}"
             )
             raise ValueError(expr)
+
+
+def _validate_metrics_for_task(
+    metrics: list[str], task: Literal["classification", "regression"]
+) -> None:
+    """Validate that the metrics can be computed for the type of outcome.
+
+    A metric that needs class probabilities, decision scores, or class labels
+    (a `predict_proba`, `decision_function`, or thresholded `predict` response)
+    cannot be computed on a continuous outcome, and a metric that needs a
+    predictive distribution (`predict_dist`) cannot be computed on a class
+    outcome. The other metrics, such as `rmse` and `mae`, are accepted for both.
+
+    Parameters
+    ----------
+    metrics : list of str
+        Metric identifiers, already known to be registered.
+    task : {"classification", "regression"}
+        Type of outcome the pipeline models.
+
+    Raises
+    ------
+    ValueError
+        If a metric cannot be computed for the type of outcome.
+
+    """
+    from medpipe.metrics.registry import MetricRegistry
+
+    for name in metrics:
+        spec = MetricRegistry.get(name)
+        methods = (
+            (spec.response_method,)
+            if isinstance(spec.response_method, str)
+            else tuple(spec.response_method)
+        )
+        if task == "classification" and "predict_dist" in methods:
+            raise ValueError(
+                f"The metric '{name}' needs a predictive distribution and cannot "
+                "be computed for classification outcomes."
+            )
+        if task == "regression" and (
+            spec.needs_threshold
+            or "predict_proba" in methods
+            or "decision_function" in methods
+        ):
+            raise ValueError(
+                f"The metric '{name}' is a classification metric and cannot be "
+                "computed for regression outcomes."
+            )
+
+
+def _metric_response_methods(name: str) -> tuple[str, ...]:
+    """Return the response methods a registered metric needs.
+
+    Parameters
+    ----------
+    name : str
+        Identifier of a registered metric.
+
+    Returns
+    -------
+    tuple of str
+        The response methods of the metric.
+
+    """
+    from medpipe.metrics.registry import MetricRegistry
+
+    method = MetricRegistry.get(name).response_method
+    return (method,) if isinstance(method, str) else tuple(method)
+
+
+def _validate_metrics_need_distribution(resolved_algorithms: dict[str, str]) -> None:
+    """Validate that models can provide the distribution a metric needs.
+
+    Parameters
+    ----------
+    resolved_algorithms : dict of str to str
+        Mapping of outcome name to the algorithm name configured for it.
+
+    Raises
+    ------
+    ValueError
+        If the algorithm of an outcome has neither a `predict_dist` nor a
+        `pred_dist` method.
+
+    """
+    from medpipe.models.registry import ModelRegistry
+
+    for outcome, algorithm in resolved_algorithms.items():
+        model_class = ModelRegistry.get(algorithm)
+        if not (
+            hasattr(model_class, "predict_dist") or hasattr(model_class, "pred_dist")
+        ):
+            raise ValueError(
+                f"A configured metric needs a predictive distribution, but the "
+                f"algorithm '{algorithm}' of outcome '{outcome}' cannot predict "
+                "one."
+            )
 
 
 def _validate_algorithms_registered(algorithms: dict[str, str]) -> None:
@@ -1315,6 +1411,25 @@ class MedpipeClassifierConfig(BaseModel):
         return self
 
     @model_validator(mode="after")
+    def validate_metrics_for_task(self) -> MedpipeClassifierConfig:
+        """Validate that the metrics can be computed for the type of outcome.
+
+        Returns
+        -------
+        MedpipeClassifierConfig
+            The validated configuration instance.
+
+        Raises
+        ------
+        ValueError
+            If a metric cannot be computed for the type of outcome.
+
+        """
+        metrics = self.workflow.evaluation.metrics.metrics
+        _validate_metrics_for_task(metrics, "classification")
+        return self
+
+    @model_validator(mode="after")
     def validate_preprocessing_columns(self) -> MedpipeClassifierConfig:
         """Validate that preprocessing operations only act on predictors.
 
@@ -1955,6 +2070,31 @@ class MedpipeRegressorConfig(BaseModel):
             resolved[outcome] = RegressorModelSetup(**base_setup)
 
         self.resolved_models = resolved
+        return self
+
+    @model_validator(mode="after")
+    def validate_metrics_for_task(self) -> MedpipeRegressorConfig:
+        """Validate that the metrics can be computed for the type of outcome.
+
+        Returns
+        -------
+        MedpipeRegressorConfig
+            The validated configuration instance.
+
+        Raises
+        ------
+        ValueError
+            If a metric cannot be computed for the type of outcome, or if a
+            distributional metric is used with a model that cannot predict a
+            distribution.
+
+        """
+        metrics = self.workflow.evaluation.metrics.metrics
+        _validate_metrics_for_task(metrics, "regression")
+        if any("predict_dist" in _metric_response_methods(name) for name in metrics):
+            _validate_metrics_need_distribution(
+                {name: model.algorithm for name, model in self.resolved_models.items()}
+            )
         return self
 
     @model_validator(mode="after")
