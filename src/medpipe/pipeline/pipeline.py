@@ -630,7 +630,7 @@ class MedpipeClassifier:
                 models_dir / f"{project_name}_fitted.joblib"
             )
             pipe._evaluator.fitted_models = pipe._runner.fitted_models
-        pipe._logger.info(f"Succesfully loaded MedpipeClassifier from {run_dir}")
+        pipe._logger.info(f"Successfully loaded MedpipeClassifier from {run_dir}")
 
         return pipe
 
@@ -1280,6 +1280,6 @@ class MedpipeRegressor:
                 models_dir / f"{project_name}_fitted.joblib"
             )
             pipe._evaluator.fitted_models = pipe._runner.fitted_models
-        pipe._logger.info(f"Succesfully loaded MedpipeRegressor from {run_dir}")
+        pipe._logger.info(f"Successfully loaded MedpipeRegressor from {run_dir}")
 
         return pipe
