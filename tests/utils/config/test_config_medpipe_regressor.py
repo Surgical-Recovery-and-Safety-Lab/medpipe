@@ -380,3 +380,64 @@ class TestMedpipeRegressorConfig:
 
         assert config.workflow.preprocessing is not None
         assert config.workflow.preprocessing.preprocess is False
+
+    @pytest.mark.parametrize("metric", ["roc_auc", "accuracy", "f1", "log_loss", "ici"])
+    def test_classification_metric_rejected(self, tmp_path: Path, metric: str) -> None:
+        """Test that a classification metric is rejected for regression."""
+        raw_config = self._get_valid_config_dict(tmp_path)
+        raw_config["workflow"]["evaluation"]["metrics"]["metrics"] = ["rmse", metric]
+
+        with pytest.raises(
+            ValidationError, match=f"'{metric}' is a classification metric"
+        ):
+            MedpipeRegressorConfig.model_validate(raw_config)
+
+    @pytest.mark.parametrize("algorithm", ["NGBRegressor", "OrdBoostRegressor"])
+    def test_distributional_metric_accepted_for_distribution_models(
+        self, tmp_path: Path, algorithm: str
+    ) -> None:
+        """Test that crps is accepted with models that predict a distribution."""
+        raw_config = self._get_valid_config_dict(tmp_path)
+        raw_config["default_model"]["algorithm"] = algorithm
+        raw_config["workflow"]["evaluation"]["metrics"]["metrics"] = ["rmse", "crps"]
+
+        config = MedpipeRegressorConfig.model_validate(raw_config)
+
+        assert "crps" in config.workflow.evaluation.metrics.metrics
+
+    def test_distributional_metric_rejected_for_point_models(
+        self, tmp_path: Path
+    ) -> None:
+        """Test that crps is rejected with a model that cannot predict a
+        distribution, naming the algorithm and the outcome."""
+        raw_config = self._get_valid_config_dict(tmp_path)
+        raw_config["default_model"]["algorithm"] = "LinearRegression"
+        raw_config["workflow"]["evaluation"]["metrics"]["metrics"] = ["rmse", "crps"]
+
+        with pytest.raises(
+            ValidationError,
+            match=r"'LinearRegression' of outcome '.*' cannot predict one",
+        ):
+            MedpipeRegressorConfig.model_validate(raw_config)
+
+    def test_distributional_metric_checks_overrides(self, tmp_path: Path) -> None:
+        """Test that an override with a point model is also checked."""
+        raw_config = self._get_valid_config_dict(tmp_path)
+        raw_config["default_model"] = {"algorithm": "NGBRegressor"}
+        raw_config["outcome_overrides"] = {
+            "BLOOD_LOSS_ML": {"algorithm": "LinearRegression"}
+        }
+        raw_config["workflow"]["evaluation"]["metrics"]["metrics"] = ["crps"]
+
+        with pytest.raises(ValidationError, match="outcome 'BLOOD_LOSS_ML'"):
+            MedpipeRegressorConfig.model_validate(raw_config)
+
+    def test_generic_metrics_accepted_for_point_models(self, tmp_path: Path) -> None:
+        """Test that rmse and mae are accepted with any regressor."""
+        raw_config = self._get_valid_config_dict(tmp_path)
+        raw_config["default_model"] = {"algorithm": "LinearRegression"}
+        raw_config["workflow"]["evaluation"]["metrics"]["metrics"] = ["rmse", "mae"]
+
+        config = MedpipeRegressorConfig.model_validate(raw_config)
+
+        assert config.default_model.algorithm == "LinearRegression"

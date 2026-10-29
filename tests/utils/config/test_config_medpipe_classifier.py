@@ -759,3 +759,29 @@ class TestMedpipeClassifierConfig:
 
         assert config.workflow.preprocessing is not None
         assert config.workflow.preprocessing.preprocess is False
+
+    def test_distributional_metric_rejected(self, tmp_path: Path) -> None:
+        """Test that a metric needing a predictive distribution is rejected for
+        classification."""
+        raw_config = self._get_valid_config_dict(tmp_path)
+        raw_config["workflow"]["evaluation"]["metrics"]["metrics"] = ["roc_auc", "crps"]
+
+        with pytest.raises(
+            ValidationError, match="'crps' needs a predictive distribution"
+        ):
+            MedpipeClassifierConfig.model_validate(raw_config)
+
+    @pytest.mark.parametrize(
+        "metrics", [["roc_auc"], ["accuracy", "log_loss", "ici"], ["rmse", "mae"]]
+    )
+    def test_classification_and_generic_metrics_accepted(
+        self, tmp_path: Path, metrics: list[str]
+    ) -> None:
+        """Test that classification metrics and the generic error metrics are
+        accepted."""
+        raw_config = self._get_valid_config_dict(tmp_path)
+        raw_config["workflow"]["evaluation"]["metrics"]["metrics"] = metrics
+
+        config = MedpipeClassifierConfig.model_validate(raw_config)
+
+        assert config.workflow.evaluation.metrics.metrics == metrics
