@@ -1,0 +1,1901 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+      
+        <link rel="prev" href="../outcome_overrides/">
+      
+      
+        <link rel="next" href="../display/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
+    
+    
+      
+        <title>Workflow - MedPipe</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.57a0d79d.min.css">
+      
+        
+        <link rel="stylesheet" href="../../../assets/stylesheets/palette.fb2fffe2.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#workflow" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../../.." title="MedPipe" class="md-header__button md-logo" aria-label="MedPipe" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            MedPipe
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Workflow
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+    
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/Surgical-Recovery-and-Safety-Lab/medpipe" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    Surgical-Recovery-and-Safety-Lab/medpipe
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../.." title="MedPipe" class="md-nav__button md-logo" aria-label="MedPipe" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    MedPipe
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/Surgical-Recovery-and-Safety-Lab/medpipe" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    Surgical-Recovery-and-Safety-Lab/medpipe
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting started
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Getting started
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../start/install/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../start/quickstart/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quickstart example
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../examples/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Examples
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration guide
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Configuration guide
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../meta/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Meta
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../data/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../default_model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Default model
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../outcome_overrides/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Outcome overrides
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Workflow
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Workflow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#workflowpreprocessing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [workflow.preprocessing]
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#workflowvalidation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [workflow.validation]
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="[workflow.validation]">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#test_split" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        test_split
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#recalibration_split" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        recalibration_split
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cross_validation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cross_validation
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#workflowevaluation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [workflow.evaluation]
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="[workflow.evaluation]">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#metrics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        metrics
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fairness" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        fairness
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../display/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Display
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../regression/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Regression
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guides
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../run_folder/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    The run folder
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../confidence_intervals/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Confidence intervals
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tripod_ai/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TRIPOD+AI reporting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    API reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../api/config/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../api/data/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../api/metrics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Metrics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../api/models/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Models
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../api/pipeline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Pipeline
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../api/utils/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Utils
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../api/visualisation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Visualisation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#workflowpreprocessing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [workflow.preprocessing]
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#workflowvalidation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [workflow.validation]
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="[workflow.validation]">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#test_split" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        test_split
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#recalibration_split" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        recalibration_split
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cross_validation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cross_validation
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#workflowevaluation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [workflow.evaluation]
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="[workflow.evaluation]">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#metrics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        metrics
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fairness" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        fairness
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="workflow"><code>[workflow]</code></h1>
+<p>How the data is prepared, split and validated, and how the fitted models are evaluated. This is the largest section, so it is divided into sub-tables, each described below.</p>
+<div class="language-toml highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="k">[workflow]</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="n">random_state</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">42</span>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="n">n_jobs</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">2</span>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="k">[workflow.preprocessing]</span>
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="c1"># ...</span>
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="k">[workflow.validation.test_split]</span>
+</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="c1"># ...</span>
+</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>
+</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="k">[workflow.evaluation.metrics]</span>
+</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="c1"># ...</span>
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Key</th>
+<th style="text-align: left;">Type</th>
+<th style="text-align: left;">Default</th>
+<th style="text-align: left;">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>random_state</code></td>
+<td style="text-align: left;">integer</td>
+<td style="text-align: left;"><code>42</code></td>
+<td style="text-align: left;">Seed for the random parts of the pipeline. Must be 0 or more.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>n_jobs</code></td>
+<td style="text-align: left;">integer</td>
+<td style="text-align: left;"><code>1</code></td>
+<td style="text-align: left;">Number of parallel jobs. Use <code>-1</code> for all processors.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><a href="#workflowpreprocessing"><code>preprocessing</code></a></td>
+<td style="text-align: left;">table</td>
+<td style="text-align: left;">none</td>
+<td style="text-align: left;">Transformations applied to the predictors.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><a href="#workflowvalidation"><code>validation</code></a></td>
+<td style="text-align: left;">table</td>
+<td style="text-align: left;">required</td>
+<td style="text-align: left;">How the data is split and cross-validated.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><a href="#workflowevaluation"><code>evaluation</code></a></td>
+<td style="text-align: left;">table</td>
+<td style="text-align: left;">required</td>
+<td style="text-align: left;">Metrics, confidence intervals and subgroup analysis.</td>
+</tr>
+</tbody>
+</table>
+<p><code>random_state</code> seeds the random train/test and recalibration splits, the shuffling in cross-validation, and the bootstrap resampling of the confidence intervals. Running the same configuration on the same data therefore gives the same splits and intervals. It is not passed to the models. To fix the randomness of a model, set the model's own <code>random_state</code> in its <a href="../default_model/#hyperparameters">hyperparameters</a>.</p>
+<p><code>n_jobs</code> sets the parallelism of cross-validation, grid search and the bootstrap resampling. It does not affect the plots.</p>
+<h2 id="workflowpreprocessing"><code>[workflow.preprocessing]</code></h2>
+<p>Transformations that are applied to the predictors before they reach the model.</p>
+<div class="language-toml highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="k">[workflow.preprocessing]</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="n">preprocess</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="n">operations</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">  </span><span class="p">{</span><span class="w"> </span><span class="n">name</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s2">"OrdinalEncoder"</span><span class="p">,</span><span class="w"> </span><span class="n">columns</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="p">[</span><span class="s2">"SEX"</span><span class="p">,</span><span class="w"> </span><span class="s2">"ADMISSION_ACUITY"</span><span class="p">,</span><span class="w"> </span><span class="s2">"ADMISSION_SOURCE"</span><span class="p">,</span><span class="w"> </span><span class="s2">"CATEGORY_LEVEL_1"</span><span class="p">]</span><span class="w"> </span><span class="p">},</span>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">  </span><span class="p">{</span><span class="w"> </span><span class="n">name</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s2">"StandardScaler"</span><span class="p">,</span><span class="w"> </span><span class="n">columns</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="p">[</span><span class="s2">"CATEGORY_LEVEL_1"</span><span class="p">,</span><span class="w"> </span><span class="s2">"AGE"</span><span class="p">],</span><span class="w"> </span><span class="n">with_mean</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="kc">true</span><span class="w"> </span><span class="p">},</span>
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="p">]</span>
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Key</th>
+<th style="text-align: left;">Type</th>
+<th style="text-align: left;">Default</th>
+<th style="text-align: left;">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>preprocess</code></td>
+<td style="text-align: left;">boolean</td>
+<td style="text-align: left;">none</td>
+<td style="text-align: left;">Whether the operations are applied. When it is <code>false</code> or the table is omitted, the predictors are given to the model unchanged.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>operations</code></td>
+<td style="text-align: left;">list of tables</td>
+<td style="text-align: left;">none</td>
+<td style="text-align: left;">The operations, applied in order. Required when <code>preprocess</code> is <code>true</code>.</td>
+</tr>
+</tbody>
+</table>
+<p>Each operation is a table with the following keys:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Key</th>
+<th style="text-align: left;">Type</th>
+<th style="text-align: left;">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>name</code></td>
+<td style="text-align: left;">string</td>
+<td style="text-align: left;">Class name of the transformer. See <a href="../../../api/data/#available-preprocessing-operations">available preprocessing operations</a>.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>columns</code></td>
+<td style="text-align: left;">list of strings</td>
+<td style="text-align: left;">Predictors the operation is applied to. It cannot be empty.</td>
+</tr>
+<tr>
+<td style="text-align: left;">any other key</td>
+<td style="text-align: left;">any</td>
+<td style="text-align: left;">Passed to the constructor of the transformer, such as <code>with_mean</code> above.</td>
+</tr>
+</tbody>
+</table>
+<p>The operations are applied one after the other, each one to its own columns. All the other columns are passed on unchanged. In the example, the four categorical predictors are first encoded as numbers, and <code>CATEGORY_LEVEL_1</code> and <code>AGE</code> are then scaled. A column can be used by several operations.</p>
+<p>Some points to keep in mind:</p>
+<ul>
+<li><code>columns</code> must be listed in <code>data.predictors</code>. An operation on any other column is rejected when the configuration is validated, with a message that names the operation and the columns.</li>
+<li><code>columns</code> always refers to the original name of a predictor. A later operation cannot refer to a column that an earlier operation replaced with several columns, such as the output of a <code>OneHotEncoder</code>.</li>
+<li>The operations are fitted as part of the model, so during cross-validation they are fitted on the training folds only.</li>
+<li>The operation names and their arguments are only checked when the data is prepared. An unknown name or an argument the transformer does not accept stops the run at that point.</li>
+</ul>
+<h2 id="workflowvalidation"><code>[workflow.validation]</code></h2>
+<p>How the data is divided. The test set is set aside first. If a recalibration split is defined, the recalibration set is taken from what remains, and the rest is the training set. Cross-validation is then run on the training set only.</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>all data ──► test set
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>         └─► remaining ──► recalibration set (optional)
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>                       └─► training set ──► cross-validation folds
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Key</th>
+<th style="text-align: left;">Type</th>
+<th style="text-align: left;">Default</th>
+<th style="text-align: left;">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>test_split</code></td>
+<td style="text-align: left;">table</td>
+<td style="text-align: left;">required</td>
+<td style="text-align: left;">The held-out test set.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>recalibration_split</code></td>
+<td style="text-align: left;">table</td>
+<td style="text-align: left;">none</td>
+<td style="text-align: left;">The set used to recalibrate the models. Required when recalibration is used.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>cross_validation</code></td>
+<td style="text-align: left;">table</td>
+<td style="text-align: left;">none</td>
+<td style="text-align: left;">Cross-validation on the training set. Required when <code>run_mode</code> is <code>"cv"</code> or <code>"audit"</code>.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="test_split"><code>test_split</code></h3>
+<div class="language-toml highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="k">[workflow.validation.test_split]</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="n">strategy</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"group"</span>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="n">group_column</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"OP_YEAR"</span>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="n">values</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="mi">2024</span><span class="p">]</span>
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Key</th>
+<th style="text-align: left;">Type</th>
+<th style="text-align: left;">Default</th>
+<th style="text-align: left;">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>strategy</code></td>
+<td style="text-align: left;">string</td>
+<td style="text-align: left;"><code>"random"</code></td>
+<td style="text-align: left;"><code>"random"</code> or <code>"group"</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>test_size</code></td>
+<td style="text-align: left;">float</td>
+<td style="text-align: left;">none</td>
+<td style="text-align: left;">Fraction of the data used for testing, strictly between 0 and 1. Required for <code>"random"</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>group_column</code></td>
+<td style="text-align: left;">string</td>
+<td style="text-align: left;">none</td>
+<td style="text-align: left;">Column that defines the groups. Required for <code>"group"</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>values</code></td>
+<td style="text-align: left;">list of strings or integers</td>
+<td style="text-align: left;">none</td>
+<td style="text-align: left;">Values of <code>group_column</code> that go to the test set. Required for <code>"group"</code>.</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>With the <code>"random"</code> strategy, rows are assigned to the test set at random, using <code>random_state</code>. The split is not stratified.</li>
+<li>With the <code>"group"</code> strategy, every row whose <code>group_column</code> value is in <code>values</code> is in the test set, and all the other rows are not. This is useful for temporal or geographical validation, for example to test on the most recent year or on a hospital that was not used for training.</li>
+</ul>
+<h3 id="recalibration_split"><code>recalibration_split</code></h3>
+<div class="language-toml highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="k">[workflow.validation.recalibration_split]</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="n">strategy</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"group"</span>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="n">group_column</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"OP_YEAR"</span>
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="n">values</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="mi">2023</span><span class="p">]</span>
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Key</th>
+<th style="text-align: left;">Type</th>
+<th style="text-align: left;">Default</th>
+<th style="text-align: left;">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>strategy</code></td>
+<td style="text-align: left;">string</td>
+<td style="text-align: left;">required</td>
+<td style="text-align: left;"><code>"random"</code> or <code>"group"</code>. It must be the same as the test split.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>recalibration_size</code></td>
+<td style="text-align: left;">float</td>
+<td style="text-align: left;">none</td>
+<td style="text-align: left;">Fraction of the data left after the test split that is used for recalibration, strictly between 0 and 1. Required for <code>"random"</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>group_column</code></td>
+<td style="text-align: left;">string</td>
+<td style="text-align: left;">none</td>
+<td style="text-align: left;">Required for <code>"group"</code>. It must be the same as in the test split.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>values</code></td>
+<td style="text-align: left;">list of strings or integers</td>
+<td style="text-align: left;">none</td>
+<td style="text-align: left;">Values of <code>group_column</code> that go to the recalibration set. Required for <code>"group"</code>. None of them can also be in the test split.</td>
+</tr>
+</tbody>
+</table>
+<p>The recalibration split follows the same logic as the test split, and has to be consistent with it. For example, with <code>test_size = 0.3</code> and <code>recalibration_size = 0.2</code>, the test set has 30% of the data, the recalibration set has 20% of the remaining 70%, and the training set has the rest. The recalibration split is required whenever <a href="../default_model/#recalibration">recalibration</a> is enabled for a model.</p>
+<h3 id="cross_validation"><code>cross_validation</code></h3>
+<div class="language-toml highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="k">[workflow.validation.cross_validation]</span>
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="n">strategy</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"group"</span>
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="n">grid_search</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
+</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="n">group_column</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"DHB_NAME"</span>
+</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="n">n_splits</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">3</span>
+</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="n">shuffle</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Key</th>
+<th style="text-align: left;">Type</th>
+<th style="text-align: left;">Default</th>
+<th style="text-align: left;">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>strategy</code></td>
+<td style="text-align: left;">string</td>
+<td style="text-align: left;">required</td>
+<td style="text-align: left;"><code>"random"</code>, <code>"group"</code> or <code>"loso"</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>n_splits</code></td>
+<td style="text-align: left;">integer</td>
+<td style="text-align: left;">none</td>
+<td style="text-align: left;">Number of folds, 2 or more. Required for <code>"random"</code> and <code>"group"</code>. Not used for <code>"loso"</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>group_column</code></td>
+<td style="text-align: left;">string</td>
+<td style="text-align: left;">none</td>
+<td style="text-align: left;">Column that defines the groups. Required for <code>"group"</code> and <code>"loso"</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>shuffle</code></td>
+<td style="text-align: left;">boolean</td>
+<td style="text-align: left;"><code>true</code></td>
+<td style="text-align: left;">Whether to shuffle the data before it is divided into folds. The shuffling uses <code>random_state</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>grid_search</code></td>
+<td style="text-align: left;">boolean</td>
+<td style="text-align: left;">none</td>
+<td style="text-align: left;">Whether to search over the list-valued hyperparameters.</td>
+</tr>
+</tbody>
+</table>
+<p>The strategies are:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Strategy</th>
+<th style="text-align: left;">Folds</th>
+<th style="text-align: left;">Classifiers</th>
+<th style="text-align: left;">Regressors</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>"random"</code></td>
+<td style="text-align: left;"><code>n_splits</code> folds of random rows</td>
+<td style="text-align: left;"><code>StratifiedKFold</code>, which keeps the share of positives in every fold</td>
+<td style="text-align: left;"><code>KFold</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>"group"</code></td>
+<td style="text-align: left;"><code>n_splits</code> folds in which a group is never split between folds</td>
+<td style="text-align: left;"><code>StratifiedGroupKFold</code></td>
+<td style="text-align: left;"><code>GroupKFold</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>"loso"</code></td>
+<td style="text-align: left;">One fold per group, each holding out a single group (leave one group out)</td>
+<td style="text-align: left;"><code>LeaveOneGroupOut</code></td>
+<td style="text-align: left;"><code>LeaveOneGroupOut</code></td>
+</tr>
+</tbody>
+</table>
+<p>The models are scored on every metric in <code>workflow.evaluation.metrics.metrics</code>. What happens next depends on <code>grid_search</code>:</p>
+<ul>
+<li><strong><code>grid_search = true</code>:</strong> every combination of the list-valued <a href="../default_model/#hyperparameters">hyperparameters</a> is tried. The best combination is chosen using the <strong>first</strong> metric of the <code>metrics</code> list, and the model is refitted with it on the whole training set.</li>
+<li><strong>Otherwise:</strong> the cross-validation only reports the scores. The model is then fitted on the whole training set, using the first value of every list-valued hyperparameter.</li>
+</ul>
+<p>The fold scores are saved in the <code>CV/</code> folder of the run. Cross-validation is only run when <code>run_mode</code> is <code>"cv"</code> or <code>"audit"</code>.</p>
+<h2 id="workflowevaluation"><code>[workflow.evaluation]</code></h2>
+<p>How the fitted models are evaluated on the test set.</p>
+<h3 id="metrics"><code>metrics</code></h3>
+<div class="language-toml highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="k">[workflow.evaluation.metrics]</span>
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="n">metrics</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">"roc_auc"</span><span class="p">,</span><span class="w"> </span><span class="s2">"log_loss"</span><span class="p">]</span>
+</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="n">n_bootstraps</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">50</span>
+</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="n">ci_level</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.95</span>
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Key</th>
+<th style="text-align: left;">Type</th>
+<th style="text-align: left;">Default</th>
+<th style="text-align: left;">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>metrics</code></td>
+<td style="text-align: left;">list of strings</td>
+<td style="text-align: left;"><code>["roc_auc", "ici"]</code></td>
+<td style="text-align: left;">Metrics to compute. See the <a href="../../../api/metrics/#available-metrics">list of available metrics</a>.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>n_bootstraps</code></td>
+<td style="text-align: left;">integer</td>
+<td style="text-align: left;"><code>200</code></td>
+<td style="text-align: left;">Number of bootstrap resamples used to compute the confidence intervals. Use <code>0</code> to skip the intervals.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>ci_level</code></td>
+<td style="text-align: left;">float</td>
+<td style="text-align: left;"><code>0.95</code></td>
+<td style="text-align: left;">Confidence level of the intervals, between 0 and 1.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>cv_splines</code></td>
+<td style="text-align: left;">integer</td>
+<td style="text-align: left;"><code>3</code></td>
+<td style="text-align: left;">Number of internal folds used by the spline fit of the <code>ici</code> metric, 2 or more. Lower values are faster. It has no effect on other metrics.</td>
+</tr>
+</tbody>
+</table>
+<p>Every metric is computed on the test set with a bootstrapped confidence interval. The names are checked when the configuration is validated, so a metric you registered with <code>MetricRegistry</code> is accepted if it is registered before the pipeline is created. The metrics are also checked against the type of outcome: for a classifier, a metric that needs a predictive distribution (<code>crps</code>) is rejected. The <a href="../regression/#metrics">regression</a> page lists the rules for regressors.</p>
+<p>The results are saved for each outcome in <code>results/&lt;outcome&gt;_evaluation_results.json</code>, with the point estimate and the bounds of the interval for every metric:</p>
+<div class="language-json highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="p">{</span>
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="w">  </span><span class="nt">"outcome"</span><span class="p">:</span><span class="w"> </span><span class="s2">"MORTALITY_30D"</span><span class="p">,</span>
+</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="w">  </span><span class="nt">"overall"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="w">    </span><span class="nt">"roc_auc"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">"point_estimate"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.61</span><span class="p">,</span><span class="w"> </span><span class="nt">"ci_lower"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.42</span><span class="p">,</span><span class="w"> </span><span class="nt">"ci_upper"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.74</span><span class="p">}</span>
+</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="w">  </span><span class="p">},</span>
+</span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a><span class="w">  </span><span class="nt">"strata"</span><span class="p">:</span><span class="w"> </span><span class="p">{}</span>
+</span><span id="__span-7-7"><a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>The <code>strata</code> entry has the same values for each subgroup of the <a href="#fairness">fairness analysis</a>.</p>
+<p>With <code>n_bootstraps = 0</code> the bootstrap is skipped: only the point estimates are computed, and <code>ci_lower</code> and <code>ci_upper</code> are saved as <code>NaN</code>.</p>
+<h3 id="fairness"><code>fairness</code></h3>
+<p>Optional. Computes the metrics on subgroups of the test set, to check whether the model performs equally across patient groups. The results are also drawn as heatmaps when figures are produced.</p>
+<div class="language-toml highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="k">[workflow.evaluation.fairness]</span>
+</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="n">strata</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">"SEX"</span><span class="p">,</span><span class="w"> </span><span class="s2">"AGE"</span><span class="p">]</span>
+</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="n">groups</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="s2">"AGE"</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="p">[[</span><span class="mi">18</span><span class="p">,</span><span class="w"> </span><span class="mi">50</span><span class="p">],</span><span class="w"> </span><span class="p">[</span><span class="mi">51</span><span class="p">,</span><span class="w"> </span><span class="mi">120</span><span class="p">]]</span><span class="w"> </span><span class="p">}</span>
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Key</th>
+<th style="text-align: left;">Type</th>
+<th style="text-align: left;">Default</th>
+<th style="text-align: left;">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>strata</code></td>
+<td style="text-align: left;">list of strings</td>
+<td style="text-align: left;">required</td>
+<td style="text-align: left;">Columns that define the subgroups.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>groups</code></td>
+<td style="text-align: left;">table</td>
+<td style="text-align: left;">none</td>
+<td style="text-align: left;">Ranges to use for some of the strata.</td>
+</tr>
+</tbody>
+</table>
+<p>For every column in <code>strata</code>:</p>
+<ul>
+<li>If the column is not in <code>groups</code>, there is one subgroup for each distinct value of the column. In the example, <code>SEX</code> gives one subgroup per sex.</li>
+<li>If the column is in <code>groups</code>, each entry is a <code>[minimum, maximum]</code> range, and both ends are included. In the example, <code>AGE</code> gives the subgroups <code>[18, 50]</code> and <code>[51, 120]</code>. Every entry must have exactly two values.</li>
+</ul>
+<p>A key of <code>groups</code> must also be in <code>strata</code>, and its list cannot be empty. Ranges are for numeric columns. To make subgroups of a categorical column, leave it out of <code>groups</code>.</p>
+<p>The strata columns have to exist in the data, but they do not have to be predictors. A column that is only used for the fairness analysis, for example a hospital, is read from the data but never given to the model. A column that is missing stops the run before any model is fitted.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.sections", "navigation.expand", "navigation.top", "content.code.copy", "search.suggest"], "search": "../../../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../../assets/javascripts/bundle.c21346df.min.js"></script>
+      
+    
+  </body>
+</html>
