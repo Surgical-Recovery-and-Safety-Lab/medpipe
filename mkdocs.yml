@@ -72,6 +72,7 @@ nav:
   - Guides:
     - The run folder: guide/run_folder.md
     - Confidence intervals: guide/confidence_intervals.md
+    - TRIPOD+AI reporting: guide/tripod_ai.md
   - API reference:
     - Overview: api/index.md
     - Configuration: api/config.md
