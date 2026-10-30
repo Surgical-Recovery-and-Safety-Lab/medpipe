@@ -137,3 +137,5 @@ The figures of each outcome are in a folder named after the outcome, and the sub
 To run an experiment again, create a pipeline from `env/config.toml` (or from `resolved_config.json` with `MedpipeClassifierConfig.model_validate`). With the same data, the same `random_state` and the same package versions, the splits and the intervals are the same. The `config_hash` and the `dataset_hash` of the new run tell whether the configuration and the data are the ones of the original.
 
 The `random_state` of `[workflow]` is not given to the models. To reproduce a model that has some randomness, set its own `random_state` in the hyperparameters.
+
+The [TRIPOD+AI reporting](tripod_ai.md) page maps these files to the items of the reporting guideline.

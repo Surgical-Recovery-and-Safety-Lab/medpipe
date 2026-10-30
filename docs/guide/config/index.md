@@ -1,6 +1,6 @@
 # Configuration guide
 
-A medpipe experiment is described by a single [TOML](https://toml.io) file. The file says which data to load, which models to fit, how to split and validate the data, which metrics and figures to produce, and how much to log. Because the whole experiment lives in one file, it is saved with every run and can be reused to reproduce the results.
+A MedPipe experiment is described by a single [TOML](https://toml.io) file. The file says which data to load, which models to fit, how to split and validate the data, which metrics and figures to produce, and how much to log. Because the whole experiment lives in one file, it is saved with every run and can be reused to reproduce the results.
 
 The reference for everything that can be written in a configuration file is [`examples/default_classifier_config.toml`](https://github.com/Surgical-Recovery-and-Safety-Lab/medpipe/blob/main/examples/default_classifier_config.toml). This guide explains each section of that file and shows the matching snippet.
 

@@ -178,7 +178,7 @@ def read_classifier_toml_configuration(
     config_file: str | Path,
 ) -> MedpipeClassifierConfig:
     """
-    Reads a medpipe TOML configuration file.
+    Reads a MedPipe TOML configuration file.
 
     Parameters
     ----------
@@ -205,7 +205,7 @@ def read_regressor_toml_configuration(
     config_file: str | Path,
 ) -> MedpipeRegressorConfig:
     """
-    Reads a medpipe regression TOML configuration file.
+    Reads a MedPipe regression TOML configuration file.
 
     Parameters
     ----------

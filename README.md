@@ -1,4 +1,4 @@
-# Medpipe
+# MedPipe
 
 [![PyPI Version](https://img.shields.io/pypi/v/medpipe.svg)](https://pypi.org/project/medpipe/)
 [![PyPI Python Versions](https://img.shields.io/pypi/pyversions/medpipe.svg)](https://pypi.org/project/medpipe/)
@@ -14,12 +14,12 @@
 5. [Acknowledgements](#acknowledgements)
 
 ## Overview
-The **medpipe** package is a layer to help create AI models (classifiers and regressors) for clinical applications from tabular data. It covers data loading and preprocessing, model creation and training, recalibration, and visualisation. 
+The **MedPipe** package is a layer to help create AI models (classifiers and regressors) for clinical applications from tabular data. It covers data loading and preprocessing, model creation and training, recalibration, and visualisation. 
 ___
 
 ## Installation
 
-To install **medpipe** use pip:
+To install **MedPipe** use pip:
 ```
 $ pip install medpipe
 ```

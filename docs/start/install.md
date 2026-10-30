@@ -1,6 +1,6 @@
 # Installation
 
-**medpipe** requires Python 3.12 or later.
+**MedPipe** requires Python 3.12 or later.
 
 ## Standard installation
 
@@ -18,7 +18,7 @@ python -c "import medpipe; print(medpipe.__version__)"
 
 ## Installing from source (developer setup)
 
-To set up a local development environment and contribute to **medpipe**, clone the GitHub repository:
+To set up a local development environment and contribute to **MedPipe**, clone the GitHub repository:
 
 ```bash
 git clone git@github.com:Surgical-Recovery-and-Safety-Lab/medpipe.git

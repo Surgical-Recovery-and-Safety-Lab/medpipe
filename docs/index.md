@@ -1,9 +1,9 @@
-# Welcome to Medpipe
+# Welcome to MedPipe
 **Configuration-driven, TRIPOD+AI compliant ML pipelines for tabular clinical data.**
 
-**medpipe** is a Python framework designed to streamline and standardize clinical machine learning workflows on tabular data.
+**MedPipe** is a Python framework designed to streamline and standardize clinical machine learning workflows on tabular data.
 Built around `scikit-learn` and TRIPOD+AI reporting guidelines, it transforms complex clinical modeling into reproducible, TOML-configured pipelines.
-By automatically logging execution details and persisting models, environment metadata, and evaluation metrics into a standardized artifact hierarchy, **medpipe** ensures full transparency and reproducibility from initial experimentation to publication.
+By automatically logging execution details and persisting models, environment metadata, and evaluation metrics into a standardized artifact hierarchy, **MedPipe** ensures full transparency and reproducibility from initial experimentation to publication.
 
 ---
 
