@@ -116,9 +116,7 @@ class BaseEvaluator:
 
         self.metrics = eval_config.metrics.metrics
 
-    def _get_model(
-        self, model: Any | None = None, outcome: str | None = None
-    ) -> Any:
+    def _get_model(self, model: Any | None = None, outcome: str | None = None) -> Any:
         """
         Resolve estimator model from argument, outcome key, or fitted dictionary.
 
@@ -196,7 +194,7 @@ class BaseEvaluator:
         X: pd.DataFrame | npt.NDArray,
         target_model: Any,
         metrics: list[str],
-    ) -> npt.NDArray:
+    ) -> npt.NDArray | PredictionBundle:
         """
         Retrieve the model predictions used to compute the requested metrics.
 
@@ -299,7 +297,7 @@ class BaseEvaluator:
     def _evaluate_slice(
         self,
         y_true: npt.NDArray,
-        y_pred: npt.NDArray,
+        y_pred: npt.NDArray | PredictionBundle,
         metrics: list[str],
     ) -> dict[str, dict[str, float]]:
         """
@@ -323,6 +321,10 @@ class BaseEvaluator:
             - `"ci_upper"`: Upper bound of the bootstrap confidence interval.
 
         """
+        if self.n_bootstraps == 0:
+            # No bootstrap requested: report point estimates only
+            return self._point_estimates(metrics, y_true, y_pred)
+
         try:
             return bootstrap_confidence_intervals(
                 metrics=metrics,
@@ -339,25 +341,53 @@ class BaseEvaluator:
                 "Falling back to point estimates.",
                 err,
             )
-            try:
-                point_scores = compute_metrics(metrics, y_true, y_pred)
-                return {
-                    metric: {
-                        "point_estimate": float(score),
-                        "ci_lower": np.nan,
-                        "ci_upper": np.nan,
-                    }
-                    for metric, score in zip(metrics, point_scores, strict=True)
+            return self._point_estimates(metrics, y_true, y_pred)
+
+    @staticmethod
+    def _point_estimates(
+        metrics: list[str],
+        y_true: npt.NDArray,
+        y_pred: npt.NDArray | PredictionBundle,
+    ) -> dict[str, dict[str, float]]:
+        """
+        Compute the metrics on a slice of data without confidence intervals.
+
+        Parameters
+        ----------
+        y_true : numpy.ndarray
+            Ground truth target array for the data slice.
+        y_pred : numpy.ndarray
+            Predicted probabilities or scores for the data slice.
+        metrics : list of str
+            List of metric names to evaluate.
+
+        Returns
+        -------
+        scores : dict of str to dict of str to float
+            Nested dictionary mapping metric names to dictionaries with the
+            `"point_estimate"` and NaN `"ci_lower"` and `"ci_upper"` bounds.
+            The point estimate is NaN if the metrics cannot be computed.
+
+        """
+        try:
+            point_scores = compute_metrics(metrics, y_true, y_pred)
+            return {
+                metric: {
+                    "point_estimate": float(score),
+                    "ci_lower": np.nan,
+                    "ci_upper": np.nan,
                 }
-            except Exception:
-                return {
-                    metric: {
-                        "point_estimate": np.nan,
-                        "ci_lower": np.nan,
-                        "ci_upper": np.nan,
-                    }
-                    for metric in metrics
+                for metric, score in zip(metrics, point_scores, strict=True)
+            }
+        except Exception:
+            return {
+                metric: {
+                    "point_estimate": np.nan,
+                    "ci_lower": np.nan,
+                    "ci_upper": np.nan,
                 }
+                for metric in metrics
+            }
 
     def _evaluate_stratum(
         self,
@@ -367,7 +397,6 @@ class BaseEvaluator:
         X: pd.DataFrame,
         y_arr: npt.NDArray,
         y_pred: npt.NDArray | PredictionBundle,
-        target_model: Any,
         eval_metrics: list[str],
         outcome: str | None,
     ) -> tuple[str, str, dict[str, dict[str, float]] | None]:
@@ -391,9 +420,6 @@ class BaseEvaluator:
             Full ground truth target array aligned with `X`.
         y_pred : numpy.ndarray or PredictionBundle
             Full model predictions aligned with `X`.
-        target_model : object
-            Fitted estimator, used to recompute distributional predictions
-            for this stratum when `y_pred` is a `PredictionBundle`.
         eval_metrics : list of str
             List of metric names to evaluate.
         outcome : str, optional
@@ -419,17 +445,10 @@ class BaseEvaluator:
         pos_idx = X.index.get_indexer(indices)
         y_sub = y_arr[pos_idx]
 
+        y_pred_sub: npt.NDArray | PredictionBundle
         if isinstance(y_pred, PredictionBundle):
             point_sub = y_pred.point[pos_idx] if y_pred.point is not None else None
-            dist_sub = None
-            if y_pred.dist is not None:
-                # Not every distributional prediction object supports
-                # index-based subsetting (e.g. OrdBoost's
-                # ContinuousPredictiveDistribution does not), so recompute
-                # the distribution for this stratum's rows directly rather
-                # than slicing y_pred.dist.
-                X_sub = X.iloc[pos_idx]
-                dist_sub = target_model.predict_dist(X_sub)
+            dist_sub = y_pred.dist[pos_idx] if y_pred.dist is not None else None
             y_pred_sub = PredictionBundle(point=point_sub, dist=dist_sub)
         else:
             y_pred_sub = y_pred[pos_idx]
@@ -510,12 +529,19 @@ class BaseEvaluator:
         y_pred = self._get_predictions(X, target_model, eval_metrics)
 
         # 1. Compute overall evaluation with confidence intervals
-        self.logger.info(
-            "[%s] Computing overall metrics with %d bootstrap iterations (CI=%.2f).",
-            outcome_name,
-            self.n_bootstraps,
-            self.ci_level,
-        )
+        if self.n_bootstraps == 0:
+            self.logger.info(
+                "[%s] Computing overall metrics without confidence intervals.",
+                outcome_name,
+            )
+        else:
+            self.logger.info(
+                "[%s] Computing overall metrics with %d bootstrap iterations "
+                "(CI=%.2f).",
+                outcome_name,
+                self.n_bootstraps,
+                self.ci_level,
+            )
         results: dict[str, Any] = {
             "outcome": outcome_name,
             "overall": self._evaluate_slice(y_arr, y_pred, eval_metrics),
@@ -548,7 +574,6 @@ class BaseEvaluator:
                     X,
                     y_arr,
                     y_pred,
-                    target_model,
                     eval_metrics,
                     outcome,
                 )

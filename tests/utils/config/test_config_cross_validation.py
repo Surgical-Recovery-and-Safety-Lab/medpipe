@@ -53,13 +53,14 @@ class TestCrossValConfig:
         "strategy, group_column",
         [
             ("group", "DHB_NAME"),
+            ("loso", "DHB_NAME"),
             ("random", "DHB_NAME"),
             ("random", None),
         ],
     )
     def test_valid_config_group(
         self,
-        strategy: Literal["group", "random"],
+        strategy: Literal["group", "loso", "random"],
         group_column: str | None,
     ) -> None:
         """Pass valid configuration from _get_valid_group_config_dict
@@ -73,11 +74,13 @@ class TestCrossValConfig:
         assert config.model_dump() == raw_config
 
     def test_default_values(self) -> None:
-        """Test that optional fields default to None when only strategy is given."""
-        config = CrossValConfig.model_validate({"strategy": "random"})
+        """Test that optional fields default to None when only the loso
+        strategy and its group column are given."""
+        config = CrossValConfig.model_validate(
+            {"strategy": "loso", "group_column": "OP_YEAR"}
+        )
 
         assert config.grid_search is None
-        assert config.group_column is None
         assert config.n_splits is None
         assert config.shuffle is None
 
@@ -89,7 +92,7 @@ class TestCrossValConfig:
     def test_invalid_strategy(self) -> None:
         """Test that an invalid strategy literal raises a ValidationError."""
         with pytest.raises(
-            ValidationError, match="Input should be 'random' or 'group'"
+            ValidationError, match="Input should be 'random', 'group' or 'loso'"
         ):
             CrossValConfig.model_validate(
                 self._get_valid_random_config_dict(strategy="unsupported")
@@ -110,16 +113,35 @@ class TestCrossValConfig:
         ):
             CrossValConfig.model_validate(config_dict)
 
-    def test_group_stragey_interactions(self) -> None:
-        """Tests interactions between group stragey flag and
+    @pytest.mark.parametrize("strategy", ["group", "loso"])
+    def test_group_strategy_interactions(self, strategy: str) -> None:
+        """Tests interactions between the group-based strategy flags and
         other parameters."""
         with pytest.raises(
             ValidationError,
-            match="The group strategy requires a group column to be specified",
+            match=f"The {strategy} strategy requires a group column to be specified",
         ):
             CrossValConfig.model_validate(
-                self._get_valid_group_config_dict(group_column=None)
+                self._get_valid_group_config_dict(strategy=strategy, group_column=None)
             )
+
+    @pytest.mark.parametrize("strategy", ["random", "group"])
+    def test_n_splits_required(self, strategy: str) -> None:
+        """Test that the random and group strategies require n_splits."""
+        raw_config = {"strategy": strategy, "group_column": "OP_YEAR"}
+
+        with pytest.raises(ValidationError, match="requires the number of splits"):
+            CrossValConfig.model_validate(raw_config)
+
+    def test_loso_does_not_require_n_splits(self) -> None:
+        """Test that the loso strategy is valid without n_splits, since it
+        has one fold per group."""
+        config = CrossValConfig.model_validate(
+            {"strategy": "loso", "group_column": "DHB_NAME"}
+        )
+
+        assert config.strategy == "loso"
+        assert config.n_splits is None
 
     def test_extra_fields_forbidden(self) -> None:
         """Test that extra fields at the cross validation config level are

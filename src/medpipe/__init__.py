@@ -1,5 +1,5 @@
 """
-Medpipe: A Python framework for clinical machine learning pipeline
+MedPipe: A Python framework for clinical machine learning pipeline
 orchestration.
 
 Provides unified high-level interfaces for data preparation, model fitting,
@@ -19,7 +19,7 @@ from medpipe.pipeline import (
 )
 from medpipe.utils import MedpipeClassifierConfig, MedpipeRegressorConfig
 
-__version__ = "0.4.0.dev2"
+__version__ = "0.4.0"
 
 __all__ = [  # noqa: RUF022 (grouped by category, not alphabetical)
     # Primary API Entry Points

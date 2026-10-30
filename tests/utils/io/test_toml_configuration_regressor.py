@@ -45,6 +45,25 @@ def minimal_config_file(tmp_path: Path) -> Path:
 class TestReadRegressorTOMLConfiguration:
     """Test class for the read_regressor_toml_configuration function."""
 
+    def test_read_configuration_example_file(self) -> None:
+        """Integration smoke test against the repository's example config,
+        which exercises far more of MedpipeRegressorConfig's schema than a minimal
+        fixture would."""
+        base_dir = Path(__file__).parent.parent.parent.parent
+
+        config = read_regressor_toml_configuration(
+            base_dir / "examples" / "default_regressor_config.toml"
+        )
+
+        assert isinstance(config, MedpipeRegressorConfig)
+        assert config.meta.project_name == "medpipe_regressor_demo"
+        assert config.data.outcomes == ["LOS_DAYS", "BLOOD_LOSS_ML"]
+        # The override keeps the default algorithm and merges the hyperparameters
+        blood_loss = config.resolved_models["BLOOD_LOSS_ML"]
+        assert blood_loss.algorithm == "OrdBoostRegressor"
+        assert blood_loss.hyperparameters["n_bins"] == 20
+        assert blood_loss.hyperparameters["max_iter"] == 50
+
     def test_read_configuration_returns_medpipe_regressor_config(
         self, minimal_config_file: Path
     ) -> None:
@@ -104,7 +123,7 @@ class TestReadRegressorTOMLConfiguration:
         MedpipeRegressorConfig's schema surfaces a pydantic ValidationError."""
         invalid_file = tmp_path / "invalid.toml"
         # Missing every required field.
-        invalid_file.write_text("[meta]\nproject_name = \"only_meta\"\n")
+        invalid_file.write_text('[meta]\nproject_name = "only_meta"\n')
 
         with pytest.raises(ValidationError):
             read_regressor_toml_configuration(invalid_file)

@@ -12,7 +12,11 @@ from typing import TYPE_CHECKING
 import numpy as np
 import scores.probability as scores_probability
 import xarray as xr
-from joblib import Parallel, delayed
+from ordboost.distributions import (
+    ContinuousPredictiveDistribution,
+    PredictiveDistribution,
+)
+from pysplinecalib import SplineCalib
 from sklearn.metrics import (
     accuracy_score,
     average_precision_score,
@@ -25,13 +29,11 @@ from sklearn.metrics import (
     roc_auc_score,
     root_mean_squared_error,
 )
-from splinecalib import SplineCalib
 
 from medpipe.metrics.registry import MetricRegistry, MetricSpec
+from medpipe.utils.bootstrap import draw_bootstrap_indices, run_bootstraps
 
 if TYPE_CHECKING:
-    from typing import Any
-
     import numpy.typing as npt
 
 # ------------------------------------------------------------------------------
@@ -39,12 +41,12 @@ if TYPE_CHECKING:
 # ------------------------------------------------------------------------------
 
 # Grid resolution and tail coverage used to build the CDF threshold grid that
-# `crps_score` integrates over. Both NGBoost's and OrdBoost's distribution
-# objects implement `.ppf(q)`/`.cdf(x)` for a scalar argument, returning an
-# (n_samples,) array, regardless of the distribution family/library that
-# produced them (e.g. NGBoost's parametric Normal, OrdBoost's non-parametric
-# binned distribution) - so this grid-based approach works uniformly across
-# libraries without special-casing any specific distribution type.
+# `crps_score` integrates over for generic distribution objects. NGBoost's
+# distribution objects implement `.ppf(q)`/`.cdf(x)` for a scalar argument,
+# returning an (n_samples,) array, regardless of the distribution family - so
+# this grid-based approach works without special-casing any specific
+# distribution type. OrdBoost's `ContinuousPredictiveDistribution` bypasses
+# the grid, since it already stores its piecewise-linear CDF.
 _CRPS_THRESHOLD_GRID_SIZE = 200
 _CRPS_EXTREME_QUANTILES = (0.001, 0.999)
 
@@ -66,15 +68,45 @@ class PredictionBundle:
         Flat point predictions (or probabilities/decision scores for
         classification), used by every metric except `predict_dist`-based
         ones.
-    dist : Any or None, default=None
+    dist : PredictiveDistribution or None, default=None
         A full predictive distribution object (e.g. returned by
         `DistributionalPipeline.predict_dist`), used only by
-        `predict_dist`-based metrics such as crps.
+        `predict_dist`-based metrics such as crps. Duck-typed objects exposing
+        scipy-style `.ppf(q)` and `.cdf(x)` (e.g. NGBoost's) are also
+        accepted at runtime by the crps metric.
 
     """
 
     point: npt.NDArray | None = None
-    dist: Any | None = None
+    dist: PredictiveDistribution | None = None
+
+
+def _check_dist_length(y: npt.NDArray, dist: PredictiveDistribution | None) -> None:
+    """Raise a clear error if `dist` and `y` hold different numbers of samples.
+
+    Duck-typed distributions without `__len__` (e.g. a frozen scipy
+    distribution) cannot be checked and are let through.
+
+    Parameters
+    ----------
+    y : npt.NDArray
+        Ground truth target values of shape (n_samples,).
+    dist : PredictiveDistribution or None
+        Predictive distribution for the same samples, if any.
+
+    Raises
+    ------
+    ValueError
+        If `dist` reports a sample count different from `len(y)`.
+
+    """
+    if dist is None or not hasattr(dist, "__len__"):
+        return
+    if len(dist) != len(y):
+        raise ValueError(
+            f"Sample count mismatch: y has {len(y)} samples, but the predictive "
+            f"distribution has {len(dist)}."
+        )
 
 
 def ici_score(y: npt.NDArray, y_pred: npt.NDArray, cv_splines: int = 3) -> float:
@@ -93,11 +125,23 @@ def ici_score(y: npt.NDArray, y_pred: npt.NDArray, cv_splines: int = 3) -> float
         confidence interval) at the cost of a coarser regularization
         search; `SplineCalib`'s own default is 5.
 
+    Returns
+    -------
+    float
+        The integrated calibration index, the mean absolute difference
+        between the predicted probabilities and their spline-smoothed
+        values (lower is better).
+
+    Raises
+    ------
+    ValueError
+        If the spline calibration fails to produce predictions.
+
     """
     if y_pred.ndim == 2:
         y_pred = y_pred[:, 1]
 
-    spline = SplineCalib(logodds_scale=True, cv_spline=cv_splines)
+    spline = SplineCalib(cv_spline=cv_splines)
     spline.fit(y_pred, y)
     smoothed_outputs = spline.predict(y_pred)
 
@@ -107,20 +151,21 @@ def ici_score(y: npt.NDArray, y_pred: npt.NDArray, cv_splines: int = 3) -> float
         raise ValueError("Error predicting probabilities with spline")
 
 
-def _crps_values(y: npt.NDArray, dist: Any) -> npt.NDArray:
+def _crps_values(y: npt.NDArray, dist: PredictiveDistribution) -> npt.NDArray:
     """Computes the per-sample Continuous Ranked Probability Score (CRPS)
     for a predictive distribution, via `scores.probability.crps_cdf`'s exact
     piecewise-linear integration over a shared CDF threshold grid.
 
-    Works with any distribution object exposing scipy-style `.ppf(q)` and
-    `.cdf(x)` methods for a scalar argument (e.g. NGBoost's or OrdBoost's
-    distribution objects), regardless of the underlying distribution family.
+    OrdBoost's `ContinuousPredictiveDistribution` is integrated exactly over
+    its own stored CDF grid. Any other distribution object exposing
+    scipy-style `.ppf(q)` and `.cdf(x)` methods for a scalar argument (e.g.
+    NGBoost's) is integrated over a shared threshold grid instead.
 
     Parameters
     ----------
     y : npt.NDArray
         Ground truth continuous target values of shape (n_samples,).
-    dist : Any
+    dist : PredictiveDistribution
         A predictive distribution object exposing `.ppf(q)` and `.cdf(x)`.
 
     Returns
@@ -130,6 +175,19 @@ def _crps_values(y: npt.NDArray, dist: Any) -> npt.NDArray:
 
     """
     y_arr = np.asarray(y)
+
+    if isinstance(dist, ContinuousPredictiveDistribution):
+        fcst = xr.DataArray(
+            dist.grid_cdf,
+            dims=["sample", "threshold"],
+            coords={"threshold": dist.grid_y},
+        )
+        obs = xr.DataArray(y_arr.astype(float), dims=["sample"])
+        result = scores_probability.crps_cdf(
+            fcst, obs, threshold_dim="threshold", preserve_dims=["sample"]
+        )
+        return np.asarray(result["total"].values)
+
     low_q, high_q = _CRPS_EXTREME_QUANTILES
 
     lower = float(min(np.min(dist.ppf(low_q)), np.min(y_arr)))
@@ -153,7 +211,7 @@ def _crps_values(y: npt.NDArray, dist: Any) -> npt.NDArray:
     return np.asarray(result["total"].values)
 
 
-def crps_score(y: npt.NDArray, dist: Any) -> float:
+def crps_score(y: npt.NDArray, dist: PredictiveDistribution) -> float:
     """Computes the mean Continuous Ranked Probability Score (CRPS) for a
     predictive distribution. See `_crps_values` for the per-sample
     computation.
@@ -162,7 +220,7 @@ def crps_score(y: npt.NDArray, dist: Any) -> float:
     ----------
     y : npt.NDArray
         Ground truth continuous target values of shape (n_samples,).
-    dist : Any
+    dist : PredictiveDistribution
         A predictive distribution object exposing `.ppf(q)` and `.cdf(x)`.
 
     Returns
@@ -325,6 +383,7 @@ def compute_metrics(
         If there is only one class for AUROC and AP calculations.
         If a `predict_dist`-based metric is requested but no distribution
         is available.
+        If the distribution and y have different numbers of samples.
 
     """
     if not isinstance(metrics, (list, np.ndarray)):
@@ -353,6 +412,8 @@ def compute_metrics(
         point = y_pred[:, 1] if y_pred.ndim == 2 else y_pred
         bundle = PredictionBundle(point=point, dist=None)
 
+    _check_dist_length(y, bundle.dist)
+
     scores = np.zeros(len(metrics))
 
     for i, metric_name in enumerate(metrics):
@@ -366,6 +427,11 @@ def compute_metrics(
                     "compute_metrics(); pass a PredictionBundle with `dist` set."
                 )
             scores[i] = float(spec.func(y, bundle.dist))
+        elif bundle.point is None:
+            raise ValueError(
+                f"'{metric_name}' requires point predictions, but the "
+                "PredictionBundle has `point=None`."
+            )
         elif spec.needs_threshold:
             scores[i] = float(spec.func(y, np.round(bundle.point)))
         else:
@@ -431,8 +497,43 @@ def _bootstrap_flat_metrics(
     rng: np.random.Generator,
     n_jobs: int | None = 1,
 ) -> dict[str, dict[str, float]]:
-    """Bootstrap CIs for flat-array metrics by resampling (y, y_pred) pairs
-    and recomputing each metric per resample. See `bootstrap_confidence_intervals`.
+    """Bootstrap confidence intervals for flat-array metrics.
+
+    Resamples (y, y_pred) pairs with replacement and recomputes each metric
+    per resample. See `bootstrap_confidence_intervals`.
+
+    Parameters
+    ----------
+    metrics : list[str]
+        Metric identifier keys registered in `MetricRegistry`.
+    y_true_arr : npt.NDArray
+        Ground truth binary target labels of shape (n_samples,).
+    y_pred_arr : npt.NDArray
+        Predicted probabilities or decision values of shape (n_samples,).
+    n_bootstraps : int
+        Number of bootstrap resampling iterations.
+    lower_percentile : float
+        Lower percentile (in [0, 100]) of the bootstrap distribution used as
+        the lower confidence bound.
+    upper_percentile : float
+        Upper percentile (in [0, 100]) of the bootstrap distribution used as
+        the upper confidence bound.
+    rng : np.random.Generator
+        Random generator used to draw the resample indices.
+    n_jobs : int or None, default=1
+        Number of parallel jobs used to compute the per-resample metrics.
+
+    Returns
+    -------
+    dict[str, dict[str, float]]
+        Dictionary mapping each metric key to a dictionary with the keys
+        ``"point_estimate"``, ``"ci_lower"`` and ``"ci_upper"``.
+
+    Raises
+    ------
+    ValueError
+        If all bootstrap iterations fail to compute valid metrics.
+
     """
     n_samples = len(y_true_arr)
 
@@ -442,21 +543,21 @@ def _bootstrap_flat_metrics(
     # sequence (and thus reproducibility for a given rng state) is
     # unaffected by dispatching the per-resample metric computation below
     # to parallel workers.
-    boot_indices = [
-        rng.integers(0, n_samples, size=n_samples) for _ in range(n_bootstraps)
-    ]
+    boot_indices = draw_bootstrap_indices(rng, n_samples, n_bootstraps)
 
     # Process-based (the joblib default): metrics like `ici` fit a fresh
     # SplineCalib per resample via scipy's L-BFGS-B, which spends its time
     # in a Python-level optimizer loop holding the GIL, so a threading
     # backend would add contention instead of speedup here.
-    results = Parallel(n_jobs=n_jobs)(
-        delayed(_flat_metric_bootstrap_iteration)(
-            boot_idx, metrics, y_true_arr, y_pred_arr
-        )
-        for boot_idx in boot_indices
+    bootstrapped_scores = run_bootstraps(
+        _flat_metric_bootstrap_iteration,
+        boot_indices,
+        metrics,
+        y_true_arr,
+        y_pred_arr,
+        n_jobs=n_jobs,
+        backend="loky",
     )
-    bootstrapped_scores = [scores for scores in results if scores is not None]
 
     if not bootstrapped_scores:
         raise ValueError(
@@ -478,51 +579,152 @@ def _bootstrap_flat_metrics(
     }
 
 
+def _dist_metric_bootstrap_iteration(
+    boot_idx: npt.NDArray,
+    funcs: list[Callable],
+    y_true_arr: npt.NDArray,
+    dist: PredictiveDistribution,
+) -> npt.NDArray:
+    """Compute predict_dist-based metrics for one resampled (y, dist) pair set.
+
+    Isolated to a module-level function so each resample can be dispatched to
+    a `joblib.Parallel` worker independently of the others.
+
+    Parameters
+    ----------
+    boot_idx : npt.NDArray
+        Bootstrap resample indices (with replacement) into `y_true_arr` and
+        the rows of `dist`.
+    funcs : list of Callable
+        Metric functions `(y, dist) -> float`. Passed directly rather than
+        looked up by name, since a worker process may not have the parent's
+        custom registrations.
+    y_true_arr : npt.NDArray
+        Full ground truth target values.
+    dist : PredictiveDistribution
+        Full predictive distribution, row-indexed by `boot_idx`.
+
+    Returns
+    -------
+    npt.NDArray
+        Score array of shape (n_funcs,) for this resample.
+
+    """
+    y_boot = y_true_arr[boot_idx]
+    dist_boot = dist[boot_idx]
+    return np.array([float(func(y_boot, dist_boot)) for func in funcs])
+
+
 def _bootstrap_distributional_metrics(
     metrics: list[str],
     y_true_arr: npt.NDArray,
-    dist: Any,
+    dist: PredictiveDistribution,
     n_bootstraps: int,
     lower_percentile: float,
     upper_percentile: float,
     rng: np.random.Generator,
+    n_jobs: int | None = 1,
 ) -> dict[str, dict[str, float]]:
-    """Bootstrap CIs for predict_dist-based metrics (e.g. crps) by resampling
-    their precomputed per-sample values, rather than resampling and
-    re-slicing the distribution object itself.
+    """Bootstrap confidence intervals for predict_dist-based metrics.
 
-    Not every distributional prediction object supports fancy indexing
-    (e.g. OrdBoost's `ContinuousPredictiveDistribution` does not, unlike
-    NGBoost's scipy-backed distributions) - computing the per-sample metric
-    once and bootstrapping those scalar values is mathematically equivalent
-    to resampling the raw (y, dist) pairs and recomputing the mean each time
-    (since these metrics are themselves plain means of a per-sample score),
-    and works uniformly regardless of that.
+    Metrics that define a `per_sample_func` (e.g. crps) are bootstrapped by
+    resampling their precomputed per-sample values. Computing the per-sample
+    metric once is mathematically equivalent to resampling the raw
+    (y, dist) pairs and recomputing the mean each time (since these metrics
+    are themselves plain means of a per-sample score), and avoids
+    re-evaluating the distribution for every resample.
+
+    Any other metric falls back to resampling the (y, dist) pairs directly:
+    each resample row-indexes the distribution (``dist[boot_idx]``) and
+    re-evaluates the metric on it. This is exact for any metric, but slower,
+    and needs a distribution supporting row indexing.
+
+    Both kinds share the same resample indices.
+
+    Parameters
+    ----------
+    metrics : list[str]
+        Metric identifier keys registered in `MetricRegistry`.
+    y_true_arr : npt.NDArray
+        Ground truth target values of shape (n_samples,).
+    dist : PredictiveDistribution
+        Predictive distribution for the same samples.
+    n_bootstraps : int
+        Number of bootstrap resampling iterations.
+    lower_percentile : float
+        Lower percentile (in [0, 100]) of the bootstrap distribution used as
+        the lower confidence bound.
+    upper_percentile : float
+        Upper percentile (in [0, 100]) of the bootstrap distribution used as
+        the upper confidence bound.
+    rng : np.random.Generator
+        Random generator used to draw the resample indices.
+    n_jobs : int or None, default=1
+        Number of parallel jobs used for the pair-resampling fallback. Not
+        used for metrics with a `per_sample_func`.
+
+    Returns
+    -------
+    dict[str, dict[str, float]]
+        Dictionary mapping each metric key to a dictionary with the keys
+        ``"point_estimate"``, ``"ci_lower"`` and ``"ci_upper"``.
+
+    Raises
+    ------
+    ValueError
+        If a metric has no `per_sample_func` and `dist` does not support row
+        indexing.
 
     """
     n_samples = len(y_true_arr)
 
-    per_sample_map: dict[str, npt.NDArray] = {}
-    for metric_name in metrics:
-        spec = MetricRegistry.get(metric_name)
-        if spec.per_sample_func is None:
-            raise ValueError(
-                f"'{metric_name}' does not define a per_sample_func and "
-                "cannot be bootstrapped."
-            )
-        per_sample_map[metric_name] = np.asarray(spec.per_sample_func(y_true_arr, dist))
+    specs = {m: MetricRegistry.get(m) for m in metrics}
+    fast_metrics = [m for m in metrics if specs[m].per_sample_func is not None]
+    fallback_metrics = [m for m in metrics if specs[m].per_sample_func is None]
 
-    boot_means = {m: np.empty(n_bootstraps) for m in metrics}
-    for b in range(n_bootstraps):
-        boot_idx = rng.integers(0, n_samples, size=n_samples)
-        for metric_name in metrics:
-            boot_means[metric_name][b] = np.mean(per_sample_map[metric_name][boot_idx])
+    if fallback_metrics and not hasattr(dist, "__getitem__"):
+        raise ValueError(
+            f"{fallback_metrics} do not define a per_sample_func, so they are "
+            "bootstrapped by resampling (y, dist) pairs, which requires a "
+            "distribution supporting row indexing (`dist[idx]`)."
+        )
+
+    boot_indices = draw_bootstrap_indices(rng, n_samples, n_bootstraps)
+
+    points: dict[str, float] = {}
+    boot_scores: dict[str, npt.NDArray] = {}
+
+    for metric_name in fast_metrics:
+        per_sample_func = specs[metric_name].per_sample_func
+        assert per_sample_func is not None
+        per_sample = np.asarray(per_sample_func(y_true_arr, dist))
+        points[metric_name] = float(np.mean(per_sample))
+        boot_scores[metric_name] = per_sample[boot_indices].mean(axis=1)
+
+    if fallback_metrics:
+        results = run_bootstraps(
+            _dist_metric_bootstrap_iteration,
+            boot_indices,
+            [specs[m].func for m in fallback_metrics],
+            y_true_arr,
+            dist,
+            n_jobs=n_jobs,
+            backend="loky",
+        )
+        scores_matrix = np.array(results)
+        for col, metric_name in enumerate(fallback_metrics):
+            points[metric_name] = float(specs[metric_name].func(y_true_arr, dist))
+            boot_scores[metric_name] = scores_matrix[:, col]
 
     return {
         metric_name: {
-            "point_estimate": float(np.mean(per_sample_map[metric_name])),
-            "ci_lower": float(np.percentile(boot_means[metric_name], lower_percentile)),
-            "ci_upper": float(np.percentile(boot_means[metric_name], upper_percentile)),
+            "point_estimate": points[metric_name],
+            "ci_lower": float(
+                np.percentile(boot_scores[metric_name], lower_percentile)
+            ),
+            "ci_upper": float(
+                np.percentile(boot_scores[metric_name], upper_percentile)
+            ),
         }
         for metric_name in metrics
     }
@@ -537,8 +739,7 @@ def bootstrap_confidence_intervals(
     random_state: int | np.random.Generator | None = None,
     n_jobs: int | None = 1,
 ) -> dict[str, dict[str, float]]:
-    """
-    Compute non-parametric bootstrap confidence intervals for evaluation metrics.
+    """Compute non-parametric bootstrap confidence intervals for metrics.
 
     Resamples paired target labels and predictions with replacement, evaluating
     all specified metrics across bootstrap iterations. Edge cases where resamples
@@ -564,14 +765,16 @@ def bootstrap_confidence_intervals(
     random_state : int, np.random.Generator, or None, default=None
         Seed or random generator instance to ensure reproducible resampling.
     n_jobs : int or None, default=1
-        Number of parallel jobs used to compute flat-metric bootstrap
-        resamples (e.g. `ici`'s per-resample `SplineCalib` fits). Not used
-        for `predict_dist`-based metrics.
+        Number of parallel jobs used to compute the per-resample metrics
+        (e.g. `ici`'s per-resample `SplineCalib` fits, or the pair-resampling
+        fallback for `predict_dist`-based metrics without a
+        `per_sample_func`). Not used for metrics with a `per_sample_func`.
 
     Returns
     -------
     ci_results : dict[str, dict[str, float]]
         Dictionary mapping each metric key to a dictionary containing:
+
         - ``"point_estimate"``: Metric score computed on the original dataset.
         - ``"ci_lower"``: Lower confidence boundary.
         - ``"ci_upper"``: Upper confidence boundary.
@@ -580,8 +783,9 @@ def bootstrap_confidence_intervals(
     ------
     ValueError
         If ``ci_level`` is not strictly between 0.0 and 1.0, if all bootstrap
-        iterations fail due to severe class imbalance, or if a
-        `predict_dist`-based metric is requested without a distribution.
+        iterations fail due to severe class imbalance, if a
+        `predict_dist`-based metric is requested without a distribution, or
+        if the distribution and ``y_true`` have different numbers of samples.
 
     """
     if not (0.0 < ci_level < 1.0):
@@ -595,6 +799,8 @@ def bootstrap_confidence_intervals(
         y_pred_arr = np.asarray(y_pred)
         point = y_pred_arr[:, 1] if y_pred_arr.ndim == 2 else y_pred_arr.ravel()
         bundle = PredictionBundle(point=point, dist=None)
+
+    _check_dist_length(y_true_arr, bundle.dist)
 
     rng = (
         random_state
@@ -616,6 +822,11 @@ def bootstrap_confidence_intervals(
     ci_results: dict[str, dict[str, float]] = {}
 
     if flat_metrics:
+        if bundle.point is None:
+            raise ValueError(
+                "Point predictions are required for flat metrics, but the "
+                "PredictionBundle has `point=None`."
+            )
         ci_results.update(
             _bootstrap_flat_metrics(
                 flat_metrics,
@@ -644,6 +855,7 @@ def bootstrap_confidence_intervals(
                 lower_percentile,
                 upper_percentile,
                 rng,
+                n_jobs,
             )
         )
 

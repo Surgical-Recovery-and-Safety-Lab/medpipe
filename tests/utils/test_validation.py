@@ -26,7 +26,7 @@ class TestFileChecks:
     @pytest.mark.parametrize(
         "file_name, extension, exists",
         [
-            ("default_config.toml", ".toml", True),
+            ("default_classifier_config.toml", ".toml", True),
             ("not_a_file.csv", ".csv", False),
             (Path("data.parquet"), [".csv", ".parquet"], False),
         ],

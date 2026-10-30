@@ -1,10 +1,10 @@
 [meta]
-project_name = "medpipe_demo"
+project_name = "medpipe_regressor_demo"
 run_mode = "audit"
 verbose = 1
 
 [data]
-path = "/home/mroe734/Documents/srs/medpipe/tests/test_data.csv"
+path = "../tests/test_data.csv"
 predictors = [
   "AGE",
   "SEX",
@@ -14,41 +14,30 @@ predictors = [
   "CATEGORY_LEVEL_1",
   "OP_SEVERITY",
 ]
-outcomes = ["MORTALITY_30D", "ANY_COMP"]
+outcomes = ["LOS_DAYS", "BLOOD_LOSS_ML"]
 
 # ------------------------------------------------------------------------------
 # DEFAULT MODEL SETUP
+# A regression model has no recalibration.
 # ------------------------------------------------------------------------------
 [default_model]
-algorithm = "HistGradientBoostingClassifier"
+algorithm = "OrdBoostRegressor"
 
 [default_model.hyperparameters]
+n_bins = 10
+mapper = "quantile"
 learning_rate = 0.1
-loss = "log_loss"
-max_features = 0.2
-
-[default_model.recalibration]
-recalibrate = true
-method = "isotonic"
-
-[default_model.recalibration.hyperparameters]
-y_min = 0.0
-y_max = 1.0
-out_of_bounds = "clip"
+max_iter = 50
+random_state = 42
 
 # ------------------------------------------------------------------------------
 # OUTCOME OVERRIDES
 # ------------------------------------------------------------------------------
-[outcome_overrides.ANY_COMP]
-algorithm = "GradientBoostingClassifier"
-
-[outcome_overrides.ANY_COMP.hyperparameters]
+# The algorithm is not repeated, so the hyperparameters below are merged into
+# the default ones. The list is searched since grid_search is true.
+[outcome_overrides.BLOOD_LOSS_ML.hyperparameters]
 learning_rate = [0.1, 0.05]
-max_depth = 10
-
-# Override the recalibration method and its specific hyperparameters for ANY_COMP
-[outcome_overrides.ANY_COMP.recalibration]
-recalibrate = false
+n_bins = 20
 
 # ------------------------------------------------------------------------------
 # WORKFLOW
@@ -60,12 +49,7 @@ n_jobs = 2
 [workflow.preprocessing]
 preprocess = true
 operations = [
-  { name = "OrdinalEncoder", columns = [
-    "SEX",
-    "ADMISSION_ACUITY",
-    "ADMISSION_SOURCE",
-    "CATEGORY_LEVEL_1"
-  ] },
+  { name = "OrdinalEncoder", columns = ["SEX", "ADMISSION_ACUITY", "ADMISSION_SOURCE", "CATEGORY_LEVEL_1"] },
   { name = "StandardScaler", columns = ["CATEGORY_LEVEL_1", "AGE"], with_mean = true },
 ]
 
@@ -74,10 +58,7 @@ strategy = "group"
 group_column = "OP_YEAR"
 values = [2024]
 
-[workflow.validation.recalibration_split]
-strategy = "group"
-group_column = "OP_YEAR"
-values = [2023]
+# A recalibration_split is accepted but not used for regression, so it is left out.
 
 [workflow.validation.cross_validation]
 strategy = "group"
@@ -86,8 +67,9 @@ group_column = "DHB_NAME"
 n_splits = 3
 shuffle = true
 
+# crps needs a model that predicts a distribution, such as OrdBoostRegressor.
 [workflow.evaluation.metrics]
-metrics = ["roc_auc", "log_loss"]
+metrics = ["rmse", "mae", "crps"]
 n_bootstraps = 50
 ci_level = 0.95
 
@@ -97,29 +79,31 @@ groups = { "AGE" = [[18, 50], [51, 120]] }
 
 # ------------------------------------------------------------------------------
 # DISPLAY
+# The figures other than the heatmaps need a model that predicts a distribution
+# through OrdBoost.
 # ------------------------------------------------------------------------------
 [display.defaults]
 n_bootstraps = 1000
 save = true
 show = false
-n_bins = 10  # For calibration / reliability plots
-dist_n_bins = 25  # For distribution plots
-dist_yscale = "log"  # For distribution plots
-strategy = "uniform"
+dist_n_bins = 25  # For the distribution of the target values
+dist_yscale = "log"  # For the distribution of the target values
+coverage_levels = [10, 30, 50, 70, 90, 95]  # For coverage, sharpness, and Winkler
+pit_n_bins = 20  # For the PIT histogram
 
 # Global Plot-Type Overrides
-[display.overrides.calibration]  # Applies to all calibration / reliability plots
-n_bootstraps = 10
-n_bins = 10
-
-[display.overrides.distribution]
-dist_n_bins = 25
-dist_yscale = "linear"
-
-[display.overrides.roc]
+[display.overrides.coverage]
 n_bootstraps = 500
 
+[display.overrides.distribution]
+dist_yscale = "linear"
+
 # Outcome-Specific Plot Overrides
-[display.outcome_overrides.ANY_COMP.reliability]
-n_bootstraps = 50
-strategy = "quantile"
+[display.outcome_overrides.BLOOD_LOSS_ML.pit]
+pit_n_bins = 10
+
+[display.theme]
+primary_color = "#2D90D8"
+dpi = 300
+font_family = "sans-serif"
+show_grid = false

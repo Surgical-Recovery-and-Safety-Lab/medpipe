@@ -11,10 +11,8 @@ class BaseRegistry[T]:
     leaks between subclasses even if they don't redeclare either
     attribute themselves.
 
-    Parameters
-    ----------
-    T
-        The type of item stored in the registry (e.g., instances or class types).
+    The registry is generic over ``T``, the type of item stored in it
+    (e.g., instances or class types).
 
     """
 

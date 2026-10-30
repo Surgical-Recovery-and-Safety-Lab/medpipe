@@ -156,9 +156,5 @@ class TestAddFileHandler:
         add_file_handler(sub_logger, log_dir=tmp_path, filename="sub.log")
 
         root_logger = logging.getLogger("medpipe")
-        assert any(
-            isinstance(h, logging.FileHandler) for h in root_logger.handlers
-        )
-        assert not any(
-            isinstance(h, logging.FileHandler) for h in sub_logger.handlers
-        )
+        assert any(isinstance(h, logging.FileHandler) for h in root_logger.handlers)
+        assert not any(isinstance(h, logging.FileHandler) for h in sub_logger.handlers)

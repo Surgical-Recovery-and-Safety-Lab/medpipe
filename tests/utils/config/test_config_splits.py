@@ -191,12 +191,15 @@ class TestSplitRecalibrationConfig:
 
         assert config.model_dump() == raw_config
 
-    def test_valid_config_None(self) -> None:
-        """Test case when configuration is empty dictionary."""
-        config = SplitRecalibrationConfig.model_validate({})
+    def test_strategy_required(self) -> None:
+        """Test that strategy is a required field."""
+        with pytest.raises(ValidationError, match="Field required"):
+            SplitRecalibrationConfig.model_validate({})
 
-        for value in config.model_dump().values():
-            assert value is None
+    def test_strategy_none_rejected(self) -> None:
+        """Test that None is not a valid strategy."""
+        with pytest.raises(ValidationError, match="Input should be 'random' or"):
+            SplitRecalibrationConfig.model_validate({"strategy": None})
 
     @pytest.mark.parametrize(
         "recalibration_size, match_expr",

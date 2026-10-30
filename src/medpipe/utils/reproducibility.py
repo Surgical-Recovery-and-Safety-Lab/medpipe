@@ -198,9 +198,7 @@ class ArtifactManager:
         run_dir.mkdir(parents=True, exist_ok=True)
         return run_dir
 
-    def save_json(
-        self, obj: Any, destination_dir: str | Path, filename: str
-    ) -> Path:
+    def save_json(self, obj: Any, destination_dir: str | Path, filename: str) -> Path:
         """Saves object as a JSON file.
 
         The destination directory is created if it does not exist.

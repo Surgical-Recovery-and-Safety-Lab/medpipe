@@ -1,0 +1,47 @@
+name: deploy docs
+
+# Publishes the documentation to the gh-pages branch when a release is
+# published. Only releases of a commit that is on main are deployed.
+# To skip pre-releases, such as the dev versions, add
+# "if: ${{ !github.event.release.prerelease }}" to the job.
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+# Deployments run one after the other so that two releases cannot push to the
+# gh-pages branch at the same time
+concurrency:
+  group: docs-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name }}
+          fetch-depth: 0
+      - name: Check that the release is on main
+        run: |
+          git fetch origin main
+          if ! git merge-base --is-ancestor HEAD origin/main; then
+            echo "The commit of ${{ github.event.release.tag_name }} is not on main, so the documentation is not deployed."
+            exit 1
+          fi
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        run: pip install .[docs]
+      - name: Build the documentation
+        run: mkdocs build --strict
+      - name: Deploy the documentation
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          mkdocs gh-deploy --force --strict

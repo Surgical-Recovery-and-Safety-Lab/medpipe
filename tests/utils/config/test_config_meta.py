@@ -100,6 +100,4 @@ class TestMetaConfig:
     def test_extra_fields_forbidden(self) -> None:
         """Test that extra fields at the meta config level are strictly forbidden."""
         with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
-            MetaConfig.model_validate(
-                self._get_valid_config_dict(unexpected_flag=True)
-            )
+            MetaConfig.model_validate(self._get_valid_config_dict(unexpected_flag=True))

@@ -53,11 +53,11 @@ class TestReadClassifierTOMLConfiguration:
 
         example_config_dir = base_dir / "examples/"
         config = read_classifier_toml_configuration(
-            example_config_dir / "default_config.toml"
+            example_config_dir / "default_classifier_config.toml"
         )
 
         assert isinstance(config, MedpipeClassifierConfig)
-        assert config.meta.project_name == "medpipe_demo"
+        assert config.meta.project_name == "medpipe_classifier_demo"
 
     def test_read_configuration_returns_medpipe_config(
         self, minimal_config_file: Path
@@ -118,7 +118,7 @@ class TestReadClassifierTOMLConfiguration:
         schema surfaces a pydantic ValidationError."""
         invalid_file = tmp_path / "invalid.toml"
         # Missing every required field.
-        invalid_file.write_text("[meta]\nproject_name = \"only_meta\"\n")
+        invalid_file.write_text('[meta]\nproject_name = "only_meta"\n')
 
         with pytest.raises(ValidationError):
             read_classifier_toml_configuration(invalid_file)

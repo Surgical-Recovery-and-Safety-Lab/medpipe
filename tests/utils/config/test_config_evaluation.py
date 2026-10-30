@@ -56,6 +56,15 @@ class TestMetricsConfig:
                 self._get_valid_config_dict(metrics=["invalid"])
             )
 
+    def test_invalid_metric_lists_available_metrics_once(self) -> None:
+        """Test that the available metrics are listed a single time."""
+        with pytest.raises(ValidationError) as err:
+            MetricsConfig.model_validate(
+                self._get_valid_config_dict(metrics=["invalid"])
+            )
+
+        assert str(err.value).count("Available metrics are") == 1
+
     def test_n_bootstraps_limit(self) -> None:
         """Test that n_bootstraps must be non-negative."""
         with pytest.raises(

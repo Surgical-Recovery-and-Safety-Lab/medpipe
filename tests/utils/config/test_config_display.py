@@ -20,6 +20,8 @@ class TestDisplayDefaultsConfig:
         assert config.save is True
         assert config.show is False
         assert config.n_bins == 10
+        assert config.dist_n_bins == 10
+        assert config.dist_yscale == "linear"
         assert config.strategy == "uniform"
 
     def test_custom_values(self) -> None:
@@ -61,6 +63,18 @@ class TestDisplayDefaultsConfig:
             ValidationError, match="Input should be greater than or equal to 1"
         ):
             DisplayDefaultsConfig(n_bins=0)
+
+    def test_dist_n_bins_limit(self) -> None:
+        """Test that dist_n_bins must be at least 1."""
+        with pytest.raises(
+            ValidationError, match="Input should be greater than or equal to 1"
+        ):
+            DisplayDefaultsConfig(dist_n_bins=0)
+
+    def test_invalid_dist_yscale(self) -> None:
+        """Test that an unsupported dist_yscale raises a ValidationError."""
+        with pytest.raises(ValidationError, match="Input should be 'linear', 'log'"):
+            DisplayDefaultsConfig.model_validate({"dist_yscale": "unsupported"})
 
     def test_invalid_strategy(self) -> None:
         """Test that an unsupported strategy raises a ValidationError."""
@@ -209,7 +223,18 @@ class TestDisplayConfig:
     def test_non_dict_input_skips_legacy_key_handling(self) -> None:
         """Test that a non-dict input bypasses legacy key handling and
         fails standard pydantic model validation instead."""
-        with pytest.raises(
-            ValidationError, match="Input should be a valid dictionary"
-        ):
+        with pytest.raises(ValidationError, match="Input should be a valid dictionary"):
             DisplayConfig.model_validate("not_a_dict")  # type: ignore
+
+    def test_valid_theme(self) -> None:
+        """Test that theme parameters of MedpipeTheme are accepted."""
+        config = DisplayConfig.model_validate(
+            {"theme": {"dpi": 150, "palette": ["red"]}}
+        )
+
+        assert config.theme == {"dpi": 150, "palette": ["red"]}
+
+    def test_unknown_theme_key(self) -> None:
+        """Test that an unknown theme parameter is rejected."""
+        with pytest.raises(ValidationError, match="Unknown theme parameters"):
+            DisplayConfig.model_validate({"theme": {"dpii": 150}})

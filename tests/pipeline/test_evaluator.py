@@ -417,6 +417,45 @@ class TestMedpipeEvaluatorEvaluateSlice:
         assert np.isnan(results["roc_auc"]["ci_lower"])
         assert np.isnan(results["roc_auc"]["ci_upper"])
 
+    @patch("medpipe.pipeline.evaluator.compute_metrics")
+    @patch("medpipe.pipeline.evaluator.bootstrap_confidence_intervals")
+    def test_evaluate_slice_zero_bootstraps_skips_bootstrap(
+        self, mock_bootstrap, mock_compute, mock_orchestrator, mock_runner, caplog
+    ):
+        """Test that n_bootstraps=0 reports point estimates without running
+        the bootstrap or logging a warning."""
+        mock_orchestrator.config.workflow.evaluation.metrics.n_bootstraps = 0
+        mock_compute.return_value = [0.85]
+
+        evaluator = MedpipeClassifierEvaluator(mock_orchestrator, mock_runner)
+        y_true = np.array([0, 1, 1, 0])
+        y_pred = np.array([0.1, 0.8, 0.9, 0.2])
+
+        with caplog.at_level("WARNING"):
+            results = evaluator._evaluate_slice(y_true, y_pred, metrics=["accuracy"])
+
+        mock_bootstrap.assert_not_called()
+        assert results["accuracy"]["point_estimate"] == 0.85
+        assert np.isnan(results["accuracy"]["ci_lower"])
+        assert np.isnan(results["accuracy"]["ci_upper"])
+        assert "Bootstrap CI calculation failed" not in caplog.text
+
+    @patch("medpipe.pipeline.evaluator.compute_metrics")
+    def test_evaluate_slice_zero_bootstraps_failure_gives_nans(
+        self, mock_compute, mock_orchestrator, mock_runner
+    ):
+        """Test that n_bootstraps=0 falls back to NaNs if the metrics cannot
+        be computed."""
+        mock_orchestrator.config.workflow.evaluation.metrics.n_bootstraps = 0
+        mock_compute.side_effect = ValueError("Calculation error")
+
+        evaluator = MedpipeClassifierEvaluator(mock_orchestrator, mock_runner)
+        results = evaluator._evaluate_slice(
+            np.array([0]), np.array([0.1]), metrics=["roc_auc"]
+        )
+
+        assert np.isnan(results["roc_auc"]["point_estimate"])
+
 
 class TestMedpipeEvaluatorEvaluate:
     """Tests for MedpipeClassifierEvaluator.evaluate."""
@@ -542,9 +581,7 @@ class TestMedpipeEvaluatorEvaluate:
         "hospital" for a spatial comparison) is resolved from the separate
         `fairness_data` frame, while the model only ever sees `X` as-is."""
         X, y = sample_data
-        fairness_data = pd.DataFrame(
-            {"hospital": ["A", "B", "A", "B"]}, index=X.index
-        )
+        fairness_data = pd.DataFrame({"hospital": ["A", "B", "A", "B"]}, index=X.index)
         mock_eval_slice.return_value = {"accuracy": {"point_estimate": 0.8}}
 
         evaluator = MedpipeClassifierEvaluator(mock_orchestrator, mock_runner)

@@ -104,7 +104,7 @@ def path_checks(path: str | Path) -> None:
 
     path_object = Path(path).expanduser().resolve()  # Create a Path object
 
-    if not path_object.exists() and dir:
+    if not path_object.exists():
         path_object.mkdir(parents=True)
 
     if not path_object.is_dir():

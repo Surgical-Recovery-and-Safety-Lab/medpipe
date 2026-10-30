@@ -11,6 +11,7 @@ from sklearn.model_selection import (
     GridSearchCV,
     GroupKFold,
     KFold,
+    LeaveOneGroupOut,
     StratifiedGroupKFold,
     StratifiedKFold,
     cross_validate,
@@ -108,7 +109,11 @@ class BaseRunner:
         return estimator
 
     def _create_cv_splitter(
-        self, strategy: str, n_splits: int, random_state: int | None
+        self,
+        strategy: str,
+        n_splits: int | None,
+        random_state: int | None,
+        shuffle: bool = True,
     ) -> BaseCrossValidator:
         """
         Instantiates the appropriate cross-validation splitter.
@@ -119,12 +124,18 @@ class BaseRunner:
 
         Parameters
         ----------
-        strategy : {'random', 'group'}
-            The CV strategy to employ.
-        n_splits : int
-            The number of cross-validation folds.
+        strategy : {'random', 'group', 'loso'}
+            The CV strategy to employ. The 'loso' strategy holds out one
+            group per fold (leave-one-group-out).
+        n_splits : int | None
+            The number of cross-validation folds. Ignored by the 'loso'
+            strategy, which has one fold per group.
         random_state : int | None
-            The random seed for reproducibility.
+            The random seed for reproducibility. Only used when `shuffle` is
+            True, since scikit-learn rejects a seed for unshuffled splitters.
+        shuffle : bool, default=True
+            Whether to shuffle the samples before splitting into folds.
+            Ignored by the 'loso' strategy.
 
         Returns
         -------
@@ -172,13 +183,19 @@ class BaseRunner:
         joblib.dump(self.fitted_models, models_path, compress=3)
         self.logger.info(f"Fitted final models saved to {models_path}")
 
-    def _save_cv_results(self, outcome: str, cv_results_df: pd.DataFrame) -> None:
+    def _save_cv_results(
+        self,
+        outcome: str,
+        cv_results_df: pd.DataFrame,
+        best_index: int | None = None,
+    ) -> None:
         """
         Save cross-validation results to disk in the artifacts directory.
 
         Exports a detailed fold-level CSV file for spreadsheet auditing alongside
         a JSON file containing summary statistics (mean and standard deviation)
-        for each test evaluation metric.
+        for each test evaluation metric. For the results of a grid search, the
+        summary is the one of the selected hyperparameters.
 
         Parameters
         ----------
@@ -187,6 +204,9 @@ class BaseRunner:
         cv_results_df : pd.DataFrame
             DataFrame containing fold-by-fold cross-validation metrics and timing
             information derived from scikit-learn's `cross_validate` or `GridSearchCV`.
+        best_index : int, optional
+            Row of `cv_results_df` of the selected hyperparameters when the results
+            come from `GridSearchCV`. Leave as None for `cross_validate` results.
 
         Returns
         -------
@@ -203,13 +223,25 @@ class BaseRunner:
 
         # Extract and save summary report (mean ± std dev for test scores)
         summary = {}
-        for col in cv_results_df.columns:
-            if col.startswith("test_"):
-                metric_name = col.replace("test_", "")
-                summary[metric_name] = {
-                    "mean": float(cv_results_df[col].mean()),
-                    "std": float(cv_results_df[col].std()),
-                }
+        if best_index is not None:
+            # GridSearchCV results hold one row per candidate, with the mean and
+            # standard deviation over the folds already computed
+            best = cv_results_df.iloc[int(best_index)]
+            for col in cv_results_df.columns:
+                if col.startswith("mean_test_"):
+                    metric_name = col.removeprefix("mean_test_")
+                    summary[metric_name] = {
+                        "mean": float(best[col]),
+                        "std": float(best[f"std_test_{metric_name}"]),
+                    }
+        else:
+            for col in cv_results_df.columns:
+                if col.startswith("test_"):
+                    metric_name = col.replace("test_", "")
+                    summary[metric_name] = {
+                        "mean": float(cv_results_df[col].mean()),
+                        "std": float(cv_results_df[col].std()),
+                    }
 
         json_path = self.orchestrator.artifact_manager.save_json(
             summary, artifacts_dir, f"{outcome}_cv_summary.json"
@@ -255,7 +287,7 @@ class BaseRunner:
         Raises
         ------
         ValueError
-            If the groups_train is None when strategy is group.
+            If `groups_train` is None when the strategy is 'group' or 'loso'.
 
         """
         # Retrieve the list of metrics from the configuration safely
@@ -270,8 +302,11 @@ class BaseRunner:
         cv_cfg = self.orchestrator.config.workflow.validation.cross_validation
         assert cv_cfg
 
-        if cv_cfg.strategy == "group" and groups_train is None:
-            raise ValueError("The 'groups' parameter should not be None")
+        if cv_cfg.strategy in ("group", "loso") and groups_train is None:
+            raise ValueError(
+                f"The 'groups' parameter should not be None for the "
+                f"'{cv_cfg.strategy}' strategy"
+            )
 
         scorers_dict = build_scorers(configured_metrics)
 
@@ -319,7 +354,7 @@ class BaseRunner:
 
             # Convert search results to DataFrame & save artifacts
             cv_results_df = pd.DataFrame(search.cv_results_)
-            self._save_cv_results(outcome, cv_results_df)
+            self._save_cv_results(outcome, cv_results_df, best_index=search.best_index_)
 
             self.logger.debug(
                 f"[{outcome}] GridSearchCV best index: {search.best_index_} | "
@@ -459,12 +494,13 @@ class BaseRunner:
         # 3. Training Loop
         if self.orchestrator.config.meta.run_mode in ["audit", "cv"]:
             assert cv_config
-            assert cv_config.n_splits
+            assert cv_config.strategy == "loso" or cv_config.n_splits
 
             cv_splitter = self._create_cv_splitter(
                 strategy=cv_config.strategy,
                 n_splits=cv_config.n_splits,
                 random_state=self.orchestrator.config.workflow.random_state,
+                shuffle=True if cv_config.shuffle is None else cv_config.shuffle,
             )
             self.logger.debug(
                 f"[{outcome}] CV {type(cv_splitter).__name__} "
@@ -601,23 +637,33 @@ class MedpipeClassifierRunner(BaseRunner):
     _default_metrics: ClassVar[list[str]] = ["roc_auc"]
 
     def _create_cv_splitter(
-        self, strategy: str, n_splits: int, random_state: int | None
-    ) -> StratifiedKFold | StratifiedGroupKFold:
+        self,
+        strategy: str,
+        n_splits: int | None,
+        random_state: int | None,
+        shuffle: bool = True,
+    ) -> StratifiedKFold | StratifiedGroupKFold | LeaveOneGroupOut:
         """
         Instantiates the appropriate cross-validation splitter.
 
         Parameters
         ----------
-        strategy : {'random', 'group'}
-            The CV strategy to employ.
-        n_splits : int
-            The number of cross-validation folds.
+        strategy : {'random', 'group', 'loso'}
+            The CV strategy to employ. The 'loso' strategy holds out one
+            group per fold (leave-one-group-out).
+        n_splits : int | None
+            The number of cross-validation folds. Ignored by the 'loso'
+            strategy, which has one fold per group.
         random_state : int | None
-            The random seed for reproducibility.
+            The random seed for reproducibility. Only used when `shuffle` is
+            True, since scikit-learn rejects a seed for unshuffled splitters.
+        shuffle : bool, default=True
+            Whether to shuffle the samples before splitting into folds.
+            Ignored by the 'loso' strategy.
 
         Returns
         -------
-        Union[StratifiedKFold, StratifiedGroupKFold]
+        Union[StratifiedKFold, StratifiedGroupKFold, LeaveOneGroupOut]
             The instantiated cross-validation splitter object.
 
         Raises
@@ -626,16 +672,21 @@ class MedpipeClassifierRunner(BaseRunner):
             If an unsupported strategy is provided.
 
         """
+        seed = random_state if shuffle else None
         if strategy == "random":
             return StratifiedKFold(
-                n_splits=n_splits, shuffle=True, random_state=random_state
+                n_splits=n_splits, shuffle=shuffle, random_state=seed
             )
         elif strategy == "group":
             return StratifiedGroupKFold(
-                n_splits=n_splits, shuffle=True, random_state=random_state
+                n_splits=n_splits, shuffle=shuffle, random_state=seed
             )
+        elif strategy == "loso":
+            return LeaveOneGroupOut()
         else:
-            raise ValueError(f"Strategy must be 'random' or 'group', got {strategy}")
+            raise ValueError(
+                f"Strategy must be 'random', 'group' or 'loso', got {strategy}"
+            )
 
     def _calibrate_model(
         self,
@@ -791,23 +842,33 @@ class MedpipeRegressorRunner(BaseRunner):
     _default_metrics: ClassVar[list[str]] = ["rmse"]
 
     def _create_cv_splitter(
-        self, strategy: str, n_splits: int, random_state: int | None
-    ) -> KFold | GroupKFold:
+        self,
+        strategy: str,
+        n_splits: int | None,
+        random_state: int | None,
+        shuffle: bool = True,
+    ) -> KFold | GroupKFold | LeaveOneGroupOut:
         """
         Instantiates the appropriate cross-validation splitter.
 
         Parameters
         ----------
-        strategy : {'random', 'group'}
-            The CV strategy to employ.
-        n_splits : int
-            The number of cross-validation folds.
+        strategy : {'random', 'group', 'loso'}
+            The CV strategy to employ. The 'loso' strategy holds out one
+            group per fold (leave-one-group-out).
+        n_splits : int | None
+            The number of cross-validation folds. Ignored by the 'loso'
+            strategy, which has one fold per group.
         random_state : int | None
-            The random seed for reproducibility.
+            The random seed for reproducibility. Only used when `shuffle` is
+            True, since scikit-learn rejects a seed for unshuffled splitters.
+        shuffle : bool, default=True
+            Whether to shuffle the samples before splitting into folds.
+            Ignored by the 'loso' strategy.
 
         Returns
         -------
-        Union[KFold, GroupKFold]
+        Union[KFold, GroupKFold, LeaveOneGroupOut]
             The instantiated cross-validation splitter object.
 
         Raises
@@ -816,11 +877,14 @@ class MedpipeRegressorRunner(BaseRunner):
             If an unsupported strategy is provided.
 
         """
+        seed = random_state if shuffle else None
         if strategy == "random":
-            return KFold(n_splits=n_splits, shuffle=True, random_state=random_state)
+            return KFold(n_splits=n_splits, shuffle=shuffle, random_state=seed)
         elif strategy == "group":
-            return GroupKFold(
-                n_splits=n_splits, shuffle=True, random_state=random_state
-            )
+            return GroupKFold(n_splits=n_splits, shuffle=shuffle, random_state=seed)
+        elif strategy == "loso":
+            return LeaveOneGroupOut()
         else:
-            raise ValueError(f"Strategy must be 'random' or 'group', got {strategy}")
+            raise ValueError(
+                f"Strategy must be 'random', 'group' or 'loso', got {strategy}"
+            )

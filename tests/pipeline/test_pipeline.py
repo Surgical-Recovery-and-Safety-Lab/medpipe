@@ -533,8 +533,9 @@ class TestMedpipeRun:
         mp._orchestrator.fairness_splits = None
 
         # Mock split outputs
-        X_tr, y_tr = pd.DataFrame({"A": [1, 2]}), pd.DataFrame(
-            {"MORTALITY_30D": [0, 1]}
+        X_tr, y_tr = (
+            pd.DataFrame({"A": [1, 2]}),
+            pd.DataFrame({"MORTALITY_30D": [0, 1]}),
         )
         X_te, y_te = pd.DataFrame({"A": [3]}), pd.DataFrame({"MORTALITY_30D": [1]})
         mp._orchestrator.prepare_data.return_value = (
@@ -590,8 +591,9 @@ class TestMedpipeRun:
         mp._orchestrator.config.data.outcomes = ["MORTALITY_30D"]
         mp._orchestrator.get_subgroup_specs.return_value = {}
 
-        X_tr, y_tr = pd.DataFrame({"A": [1, 2]}), pd.DataFrame(
-            {"MORTALITY_30D": [0, 1]}
+        X_tr, y_tr = (
+            pd.DataFrame({"A": [1, 2]}),
+            pd.DataFrame({"MORTALITY_30D": [0, 1]}),
         )
         X_te, y_te = pd.DataFrame({"A": [3]}), pd.DataFrame({"MORTALITY_30D": [1]})
         mp._orchestrator.prepare_data.return_value = (
@@ -672,6 +674,45 @@ class TestMedpipeRun:
         assert results["plots"]["strata_heatmaps"] == {
             "auc_heatmap": ("fig_hm", "ax_hm")
         }
+
+    @patch("medpipe.pipeline.pipeline.MedpipeClassifierDisplayer")
+    @patch("medpipe.pipeline.pipeline.MedpipeClassifierEvaluator")
+    @patch("medpipe.pipeline.pipeline.MedpipeClassifierRunner")
+    @patch("medpipe.pipeline.pipeline.MedpipeOrchestrator")
+    def test_run_audit_mode_skips_heatmaps_without_fairness(
+        self, mock_orch_cls, mock_runner_cls, mock_eval_cls, mock_displayer_cls
+    ):
+        """Verify the strata heatmaps are skipped, without error, when no
+        fairness configuration is set."""
+        mp = MedpipeClassifier(config=MagicMock())
+        mp.mp_config.meta.run_mode = "audit"
+        mp.mp_config.data.kwargs = {}
+        mp._orchestrator.config.data.outcomes = ["MORTALITY_30D"]
+        mp._orchestrator.get_subgroup_specs.return_value = {}
+        mp._orchestrator.fairness_splits = None
+
+        X_tr, y_tr = pd.DataFrame({"A": [1]}), pd.DataFrame({"MORTALITY_30D": [0]})
+        X_te, y_te = pd.DataFrame({"A": [2]}), pd.DataFrame({"MORTALITY_30D": [1]})
+        mp._orchestrator.prepare_data.return_value = (
+            X_tr,
+            y_tr,
+            None,
+            None,
+            X_te,
+            y_te,
+            None,
+        )
+
+        mp.fit = MagicMock(return_value={"MORTALITY_30D": "model"})
+        mp.evaluate = MagicMock(return_value={"overall": {}})
+        mp.predict_proba = MagicMock(return_value=np.array([0.85]))
+        mp.plot_all = MagicMock(return_value={"roc": ("fig_obj", "ax_obj")})
+
+        results = mp.run()
+
+        mp.plot_all.assert_called_once()
+        mp.displayer.plot_all_heatmaps.assert_not_called()
+        assert "strata_heatmaps" not in results["plots"]
 
 
 class TestMedpipePlotAll:
@@ -830,13 +871,13 @@ def test_data_path(repo_root: Path) -> Path:
 
 @pytest.fixture
 def base_config_path(repo_root: Path) -> Path:
-    """Locate examples/default_config.toml relative to repo root."""
-    return repo_root / "examples" / "default_config.toml"
+    """Locate examples/default_classifier_config.toml relative to repo root."""
+    return repo_root / "examples" / "default_classifier_config.toml"
 
 
 @pytest.fixture
 def build_medpipe_config(test_data_path: Path, base_config_path: Path):
-    """Factory fixture loading default_config.toml and updating data.path
+    """Factory fixture loading default_classifier_config.toml and updating data.path
     dynamically."""
 
     def _factory(
@@ -930,7 +971,7 @@ class TestMedpipeStressIntegration:
 
         try:
             X_train, y_train, X_recal, y_recal, X_test, y_test, groups_train = (
-                pipeline._orchestrator.prepare_data()
+                pipeline.prepare_data()
             )
 
             fitted = pipeline.fit(X_train, y_train, X_recal, y_recal, groups_train)

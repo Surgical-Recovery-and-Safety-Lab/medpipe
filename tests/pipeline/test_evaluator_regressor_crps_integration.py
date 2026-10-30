@@ -2,18 +2,18 @@
 Integration tests for MedpipeRegressorEvaluator.evaluate() with CRPS,
 exercising a real fitted OrdBoostRegressor end-to-end: point predictions,
 distributional predictions, bootstrap confidence intervals, and per-subgroup
-re-evaluation (since OrdBoost's distribution object does not support index
-slicing, subgroup CRPS must be recomputed via predict_dist on the subgroup's
-rows rather than sliced from the full-dataset distribution).
+evaluation (subgroup CRPS is computed on the subgroup's rows sliced from the
+full-dataset distribution).
 """
 
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pandas as pd
 import pytest
 from ordboost import OrdBoostRegressor
 
+from medpipe.metrics import crps_score
 from medpipe.pipeline.estimator import DistributionalPipeline
 from medpipe.pipeline.evaluator import MedpipeRegressorEvaluator
 
@@ -105,13 +105,12 @@ class TestRegressorEvaluatorCrpsIntegration:
             assert np.isfinite(entry["ci_upper"])
             assert entry["ci_lower"] <= entry["point_estimate"] <= entry["ci_upper"]
 
-    def test_evaluate_with_crps_and_subgroups_recomputes_distribution(
+    def test_evaluate_with_crps_and_subgroups_slices_distribution(
         self, fitted_ordboost_pipeline_and_data
     ):
-        """Test that requesting crps alongside subgroup_specs correctly
-        recomputes predict_dist per-stratum (rather than failing on
-        OrdBoost's non-sliceable distribution object), producing finite
-        per-subgroup CRPS results."""
+        """Test that requesting crps alongside subgroup_specs slices the
+        full-dataset distribution per-stratum without re-calling
+        predict_dist, producing finite per-subgroup CRPS results."""
         pipeline, X_test, y_test = fitted_ordboost_pipeline_and_data
 
         mock_orchestrator = _make_mock_orchestrator()
@@ -119,20 +118,69 @@ class TestRegressorEvaluatorCrpsIntegration:
 
         evaluator = MedpipeRegressorEvaluator(mock_orchestrator, mock_runner)
 
-        results = evaluator.evaluate(
-            X_test,
-            y_test,
-            outcome="LOS_DAYS",
-            metrics=["rmse", "crps"],
-            subgroup_specs={"site": "site"},
-            save_artifacts=False,
-        )
+        with patch.object(pipeline, "predict_dist", wraps=pipeline.predict_dist) as spy:
+            results = evaluator.evaluate(
+                X_test,
+                y_test,
+                outcome="LOS_DAYS",
+                metrics=["rmse", "crps"],
+                subgroup_specs={"site": "site"},
+                save_artifacts=False,
+            )
+
+        assert spy.call_count == 1
 
         strata = results["strata"]["site"]
         assert set(strata) <= {"0", "1"}
         for _group_val, group_results in strata.items():
             assert np.isfinite(group_results["crps"]["point_estimate"])
             assert np.isfinite(group_results["rmse"]["point_estimate"])
+
+    def test_subgroup_distribution_equals_full_distribution_rows(
+        self, fitted_ordboost_pipeline_and_data
+    ):
+        """Test that each stratum is evaluated on exactly the rows of the
+        full-dataset distribution that belong to it, and that its CRPS equals
+        the CRPS of a distribution freshly predicted on those rows."""
+        pipeline, X_test, y_test = fitted_ordboost_pipeline_and_data
+        evaluator = MedpipeRegressorEvaluator(
+            _make_mock_orchestrator(), _make_mock_runner(pipeline)
+        )
+        full_dist = pipeline.predict_dist(X_test)
+
+        with patch.object(
+            evaluator, "_evaluate_slice", wraps=evaluator._evaluate_slice
+        ) as spy:
+            results = evaluator.evaluate(
+                X_test,
+                y_test,
+                outcome="LOS_DAYS",
+                metrics=["crps"],
+                subgroup_specs={"site": "site"},
+                save_artifacts=False,
+            )
+
+        # First call is the overall slice; the rest are one per stratum.
+        stratum_calls = spy.call_args_list[1:]
+        assert len(stratum_calls) == len(results["strata"]["site"])
+        for call in stratum_calls:
+            y_sub, bundle, _metrics = call.args
+            group_val = next(
+                g
+                for g in ("0", "1")
+                if len(y_sub) == int((X_test["site"] == int(g)).sum())
+            )
+            mask = (X_test["site"] == int(group_val)).to_numpy()
+
+            np.testing.assert_array_equal(
+                bundle.dist.grid_cdf, full_dist.grid_cdf[mask]
+            )
+            np.testing.assert_array_equal(bundle.dist.grid_y, full_dist.grid_y)
+
+            fresh_dist = pipeline.predict_dist(X_test[mask])
+            assert results["strata"]["site"][group_val]["crps"][
+                "point_estimate"
+            ] == pytest.approx(crps_score(y_test.to_numpy()[mask], fresh_dist))
 
 
 def _make_mock_orchestrator():
