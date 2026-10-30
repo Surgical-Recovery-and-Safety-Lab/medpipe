@@ -8,6 +8,24 @@ and this project adheres to Semantic Versioning ([SemVer](https://semver.org/spe
 ## [Unreleased]
 
 ### Added
+* An `excel` extra (`pip install "medpipe[excel]"`) that installs `openpyxl` to
+read Excel files.
+* A workflow that builds the documentation with `mkdocs build --strict`, so that
+broken links and anchors fail the checks.
+* A `default_regressor_config.toml` example configuration and a
+`minimal_regressor_example.py` script, with tests that read and run the example.
+* The continuous outcomes `LOS_DAYS` and `BLOOD_LOSS_ML` in the test data.
+* A regression section in the quickstart.
+* A page describing the run folder (the `artifacts/vN` layout and the results),
+and a page on the confidence intervals, including the bootstrapping of the
+metrics that use a predictive distribution.
+* A draft page mapping what medpipe records and produces to the topics of the
+TRIPOD+AI reporting guideline.
+* An examples page with five verified scripts in the `examples/` folder: going
+through the steps of a pipeline, restoring a saved run, writing the
+configuration in Python, registering custom components, and predicting a
+distribution. A test checks that the scripts are valid, documented, and, for the
+light ones, that they run.
 * An `ideal` flag for the coverage plot to only plot the ideal coverage line once.
 * The `prepare_data()` property to the pipelines.
 * A `LeaveOneGroupOut` cross-validation option with the `loso` flag in the 
@@ -24,6 +42,17 @@ score.
 * A `bootstrap` module in `utils` to handle all boostrapping functions.
 * A helper function in to check the length of a predictive distribution.
 * New tests to cover the additional functions.
+* A landing page for the API reference to explain what are the entry points
+that can be used.
+* A list of available metrics and how to register a new one in the metrics
+API reference.
+* A list of available models and how to register a new one in the models
+API reference.
+* A list of available preprocessing operations and how to register a new one
+in the data API reference.
+* A separate page for the configuration API reference.
+* A configuration guide in the `docs/guide/config/` folder, with one page per
+configuration block and a page on the regression configuration.
 
 ### Changed
 * Using `pysplinecalib` instead of `splinecalib`.
@@ -50,6 +79,62 @@ because `OrdBoost` supports row-indexing as of v0.6.0.
 * Optimised the CRPS calculation for `OrdBoost` by using the stored CDF directly.
 * The `per_sample_func` is no longer needed to compute confidence intervals and 
 will no longer raise a warning if not specified.
+* The `Quickstart example` now use the correct API.
+* The order of the pipeline API reference.
+* Remove the underlying functions in the API reference for `config.py`.
+* The home page mentions regression, the Python requirement and the new guide
+pages, and its acknowledgements match the README.
+* The `docs` extra requires `mkdocs<2`.
+* The documentation and the README refer to the project as MedPipe, and the
+Python package is still called `medpipe`.
+* The example of a custom preprocessing operation in the data API reference now
+works in a pipeline: the transformer has to provide its feature names.
+* Models are checked during the configuration validation and raise an 
+error if an unknown model is given.
+* Configuration overrides that need recalibration raise an error if the
+recalibration split is not specified.
+* The `algorithm`, `hyperparameters`, and `recalibration` keys of an outcome
+override are now all optional and only the keys that are set are applied to the
+default model.
+* Cross-validation is only required in the `cv` and `audit` run modes.
+* The number of splits (`n_splits`) is now required by the `random` and `group`
+cross-validation strategies instead of failing with an `AssertionError` during
+the run.
+* Setting `n_bootstraps` to 0 in the metrics configuration now skips the
+bootstrap and reports point estimates, instead of logging a warning for every
+slice.
+* Preprocessing operations on columns that are not predictors are now rejected
+when the configuration is validated, and with a clear message when the
+preprocessor is built.
+* The `strategy` of the recalibration split is now required.
+* `dist_n_bins` and `dist_yscale` are now fields of the display defaults. A
+display configuration without them used to fail with a `KeyError` when the
+reliability diagram was drawn.
+* The `theme` of the display configuration is now used by the displayers. It
+used to be validated but ignored, and unknown theme parameters are now rejected.
+* Overrides under the `heatmap` plot type are now applied to the strata
+heatmaps.
+* `MedpipeRegressor.run()` no longer fails when a model cannot produce the
+distributional figures (NGBoost and scikit-learn regressors). The figures of the
+outcome are skipped with a warning.
+* `MedpipeRegressor.run()` now draws the subgroup strata heatmaps when a
+fairness configuration is set.
+* The regressor display configuration has its own defaults
+(`RegressorDisplayDefaultsConfig`): `coverage_levels` and `pit_n_bins` are now
+configurable, the classifier-only keys are rejected, and `dist_n_bins` defaults
+to 20. The `residuals` and `predicted_vs_actual` plot types, which had no plots,
+are no longer accepted.
+* The colour scale of the strata heatmaps of `rmse`, `mae`, and `crps` now
+follows the data instead of a fixed scale.
+* The metrics are checked against the type of outcome when the configuration is
+validated: classification metrics are rejected for regression, `crps` is
+rejected for classification and for models that cannot predict a distribution.
+* The error for an unknown metric in the configuration listed the available
+metrics twice.
+* The `cv_summary.json` file saved with a grid search was empty. It now holds the
+mean and standard deviation of each metric for the selected hyperparameters.
+* The messages logged by `MedpipeRegressor` (start, load, end) are now shown in
+the compact verbosity mode, and "Succesfully" was corrected to "Successfully".
 
 ### Fixed
 * All tests now pass.
@@ -59,6 +144,7 @@ will no longer raise a warning if not specified.
 * Typo in the `MedpipeRegressor` docstring.
 * Clone command in the `install.md` file to use ssh rather than https.
 * The `BaseRegistry` class docstring.
+* Inconsistencies in the documentation and typos in the docstrings.
 
 
 ### Removed
