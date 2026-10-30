@@ -4,7 +4,7 @@ run_mode = "audit"
 verbose = 1
 
 [data]
-path = "../tests/test_regression_data.csv"
+path = "../tests/test_data.csv"
 predictors = [
   "AGE",
   "SEX",
