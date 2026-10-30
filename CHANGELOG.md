@@ -59,6 +59,8 @@ in the data API reference.
 configuration block and a page on the regression configuration.
 
 ### Changed
+* The classifier "Topic :: Scientific/Engineering :: Medical Science Apps." of the
+package ends with a period. Without it, PyPI rejected the upload of the release.
 * Using `pysplinecalib` instead of `splinecalib`.
 * Updates in the marginal calibration and PIT functions to work with the new
 version of ordboost.
