@@ -8,6 +8,10 @@ and this project adheres to Semantic Versioning ([SemVer](https://semver.org/spe
 ## [Unreleased]
 
 ### Added
+* A workflow that publishes the package to PyPI, with trusted publishing, when
+a release of a commit on `main` is published and the tests pass.
+* A workflow that deploys the documentation to the `gh-pages` branch when a
+release of a commit on `main` is published.
 * An `excel` extra (`pip install "medpipe[excel]"`) that installs `openpyxl` to
 read Excel files.
 * A workflow that builds the documentation with `mkdocs build --strict`, so that
