@@ -1,7 +1,7 @@
 # Welcome to MedPipe
 **Configuration-driven, TRIPOD+AI compliant ML pipelines for tabular clinical data.**
 
-**MedPipe** is a Python framework designed to streamline and standardize clinical machine learning workflows on tabular data.
+**MedPipe** is a Python framework designed to streamline and standardize clinical machine learning workflows on tabular data, for both classification and regression outcomes. It requires Python 3.12 or later and is installed with `pip install medpipe`.
 Built around `scikit-learn` and TRIPOD+AI reporting guidelines, it transforms complex clinical modeling into reproducible, TOML-configured pipelines.
 By automatically logging execution details and persisting models, environment metadata, and evaluation metrics into a standardized artifact hierarchy, **MedPipe** ensures full transparency and reproducibility from initial experimentation to publication.
 
@@ -11,18 +11,22 @@ By automatically logging execution details and persisting models, environment me
 
 * **TRIPOD+AI Guideline Compliant**: Designed from the ground up to follow rigorous clinical machine learning reporting standards.
 * **Scikit-Learn Compatible**: Integrates seamlessly with standard Scikit-Learn estimators, transformers, and pipelines.
+* **Classification and Regression**: `MedpipeClassifier` models binary outcomes and `MedpipeRegressor` models continuous outcomes, including full predictive distributions with OrdBoost.
 * **Declarative TOML Configuration**: Define entire experiments, from preprocessing to plotting aesthetics, in a single validated TOML configuration file.
 * **Multi-Outcome Pipelines**: Model distinct clinical outcomes in a single run with independent hyperparameter and recalibration overrides.
 * **Integrated Recalibration & Fairness**: Native probability recalibration and stratified subgroup analysis to evaluate algorithmic fairness across patient cohorts.
 * **Clinical Metrics & Visualizations**: Automatic generation of Decision Curve Analysis (DCA), reliability diagrams, ROC/PR curves, and bootstrapped 95% confidence intervals.
 * **Standardized Artifact Tracking**: Automatic, structured output management for models, metrics, environment metadata, and execution logs in a unified `artifacts/` hierarchy.
+
 ---
 
 ## Where to go next
 
 * [Installation](start/install.md): install the package.
-* [Quickstart](start/quickstart.md): run your first pipeline.
-* [Configuration guide](guide/config/index.md): describe an experiment in TOML.
+* [Quickstart](start/quickstart.md): run your first classification or regression pipeline.
+* [Examples](examples.md): scripts for the manual workflow, restoring a run, custom components, and more.
+* [Configuration guide](guide/config/index.md): describe an experiment in TOML, one page per block, and what changes for a [regression](guide/config/regression.md).
+* [The run folder](guide/run_folder.md), [confidence intervals](guide/confidence_intervals.md) and [TRIPOD+AI reporting](guide/tripod_ai.md): what a run produces and how it supports reporting.
 * [API reference](api/index.md): documentation of the public classes and functions.
 
 ---
@@ -45,4 +49,4 @@ This project is licensed under the Apache-2.0 License. Developed and maintained 
 
 ## Acknowledgements
 
-This package was developed using Gemini 3.6 Thinking. The code was reviewed and edited by humans.
+This package was developed using Claude Sonnet 5.5. The code was reviewed and edited by humans.

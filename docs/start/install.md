@@ -16,6 +16,14 @@ Check that the installation worked:
 python -c "import medpipe; print(medpipe.__version__)"
 ```
 
+### Optional dependencies
+
+Reading Excel files (`.xlsx` and `.xls`) needs the `openpyxl` package, which is not installed by default. Install it with the `excel` extra:
+
+```bash
+pip install "medpipe[excel]"
+```
+
 ## Installing from source (developer setup)
 
 To set up a local development environment and contribute to **MedPipe**, clone the GitHub repository:

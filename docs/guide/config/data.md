@@ -42,7 +42,7 @@ The file is read with the pandas reader that matches its extension. The extensio
 | `.pkl`, `.pickle` | `pandas.read_pickle` |
 
 !!! note
-    Reading Excel files needs the `openpyxl` package, which is not installed with MedPipe. Install it with `pip install openpyxl`. Only load pickle files that you created yourself or trust, as unpickling can run arbitrary code.
+    Reading Excel files needs the `openpyxl` package, which is not installed with MedPipe. Install it with `pip install "medpipe[excel]"`. Only load pickle files that you created yourself or trust, as unpickling can run arbitrary code.
 
 Other formats can be supported by registering a reader with [`DataLoaderRegistry`][medpipe.utils.io.DataLoaderRegistry].
 
