@@ -55,6 +55,8 @@ MetricRegistry.register_spec(
 
 Register the metric before creating the pipeline, so that the configuration is validated against it.
 
+A complete script that registers a model, a preprocessing operation and a metric is shown in the [examples](../examples.md#add-your-own-model-preprocessing-operation-or-metric).
+
 ---
 
 ::: medpipe.metrics.core
