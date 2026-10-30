@@ -6,8 +6,11 @@ _save_final_models, and _save_cv_results.
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import numpy as np
 import pandas as pd
 import pytest
+from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import StratifiedKFold
 from sklearn.pipeline import Pipeline
 
 from medpipe.pipeline.runner import MedpipeClassifierRunner
@@ -96,3 +99,60 @@ class TestSaveCvResults:
                 cv_results_df["test_ici"].std()
             )
             assert filename == "MORTALITY_30D_cv_summary.json"
+
+    @patch("pandas.DataFrame.to_csv")
+    def test_save_cv_results_of_grid_search_summarises_selected_candidate(
+        self, mock_to_csv, mock_orchestrator
+    ):
+        """Test that the summary of grid search results is the one of the
+        selected hyperparameters instead of being empty."""
+        mock_artifact_manager = MagicMock()
+        mock_orchestrator.artifact_manager = mock_artifact_manager
+        runner = MedpipeClassifierRunner(orchestrator=mock_orchestrator)
+
+        cv_results_df = pd.DataFrame(
+            {
+                "mean_fit_time": [0.1, 0.2],
+                "split0_test_roc_auc": [0.7, 0.8],
+                "mean_test_roc_auc": [0.70, 0.80],
+                "std_test_roc_auc": [0.05, 0.02],
+                "rank_test_roc_auc": [2, 1],
+                "mean_test_log_loss": [-0.6, -0.5],
+                "std_test_log_loss": [0.1, 0.03],
+                "rank_test_log_loss": [2, 1],
+            }
+        )
+
+        with patch.object(Path, "mkdir"):
+            runner._save_cv_results("ANY_COMP", cv_results_df, best_index=1)
+
+        args, _ = mock_artifact_manager.save_json.call_args
+        summary = args[0]
+        assert set(summary) == {"roc_auc", "log_loss"}
+        assert summary["roc_auc"] == {"mean": pytest.approx(0.80), "std": 0.02}
+        assert summary["log_loss"] == {"mean": pytest.approx(-0.5), "std": 0.03}
+
+    def test_grid_search_passes_best_index_to_save_cv_results(self, mock_orchestrator):
+        """Test that the grid search branch gives the selected row to the
+        function that saves the results."""
+        runner = MedpipeClassifierRunner(orchestrator=mock_orchestrator)
+        cv_cfg = mock_orchestrator.config.workflow.validation.cross_validation
+        cv_cfg.grid_search = True
+        cv_cfg.strategy = "random"
+        mock_orchestrator.config.workflow.evaluation.metrics.metrics = ["roc_auc"]
+        X = pd.DataFrame({"a": range(40), "b": [i % 3 for i in range(40)]})
+        y = pd.Series([i % 2 for i in range(40)]).to_numpy()
+        pipeline = Pipeline([("classifier", LogisticRegression())])
+
+        with patch.object(runner, "_save_cv_results") as mock_save:
+            runner._train_model_cv(
+                outcome="ANY_COMP",
+                pipeline=pipeline,
+                hyperparams={"C": [0.1, 1.0]},
+                X_train=X,
+                y_train=y,
+                groups_train=None,
+                cv_splitter=StratifiedKFold(n_splits=2),
+            )
+
+        assert isinstance(mock_save.call_args.kwargs["best_index"], int | np.integer)
