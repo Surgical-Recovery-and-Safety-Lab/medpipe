@@ -6,6 +6,7 @@ plots.
 """
 
 import json
+import tomllib
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -918,3 +919,69 @@ metrics = ["rmse", "crps"]
         assert train_idx.isdisjoint(test_idx)
         assert recal_idx.isdisjoint(test_idx)
         assert len(train_idx) + len(recal_idx) + len(test_idx) == n
+
+
+class TestMedpipeRegressorExampleConfig:
+    """End-to-end runs of the example regression configuration of the
+    repository, with smaller models and fewer bootstraps to keep them fast."""
+
+    @staticmethod
+    def _build_config(repo_root: Path, run_mode: str) -> MedpipeRegressorConfig:
+        """Load the example configuration with the data of the repository and
+        lighter settings."""
+        with open(repo_root / "examples" / "default_regressor_config.toml", "rb") as f:
+            raw = tomllib.load(f)
+
+        raw["meta"]["run_mode"] = run_mode
+        raw["meta"]["verbose"] = 0
+        raw["data"]["path"] = str(repo_root / "tests" / "test_data.csv")
+        raw["default_model"]["hyperparameters"]["max_iter"] = 5
+        raw["outcome_overrides"]["BLOOD_LOSS_ML"]["hyperparameters"] = {
+            "learning_rate": [0.1, 0.05]
+        }
+        raw["workflow"]["n_jobs"] = 1
+        raw["workflow"]["evaluation"]["metrics"]["n_bootstraps"] = 5
+        raw["display"]["defaults"]["n_bootstraps"] = 5
+        raw["display"]["overrides"]["coverage"]["n_bootstraps"] = 5
+        return MedpipeRegressorConfig.model_validate(raw)
+
+    @pytest.mark.parametrize("run_mode", ["fast", "cv", "eval", "audit"])
+    def test_example_config_runs_in_every_run_mode(
+        self, request: pytest.FixtureRequest, tmp_path: Path, run_mode: str
+    ) -> None:
+        """Test that the example configuration runs end to end and writes the
+        artifacts that belong to the run mode."""
+        config = self._build_config(Path(request.config.rootpath), run_mode)
+        pipeline = MedpipeRegressor(config=config, base_artifact_dir=tmp_path)
+
+        results = pipeline.run()
+
+        run_dir = pipeline.run_dir
+        outcomes = config.data.outcomes
+        assert set(results["fitted_models"]) == set(outcomes)
+        for outcome in outcomes:
+            assert (run_dir / "models" / f"{outcome}_model.joblib").exists()
+            assert (run_dir / "results" / f"{outcome}_evaluation_results.json").exists()
+            assert (run_dir / "CV" / f"{outcome}_cv_summary.json").exists() == (
+                run_mode in ("cv", "audit")
+            )
+            figures = list((run_dir / "plots" / outcome).glob("*.png"))
+            assert len(figures) == (6 if run_mode in ("eval", "audit") else 0)
+        heatmaps = list((run_dir / "plots").glob("*_strata_heatmap.png"))
+        assert len(heatmaps) == (3 if run_mode in ("eval", "audit") else 0)
+        assert ("plots" in results) == (run_mode in ("eval", "audit"))
+
+    def test_example_config_evaluates_all_metrics_with_subgroups(
+        self, request: pytest.FixtureRequest, tmp_path: Path
+    ) -> None:
+        """Test that the results hold every configured metric and subgroup."""
+        config = self._build_config(Path(request.config.rootpath), "fast")
+        pipeline = MedpipeRegressor(config=config, base_artifact_dir=tmp_path)
+
+        results = pipeline.run()
+
+        evaluation = results["evaluations"]["LOS_DAYS"]
+        assert set(evaluation["overall"]) == {"rmse", "mae", "crps"}
+        assert set(evaluation["strata"]) == {"SEX", "AGE"}
+        assert set(evaluation["strata"]["AGE"]) == {"[18, 50]", "[51, 120]"}
+        assert np.isfinite(evaluation["overall"]["rmse"]["point_estimate"])
