@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to Semantic Versioning ([SemVer](https://semver.org/spec/v2.0.0.html)).
 
-## [Unreleased]
+## [v0.4.0] - 2026-10-30
 
 ### Added
 * A workflow that publishes the package to PyPI, with trusted publishing, when
@@ -326,7 +326,8 @@ bootstrap-CI fallback path.
 ### Removed
 * Class imbalance mitigation methods (data sampling, cost-sensitive learning).
 
-[Unreleased]: https://github.com/Surgical-Recovery-and-Safety-Lab/medpipe/compare/v0.4.0.dev2...HEAD
+[Unreleased]: https://github.com/Surgical-Recovery-and-Safety-Lab/medpipe/compare/v0.4.0...HEAD
+[v0.4.0]: https://github.com/Surgical-Recovery-and-Safety-Lab/medpipe/compare/v0.4.0.dev2...v0.4.0
 [v0.4.0.dev2]: https://github.com/Surgical-Recovery-and-Safety-Lab/medpipe/compare/v0.4.0.dev1...v0.4.0.dev2
 [v0.4.0.dev1]: https://github.com/Surgical-Recovery-and-Safety-Lab/medpipe/compare/v0.4.0.dev0...v0.4.0.dev1
 [v0.4.0.dev0]: https://github.com/Surgical-Recovery-and-Safety-Lab/medpipe/compare/v0.3.1...v0.4.0.dev0
