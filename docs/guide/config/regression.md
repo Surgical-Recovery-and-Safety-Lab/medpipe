@@ -72,7 +72,7 @@ The metrics for regression are:
 | `mae` | Mean absolute error. | Any regressor |
 | `crps` | Continuous ranked probability score. | A model that predicts a distribution |
 
-The metrics are not checked against the type of the model when the configuration is validated. A classification metric such as `roc_auc` is accepted, but it cannot be computed on continuous values, so it is reported as `NaN` with a warning. Asking for `crps` with a model that does not predict a distribution stops the run during the evaluation.
+The metrics are checked against the type of outcome when the configuration is validated. A classification metric such as `roc_auc` or `accuracy` is rejected, since it cannot be computed on continuous values. `crps` is rejected if the algorithm of any outcome cannot predict a distribution, for example `LinearRegression`. `rmse` and `mae` are accepted with any regressor.
 
 The `[workflow.evaluation.fairness]` table works as for classification. The metrics are computed for each subgroup, and the heatmaps are drawn from them.
 
@@ -141,6 +141,8 @@ The first six figures are only drawn for models that predict a distribution thro
 | `decision_function` | none |
 
 ## Complete example
+
+The repository contains a configuration that uses every block, [`examples/default_regressor_config.toml`](https://github.com/Surgical-Recovery-and-Safety-Lab/medpipe/blob/main/examples/default_regressor_config.toml). It is run by [`examples/minimal_regressor_example.py`](https://github.com/Surgical-Recovery-and-Safety-Lab/medpipe/blob/main/examples/minimal_regressor_example.py) on the data of `tests/test_regression_data.csv`. A shorter configuration looks like this:
 
 ```toml
 [meta]
