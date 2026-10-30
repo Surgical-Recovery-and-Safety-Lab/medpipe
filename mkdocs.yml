@@ -69,6 +69,9 @@ nav:
     - Workflow: guide/config/workflow.md
     - Display: guide/config/display.md
     - Regression: guide/config/regression.md
+  - Guides:
+    - The run folder: guide/run_folder.md
+    - Confidence intervals: guide/confidence_intervals.md
   - API reference:
     - Overview: api/index.md
     - Configuration: api/config.md
