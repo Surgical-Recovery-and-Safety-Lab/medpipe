@@ -1,0 +1,91 @@
+name: publish to PyPI
+
+# Publishes the package to PyPI when a release is published. Only releases of a
+# commit that is on main are published, and the tag has to match the version of
+# the package. The upload uses PyPI trusted publishing, so no token is stored.
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name }}
+          fetch-depth: 0
+      - name: Check that the release is on main
+        run: |
+          git fetch origin main
+          if ! git merge-base --is-ancestor HEAD origin/main; then
+            echo "The commit of ${{ github.event.release.tag_name }} is not on main, so the package is not published."
+            exit 1
+          fi
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install the build tools
+        run: pip install build twine packaging
+      - name: Build the source distribution and the wheel
+        run: python -m build
+      - name: Check the distributions
+        run: twine check dist/*
+      - name: Check that the tag matches the version of the package
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          python - <<'PY'
+          import glob
+          import os
+
+          from packaging.version import Version
+
+          tag = os.environ["TAG"].removeprefix("v")
+          wheel = os.path.basename(glob.glob("dist/*.whl")[0])
+          built = wheel.split("-")[1]
+          if Version(tag) != Version(built):
+              raise SystemExit(f"The tag {tag} does not match the version {built} of the package.")
+          print(f"The tag and the package are both version {built}.")
+          PY
+      - name: Keep the distributions
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name }}
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        run: pip install .[dev]
+      - name: Run tests
+        run: pytest
+
+  publish:
+    needs: [build, test]
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/project/medpipe/
+    permissions:
+      id-token: write
+    steps:
+      - name: Get the distributions
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
