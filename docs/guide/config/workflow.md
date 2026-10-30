@@ -171,7 +171,7 @@ ci_level = 0.95
 | `ci_level` | float | `0.95` | Confidence level of the intervals, between 0 and 1. |
 | `cv_splines` | integer | `3` | Number of internal folds used by the spline fit of the `ici` metric, 2 or more. Lower values are faster. It has no effect on other metrics. |
 
-Every metric is computed on the test set with a bootstrapped confidence interval. The names are checked when the configuration is validated, so a metric you registered with `MetricRegistry` is accepted if it is registered before the pipeline is created.
+Every metric is computed on the test set with a bootstrapped confidence interval. The names are checked when the configuration is validated, so a metric you registered with `MetricRegistry` is accepted if it is registered before the pipeline is created. The metrics are also checked against the type of outcome: for a classifier, a metric that needs a predictive distribution (`crps`) is rejected. The [regression](regression.md#metrics) page lists the rules for regressors.
 
 The results are saved for each outcome in `results/<outcome>_evaluation_results.json`, with the point estimate and the bounds of the interval for every metric:
 
