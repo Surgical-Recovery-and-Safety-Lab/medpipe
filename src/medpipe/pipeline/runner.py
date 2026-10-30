@@ -183,13 +183,19 @@ class BaseRunner:
         joblib.dump(self.fitted_models, models_path, compress=3)
         self.logger.info(f"Fitted final models saved to {models_path}")
 
-    def _save_cv_results(self, outcome: str, cv_results_df: pd.DataFrame) -> None:
+    def _save_cv_results(
+        self,
+        outcome: str,
+        cv_results_df: pd.DataFrame,
+        best_index: int | None = None,
+    ) -> None:
         """
         Save cross-validation results to disk in the artifacts directory.
 
         Exports a detailed fold-level CSV file for spreadsheet auditing alongside
         a JSON file containing summary statistics (mean and standard deviation)
-        for each test evaluation metric.
+        for each test evaluation metric. For the results of a grid search, the
+        summary is the one of the selected hyperparameters.
 
         Parameters
         ----------
@@ -198,6 +204,9 @@ class BaseRunner:
         cv_results_df : pd.DataFrame
             DataFrame containing fold-by-fold cross-validation metrics and timing
             information derived from scikit-learn's `cross_validate` or `GridSearchCV`.
+        best_index : int, optional
+            Row of `cv_results_df` of the selected hyperparameters when the results
+            come from `GridSearchCV`. Leave as None for `cross_validate` results.
 
         Returns
         -------
@@ -214,13 +223,25 @@ class BaseRunner:
 
         # Extract and save summary report (mean ± std dev for test scores)
         summary = {}
-        for col in cv_results_df.columns:
-            if col.startswith("test_"):
-                metric_name = col.replace("test_", "")
-                summary[metric_name] = {
-                    "mean": float(cv_results_df[col].mean()),
-                    "std": float(cv_results_df[col].std()),
-                }
+        if best_index is not None:
+            # GridSearchCV results hold one row per candidate, with the mean and
+            # standard deviation over the folds already computed
+            best = cv_results_df.iloc[int(best_index)]
+            for col in cv_results_df.columns:
+                if col.startswith("mean_test_"):
+                    metric_name = col.removeprefix("mean_test_")
+                    summary[metric_name] = {
+                        "mean": float(best[col]),
+                        "std": float(best[f"std_test_{metric_name}"]),
+                    }
+        else:
+            for col in cv_results_df.columns:
+                if col.startswith("test_"):
+                    metric_name = col.replace("test_", "")
+                    summary[metric_name] = {
+                        "mean": float(cv_results_df[col].mean()),
+                        "std": float(cv_results_df[col].std()),
+                    }
 
         json_path = self.orchestrator.artifact_manager.save_json(
             summary, artifacts_dir, f"{outcome}_cv_summary.json"
@@ -333,7 +354,7 @@ class BaseRunner:
 
             # Convert search results to DataFrame & save artifacts
             cv_results_df = pd.DataFrame(search.cv_results_)
-            self._save_cv_results(outcome, cv_results_df)
+            self._save_cv_results(outcome, cv_results_df, best_index=search.best_index_)
 
             self.logger.debug(
                 f"[{outcome}] GridSearchCV best index: {search.best_index_} | "
