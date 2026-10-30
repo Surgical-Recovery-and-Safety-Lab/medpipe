@@ -139,13 +139,27 @@ class TestMedpipeClassifierConfig:
         with pytest.raises(ValueError, match=match_expr):
             MedpipeClassifierConfig.model_validate(config)
 
+    @pytest.mark.parametrize("run_mode", ["fast", "eval"])
+    def test_cross_validation_not_required(
+        self, tmp_path: Path, run_mode: Literal["fast", "eval"]
+    ) -> None:
+        """Test that run modes without cross-validation do not require it."""
+        config = self._get_valid_config_dict(tmp_path)
+        config["meta"]["run_mode"] = run_mode
+        config["workflow"]["validation"]["cross_validation"] = None
+
+        validated = MedpipeClassifierConfig.model_validate(config)
+
+        assert validated.workflow.validation.cross_validation is None
+
     @pytest.mark.parametrize("run_mode", ["audit", "cv"])
     def test_cross_validation_run_mode(
         self, tmp_path: Path, run_mode: Literal["audit", "cv"]
     ) -> None:
         """Test case when run_mode and cross_validation mismatch."""
         match_expr = (
-            "Cross-validation parameters must be specified when run_mode is not 'fast'"
+            "Cross-validation parameters must be specified "
+            "when run_mode is 'cv' or 'audit'"
         )
         config = self._get_valid_config_dict(tmp_path)
         config["meta"]["run_mode"] = run_mode
@@ -565,3 +579,209 @@ class TestMedpipeClassifierConfig:
         assert config.resolved_models["ANY_COMP"].recalibration
         assert config.resolved_models["MORTALITY_30D"].recalibration.recalibrate is True
         assert config.resolved_models["ANY_COMP"].recalibration.recalibrate is False
+
+    def test_cascade_override_without_algorithm_merges_hyperparameters(
+        self, tmp_path: Path
+    ) -> None:
+        """Test that an override without an algorithm keeps the default
+        algorithm and merges its hyperparameters."""
+        raw_config = self._get_valid_config_dict(tmp_path)
+        raw_config["outcome_overrides"] = {
+            "ANY_COMP": {"hyperparameters": {"max_depth": 5}}
+        }
+
+        config = MedpipeClassifierConfig.model_validate(raw_config)
+
+        comp_model = config.resolved_models["ANY_COMP"]
+        assert comp_model.algorithm == "HistGradientBoostingClassifier"
+        assert comp_model.hyperparameters == {"learning_rate": 0.1, "max_depth": 5}
+        assert comp_model.recalibration == config.default_model.recalibration
+
+    def test_cascade_override_recalibration_only(self, tmp_path: Path) -> None:
+        """Test that an override can change only the recalibration, leaving
+        the model untouched."""
+        raw_config = self._get_valid_config_dict(tmp_path)
+        raw_config["outcome_overrides"] = {
+            "ANY_COMP": {"recalibration": {"recalibrate": False}}
+        }
+
+        config = MedpipeClassifierConfig.model_validate(raw_config)
+
+        comp_model = config.resolved_models["ANY_COMP"]
+        assert comp_model.algorithm == "HistGradientBoostingClassifier"
+        assert comp_model.hyperparameters == {"learning_rate": 0.1}
+        assert comp_model.recalibration is not None
+        assert comp_model.recalibration.recalibrate is False
+        assert comp_model.recalibration.method == "isotonic"
+
+    def test_cascade_override_recalibration_hyperparameters_only(
+        self, tmp_path: Path
+    ) -> None:
+        """Test that an override without recalibrate or method keeps both
+        and merges the hyperparameters."""
+        raw_config = self._get_valid_config_dict(tmp_path)
+        raw_config["default_model"]["recalibration"]["hyperparameters"] = {"y_min": 0.0}
+        raw_config["outcome_overrides"] = {
+            "ANY_COMP": {"recalibration": {"hyperparameters": {"y_max": 1.0}}}
+        }
+
+        config = MedpipeClassifierConfig.model_validate(raw_config)
+
+        recal = config.resolved_models["ANY_COMP"].recalibration
+        assert recal is not None
+        assert recal.recalibrate is True
+        assert recal.method == "isotonic"
+        assert recal.hyperparameters == {"y_min": 0.0, "y_max": 1.0}
+
+    def test_cascade_method_change_keeps_recalibrate_flag(self, tmp_path: Path) -> None:
+        """Test that changing the method keeps the default recalibrate flag
+        when the override does not set it."""
+        raw_config = self._get_valid_config_dict(tmp_path)
+        raw_config["outcome_overrides"] = {
+            "ANY_COMP": {"recalibration": {"method": "sigmoid"}}
+        }
+
+        config = MedpipeClassifierConfig.model_validate(raw_config)
+
+        recal = config.resolved_models["ANY_COMP"].recalibration
+        assert recal is not None
+        assert recal.recalibrate is True
+        assert recal.method == "sigmoid"
+
+    def test_cascade_new_recalibration_requires_recalibrate(
+        self, tmp_path: Path
+    ) -> None:
+        """Test that an override adding a recalibration to a default model
+        without one must set recalibrate."""
+        raw_config = self._get_valid_config_dict(tmp_path)
+        raw_config["default_model"]["recalibration"] = None
+        raw_config["outcome_overrides"] = {
+            "ANY_COMP": {"recalibration": {"method": "sigmoid"}}
+        }
+
+        with pytest.raises(ValidationError, match="'recalibrate' must be set"):
+            MedpipeClassifierConfig.model_validate(raw_config)
+
+    def test_override_enabling_recalibration_requires_split(
+        self, tmp_path: Path
+    ) -> None:
+        """Test that an override enabling recalibration requires a
+        recalibration split even if the default model has no recalibration."""
+        raw_config = self._get_valid_config_dict(tmp_path)
+        raw_config["default_model"]["recalibration"] = None
+        raw_config["workflow"]["validation"]["recalibration_split"] = None
+        raw_config["outcome_overrides"] = {
+            "ANY_COMP": {"recalibration": {"recalibrate": True}}
+        }
+
+        match_expr = (
+            "Recalibration validation split must be "
+            "specified when a recalibration method is used"
+        )
+        with pytest.raises(ValidationError, match=match_expr):
+            MedpipeClassifierConfig.model_validate(raw_config)
+
+    def test_override_disabling_recalibration_does_not_require_split(
+        self, tmp_path: Path
+    ) -> None:
+        """Test that an override that does not enable recalibration does not
+        require a recalibration split."""
+        raw_config = self._get_valid_config_dict(tmp_path)
+        raw_config["default_model"]["recalibration"] = None
+        raw_config["workflow"]["validation"]["recalibration_split"] = None
+        raw_config["outcome_overrides"] = {
+            "ANY_COMP": {"recalibration": {"recalibrate": False}}
+        }
+
+        config = MedpipeClassifierConfig.model_validate(raw_config)
+
+        assert config.workflow.validation.recalibration_split is None
+
+    def test_unknown_algorithm_raises(self, tmp_path: Path) -> None:
+        """Test that an algorithm unknown to ModelRegistry is rejected."""
+        raw_config = self._get_valid_config_dict(tmp_path)
+        raw_config["default_model"]["algorithm"] = "NotAModel"
+
+        with pytest.raises(ValidationError, match="NotAModel"):
+            MedpipeClassifierConfig.model_validate(raw_config)
+
+    def test_unknown_override_algorithm_raises(self, tmp_path: Path) -> None:
+        """Test that an override algorithm unknown to ModelRegistry is rejected."""
+        raw_config = self._get_valid_config_dict(tmp_path)
+        raw_config["outcome_overrides"] = {"ANY_COMP": {"algorithm": "NotAModel"}}
+
+        with pytest.raises(ValidationError, match="outcome 'ANY_COMP'"):
+            MedpipeClassifierConfig.model_validate(raw_config)
+
+    def test_registered_algorithm_accepted(self, tmp_path: Path) -> None:
+        """Test that a model registered with ModelRegistry is accepted."""
+        from sklearn.linear_model import LogisticRegression
+
+        from medpipe import ModelRegistry
+
+        ModelRegistry.register("RegisteredTestModel")(LogisticRegression)
+        try:
+            raw_config = self._get_valid_config_dict(tmp_path)
+            raw_config["default_model"]["algorithm"] = "RegisteredTestModel"
+
+            config = MedpipeClassifierConfig.model_validate(raw_config)
+
+            assert config.default_model.algorithm == "RegisteredTestModel"
+        finally:
+            ModelRegistry._registry.pop("RegisteredTestModel", None)
+
+    def test_preprocessing_column_must_be_predictor(self, tmp_path: Path) -> None:
+        """Test that a preprocessing operation on a column that is not a
+        predictor is rejected."""
+        raw_config = self._get_valid_config_dict(tmp_path)
+        raw_config["workflow"]["preprocessing"] = {
+            "preprocess": True,
+            "operations": [{"name": "StandardScaler", "columns": ["OP_YEAR"]}],
+        }
+
+        with pytest.raises(
+            ValidationError, match=r"not in data\.predictors: .*OP_YEAR"
+        ):
+            MedpipeClassifierConfig.model_validate(raw_config)
+
+    def test_preprocessing_columns_not_checked_when_disabled(
+        self, tmp_path: Path
+    ) -> None:
+        """Test that the operations are not checked when preprocessing is
+        disabled."""
+        raw_config = self._get_valid_config_dict(tmp_path)
+        raw_config["workflow"]["preprocessing"] = {
+            "preprocess": False,
+            "operations": [{"name": "StandardScaler", "columns": ["OP_YEAR"]}],
+        }
+
+        config = MedpipeClassifierConfig.model_validate(raw_config)
+
+        assert config.workflow.preprocessing is not None
+        assert config.workflow.preprocessing.preprocess is False
+
+    def test_distributional_metric_rejected(self, tmp_path: Path) -> None:
+        """Test that a metric needing a predictive distribution is rejected for
+        classification."""
+        raw_config = self._get_valid_config_dict(tmp_path)
+        raw_config["workflow"]["evaluation"]["metrics"]["metrics"] = ["roc_auc", "crps"]
+
+        with pytest.raises(
+            ValidationError, match="'crps' needs a predictive distribution"
+        ):
+            MedpipeClassifierConfig.model_validate(raw_config)
+
+    @pytest.mark.parametrize(
+        "metrics", [["roc_auc"], ["accuracy", "log_loss", "ici"], ["rmse", "mae"]]
+    )
+    def test_classification_and_generic_metrics_accepted(
+        self, tmp_path: Path, metrics: list[str]
+    ) -> None:
+        """Test that classification metrics and the generic error metrics are
+        accepted."""
+        raw_config = self._get_valid_config_dict(tmp_path)
+        raw_config["workflow"]["evaluation"]["metrics"]["metrics"] = metrics
+
+        config = MedpipeClassifierConfig.model_validate(raw_config)
+
+        assert config.workflow.evaluation.metrics.metrics == metrics

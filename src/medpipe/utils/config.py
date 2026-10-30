@@ -46,7 +46,6 @@ def _validate_metrics_registered(metrics: list[str]) -> None:
         If any entry in `metrics` is not a registered metric.
 
     """
-    from medpipe.metrics.core import METRICS
     from medpipe.metrics.registry import MetricRegistry
 
     # Query the live registry (not the `METRICS` snapshot taken at import
@@ -56,10 +55,263 @@ def _validate_metrics_registered(metrics: list[str]) -> None:
         if metric not in available:
             expr = (
                 f"{metric} was not found in available metric "
-                f"list. Available metrics are {METRICS}"
                 f"list. Available metrics are {available}"
             )
             raise ValueError(expr)
+
+
+def _validate_metrics_for_task(
+    metrics: list[str], task: Literal["classification", "regression"]
+) -> None:
+    """Validate that the metrics can be computed for the type of outcome.
+
+    A metric that needs class probabilities, decision scores, or class labels
+    (a `predict_proba`, `decision_function`, or thresholded `predict` response)
+    cannot be computed on a continuous outcome, and a metric that needs a
+    predictive distribution (`predict_dist`) cannot be computed on a class
+    outcome. The other metrics, such as `rmse` and `mae`, are accepted for both.
+
+    Parameters
+    ----------
+    metrics : list of str
+        Metric identifiers, already known to be registered.
+    task : {"classification", "regression"}
+        Type of outcome the pipeline models.
+
+    Raises
+    ------
+    ValueError
+        If a metric cannot be computed for the type of outcome.
+
+    """
+    from medpipe.metrics.registry import MetricRegistry
+
+    for name in metrics:
+        spec = MetricRegistry.get(name)
+        methods = (
+            (spec.response_method,)
+            if isinstance(spec.response_method, str)
+            else tuple(spec.response_method)
+        )
+        if task == "classification" and "predict_dist" in methods:
+            raise ValueError(
+                f"The metric '{name}' needs a predictive distribution and cannot "
+                "be computed for classification outcomes."
+            )
+        if task == "regression" and (
+            spec.needs_threshold
+            or "predict_proba" in methods
+            or "decision_function" in methods
+        ):
+            raise ValueError(
+                f"The metric '{name}' is a classification metric and cannot be "
+                "computed for regression outcomes."
+            )
+
+
+def _metric_response_methods(name: str) -> tuple[str, ...]:
+    """Return the response methods a registered metric needs.
+
+    Parameters
+    ----------
+    name : str
+        Identifier of a registered metric.
+
+    Returns
+    -------
+    tuple of str
+        The response methods of the metric.
+
+    """
+    from medpipe.metrics.registry import MetricRegistry
+
+    method = MetricRegistry.get(name).response_method
+    return (method,) if isinstance(method, str) else tuple(method)
+
+
+def _validate_metrics_need_distribution(resolved_algorithms: dict[str, str]) -> None:
+    """Validate that models can provide the distribution a metric needs.
+
+    Parameters
+    ----------
+    resolved_algorithms : dict of str to str
+        Mapping of outcome name to the algorithm name configured for it.
+
+    Raises
+    ------
+    ValueError
+        If the algorithm of an outcome has neither a `predict_dist` nor a
+        `pred_dist` method.
+
+    """
+    from medpipe.models.registry import ModelRegistry
+
+    for outcome, algorithm in resolved_algorithms.items():
+        model_class = ModelRegistry.get(algorithm)
+        if not (
+            hasattr(model_class, "predict_dist") or hasattr(model_class, "pred_dist")
+        ):
+            raise ValueError(
+                f"A configured metric needs a predictive distribution, but the "
+                f"algorithm '{algorithm}' of outcome '{outcome}' cannot predict "
+                "one."
+            )
+
+
+def _validate_algorithms_registered(algorithms: dict[str, str]) -> None:
+    """Validate that all given algorithm names can be resolved by ModelRegistry.
+
+    Parameters
+    ----------
+    algorithms : dict of str to str
+        Mapping of outcome name to the algorithm name configured for it.
+
+    Raises
+    ------
+    ValueError
+        If an algorithm is neither registered nor found in the fallback
+        modules of `ModelRegistry`.
+
+    """
+    from medpipe.models.registry import ModelRegistry
+
+    for outcome, algorithm in algorithms.items():
+        try:
+            ModelRegistry.get(algorithm)
+        except ValueError as err:
+            raise ValueError(
+                f"Algorithm for outcome '{outcome}' could not be resolved: {err}"
+            ) from err
+
+
+def _cascade_model_setup(
+    base_setup: dict[str, Any], override: dict[str, Any]
+) -> dict[str, Any]:
+    """Apply an outcome override on top of the default model setup.
+
+    Parameters
+    ----------
+    base_setup : dict of str to Any
+        Dump of the default model setup. It is modified in place.
+    override : dict of str to Any
+        Dump of the outcome override, containing only the fields that were
+        explicitly set.
+
+    Returns
+    -------
+    dict of str to Any
+        The resolved model setup.
+
+    Raises
+    ------
+    ValueError
+        If the override introduces a recalibration for a model without one
+        and does not set `recalibrate`.
+
+    """
+    # 1. Algorithm & hyperparameters
+    algorithm = override.get("algorithm")
+    if algorithm is not None and algorithm != base_setup["algorithm"]:
+        base_setup["algorithm"] = algorithm
+        # Algorithm changed: replace hyperparameters entirely to prevent
+        # collisions
+        base_setup["hyperparameters"] = override.get("hyperparameters") or {}
+    elif override.get("hyperparameters"):
+        # Same (or omitted) algorithm: merge hyperparameters
+        base_setup["hyperparameters"].update(override["hyperparameters"])
+
+    # 2. Recalibration
+    if "recalibration" not in override:
+        return base_setup
+
+    override_recal = override["recalibration"]
+    base_recal = base_setup.get("recalibration")
+
+    if override_recal is None:
+        # Explicitly disable recalibration for this outcome
+        base_setup["recalibration"] = None
+    elif base_recal is None:
+        if "recalibrate" not in override_recal:
+            raise ValueError(
+                "'recalibrate' must be set in an outcome override that adds "
+                "a recalibration to a default model without one"
+            )
+        base_setup["recalibration"] = {
+            "recalibrate": override_recal["recalibrate"],
+            "method": override_recal.get("method", "isotonic"),
+            "hyperparameters": override_recal.get("hyperparameters") or {},
+        }
+    else:
+        method = override_recal.get("method")
+        if method is not None and method != base_recal["method"]:
+            # Method changed: replace hyperparameters entirely
+            base_recal["method"] = method
+            base_recal["hyperparameters"] = override_recal.get("hyperparameters") or {}
+        elif override_recal.get("hyperparameters"):
+            base_recal["hyperparameters"].update(override_recal["hyperparameters"])
+        if "recalibrate" in override_recal:
+            base_recal["recalibrate"] = override_recal["recalibrate"]
+
+    return base_setup
+
+
+def _validate_preprocessing_columns(
+    preprocessing: PreprocessingConfig | None, predictors: list[str]
+) -> None:
+    """Validate that preprocessing operations only act on predictors.
+
+    Parameters
+    ----------
+    preprocessing : PreprocessingConfig or None
+        Preprocessing configuration of the workflow.
+    predictors : list of str
+        Predictor columns declared in the data configuration.
+
+    Raises
+    ------
+    ValueError
+        If an operation refers to a column that is not a predictor.
+
+    """
+    if not preprocessing or not preprocessing.preprocess:
+        return
+
+    for operation in preprocessing.operations or []:
+        unknown = [col for col in operation.columns if col not in predictors]
+        if unknown:
+            raise ValueError(
+                f"Preprocessing operation '{operation.name}' refers to columns "
+                f"that are not in data.predictors: {unknown}"
+            )
+
+
+def _validate_theme_keys(theme: dict[str, Any] | None) -> None:
+    """Validate that theme parameters are attributes of `MedpipeTheme`.
+
+    Parameters
+    ----------
+    theme : dict of str to Any or None
+        Candidate theme parameters.
+
+    Raises
+    ------
+    ValueError
+        If a key is not an attribute of `MedpipeTheme`.
+
+    """
+    if not theme:
+        return
+
+    from dataclasses import fields
+
+    from medpipe.visualisation.themes import MedpipeTheme
+
+    valid = {f.name for f in fields(MedpipeTheme)}
+    unknown = sorted(set(theme) - valid)
+    if unknown:
+        raise ValueError(
+            f"Unknown theme parameters {unknown}. Valid parameters are {sorted(valid)}"
+        )
 
 
 def _validate_plot_type_keys(
@@ -459,8 +711,9 @@ class SplitRecalibrationConfig(BaseModel):
 
     Attributes
     ----------
-    strategy : {"random", "group"} or None, default=None
-        Strategy used to split the recalibration set.
+    strategy : {"random", "group"}
+        Strategy used to split the recalibration set. It must match the
+        strategy of the test split.
     group_column : str or None, default=None
         Column identifying groups when `strategy` is "group".
     values : list of (str or int), or None, default=None
@@ -472,7 +725,7 @@ class SplitRecalibrationConfig(BaseModel):
 
     """
 
-    strategy: Literal["random", "group"] | None = None
+    strategy: Literal["random", "group"]
     group_column: str | None = None
     values: list[str | int] | None = None
     recalibration_size: float | None = Field(default=None, gt=0.0, lt=1.0)
@@ -522,8 +775,9 @@ class CrossValConfig(BaseModel):
     group_column : str or None, default=None
         Column identifying groups when `strategy` is "group" or "loso".
     n_splits : int or None, default=None
-        Number of cross-validation folds. Not used when `strategy` is
-        "loso", which has one fold per group.
+        Number of cross-validation folds, required when `strategy` is
+        "random" or "group". Not used when `strategy` is "loso", which has
+        one fold per group.
     shuffle : bool or None, default=None
         Whether to shuffle samples before splitting.
 
@@ -548,12 +802,18 @@ class CrossValConfig(BaseModel):
         Raises
         ------
         ValueError
-            If `strategy` is "group" or "loso" and `group_column` is not set.
+            If `strategy` is "group" or "loso" and `group_column` is not set,
+            or if `strategy` is "random" or "group" and `n_splits` is not set.
 
         """
         if self.strategy in ("group", "loso") and not self.group_column:
             raise ValueError(
                 f"The {self.strategy} strategy requires a group column to be specified"
+            )
+        if self.strategy in ("random", "group") and self.n_splits is None:
+            raise ValueError(
+                f"The {self.strategy} strategy requires the number of splits "
+                "(n_splits) to be specified"
             )
         return self
 
@@ -567,8 +827,8 @@ class ValidationSubConfig(BaseModel):
     test_split : SplitTestConfig
         Configuration for the train/test split.
     cross_validation : CrossValConfig or None, default=None
-        Configuration for cross-validation, required unless `run_mode`
-        is "fast".
+        Configuration for cross-validation, required when `run_mode`
+        is "cv" or "audit".
     recalibration_split : SplitRecalibrationConfig or None, default=None
         Configuration for the recalibration split, required when a
         recalibration method is used.
@@ -798,13 +1058,40 @@ class RecalibrationConfig(BaseModel):
     method : {"isotonic", "sigmoid", "temperature"}, default="isotonic"
         Recalibration method to apply.
     hyperparameters : dict of str to Any, default={}
-        Hyperparameters forwarded to the recalibration method.
+        Reserved for hyperparameters of the recalibration method. Currently
+        not used: the values are accepted but not passed to the recalibrator.
 
     """
 
     recalibrate: bool
     method: Literal["isotonic", "sigmoid", "temperature"] = Field(default="isotonic")
     hyperparameters: dict[str, Any] = Field(default_factory=dict)
+    model_config = {"extra": "forbid"}
+
+
+class RecalibrationOverrideConfig(BaseModel):
+    """Outcome-specific changes to the default recalibration.
+
+    Only the fields that are set are applied on top of the default
+    recalibration of the model.
+
+    Attributes
+    ----------
+    recalibrate : bool or None, default=None
+        Whether to recalibrate the fitted model. Required when the default
+        model has no recalibration.
+    method : {"isotonic", "sigmoid", "temperature"} or None, default=None
+        Recalibration method. A method different from the default replaces
+        the default hyperparameters.
+    hyperparameters : dict of str to Any or None, default=None
+        Hyperparameters forwarded to the recalibration method, merged into
+        the default ones when the method is unchanged.
+
+    """
+
+    recalibrate: bool | None = None
+    method: Literal["isotonic", "sigmoid", "temperature"] | None = None
+    hyperparameters: dict[str, Any] | None = None
     model_config = {"extra": "forbid"}
 
 
@@ -828,6 +1115,33 @@ class ModelSetup(BaseModel):
     model_config = {"extra": "forbid"}
 
 
+class ModelOverride(BaseModel):
+    """Outcome-specific changes to the default model.
+
+    Only the fields that are set are applied on top of the default model.
+    Setting `recalibration` to None disables the recalibration of the
+    outcome.
+
+    Attributes
+    ----------
+    algorithm : str or None, default=None
+        Name of the registered model class. Defaults to the algorithm of the
+        default model.
+    hyperparameters : dict of str to Any or None, default=None
+        Hyperparameters forwarded to the model constructor. They are merged
+        into the default ones when the algorithm is unchanged, and replace
+        them otherwise.
+    recalibration : RecalibrationOverrideConfig or None, default=None
+        Changes to the recalibration of the default model.
+
+    """
+
+    algorithm: str | None = None
+    hyperparameters: dict[str, Any] | None = None
+    recalibration: RecalibrationOverrideConfig | None = None
+    model_config = {"extra": "forbid"}
+
+
 # --- DISPLAY SCHEMAS ---
 class DisplayDefaultsConfig(BaseModel):
     """Default visualization parameters across all plot types.
@@ -842,7 +1156,11 @@ class DisplayDefaultsConfig(BaseModel):
     show : bool, default=False
         Whether to display generated plots interactively.
     n_bins : int, default=10
-        Number of bins used for histogram and calibration plots.
+        Number of bins used for the reliability diagram.
+    dist_n_bins : int, default=10
+        Number of bins used for the data distribution histogram.
+    dist_yscale : {"linear", "log", "symlog", "logit"}, default="linear"
+        Scale of the y-axis of the data distribution histogram.
     strategy : {"uniform", "quantile", "spline"}, default="uniform"
         Strategy used to compute calibration curves.
     n_jobs : int or None, default=1
@@ -863,6 +1181,8 @@ class DisplayDefaultsConfig(BaseModel):
     save: bool = True
     show: bool = False
     n_bins: int = Field(default=10, ge=1)
+    dist_n_bins: int = Field(default=10, ge=1)
+    dist_yscale: Literal["linear", "log", "symlog", "logit"] = "linear"
     strategy: Literal["uniform", "quantile", "spline"] = "uniform"
     n_jobs: int | None = Field(default=1, ge=-1)
     cv_splines: int = Field(default=3, ge=2)
@@ -882,7 +1202,7 @@ class DisplayConfig(BaseModel):
         Outcome-specific plot parameter overrides, keyed by outcome name
         then plot type, as ``{outcome: {plot_type: {param: value}}}``.
     theme : dict of str to Any, or None, default=None
-        Theme parameters forwarded to `MedpipeTheme`.
+        Parameters of `MedpipeTheme` (e.g. `dpi`, `primary_color`, `font_family`).
 
     """
 
@@ -931,6 +1251,30 @@ class DisplayConfig(BaseModel):
             if defaults:
                 data["defaults"] = defaults
         return data
+
+    @field_validator("theme")
+    @classmethod
+    def validate_theme_keys(cls, v: dict[str, Any] | None) -> dict[str, Any] | None:
+        """Ensure theme parameters are attributes of `MedpipeTheme`.
+
+        Parameters
+        ----------
+        v : dict of str to Any or None
+            Candidate `theme` mapping.
+
+        Returns
+        -------
+        dict of str to Any or None
+            The validated mapping.
+
+        Raises
+        ------
+        ValueError
+            If a key is not a theme parameter.
+
+        """
+        _validate_theme_keys(v)
+        return v
 
     @field_validator("overrides", "outcome_overrides")
     @classmethod
@@ -1009,7 +1353,7 @@ class MedpipeClassifierConfig(BaseModel):
     default_model : ModelSetup
         Default model, hyperparameter, and recalibration setup applied
         to all outcomes.
-    outcome_overrides : dict of str to ModelSetup, default={}
+    outcome_overrides : dict of str to ModelOverride, default={}
         Per-outcome overrides cascaded onto `default_model`.
     resolved_models : dict of str to ModelSetup, default={}
         Fully resolved per-outcome model configurations, generated
@@ -1026,7 +1370,7 @@ class MedpipeClassifierConfig(BaseModel):
     default_model: ModelSetup
 
     # Optional overrides keyed by outcome name
-    outcome_overrides: dict[str, ModelSetup] = Field(default_factory=dict)
+    outcome_overrides: dict[str, ModelOverride] = Field(default_factory=dict)
 
     # Dynamically generated during validation: fully resolved configurations per outcome
     resolved_models: dict[str, ModelSetup] = Field(default_factory=dict, init_var=False)
@@ -1043,65 +1387,87 @@ class MedpipeClassifierConfig(BaseModel):
             The validated configuration instance, with `resolved_models`
             populated.
 
+        Raises
+        ------
+        ValueError
+            If an override adds a recalibration to a default model that has
+            none without setting `recalibrate`.
+
         """
         resolved = {}
         for outcome in self.data.outcomes:
             base_setup = self.default_model.model_dump()
-
             if outcome in self.outcome_overrides:
                 override_setup = self.outcome_overrides[outcome].model_dump(
                     exclude_unset=True
                 )
-
-                # 1. Algorithm & Hyperparameters
-                if (
-                    "algorithm" in override_setup
-                    and override_setup["algorithm"] != base_setup["algorithm"]
-                ):
-                    base_setup["algorithm"] = override_setup["algorithm"]
-                    # Algorithm changed: replace hyperparameters entirely
-                    # to prevent collisions
-                    base_setup["hyperparameters"] = override_setup.get(
-                        "hyperparameters", {}
-                    )
-                elif "hyperparameters" in override_setup:
-                    # Same algorithm: deep-merge hyperparameters
-                    base_setup["hyperparameters"].update(
-                        override_setup["hyperparameters"]
-                    )
-
-                # 2. Recalibration
-                if "recalibration" in override_setup:
-                    override_recal = override_setup["recalibration"]
-                    if override_recal is None:
-                        # Explicitly disable recalibration for this outcome
-                        base_setup["recalibration"] = None
-                    elif base_setup.get("recalibration") is None:
-                        base_setup["recalibration"] = override_recal
-                    else:
-                        if (
-                            "method" in override_recal
-                            and override_recal["method"]
-                            != base_setup["recalibration"]["method"]
-                        ):
-                            base_setup["recalibration"] = override_recal
-                        else:
-                            if "recalibrate" in override_recal:
-                                base_setup["recalibration"]["recalibrate"] = (
-                                    override_recal["recalibrate"]
-                                )
-                            if "method" in override_recal:
-                                base_setup["recalibration"]["method"] = override_recal[
-                                    "method"
-                                ]
-                            if "hyperparameters" in override_recal:
-                                base_setup["recalibration"]["hyperparameters"].update(
-                                    override_recal["hyperparameters"]
-                                )
-
+                try:
+                    base_setup = _cascade_model_setup(base_setup, override_setup)
+                except ValueError as err:
+                    raise ValueError(f"Outcome override '{outcome}': {err}") from err
             resolved[outcome] = ModelSetup(**base_setup)
 
         self.resolved_models = resolved
+        return self
+
+    @model_validator(mode="after")
+    def validate_metrics_for_task(self) -> MedpipeClassifierConfig:
+        """Validate that the metrics can be computed for the type of outcome.
+
+        Returns
+        -------
+        MedpipeClassifierConfig
+            The validated configuration instance.
+
+        Raises
+        ------
+        ValueError
+            If a metric cannot be computed for the type of outcome.
+
+        """
+        metrics = self.workflow.evaluation.metrics.metrics
+        _validate_metrics_for_task(metrics, "classification")
+        return self
+
+    @model_validator(mode="after")
+    def validate_preprocessing_columns(self) -> MedpipeClassifierConfig:
+        """Validate that preprocessing operations only act on predictors.
+
+        Returns
+        -------
+        MedpipeClassifierConfig
+            The validated configuration instance.
+
+        Raises
+        ------
+        ValueError
+            If an operation refers to a column that is not in
+            `data.predictors`.
+
+        """
+        _validate_preprocessing_columns(
+            self.workflow.preprocessing, self.data.predictors
+        )
+        return self
+
+    @model_validator(mode="after")
+    def validate_algorithms_registered(self) -> MedpipeClassifierConfig:
+        """Validate that every resolved algorithm is known to ModelRegistry.
+
+        Returns
+        -------
+        MedpipeClassifierConfig
+            The validated configuration instance.
+
+        Raises
+        ------
+        ValueError
+            If an algorithm cannot be resolved.
+
+        """
+        _validate_algorithms_registered(
+            {name: model.algorithm for name, model in self.resolved_models.items()}
+        )
         return self
 
     @model_validator(mode="after")
@@ -1117,14 +1483,16 @@ class MedpipeClassifierConfig(BaseModel):
         Raises
         ------
         ValueError
-            If `default_model.recalibration` is set but
-            `workflow.validation.recalibration_split` is not.
+            If `default_model.recalibration` is set, or if an outcome
+            override enables recalibration, but
+            `workflow.validation.recalibration_split` is not set.
 
         """
-        if (
-            self.default_model.recalibration  # Recalibration is present
-            and not self.workflow.validation.recalibration_split
-        ):
+        needs_split = self.default_model.recalibration is not None or any(
+            model.recalibration is not None and model.recalibration.recalibrate
+            for model in self.resolved_models.values()
+        )
+        if needs_split and not self.workflow.validation.recalibration_split:
             expr = (
                 "Recalibration validation split must be "
                 "specified when a recalibration method is used"
@@ -1145,17 +1513,17 @@ class MedpipeClassifierConfig(BaseModel):
         Raises
         ------
         ValueError
-            If `meta.run_mode` is not "fast" and
+            If `meta.run_mode` is "cv" or "audit" and
             `workflow.validation.cross_validation` is not set.
 
         """
         if (
-            self.meta.run_mode != "fast"
+            self.meta.run_mode in ("cv", "audit")
             and self.workflow.validation.cross_validation is None
         ):
             expr = (
                 "Cross-validation parameters must be specified "
-                "when run_mode is not 'fast'"
+                "when run_mode is 'cv' or 'audit'"
             )
             raise ValueError(expr)
         return self
@@ -1246,6 +1614,28 @@ class RegressorModelSetup(BaseModel):
     model_config = {"extra": "forbid"}
 
 
+class RegressorModelOverride(BaseModel):
+    """Outcome-specific changes to the default regression model.
+
+    Only the fields that are set are applied on top of the default model.
+
+    Attributes
+    ----------
+    algorithm : str or None, default=None
+        Name of the registered model class. Defaults to the algorithm of the
+        default model.
+    hyperparameters : dict of str to Any or None, default=None
+        Hyperparameters forwarded to the model constructor. They are merged
+        into the default ones when the algorithm is unchanged, and replace
+        them otherwise.
+
+    """
+
+    algorithm: str | None = None
+    hyperparameters: dict[str, Any] | None = None
+    model_config = {"extra": "forbid"}
+
+
 # --- REGRESSOR EVALUATION SCHEMAS ---
 class RegressorMetricsConfig(BaseModel):
     """Configuration for regression evaluation metrics and bootstrap
@@ -1302,8 +1692,8 @@ class RegressorValidationSubConfig(BaseModel):
     test_split : SplitTestConfig
         Configuration for the train/test split.
     cross_validation : CrossValConfig or None, default=None
-        Configuration for cross-validation, required unless `run_mode`
-        is "fast".
+        Configuration for cross-validation, required when `run_mode`
+        is "cv" or "audit".
     recalibration_split : SplitRecalibrationConfig or None, default=None
         Configuration for the recalibration split.
 
@@ -1431,13 +1821,84 @@ class RegressorWorkflowConfig(BaseModel):
 
 
 # --- REGRESSOR DISPLAY SCHEMAS ---
+class RegressorDisplayDefaultsConfig(BaseModel):
+    """Default visualization parameters across all regression plot types.
+
+    Attributes
+    ----------
+    n_bootstraps : int, default=1000
+        Number of bootstrap resamples used to compute the confidence bands of
+        the coverage, sharpness, and Winkler score curves.
+    save : bool, default=True
+        Whether to persist generated plots to disk.
+    show : bool, default=False
+        Whether to display generated plots interactively.
+    n_jobs : int or None, default=1
+        Number of parallel jobs used to compute bootstrap resamples.
+        Independent of `workflow.n_jobs`.
+    dist_n_bins : int, default=20
+        Number of bins used for the histogram of the target values.
+    dist_yscale : {"linear", "log", "symlog", "logit"}, default="linear"
+        Scale of the y-axis of the histogram of the target values.
+    coverage_levels : list of (int or float), default=[5, 15, ..., 95]
+        Nominal central-interval coverage levels, in percent, evaluated by
+        the coverage, sharpness, and Winkler score curves. Each level must be
+        strictly between 0 and 100.
+    pit_n_bins : int, default=20
+        Number of bins of the probability integral transform (PIT) histogram.
+
+    """
+
+    n_bootstraps: int = Field(default=1000, ge=0)
+    save: bool = True
+    show: bool = False
+    n_jobs: int | None = Field(default=1, ge=-1)
+    dist_n_bins: int = Field(default=20, ge=1)
+    dist_yscale: Literal["linear", "log", "symlog", "logit"] = "linear"
+    coverage_levels: list[int | float] = Field(
+        default_factory=lambda: [*range(5, 100, 10)]
+    )
+    pit_n_bins: int = Field(default=20, ge=1)
+    model_config = {"extra": "forbid"}
+
+    @field_validator("coverage_levels")
+    @classmethod
+    def validate_coverage_levels(cls, v: list[int | float]) -> list[int | float]:
+        """Validate that the coverage levels are percentages.
+
+        Parameters
+        ----------
+        v : list of (int or float)
+            Candidate coverage levels.
+
+        Returns
+        -------
+        list of (int or float)
+            The validated coverage levels.
+
+        Raises
+        ------
+        ValueError
+            If the list is empty or a level is not strictly between 0 and 100.
+
+        """
+        if not v:
+            raise ValueError("coverage_levels should not be empty")
+        invalid = [level for level in v if not 0 < level < 100]
+        if invalid:
+            raise ValueError(
+                f"coverage_levels should be strictly between 0 and 100, got {invalid}"
+            )
+        return v
+
+
 class RegressorDisplayConfig(BaseModel):
     """Configuration settings for regression pipeline evaluation graphics
     and themes.
 
     Attributes
     ----------
-    defaults : DisplayDefaultsConfig
+    defaults : RegressorDisplayDefaultsConfig
         Default visualization parameters applied across all plot types.
     overrides : dict of str to dict of str to Any, default={}
         Plot-type-specific parameter overrides, keyed by plot type.
@@ -1445,11 +1906,13 @@ class RegressorDisplayConfig(BaseModel):
         Outcome-specific plot parameter overrides, keyed by outcome name
         then plot type, as ``{outcome: {plot_type: {param: value}}}``.
     theme : dict of str to Any, or None, default=None
-        Theme parameters forwarded to `MedpipeTheme`.
+        Parameters of `MedpipeTheme` (e.g. `dpi`, `primary_color`, `font_family`).
 
     """
 
-    defaults: DisplayDefaultsConfig = Field(default_factory=DisplayDefaultsConfig)
+    defaults: RegressorDisplayDefaultsConfig = Field(
+        default_factory=RegressorDisplayDefaultsConfig
+    )
     overrides: dict[str, dict[str, Any]] = Field(default_factory=dict)
     outcome_overrides: dict[str, dict[str, dict[str, Any]]] = Field(
         default_factory=dict
@@ -1457,6 +1920,30 @@ class RegressorDisplayConfig(BaseModel):
     theme: dict[str, Any] | None = Field(default=None)
 
     model_config = {"extra": "forbid"}
+
+    @field_validator("theme")
+    @classmethod
+    def validate_theme_keys(cls, v: dict[str, Any] | None) -> dict[str, Any] | None:
+        """Ensure theme parameters are attributes of `MedpipeTheme`.
+
+        Parameters
+        ----------
+        v : dict of str to Any or None
+            Candidate `theme` mapping.
+
+        Returns
+        -------
+        dict of str to Any or None
+            The validated mapping.
+
+        Raises
+        ------
+        ValueError
+            If a key is not a theme parameter.
+
+        """
+        _validate_theme_keys(v)
+        return v
 
     @field_validator("overrides", "outcome_overrides")
     @classmethod
@@ -1481,10 +1968,6 @@ class RegressorDisplayConfig(BaseModel):
 
         """
         valid_plots = {
-            "predicted_vs_actual",
-            "pred_vs_actual",
-            "residuals",
-            "residual_plot",
             "coverage",
             "coverage_curve",
             "sharpness",
@@ -1539,7 +2022,7 @@ class MedpipeRegressorConfig(BaseModel):
         or "eval".
     default_model : RegressorModelSetup
         Default model and hyperparameter setup applied to all outcomes.
-    outcome_overrides : dict of str to RegressorModelSetup, default={}
+    outcome_overrides : dict of str to RegressorModelOverride, default={}
         Per-outcome overrides cascaded onto `default_model`.
     resolved_models : dict of str to RegressorModelSetup, default={}
         Fully resolved per-outcome model configurations, generated
@@ -1556,7 +2039,7 @@ class MedpipeRegressorConfig(BaseModel):
     default_model: RegressorModelSetup
 
     # Optional overrides keyed by outcome name
-    outcome_overrides: dict[str, RegressorModelSetup] = Field(default_factory=dict)
+    outcome_overrides: dict[str, RegressorModelOverride] = Field(default_factory=dict)
 
     # Dynamically generated during validation: fully resolved configurations per outcome
     resolved_models: dict[str, RegressorModelSetup] = Field(
@@ -1579,32 +2062,80 @@ class MedpipeRegressorConfig(BaseModel):
         resolved = {}
         for outcome in self.data.outcomes:
             base_setup = self.default_model.model_dump()
-
             if outcome in self.outcome_overrides:
                 override_setup = self.outcome_overrides[outcome].model_dump(
                     exclude_unset=True
                 )
-
-                # Algorithm & Hyperparameters
-                if (
-                    "algorithm" in override_setup
-                    and override_setup["algorithm"] != base_setup["algorithm"]
-                ):
-                    base_setup["algorithm"] = override_setup["algorithm"]
-                    # Algorithm changed: replace hyperparameters entirely
-                    # to prevent collisions
-                    base_setup["hyperparameters"] = override_setup.get(
-                        "hyperparameters", {}
-                    )
-                elif "hyperparameters" in override_setup:
-                    # Same algorithm: deep-merge hyperparameters
-                    base_setup["hyperparameters"].update(
-                        override_setup["hyperparameters"]
-                    )
-
+                base_setup = _cascade_model_setup(base_setup, override_setup)
             resolved[outcome] = RegressorModelSetup(**base_setup)
 
         self.resolved_models = resolved
+        return self
+
+    @model_validator(mode="after")
+    def validate_metrics_for_task(self) -> MedpipeRegressorConfig:
+        """Validate that the metrics can be computed for the type of outcome.
+
+        Returns
+        -------
+        MedpipeRegressorConfig
+            The validated configuration instance.
+
+        Raises
+        ------
+        ValueError
+            If a metric cannot be computed for the type of outcome, or if a
+            distributional metric is used with a model that cannot predict a
+            distribution.
+
+        """
+        metrics = self.workflow.evaluation.metrics.metrics
+        _validate_metrics_for_task(metrics, "regression")
+        if any("predict_dist" in _metric_response_methods(name) for name in metrics):
+            _validate_metrics_need_distribution(
+                {name: model.algorithm for name, model in self.resolved_models.items()}
+            )
+        return self
+
+    @model_validator(mode="after")
+    def validate_preprocessing_columns(self) -> MedpipeRegressorConfig:
+        """Validate that preprocessing operations only act on predictors.
+
+        Returns
+        -------
+        MedpipeRegressorConfig
+            The validated configuration instance.
+
+        Raises
+        ------
+        ValueError
+            If an operation refers to a column that is not in
+            `data.predictors`.
+
+        """
+        _validate_preprocessing_columns(
+            self.workflow.preprocessing, self.data.predictors
+        )
+        return self
+
+    @model_validator(mode="after")
+    def validate_algorithms_registered(self) -> MedpipeRegressorConfig:
+        """Validate that every resolved algorithm is known to ModelRegistry.
+
+        Returns
+        -------
+        MedpipeRegressorConfig
+            The validated configuration instance.
+
+        Raises
+        ------
+        ValueError
+            If an algorithm cannot be resolved.
+
+        """
+        _validate_algorithms_registered(
+            {name: model.algorithm for name, model in self.resolved_models.items()}
+        )
         return self
 
     @model_validator(mode="after")
@@ -1620,17 +2151,17 @@ class MedpipeRegressorConfig(BaseModel):
         Raises
         ------
         ValueError
-            If `meta.run_mode` is not "fast" and
+            If `meta.run_mode` is "cv" or "audit" and
             `workflow.validation.cross_validation` is not set.
 
         """
         if (
-            self.meta.run_mode != "fast"
+            self.meta.run_mode in ("cv", "audit")
             and self.workflow.validation.cross_validation is None
         ):
             expr = (
                 "Cross-validation parameters must be specified "
-                "when run_mode is not 'fast'"
+                "when run_mode is 'cv' or 'audit'"
             )
             raise ValueError(expr)
         return self

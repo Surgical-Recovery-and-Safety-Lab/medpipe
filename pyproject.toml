@@ -1,6 +1,6 @@
 [project]
 name = "medpipe"
-description = "Clinical AI pipeline developement following TRIPOD+AI guidelines"
+description = "Configuration-driven, TRIPOD+AI compliant ML pipelines for tabular clinical data."
 readme = "README.md"
 requires-python = ">=3.12"
 license = "Apache-2.0"
@@ -9,7 +9,6 @@ authors = [
   { name = "Mathias Roesler", email = "mathias.roesler@auckland.co.nz" },
 ]
 classifiers = [
-  "Development Status :: 4 - Beta",
   "Intended Audience :: Healthcare Industry",
   "Intended Audience :: Science/Research",
   "Operating System :: POSIX :: Linux",
@@ -19,7 +18,7 @@ classifiers = [
   "Programming Language :: Python :: 3.13",
   "Programming Language :: Python :: 3.14",
   "Topic :: Scientific/Engineering :: Artificial Intelligence",
-  "Topic :: Scientific/Engineering :: Medical Science Apps.",
+  "Topic :: Scientific/Engineering :: Medical Science Apps",
 ]
 dynamic = ["version"]
 
@@ -43,12 +42,22 @@ Changelog = "https://github.com/Surgical-Recovery-and-Safety-Lab/medpipe/blob/ma
 Homepage = "https://github.com/Surgical-Recovery-and-Safety-Lab/medpipe"
 Repository = "https://github.com/Surgical-Recovery-and-Safety-Lab/medpipe.git"
 
-# Development and testing dependencies
+# Optional features, development and testing dependencies
 [project.optional-dependencies]
+excel = [
+  "openpyxl>=3.1.0",
+]
 dev = [
   "openpyxl>=3.1.0",
   "pytest>=8.0.0",
   "pytest-mock>=3.12.0",
+  "medpipe[docs]",
+]
+docs = [
+  "mkdocs>=1.5.0,<2",
+  "mkdocs-material>=9.5.0",
+  "mkdocstrings[python]>=0.24.0",
+  "mkdocs-include-markdown-plugin",
   "ruff>=0.16.7",
   "mypy>=2.3.0",
   "pandas-stubs",

@@ -676,6 +676,16 @@ class MedpipeOrchestrator:
                         {} if not operation.model_extra else operation.model_extra
                     )
 
+                    unknown = [
+                        column
+                        for column in operation.columns
+                        if column not in ct_columns_dict
+                    ]
+                    if unknown:
+                        raise ValueError(
+                            f"Preprocessing operation '{operation.name}' refers to "
+                            f"columns that are not in data.predictors: {unknown}"
+                        )
                     ct_columns = [
                         ct_columns_dict[column] for column in operation.columns
                     ]

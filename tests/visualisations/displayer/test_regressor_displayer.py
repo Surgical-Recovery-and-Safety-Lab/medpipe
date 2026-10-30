@@ -403,3 +403,166 @@ def test_plot_all_forwards_n_jobs(mock_orchestrator, fitted_ordboost_dist_and_da
 
     assert spy.call_count == 3
     assert all(c.kwargs["n_jobs"] == 2 for c in spy.call_args_list)
+
+
+class TestConfiguredDefaults:
+    """Tests that the regression display defaults are read from the config."""
+
+    @staticmethod
+    def _orchestrator(tmp_path: Path, **defaults) -> MagicMock:
+        from medpipe.utils.config import RegressorDisplayConfig
+
+        orchestrator = MagicMock()
+        orchestrator.run_dir = tmp_path
+        orchestrator.config.display = RegressorDisplayConfig.model_validate(
+            {"defaults": {"n_bootstraps": 0, **defaults}}
+        )
+        return orchestrator
+
+    @pytest.mark.parametrize("plot", ["coverage", "sharpness", "winkler"])
+    def test_coverage_levels_from_config(
+        self, tmp_path: Path, fitted_ordboost_dist_and_data, plot: str
+    ) -> None:
+        """Test that the configured coverage levels are used by the curves."""
+        y_true, dist, _ = fitted_ordboost_dist_and_data
+        displayer = MedpipeRegressorDisplayer(
+            orchestrator=self._orchestrator(tmp_path, coverage_levels=[50, 90])
+        )
+
+        with patch.object(
+            displayer,
+            "_compute_coverage_sharpness_winkler_data",
+            wraps=displayer._compute_coverage_sharpness_winkler_data,
+        ) as spy:
+            getattr(displayer, f"plot_{plot}")(y_true, dist, save=False, show=False)
+
+        np.testing.assert_array_equal(spy.call_args.kwargs["coverage_levels"], [50, 90])
+
+    def test_runtime_coverage_levels_take_precedence(
+        self, tmp_path: Path, fitted_ordboost_dist_and_data
+    ) -> None:
+        """Test that coverage levels given to the method win over the config."""
+        y_true, dist, _ = fitted_ordboost_dist_and_data
+        displayer = MedpipeRegressorDisplayer(
+            orchestrator=self._orchestrator(tmp_path, coverage_levels=[50, 90])
+        )
+
+        with patch.object(
+            displayer,
+            "_compute_coverage_sharpness_winkler_data",
+            wraps=displayer._compute_coverage_sharpness_winkler_data,
+        ) as spy:
+            displayer.plot_coverage(
+                y_true,
+                dist,
+                coverage_levels=np.array([20, 40, 60]),
+                save=False,
+                show=False,
+            )
+
+        np.testing.assert_array_equal(
+            spy.call_args.kwargs["coverage_levels"], [20, 40, 60]
+        )
+
+    def test_coverage_levels_fall_back_to_default_grid(
+        self, mock_orchestrator, fitted_ordboost_dist_and_data
+    ) -> None:
+        """Test the default grid when there is no display configuration."""
+        y_true, dist, _ = fitted_ordboost_dist_and_data
+        displayer = MedpipeRegressorDisplayer(orchestrator=mock_orchestrator)
+
+        with patch.object(
+            displayer,
+            "_compute_coverage_sharpness_winkler_data",
+            wraps=displayer._compute_coverage_sharpness_winkler_data,
+        ) as spy:
+            displayer.plot_coverage(
+                y_true, dist, n_bootstraps=0, save=False, show=False
+            )
+
+        np.testing.assert_array_equal(
+            spy.call_args.kwargs["coverage_levels"], np.arange(5, 100, 10)
+        )
+
+    def test_pit_n_bins_from_config(
+        self, tmp_path: Path, fitted_ordboost_dist_and_data
+    ) -> None:
+        """Test that the PIT histogram uses the configured number of bins."""
+        y_true, dist, mapper = fitted_ordboost_dist_and_data
+        displayer = MedpipeRegressorDisplayer(
+            orchestrator=self._orchestrator(tmp_path, pit_n_bins=8)
+        )
+
+        with patch.object(
+            displayer,
+            "_compute_pit_histogram_data",
+            wraps=displayer._compute_pit_histogram_data,
+        ) as spy:
+            displayer.plot_pit_histogram(y_true, dist, mapper, save=False, show=False)
+
+        assert spy.call_args.kwargs["n_bins"] == 8
+
+    def test_pit_n_bins_default_without_config(
+        self, mock_orchestrator, fitted_ordboost_dist_and_data
+    ) -> None:
+        """Test the default PIT bin count without display configuration."""
+        y_true, dist, mapper = fitted_ordboost_dist_and_data
+        displayer = MedpipeRegressorDisplayer(orchestrator=mock_orchestrator)
+
+        with patch.object(
+            displayer,
+            "_compute_pit_histogram_data",
+            wraps=displayer._compute_pit_histogram_data,
+        ) as spy:
+            displayer.plot_pit_histogram(y_true, dist, mapper, save=False, show=False)
+
+        assert spy.call_args.kwargs["n_bins"] == 20
+
+    def test_pit_outcome_override(
+        self, tmp_path: Path, fitted_ordboost_dist_and_data
+    ) -> None:
+        """Test that an outcome override can change the PIT bin count."""
+        from medpipe.utils.config import RegressorDisplayConfig
+
+        y_true, dist, mapper = fitted_ordboost_dist_and_data
+        orchestrator = MagicMock()
+        orchestrator.run_dir = tmp_path
+        orchestrator.config.display = RegressorDisplayConfig.model_validate(
+            {"outcome_overrides": {"LOS": {"pit": {"pit_n_bins": 5}}}}
+        )
+        displayer = MedpipeRegressorDisplayer(orchestrator=orchestrator)
+
+        with patch.object(
+            displayer,
+            "_compute_pit_histogram_data",
+            wraps=displayer._compute_pit_histogram_data,
+        ) as spy:
+            displayer.plot_pit_histogram(
+                y_true, dist, mapper, outcome="LOS", save=False, show=False
+            )
+
+        assert spy.call_args.kwargs["n_bins"] == 5
+
+    def test_data_distribution_uses_configured_bins(
+        self, tmp_path: Path, fitted_ordboost_dist_and_data
+    ) -> None:
+        """Test that the target histogram uses dist_n_bins from the config."""
+        y_true, _, _ = fitted_ordboost_dist_and_data
+        displayer = MedpipeRegressorDisplayer(
+            orchestrator=self._orchestrator(tmp_path, dist_n_bins=7)
+        )
+
+        _, ax = displayer.plot_data_distribution(y_true, save=False, show=False)
+
+        assert len(ax.patches) == 7
+
+    def test_data_distribution_default_is_twenty_bins(
+        self, mock_orchestrator, fitted_ordboost_dist_and_data
+    ) -> None:
+        """Test the default bin count of the target histogram."""
+        y_true, _, _ = fitted_ordboost_dist_and_data
+        displayer = MedpipeRegressorDisplayer(orchestrator=mock_orchestrator)
+
+        _, ax = displayer.plot_data_distribution(y_true, save=False, show=False)
+
+        assert len(ax.patches) == 20

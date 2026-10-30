@@ -1,5 +1,5 @@
 """
-Medpipe: A Python framework for clinical machine learning pipeline
+MedPipe: A Python framework for clinical machine learning pipeline
 orchestration.
 
 Provides unified high-level interfaces for data preparation, model fitting,

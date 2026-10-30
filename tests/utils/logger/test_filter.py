@@ -34,6 +34,25 @@ class TestCompactProgressFilter:
 
         assert progress_filter.filter(record) is True
 
+    @pytest.mark.parametrize("name", ["MedpipeClassifier", "MedpipeRegressor"])
+    @pytest.mark.parametrize(
+        "template",
+        [
+            "Initialising {name} end-to-end pipeline.",
+            "Successfully loaded {name} from artifacts/v1",
+            "Full {name} pipeline execution finished successfully.",
+        ],
+    )
+    def test_pipeline_milestones_pass_for_both_pipelines(
+        self, name: str, template: str
+    ) -> None:
+        """Test that the start, load and end messages of the classifier and
+        the regressor are milestones, so that they are shown in compact mode."""
+        progress_filter = CompactProgressFilter()
+        record = _make_record(logging.INFO, template.format(name=name))
+
+        assert progress_filter.filter(record) is True
+
     def test_non_milestone_info_message_blocked(self) -> None:
         """Test that an INFO message without a progress keyword is filtered out."""
         progress_filter = CompactProgressFilter()

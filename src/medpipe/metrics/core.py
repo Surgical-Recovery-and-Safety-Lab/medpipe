@@ -125,6 +125,18 @@ def ici_score(y: npt.NDArray, y_pred: npt.NDArray, cv_splines: int = 3) -> float
         confidence interval) at the cost of a coarser regularization
         search; `SplineCalib`'s own default is 5.
 
+    Returns
+    -------
+    float
+        The integrated calibration index, the mean absolute difference
+        between the predicted probabilities and their spline-smoothed
+        values (lower is better).
+
+    Raises
+    ------
+    ValueError
+        If the spline calibration fails to produce predictions.
+
     """
     if y_pred.ndim == 2:
         y_pred = y_pred[:, 1]

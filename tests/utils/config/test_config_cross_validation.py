@@ -74,11 +74,13 @@ class TestCrossValConfig:
         assert config.model_dump() == raw_config
 
     def test_default_values(self) -> None:
-        """Test that optional fields default to None when only strategy is given."""
-        config = CrossValConfig.model_validate({"strategy": "random"})
+        """Test that optional fields default to None when only the loso
+        strategy and its group column are given."""
+        config = CrossValConfig.model_validate(
+            {"strategy": "loso", "group_column": "OP_YEAR"}
+        )
 
         assert config.grid_search is None
-        assert config.group_column is None
         assert config.n_splits is None
         assert config.shuffle is None
 
@@ -122,6 +124,14 @@ class TestCrossValConfig:
             CrossValConfig.model_validate(
                 self._get_valid_group_config_dict(strategy=strategy, group_column=None)
             )
+
+    @pytest.mark.parametrize("strategy", ["random", "group"])
+    def test_n_splits_required(self, strategy: str) -> None:
+        """Test that the random and group strategies require n_splits."""
+        raw_config = {"strategy": strategy, "group_column": "OP_YEAR"}
+
+        with pytest.raises(ValidationError, match="requires the number of splits"):
+            CrossValConfig.model_validate(raw_config)
 
     def test_loso_does_not_require_n_splits(self) -> None:
         """Test that the loso strategy is valid without n_splits, since it
