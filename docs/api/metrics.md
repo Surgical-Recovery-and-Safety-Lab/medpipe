@@ -53,7 +53,7 @@ MetricRegistry.register_spec(
 )
 ```
 
-Register the metric before creating the pipeline, so that the configuration is validated against it.
+Register the metric before creating the pipeline, so that the configuration is validated against it. A metric that uses a predictive distribution should define a `per_sample_func`, as explained in [confidence intervals](../guide/confidence_intervals.md#metrics-that-use-a-predictive-distribution).
 
 A complete script that registers a model, a preprocessing operation and a metric is shown in the [examples](../examples.md#add-your-own-model-preprocessing-operation-or-metric).
 
