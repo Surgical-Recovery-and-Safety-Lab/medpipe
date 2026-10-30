@@ -26,5 +26,5 @@ The configuration file is [`examples/default_regressor_config.toml`](https://git
 
 ## Results
 
-Each run is saved in a new numbered folder, `artifacts/v1`, `artifacts/v2`, and so on. It contains the fitted models, the evaluation results with confidence intervals, the figures, and the configuration and environment of the run.
+Each run is saved in a new numbered folder, `artifacts/v1`, `artifacts/v2`, and so on. It contains the fitted models, the evaluation results with confidence intervals, the figures, and the configuration and environment of the run. The [run folder](../guide/run_folder.md) page describes each file.
 
