@@ -59,6 +59,7 @@ nav:
   - Getting started:
     - Installation: start/install.md
     - Quickstart example: start/quickstart.md
+  - Examples: examples.md
   - Configuration guide:
     - Overview: guide/config/index.md
     - Meta: guide/config/meta.md
