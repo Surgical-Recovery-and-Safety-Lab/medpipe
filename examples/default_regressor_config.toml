@@ -1,0 +1,109 @@
+[meta]
+project_name = "medpipe_regressor_demo"
+run_mode = "audit"
+verbose = 1
+
+[data]
+path = "../tests/test_regression_data.csv"
+predictors = [
+  "AGE",
+  "SEX",
+  "PRIOR_CANCER",
+  "ADMISSION_ACUITY",
+  "ADMISSION_SOURCE",
+  "CATEGORY_LEVEL_1",
+  "OP_SEVERITY",
+]
+outcomes = ["LOS_DAYS", "BLOOD_LOSS_ML"]
+
+# ------------------------------------------------------------------------------
+# DEFAULT MODEL SETUP
+# A regression model has no recalibration.
+# ------------------------------------------------------------------------------
+[default_model]
+algorithm = "OrdBoostRegressor"
+
+[default_model.hyperparameters]
+n_bins = 10
+mapper = "quantile"
+learning_rate = 0.1
+max_iter = 50
+random_state = 42
+
+# ------------------------------------------------------------------------------
+# OUTCOME OVERRIDES
+# ------------------------------------------------------------------------------
+# The algorithm is not repeated, so the hyperparameters below are merged into
+# the default ones. The list is searched since grid_search is true.
+[outcome_overrides.BLOOD_LOSS_ML.hyperparameters]
+learning_rate = [0.1, 0.05]
+n_bins = 20
+
+# ------------------------------------------------------------------------------
+# WORKFLOW
+# ------------------------------------------------------------------------------
+[workflow]
+random_state = 42
+n_jobs = 2
+
+[workflow.preprocessing]
+preprocess = true
+operations = [
+  { name = "OrdinalEncoder", columns = ["SEX", "ADMISSION_ACUITY", "ADMISSION_SOURCE", "CATEGORY_LEVEL_1"] },
+  { name = "StandardScaler", columns = ["CATEGORY_LEVEL_1", "AGE"], with_mean = true },
+]
+
+[workflow.validation.test_split]
+strategy = "group"
+group_column = "OP_YEAR"
+values = [2024]
+
+# A recalibration_split is accepted but not used for regression, so it is left out.
+
+[workflow.validation.cross_validation]
+strategy = "group"
+grid_search = true
+group_column = "DHB_NAME"
+n_splits = 3
+shuffle = true
+
+# crps needs a model that predicts a distribution, such as OrdBoostRegressor.
+[workflow.evaluation.metrics]
+metrics = ["rmse", "mae", "crps"]
+n_bootstraps = 50
+ci_level = 0.95
+
+[workflow.evaluation.fairness]
+strata = ["SEX", "AGE"]
+groups = { "AGE" = [[18, 50], [51, 120]] }
+
+# ------------------------------------------------------------------------------
+# DISPLAY
+# The figures other than the heatmaps need a model that predicts a distribution
+# through OrdBoost.
+# ------------------------------------------------------------------------------
+[display.defaults]
+n_bootstraps = 1000
+save = true
+show = false
+dist_n_bins = 25  # For the distribution of the target values
+dist_yscale = "log"  # For the distribution of the target values
+coverage_levels = [10, 30, 50, 70, 90, 95]  # For coverage, sharpness, and Winkler
+pit_n_bins = 20  # For the PIT histogram
+
+# Global Plot-Type Overrides
+[display.overrides.coverage]
+n_bootstraps = 500
+
+[display.overrides.distribution]
+dist_yscale = "linear"
+
+# Outcome-Specific Plot Overrides
+[display.outcome_overrides.BLOOD_LOSS_ML.pit]
+pit_n_bins = 10
+
+[display.theme]
+primary_color = "#2D90D8"
+dpi = 300
+font_family = "sans-serif"
+show_grid = false
