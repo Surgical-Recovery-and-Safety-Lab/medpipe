@@ -48,8 +48,7 @@ To avoid this, give the metric a `per_sample_func`. This is only valid for a met
 ```python
 import numpy as np
 
-from medpipe import MetricRegistry
-from medpipe.metrics import MetricSpec
+from medpipe import MetricRegistry, MetricSpec
 
 
 def absolute_pit_error(y, dist):

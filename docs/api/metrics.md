@@ -39,8 +39,7 @@ from functools import partial
 
 from sklearn.metrics import fbeta_score
 
-from medpipe import MetricRegistry
-from medpipe.metrics import MetricSpec
+from medpipe import MetricRegistry, MetricSpec
 
 MetricRegistry.register_spec(
     MetricSpec(
