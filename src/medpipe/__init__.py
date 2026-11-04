@@ -6,7 +6,7 @@ Provides unified high-level interfaces for data preparation, model fitting,
 post-hoc calibration, TRIPOD+AI compliant evaluation, and reproducibility tracking.
 """
 
-from medpipe.metrics import MetricRegistry
+from medpipe.metrics import MetricRegistry, MetricSpec
 from medpipe.models import ModelRegistry
 from medpipe.pipeline import (
     MedpipeClassifier,
@@ -19,7 +19,7 @@ from medpipe.pipeline import (
 )
 from medpipe.utils import MedpipeClassifierConfig, MedpipeRegressorConfig
 
-__version__ = "0.4.0"
+__version__ = "0.4.1"
 
 __all__ = [  # noqa: RUF022 (grouped by category, not alphabetical)
     # Primary API Entry Points
@@ -36,6 +36,7 @@ __all__ = [  # noqa: RUF022 (grouped by category, not alphabetical)
     # Component Registries (for custom models & metrics)
     "ModelRegistry",
     "MetricRegistry",
+    "MetricSpec",
     # Package Metadata
     "__version__",
 ]
