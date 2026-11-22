@@ -52,6 +52,8 @@ MetricRegistry.register_spec(
 )
 ```
 
+For a metric whose values are too small to read at two decimals, set `display_scale` to the factor the values are multiplied by in plots (the built-in `ici` uses `display_scale=100`). Plots note the factor in their labels, e.g. "ICI × 100"; stored and reported scores are not changed.
+
 Register the metric before creating the pipeline, so that the configuration is validated against it. A metric that uses a predictive distribution should define a `per_sample_func`, as explained in [confidence intervals](../guide/confidence_intervals.md#metrics-that-use-a-predictive-distribution).
 
 A complete script that registers a model, a preprocessing operation and a metric is shown in the [examples](../examples.md#add-your-own-model-preprocessing-operation-or-metric).
