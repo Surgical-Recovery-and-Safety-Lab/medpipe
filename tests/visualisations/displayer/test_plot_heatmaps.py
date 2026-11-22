@@ -269,6 +269,25 @@ class TestPlotStrataHeatmap:
                 save=False,
             )
 
+    def test_plot_strata_heatmap_strata_groups_mismatch_raises(
+        self, mock_orchestrator
+    ) -> None:
+        """Edge case: raise ValueError when strata_groups do not sum to the
+        number of strata."""
+        displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
+
+        with pytest.raises(ValueError, match="strata_groups must sum"):
+            displayer.plot_strata_heatmap(
+                outcomes=["A"],
+                metric="auc",
+                strata=["x", "y", "z"],
+                scores=np.array([0.8]),
+                strata_scores=np.array([[0.7], [0.9], [0.8]]),
+                strata_groups=[1, 1],
+                save=False,
+                show=False,
+            )
+
 
 class TestPlotAllHeatmaps:
     """Tests for the cross-outcome `plot_all_heatmaps` method."""
@@ -296,6 +315,21 @@ class TestPlotAllHeatmaps:
         # Verify saved artifacts on disk
         assert (tmp_path / "plots" / "roc_auc_strata_heatmap.png").exists()
         assert (tmp_path / "plots" / "log_loss_strata_heatmap.png").exists()
+
+    def test_plot_all_heatmaps_groups_rows_by_stratum_variable(
+        self, mock_orchestrator, sample_evaluations
+    ) -> None:
+        """Test that each stratification variable is drawn as its own image
+        block, plus one block for the 'All strata' row."""
+        displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
+        strata = sample_evaluations[next(iter(sample_evaluations))]["strata"]
+
+        heatmap_plots = displayer.plot_all_heatmaps(
+            evaluations=sample_evaluations, save=False, show=False
+        )
+
+        _, ax = heatmap_plots["roc_auc"]
+        assert len(ax.images) == 1 + len(strata)
 
     def test_plot_all_heatmaps_without_saving(
         self, mock_orchestrator, sample_evaluations, tmp_path: Path
