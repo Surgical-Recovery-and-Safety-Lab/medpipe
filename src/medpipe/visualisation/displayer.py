@@ -423,7 +423,9 @@ class BaseDisplayer:
         outcomes : list of str
             List of outcome names.
         metric : str
-            Metric identifier being evaluated (e.g., 'auc', 'ici').
+            Metric identifier being evaluated (e.g., 'auc', 'ici'). Values are
+            multiplied by the metric's `MetricSpec.display_scale` (e.g., 100 for
+            ICI), which is noted in the title and colour-bar label.
         strata : list of str
             List of subgroup strata names.
         scores : np.ndarray
@@ -512,15 +514,15 @@ class BaseDisplayer:
             display_name = (
                 getattr(spec, "display_name", None) or metric.replace("_", " ").upper()
             )
+            display_scale = float(getattr(spec, "display_scale", 1.0))
         except Exception:
             display_name = metric.replace("_", " ").upper()
+            display_scale = 1.0
 
-        is_ici = metric.lower() == "ici"
-        percent = r" $\times$ 100" if is_ici else ""
-
-        if is_ici:
-            plot_data *= 100
-            text_data *= 100
+        # Rescale small-valued metrics for readability (e.g., ICI x 100)
+        scale_label = rf" $\times$ {display_scale:g}" if display_scale != 1 else ""
+        plot_data = plot_data * display_scale
+        text_data = text_data * display_scale
 
         # Colour scale from the data: a high percentile of the strata deltas
         # (excluding the all-zero baseline row) so outliers do not dominate
@@ -535,8 +537,8 @@ class BaseDisplayer:
             vmax = float(strata_deltas.max()) if strata_deltas.size else 0.0
         vmax = vmax or 1.0
 
-        colorbar_label = rf"|$\Delta$ {display_name}|" + percent
-        title = style_kwargs.pop("title", f"Strata delta - {display_name}{percent}")
+        colorbar_label = rf"|$\Delta$ {display_name}|" + scale_label
+        title = style_kwargs.pop("title", f"Strata delta - {display_name}{scale_label}")
         row_labels = ["All strata", *list(strata)]
 
         # 3. Stateless Drawing Delegate
