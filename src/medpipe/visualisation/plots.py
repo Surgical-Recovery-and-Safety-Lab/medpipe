@@ -566,6 +566,8 @@ def draw_strata_heatmap(
     ax: Axes | None = None,
     cmap: str = "cividis",
     title: str | None = None,
+    row_groups: list[int] | None = None,
+    group_gap: float = 0.3,
     **heatmap_kwargs: Any,
 ) -> tuple[Figure | SubFigure, Axes]:
     """Render a pre-computed strata heatmap matrix onto an Axes.
@@ -591,6 +593,13 @@ def draw_strata_heatmap(
         Matplotlib colormap identifier.
     title : str, optional
         Axes title text.
+    row_groups : list of int, optional
+        Number of consecutive rows in each visual group (e.g., ``[1, 2, 2, 5]``
+        for overall, sex, age, and ethnicity rows). Groups are separated by a
+        blank gap. Must sum to the number of rows. If None, all rows form a
+        single group.
+    group_gap : float, default=0.3
+        Height of the gap between row groups, in units of cell height.
     **heatmap_kwargs : Any
         Additional keyword arguments forwarded to `ax.imshow`.
 
@@ -612,15 +621,54 @@ def draw_strata_heatmap(
 
     n_rows, n_cols = plot_data.shape
 
+    if row_groups is None:
+        row_groups = [n_rows]
+    if any(size < 1 for size in row_groups) or sum(row_groups) != n_rows:
+        raise ValueError(
+            f"row_groups must be positive and sum to the number of rows ({n_rows}), "
+            f"got {row_groups}"
+        )
+
     # Clean kwargs
-    for key in ("cmap", "aspect", "vmax"):
+    for key in ("cmap", "aspect", "vmax", "extent"):
         heatmap_kwargs.pop(key, None)
+    # Shared colour scale across the group images (imshow's default vmin is the
+    # data minimum, computed here over the whole matrix rather than per group)
+    vmin = heatmap_kwargs.pop("vmin", None)
+    if vmin is None:
+        finite = plot_data[np.isfinite(plot_data)]
+        vmin = float(finite.min()) if finite.size else 0.0
+    vmin = min(vmin, vmax)
 
-    im = ax.imshow(plot_data, cmap=cmap, aspect="equal", vmax=vmax, **heatmap_kwargs)
+    # Vertical centre of each row, shifted down by a gap after every group
+    group_index = np.repeat(np.arange(len(row_groups)), row_groups)
+    y_pos = np.arange(n_rows) + group_gap * group_index
 
-    fig.colorbar(im, ax=ax, shrink=0.8, extend="max", label=colorbar_label)
+    # One image per group, placed with `extent` so the gaps stay blank
+    images = []
+    start = 0
+    for size in row_groups:
+        stop = start + size
+        top, bottom = y_pos[start] - 0.5, y_pos[stop - 1] + 0.5
+        images.append(
+            ax.imshow(
+                plot_data[start:stop],
+                cmap=cmap,
+                aspect="equal",
+                vmin=vmin,
+                vmax=vmax,
+                extent=(-0.5, n_cols - 0.5, bottom, top),
+                **heatmap_kwargs,
+            )
+        )
+        start = stop
 
-    ax.set_yticks(np.arange(n_rows), labels=row_labels)
+    ax.set_xlim(-0.5, n_cols - 0.5)
+    ax.set_ylim(y_pos[-1] + 0.5, y_pos[0] - 0.5)
+
+    fig.colorbar(images[0], ax=ax, shrink=0.8, extend="max", label=colorbar_label)
+
+    ax.set_yticks(y_pos, labels=row_labels)
     ax.set_xticks(
         np.arange(n_cols),
         labels=col_labels,
@@ -637,7 +685,7 @@ def draw_strata_heatmap(
             colour = "k" if np.abs(plot_data[j, i]) >= 0.8 * vmax else "w"
             ax.text(
                 i,
-                j,
+                y_pos[j],
                 f"{text_data[j, i]:.2f}",
                 ha="center",
                 va="center",
@@ -648,8 +696,9 @@ def draw_strata_heatmap(
 
     ax.spines[:].set_visible(False)
 
-    # Grid divider lines between cells
-    ax.set_yticks(np.arange(n_rows + 1) - 0.5, minor=True)
+    # Grid divider lines between cells (row edges of every group)
+    row_edges = np.unique(np.concatenate([y_pos - 0.5, y_pos + 0.5]))
+    ax.set_yticks(row_edges, minor=True)
     ax.set_xticks(np.arange(n_cols + 1) - 0.5, minor=True)
     ax.grid(which="minor", color="w", linestyle="-", linewidth=1)
     ax.tick_params(which="minor", bottom=False, left=False)

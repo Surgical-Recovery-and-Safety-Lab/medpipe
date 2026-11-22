@@ -19,42 +19,79 @@ class TestStrataHeatmapScale:
     """Tests of the colour scale of `plot_strata_heatmap`."""
 
     @staticmethod
-    def _color_limit(displayer, metric: str, scores, strata_scores) -> float:
+    def _color_limit(displayer, metric: str, scores, strata_scores, **kwargs) -> float:
+        strata_scores = np.array(strata_scores)
         _, ax = displayer.plot_strata_heatmap(
-            outcomes=["A", "B"],
+            outcomes=[f"O{i}" for i in range(len(scores))],
             metric=metric,
-            strata=["x", "y"],
+            strata=[f"s{i}" for i in range(strata_scores.shape[0])],
             scores=np.array(scores),
-            strata_scores=np.array(strata_scores),
+            strata_scores=strata_scores,
             save=False,
             show=False,
+            **kwargs,
         )
         return float(ax.images[0].get_clim()[1])
 
-    def test_bounded_metric_keeps_fixed_scale(self, mock_orchestrator) -> None:
-        """Test that a metric in [0, 1] keeps the fixed scale."""
-        displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
-
-        limit = self._color_limit(
-            displayer, "auc", [0.8, 0.7], [[0.7, 0.6], [0.9, 0.8]]
-        )
-
-        assert limit == pytest.approx(0.1)
-
-    @pytest.mark.parametrize("metric", ["rmse", "mae", "crps"])
-    def test_scale_dependent_metric_uses_data_scale(
+    @pytest.mark.parametrize("metric", ["auc", "rmse"])
+    def test_scale_is_95th_percentile_of_strata_deltas(
         self, mock_orchestrator, metric: str
     ) -> None:
-        """Test that errors in target units get a colour scale from the data."""
+        """Test that the colour max is the 95th percentile of the strata deltas,
+        whatever the metric's units."""
         displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
 
         limit = self._color_limit(
             displayer, metric, [10.0, 12.0], [[16.0, 11.0], [9.0, 20.0]]
         )
 
-        assert limit == pytest.approx(8.0)
+        assert limit == pytest.approx(np.percentile([6.0, 1.0, 1.0, 8.0], 95))
 
-    def test_scale_dependent_metric_without_differences(
+    def test_outlier_does_not_set_scale(self, mock_orchestrator) -> None:
+        """Test that a single outlying delta is clipped instead of setting the
+        colour max."""
+        displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
+        deltas = np.full((10, 10), 0.01)
+        deltas[0, 0] = 1.0
+
+        limit = self._color_limit(displayer, "auc", np.zeros(10), deltas)
+
+        assert limit == pytest.approx(0.01)
+
+    def test_custom_percentile(self, mock_orchestrator) -> None:
+        """Test that `vmax_percentile` selects the percentile used."""
+        displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
+
+        limit = self._color_limit(
+            displayer,
+            "auc",
+            [0.0, 0.0],
+            [[0.1, 0.2], [0.3, 0.4]],
+            vmax_percentile=50,
+        )
+
+        assert limit == pytest.approx(0.25)
+
+    def test_ici_scale_uses_percent_values(self, mock_orchestrator) -> None:
+        """Test that the ICI colour max is computed on the display-scaled
+        (x100) values."""
+        displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
+
+        limit = self._color_limit(displayer, "ici", [0.01], [[0.012], [0.012]])
+
+        assert limit == pytest.approx(0.2)
+
+    def test_mostly_zero_deltas_fall_back_to_max(self, mock_orchestrator) -> None:
+        """Test that a zero percentile falls back to the largest delta."""
+        displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
+        strata_scores = np.zeros((30, 1))
+        strata_scores[0, 0] = 0.3
+
+        limit = self._color_limit(displayer, "auc", [0.0], strata_scores)
+
+        assert limit == pytest.approx(0.3)
+
+    def test_no_differences_do_not_produce_zero_width_scale(
         self, mock_orchestrator
     ) -> None:
         """Test that identical scores do not produce a zero-width scale."""
@@ -124,6 +161,56 @@ class TestPlotStrataHeatmap:
 
         assert isinstance(fig, Figure)
         assert "Custom Metric Name" in ax.get_title()
+
+    def test_plot_strata_heatmap_applies_spec_display_scale(
+        self, mock_orchestrator
+    ) -> None:
+        """Test that values are multiplied by the spec's display_scale and the
+        factor is noted in the title and colour-bar label."""
+        custom_spec = MetricSpec(
+            name="tiny_metric",
+            func=lambda y, p: 0.001,
+            response_method="predict",
+            display_name="Tiny",
+            display_scale=1000,
+        )
+
+        with patch.dict(MetricRegistry._registry, {}, clear=False):
+            MetricRegistry.register_spec(custom_spec)
+
+            displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
+            fig, ax = displayer.plot_strata_heatmap(
+                outcomes=["A"],
+                metric="tiny_metric",
+                strata=["x"],
+                scores=np.array([0.001]),
+                strata_scores=np.array([[0.003]]),
+                save=False,
+                show=False,
+            )
+
+        assert r"Tiny $\times$ 1000" in ax.get_title()
+        assert r"$\times$ 1000" in fig.axes[-1].get_ylabel()
+        np.testing.assert_allclose(ax.images[1].get_array(), [[2.0]])
+        assert [t.get_text() for t in ax.texts] == ["1.00", "3.00"]
+
+    def test_plot_strata_heatmap_unscaled_metric_has_no_factor_in_title(
+        self, mock_orchestrator
+    ) -> None:
+        """Test that a metric with display_scale 1 gets no scale factor label."""
+        displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
+
+        _, ax = displayer.plot_strata_heatmap(
+            outcomes=["A"],
+            metric="roc_auc",
+            strata=["x"],
+            scores=np.array([0.8]),
+            strata_scores=np.array([[0.7]]),
+            save=False,
+            show=False,
+        )
+
+        assert r"$\times$" not in ax.get_title()
 
     def test_plot_strata_heatmap_unregistered_metric_falls_back_to_upper(
         self, mock_orchestrator
@@ -269,6 +356,25 @@ class TestPlotStrataHeatmap:
                 save=False,
             )
 
+    def test_plot_strata_heatmap_strata_groups_mismatch_raises(
+        self, mock_orchestrator
+    ) -> None:
+        """Edge case: raise ValueError when strata_groups do not sum to the
+        number of strata."""
+        displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
+
+        with pytest.raises(ValueError, match="strata_groups must sum"):
+            displayer.plot_strata_heatmap(
+                outcomes=["A"],
+                metric="auc",
+                strata=["x", "y", "z"],
+                scores=np.array([0.8]),
+                strata_scores=np.array([[0.7], [0.9], [0.8]]),
+                strata_groups=[1, 1],
+                save=False,
+                show=False,
+            )
+
 
 class TestPlotAllHeatmaps:
     """Tests for the cross-outcome `plot_all_heatmaps` method."""
@@ -296,6 +402,21 @@ class TestPlotAllHeatmaps:
         # Verify saved artifacts on disk
         assert (tmp_path / "plots" / "roc_auc_strata_heatmap.png").exists()
         assert (tmp_path / "plots" / "log_loss_strata_heatmap.png").exists()
+
+    def test_plot_all_heatmaps_groups_rows_by_stratum_variable(
+        self, mock_orchestrator, sample_evaluations
+    ) -> None:
+        """Test that each stratification variable is drawn as its own image
+        block, plus one block for the 'All strata' row."""
+        displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
+        strata = sample_evaluations[next(iter(sample_evaluations))]["strata"]
+
+        heatmap_plots = displayer.plot_all_heatmaps(
+            evaluations=sample_evaluations, save=False, show=False
+        )
+
+        _, ax = heatmap_plots["roc_auc"]
+        assert len(ax.images) == 1 + len(strata)
 
     def test_plot_all_heatmaps_without_saving(
         self, mock_orchestrator, sample_evaluations, tmp_path: Path

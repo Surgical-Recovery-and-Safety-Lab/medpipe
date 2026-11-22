@@ -128,7 +128,7 @@ coverage_levels = [50, 80, 95]
 pit_n_bins = 10
 ```
 
-The first six figures are only drawn for models that predict a distribution through OrdBoost, as shown in the table of [models](#models). For any other model, a warning is logged for the outcome and its figures are skipped, but the run goes on and the evaluation results are saved as usual. The subgroup heatmaps only need the evaluation results, so they are drawn for every model when `[workflow.evaluation.fairness]` is defined. Errors in the units of the target (`rmse`, `mae` and `crps`) have a colour scale that follows the data, instead of the fixed scale used for metrics between 0 and 1.
+The first six figures are only drawn for models that predict a distribution through OrdBoost, as shown in the table of [models](#models). For any other model, a warning is logged for the outcome and its figures are skipped, but the run goes on and the evaluation results are saved as usual. The subgroup heatmaps only need the evaluation results, so they are drawn for every model when `[workflow.evaluation.fairness]` is defined. Their colour scale follows the data for every metric, as described for [classification](display.md), so errors in the units of the target (`rmse`, `mae` and `crps`) need no special setting.
 
 ## Using the pipeline
 

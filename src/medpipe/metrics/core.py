@@ -299,7 +299,7 @@ _DEFAULT_METRICS = [
         "neg_root_mean_squared_error",
     ),
     MetricSpec("mae", mean_absolute_error, "predict", "MAE", "neg_mean_absolute_error"),
-    MetricSpec("ici", ici_score, "predict_proba", "ICI"),
+    MetricSpec("ici", ici_score, "predict_proba", "ICI", display_scale=100),
     MetricSpec(
         "crps", crps_score, "predict_dist", "CRPS", per_sample_func=_crps_values
     ),

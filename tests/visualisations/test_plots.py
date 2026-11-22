@@ -514,6 +514,42 @@ class TestDrawStrataHeatmap:
                 ax=mock_ax,
             )
 
+    def test_draw_strata_heatmap_row_groups_add_gaps(self) -> None:
+        """Test that row groups shift rows down by `group_gap` and draw one
+        image per group on a shared colour scale."""
+        plot_data = np.array([[0.0, 0.0], [0.02, 0.05], [0.01, 0.03], [0.04, 0.0]])
+        text_data = np.zeros_like(plot_data)
+
+        _, ax = draw_strata_heatmap(
+            plot_data=plot_data,
+            text_data=text_data,
+            row_labels=["All strata", "F", "M", "18-50"],
+            col_labels=["X", "Y"],
+            row_groups=[1, 2, 1],
+            group_gap=0.5,
+        )
+
+        np.testing.assert_allclose(ax.get_yticks(), [0.0, 1.5, 2.5, 4.0])
+        assert len(ax.images) == 3
+        assert {im.get_clim() for im in ax.images} == {(0.0, 0.1)}
+        np.testing.assert_allclose(
+            [t.get_position()[1] for t in ax.texts[:4]], [0.0, 1.5, 2.5, 4.0]
+        )
+
+    @pytest.mark.parametrize("row_groups", [[1, 1], [3, 0], [1, 1, 1, 1]])
+    def test_draw_strata_heatmap_invalid_row_groups_raises(
+        self, row_groups: list[int]
+    ) -> None:
+        """Edge case: raise ValueError when row_groups do not partition the rows."""
+        with pytest.raises(ValueError, match="row_groups must be positive"):
+            draw_strata_heatmap(
+                plot_data=np.zeros((3, 1)),
+                text_data=np.zeros((3, 1)),
+                row_labels=["A", "B", "C"],
+                col_labels=["X"],
+                row_groups=row_groups,
+            )
+
 
 class TestDrawDcaCurve:
     """Tests for the stateless `draw_dca_curve` rendering function."""
