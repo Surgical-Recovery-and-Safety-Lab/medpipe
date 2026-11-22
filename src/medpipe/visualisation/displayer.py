@@ -86,7 +86,7 @@ class BaseDisplayer:
     label=None, xlabel=None, save=None, show=None, **style_kwargs)
         Render a data distribution histogram and save output.
     plot_strata_heatmap(outcomes, metric, strata, scores, strata_scores,
-    save=None, show=None, **style_kwargs)
+    strata_groups=None, vmax_percentile=95.0, save=None, show=None, **style_kwargs)
         Validate subgroup inputs, compute delta matrix, render strata heatmap,
         and save output.
     plot_all_heatmaps(evaluations, metrics=None, save=None, show=None, **style_kwargs)
@@ -862,7 +862,7 @@ class MedpipeClassifierDisplayer(BaseDisplayer):
         Compute calibration metrics (binned or spline), render reliability
         diagram with optional CIs, and save output.
     plot_strata_heatmap(outcomes, metric, strata, scores, strata_scores,
-    save=None, show=None, **style_kwargs)
+    strata_groups=None, vmax_percentile=95.0, save=None, show=None, **style_kwargs)
         Validate subgroup inputs, compute delta matrix, render strata heatmap,
         and save output.
     plot_dca_curve(y_true, probas, outcome="default", thresholds=None,
@@ -1809,7 +1809,7 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
     label=None, xlabel=None, save=None, show=None, **style_kwargs)
         Render a data distribution histogram and save output.
     plot_strata_heatmap(outcomes, metric, strata, scores, strata_scores,
-    save=None, show=None, **style_kwargs)
+    strata_groups=None, vmax_percentile=95.0, save=None, show=None, **style_kwargs)
         Validate subgroup inputs, compute delta matrix, render strata heatmap,
         and save output.
     plot_all_heatmaps(evaluations, metrics=None, save=None, show=None, **style_kwargs)
