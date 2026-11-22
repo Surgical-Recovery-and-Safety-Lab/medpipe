@@ -40,7 +40,9 @@ The figures of each outcome are saved in the `plots/<outcome>/` folder of the ru
 | Decision curve analysis | `<outcome>_dca_curve.png` | `dca` |
 | Subgroup heatmap, one per metric | `<metric>_strata_heatmap.png` | `strata_heatmap` |
 
-The heatmaps are only drawn when [`[workflow.evaluation.fairness]`](workflow.md#fairness) is defined. Each has one row for the whole test set and one for every subgroup, and one column for every outcome. The text is the value of the metric, and the colour is how far the value is from the one of the whole test set.
+The heatmaps are only drawn when [`[workflow.evaluation.fairness]`](workflow.md#fairness) is defined. Each has one row for the whole test set and one for every subgroup, and one column for every outcome. The rows of each column of `strata` are grouped together, with a gap between the whole test set and each group. The text is the value of the metric, and the colour is how far the value is from the one of the whole test set.
+
+The colour scale goes from 0 to the 95th percentile of these differences, so that a few large differences do not hide the others. Larger differences have the top colour, shown by the arrow at the top of the colour bar. Metrics with small values are multiplied by a factor, noted in the title and the colour bar: the `ici` heatmap shows the ICI × 100. The factor is the [`display_scale`](../../api/metrics.md#adding-a-metric) of the metric.
 
 ## `[display.defaults]`
 
