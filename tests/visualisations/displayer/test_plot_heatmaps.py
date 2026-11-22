@@ -19,42 +19,78 @@ class TestStrataHeatmapScale:
     """Tests of the colour scale of `plot_strata_heatmap`."""
 
     @staticmethod
-    def _color_limit(displayer, metric: str, scores, strata_scores) -> float:
+    def _color_limit(displayer, metric: str, scores, strata_scores, **kwargs) -> float:
+        strata_scores = np.array(strata_scores)
         _, ax = displayer.plot_strata_heatmap(
-            outcomes=["A", "B"],
+            outcomes=[f"O{i}" for i in range(len(scores))],
             metric=metric,
-            strata=["x", "y"],
+            strata=[f"s{i}" for i in range(strata_scores.shape[0])],
             scores=np.array(scores),
-            strata_scores=np.array(strata_scores),
+            strata_scores=strata_scores,
             save=False,
             show=False,
+            **kwargs,
         )
         return float(ax.images[0].get_clim()[1])
 
-    def test_bounded_metric_keeps_fixed_scale(self, mock_orchestrator) -> None:
-        """Test that a metric in [0, 1] keeps the fixed scale."""
-        displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
-
-        limit = self._color_limit(
-            displayer, "auc", [0.8, 0.7], [[0.7, 0.6], [0.9, 0.8]]
-        )
-
-        assert limit == pytest.approx(0.1)
-
-    @pytest.mark.parametrize("metric", ["rmse", "mae", "crps"])
-    def test_scale_dependent_metric_uses_data_scale(
+    @pytest.mark.parametrize("metric", ["auc", "rmse"])
+    def test_scale_is_95th_percentile_of_strata_deltas(
         self, mock_orchestrator, metric: str
     ) -> None:
-        """Test that errors in target units get a colour scale from the data."""
+        """Test that the colour max is the 95th percentile of the strata deltas,
+        whatever the metric's units."""
         displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
 
         limit = self._color_limit(
             displayer, metric, [10.0, 12.0], [[16.0, 11.0], [9.0, 20.0]]
         )
 
-        assert limit == pytest.approx(8.0)
+        assert limit == pytest.approx(np.percentile([6.0, 1.0, 1.0, 8.0], 95))
 
-    def test_scale_dependent_metric_without_differences(
+    def test_outlier_does_not_set_scale(self, mock_orchestrator) -> None:
+        """Test that a single outlying delta is clipped instead of setting the
+        colour max."""
+        displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
+        deltas = np.full((10, 10), 0.01)
+        deltas[0, 0] = 1.0
+
+        limit = self._color_limit(displayer, "auc", np.zeros(10), deltas)
+
+        assert limit == pytest.approx(0.01)
+
+    def test_custom_percentile(self, mock_orchestrator) -> None:
+        """Test that `vmax_percentile` selects the percentile used."""
+        displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
+
+        limit = self._color_limit(
+            displayer,
+            "auc",
+            [0.0, 0.0],
+            [[0.1, 0.2], [0.3, 0.4]],
+            vmax_percentile=50,
+        )
+
+        assert limit == pytest.approx(0.25)
+
+    def test_ici_scale_uses_percent_values(self, mock_orchestrator) -> None:
+        """Test that the ICI colour max is computed on the x100 values."""
+        displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
+
+        limit = self._color_limit(displayer, "ici", [0.01], [[0.012], [0.012]])
+
+        assert limit == pytest.approx(0.2)
+
+    def test_mostly_zero_deltas_fall_back_to_max(self, mock_orchestrator) -> None:
+        """Test that a zero percentile falls back to the largest delta."""
+        displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
+        strata_scores = np.zeros((30, 1))
+        strata_scores[0, 0] = 0.3
+
+        limit = self._color_limit(displayer, "auc", [0.0], strata_scores)
+
+        assert limit == pytest.approx(0.3)
+
+    def test_no_differences_do_not_produce_zero_width_scale(
         self, mock_orchestrator
     ) -> None:
         """Test that identical scores do not produce a zero-width scale."""
