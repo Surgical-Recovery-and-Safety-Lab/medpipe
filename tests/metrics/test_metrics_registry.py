@@ -87,6 +87,22 @@ class TestMetricSpec:
     make_scorer-built one, and that scorer's choice of estimator response
     method (predict vs predict_proba)."""
 
+    def test_display_scale_defaults_to_one(self) -> None:
+        """Test that a spec without a display_scale is shown unscaled."""
+        spec = MetricSpec("m", accuracy_score, "predict", "M")
+
+        assert spec.display_scale == 1.0
+
+    def test_ici_is_displayed_times_100(self) -> None:
+        """Test that the built-in ICI spec is displayed multiplied by 100."""
+        assert MetricRegistry.get("ici").display_scale == 100
+
+    @pytest.mark.parametrize("scale", [0, -1.0])
+    def test_non_positive_display_scale_raises(self, scale: float) -> None:
+        """Edge case: a zero or negative display_scale is rejected."""
+        with pytest.raises(ValueError, match="display_scale must be positive"):
+            MetricSpec("m", accuracy_score, "predict", "M", display_scale=scale)
+
     def test_get_scorer_uses_sklearn_scorer_name_when_provided(
         self, fitted_estimator: LogisticRegression
     ) -> None:

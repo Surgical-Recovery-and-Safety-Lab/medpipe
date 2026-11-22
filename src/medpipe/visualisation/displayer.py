@@ -86,7 +86,7 @@ class BaseDisplayer:
     label=None, xlabel=None, save=None, show=None, **style_kwargs)
         Render a data distribution histogram and save output.
     plot_strata_heatmap(outcomes, metric, strata, scores, strata_scores,
-    save=None, show=None, **style_kwargs)
+    strata_groups=None, vmax_percentile=95.0, save=None, show=None, **style_kwargs)
         Validate subgroup inputs, compute delta matrix, render strata heatmap,
         and save output.
     plot_all_heatmaps(evaluations, metrics=None, save=None, show=None, **style_kwargs)
@@ -97,11 +97,6 @@ class BaseDisplayer:
     _PLOT_TYPE_ALIASES: ClassVar[dict[str, str]] = {
         "heatmap": "strata_heatmap",
     }
-    # Metrics expressed in the units of the target, for which the heatmap colour
-    # scale is set from the data instead of a fixed value.
-    _SCALE_DEPENDENT_METRICS: ClassVar[frozenset[str]] = frozenset(
-        {"rmse", "mae", "crps"}
-    )
     _FALLBACK_DISPLAY_DEFAULTS: ClassVar[dict[str, Any]] = {
         "n_bootstraps": 1000,
         "save": True,
@@ -415,6 +410,8 @@ class BaseDisplayer:
         strata: list[str],
         scores: np.ndarray,
         strata_scores: np.ndarray,
+        strata_groups: list[int] | None = None,
+        vmax_percentile: float = 95.0,
         save: bool | None = None,
         show: bool | None = None,
         **style_kwargs: Any,
@@ -426,13 +423,26 @@ class BaseDisplayer:
         outcomes : list of str
             List of outcome names.
         metric : str
-            Metric identifier being evaluated (e.g., 'auc', 'ici').
+            Metric identifier being evaluated (e.g., 'auc', 'ici'). Values are
+            multiplied by the metric's `MetricSpec.display_scale` (e.g., 100 for
+            ICI), which is noted in the title and colour-bar label.
         strata : list of str
             List of subgroup strata names.
         scores : np.ndarray
             Baseline metric scores for unstratified models of shape (n_outcomes,).
         strata_scores : np.ndarray
             Metric scores per stratum and outcome of shape (n_strata, n_outcomes).
+        strata_groups : list of int, optional
+            Number of consecutive strata belonging to each stratification
+            variable (e.g., ``[2, 2, 5]`` for sex, age, and ethnicity). Groups are
+            drawn with a gap between them; the "All strata" row always forms its
+            own group. Must sum to ``len(strata)``. If None, all strata form a
+            single group.
+        vmax_percentile : float, default=95.0
+            Percentile of the absolute strata deltas used as the colour-bar
+            maximum, so that a few outlying cells do not wash out the rest of the
+            scale. The "All strata" row (all zeros) is excluded. Values above the
+            maximum are drawn in the top colour.
         save : bool, optional
             Automatically save the generated plot to the run directory.
         show : bool, optional
@@ -450,7 +460,8 @@ class BaseDisplayer:
         Raises
         ------
         ValueError
-            If matrix dimensions do not match the provided strata, outcomes, or scores.
+            If matrix dimensions do not match the provided strata, outcomes, or
+            scores, or if `strata_groups` does not sum to the number of strata.
 
         """
         cfg = self._resolve_plot_config(
@@ -485,6 +496,13 @@ class BaseDisplayer:
                 f"Inputs scores and strata_scores must have matching column count, "
                 f"got {len(scores_arr)} and {strata_scores_arr.shape[1]}"
             )
+        if strata_groups is None:
+            strata_groups = [len(strata)]
+        if sum(strata_groups) != len(strata):
+            raise ValueError(
+                f"strata_groups must sum to the number of strata ({len(strata)}), "
+                f"got {strata_groups}"
+            )
 
         # 2. Data Preparation
         strata_matrix = np.vstack((scores_arr, strata_scores_arr))
@@ -496,22 +514,31 @@ class BaseDisplayer:
             display_name = (
                 getattr(spec, "display_name", None) or metric.replace("_", " ").upper()
             )
+            display_scale = float(getattr(spec, "display_scale", 1.0))
         except Exception:
             display_name = metric.replace("_", " ").upper()
+            display_scale = 1.0
 
-        is_ici = metric.lower() == "ici"
-        vmax = 0.5 if is_ici else 0.1
-        if metric.lower() in self._SCALE_DEPENDENT_METRICS:
-            # Errors in the units of the target: no fixed scale applies
-            vmax = float(np.max(plot_data)) or 1.0
-        percent = r" $\times$ 100" if is_ici else ""
+        # Rescale small-valued metrics for readability (e.g., ICI x 100)
+        scale_label = rf" $\times$ {display_scale:g}" if display_scale != 1 else ""
+        plot_data = plot_data * display_scale
+        text_data = text_data * display_scale
 
-        if is_ici:
-            plot_data *= 100
-            text_data *= 100
+        # Colour scale from the data: a high percentile of the strata deltas
+        # (excluding the all-zero baseline row) so outliers do not dominate
+        strata_deltas = plot_data[1:]
+        strata_deltas = strata_deltas[np.isfinite(strata_deltas)]
+        vmax = (
+            float(np.percentile(strata_deltas, vmax_percentile))
+            if strata_deltas.size
+            else 0.0
+        )
+        if vmax <= 0:
+            vmax = float(strata_deltas.max()) if strata_deltas.size else 0.0
+        vmax = vmax or 1.0
 
-        colorbar_label = rf"|$\Delta$ {display_name}|" + percent
-        title = style_kwargs.pop("title", f"Strata delta - {display_name}{percent}")
+        colorbar_label = rf"|$\Delta$ {display_name}|" + scale_label
+        title = style_kwargs.pop("title", f"Strata delta - {display_name}{scale_label}")
         row_labels = ["All strata", *list(strata)]
 
         # 3. Stateless Drawing Delegate
@@ -526,6 +553,7 @@ class BaseDisplayer:
                 colorbar_label=colorbar_label,
                 vmax=vmax,
                 title=title,
+                row_groups=[1, *strata_groups],
                 **style_kwargs,
             )
 
@@ -584,6 +612,8 @@ class BaseDisplayer:
         # Example row labels: "SEX: F", "SEX: M", "AGE: [18, 50]"
         strata_tuples: list[tuple[str, str]] = []
         strata_row_labels: list[str] = []
+        # Number of rows per stratification variable, used to space groups apart
+        strata_groups = [len(cat_dict) for cat_dict in strata_dict.values() if cat_dict]
 
         for stratum_var, cat_dict in strata_dict.items():
             for cat_key in cat_dict:
@@ -654,6 +684,7 @@ class BaseDisplayer:
                 strata=strata_row_labels,
                 scores=scores,
                 strata_scores=strata_scores,
+                strata_groups=strata_groups,
                 save=save,
                 show=show,
                 **style_kwargs.copy(),
@@ -831,7 +862,7 @@ class MedpipeClassifierDisplayer(BaseDisplayer):
         Compute calibration metrics (binned or spline), render reliability
         diagram with optional CIs, and save output.
     plot_strata_heatmap(outcomes, metric, strata, scores, strata_scores,
-    save=None, show=None, **style_kwargs)
+    strata_groups=None, vmax_percentile=95.0, save=None, show=None, **style_kwargs)
         Validate subgroup inputs, compute delta matrix, render strata heatmap,
         and save output.
     plot_dca_curve(y_true, probas, outcome="default", thresholds=None,
@@ -1778,7 +1809,7 @@ class MedpipeRegressorDisplayer(BaseDisplayer):
     label=None, xlabel=None, save=None, show=None, **style_kwargs)
         Render a data distribution histogram and save output.
     plot_strata_heatmap(outcomes, metric, strata, scores, strata_scores,
-    save=None, show=None, **style_kwargs)
+    strata_groups=None, vmax_percentile=95.0, save=None, show=None, **style_kwargs)
         Validate subgroup inputs, compute delta matrix, render strata heatmap,
         and save output.
     plot_all_heatmaps(evaluations, metrics=None, save=None, show=None, **style_kwargs)

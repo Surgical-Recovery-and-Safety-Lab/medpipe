@@ -39,6 +39,11 @@ class MetricSpec:
         (and re-slicing) the distribution object itself. Metrics without it
         fall back to resampling the (y, dist) pairs, which is exact for any
         metric but slower.
+    display_scale : float, default=1.0
+        Factor that metric values are multiplied by in visual displays, for
+        metrics whose values are too small to read at two decimals (e.g., 100
+        for ICI). Displays that apply it note the factor in their labels
+        (e.g., "ICI x 100"). Stored and reported scores are not affected.
 
     """
 
@@ -49,6 +54,13 @@ class MetricSpec:
     sklearn_scorer_name: str | None = None
     needs_threshold: bool = False
     per_sample_func: Callable | None = None
+    display_scale: float = 1.0
+
+    def __post_init__(self) -> None:
+        if not self.display_scale > 0:
+            raise ValueError(
+                f"display_scale must be positive, got {self.display_scale}"
+            )
 
     def get_scorer(self) -> Callable:
         """Construct a scikit-learn compatible scorer function for cross-validation.
