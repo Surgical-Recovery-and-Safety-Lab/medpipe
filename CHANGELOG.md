@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to Semantic Versioning ([SemVer](https://semver.org/spec/v2.0.0.html)).
 
+## [v0.4.2] - 2026-11-23
+
+### Added
+* More space between the different stratas in the strata heatmap function 
+to make the figure more readable.
+* Two new arguments to the `draw_strata_heatmap`: `row_groups` is a list of group
+sizes and `group_gap` sets the space between groups as a fraction of a cell's
+height, the default is 0.3.
+* The `strata_groups` argument to the `plot_strata_heatmap` function.
+* The `vmax_percentile` parameter to the `plot_strata_heatmap` function that sets
+the maximum value of the color bar to avoid outliers affecting the color map.
+* The `display_scale` field to `MetricSpec`, the factor a metric's values are
+multiplied by in plots (100 for ICI).
+
+### Changed
+* The strata heatmap takes its ×100 scaling for ICI from `MetricSpec.display_scale`
+instead of a hard-coded check on the metric name.
+
 ## [v0.4.1] - 2026-11-05
 
 ### Added
