@@ -19,7 +19,7 @@
       
       
       <link rel="icon" href="../../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.2">
     
     
       
@@ -1698,7 +1698,7 @@
 </span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="k">[display.outcome_overrides.LOS_DAYS.pit]</span>
 </span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="n">pit_n_bins</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">10</span>
 </span></code></pre></div>
-<p>The first six figures are only drawn for models that predict a distribution through OrdBoost, as shown in the table of <a href="#models">models</a>. For any other model, a warning is logged for the outcome and its figures are skipped, but the run goes on and the evaluation results are saved as usual. The subgroup heatmaps only need the evaluation results, so they are drawn for every model when <code>[workflow.evaluation.fairness]</code> is defined. Errors in the units of the target (<code>rmse</code>, <code>mae</code> and <code>crps</code>) have a colour scale that follows the data, instead of the fixed scale used for metrics between 0 and 1.</p>
+<p>The first six figures are only drawn for models that predict a distribution through OrdBoost, as shown in the table of <a href="#models">models</a>. For any other model, a warning is logged for the outcome and its figures are skipped, but the run goes on and the evaluation results are saved as usual. The subgroup heatmaps only need the evaluation results, so they are drawn for every model when <code>[workflow.evaluation.fairness]</code> is defined. Their colour scale follows the data for every metric, as described for <a href="../display/">classification</a>, so errors in the units of the target (<code>rmse</code>, <code>mae</code> and <code>crps</code>) need no special setting.</p>
 <h2 id="using-the-pipeline">Using the pipeline</h2>
 <p><code>MedpipeRegressor</code> has the same <code>run</code>, <code>fit</code>, <code>evaluate</code>, <code>plot_all</code> and <code>load</code> methods as <code>MedpipeClassifier</code>. The prediction methods are different:</p>
 <table>
@@ -1826,7 +1826,7 @@
       <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.sections", "navigation.expand", "navigation.top", "content.code.copy", "search.suggest"], "search": "../../../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../../../assets/javascripts/bundle.c21346df.min.js"></script>
+      <script src="../../../assets/javascripts/bundle.a5f9d56c.min.js"></script>
       
     
   </body>

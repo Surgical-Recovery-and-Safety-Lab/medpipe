@@ -19,7 +19,7 @@
       
       
       <link rel="icon" href="../../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.2">
     
     
       
@@ -1368,7 +1368,8 @@
 </tr>
 </tbody>
 </table>
-<p>The heatmaps are only drawn when <a href="../workflow/#fairness"><code>[workflow.evaluation.fairness]</code></a> is defined. Each has one row for the whole test set and one for every subgroup, and one column for every outcome. The text is the value of the metric, and the colour is how far the value is from the one of the whole test set.</p>
+<p>The heatmaps are only drawn when <a href="../workflow/#fairness"><code>[workflow.evaluation.fairness]</code></a> is defined. Each has one row for the whole test set and one for every subgroup, and one column for every outcome. The rows of each column of <code>strata</code> are grouped together, with a gap between the whole test set and each group. The text is the value of the metric, and the colour is how far the value is from the one of the whole test set.</p>
+<p>The colour scale goes from 0 to the 95th percentile of these differences, so that a few large differences do not hide the others. Larger differences have the top colour, shown by the arrow at the top of the colour bar. Metrics with small values are multiplied by a factor, noted in the title and the colour bar: the <code>ici</code> heatmap shows the ICI × 100. The factor is the <a href="../../../api/metrics/#adding-a-metric"><code>display_scale</code></a> of the metric.</p>
 <h2 id="displaydefaults"><code>[display.defaults]</code></h2>
 <p>Settings that apply to every figure.</p>
 <div class="language-toml highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="k">[display.defaults]</span>
@@ -1654,7 +1655,7 @@
       <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.sections", "navigation.expand", "navigation.top", "content.code.copy", "search.suggest"], "search": "../../../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../../../assets/javascripts/bundle.c21346df.min.js"></script>
+      <script src="../../../assets/javascripts/bundle.a5f9d56c.min.js"></script>
       
     
   </body>
