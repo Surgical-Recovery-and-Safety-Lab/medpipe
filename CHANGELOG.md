@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to Semantic Versioning ([SemVer](https://semver.org/spec/v2.0.0.html)).
 
-## [v0.4.2] - 2026-11-23
+## [v0.5.0] - 2026-11-23
 
 ### Added
 * More space between the different stratas in the strata heatmap function 
@@ -22,6 +22,8 @@ multiplied by in plots (100 for ICI).
 ### Changed
 * The strata heatmap takes its ×100 scaling for ICI from `MetricSpec.display_scale`
 instead of a hard-coded check on the metric name.
+* Updated the documentation to include new information about the heatmap plot
+and the `MetricSpec` class.
 
 ## [v0.4.1] - 2026-11-05
 
@@ -355,7 +357,8 @@ bootstrap-CI fallback path.
 ### Removed
 * Class imbalance mitigation methods (data sampling, cost-sensitive learning).
 
-[Unreleased]: https://github.com/Surgical-Recovery-and-Safety-Lab/medpipe/compare/v0.4.1...HEAD
+[Unreleased]: https://github.com/Surgical-Recovery-and-Safety-Lab/medpipe/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/Surgical-Recovery-and-Safety-Lab/medpipe/compare/v0.4.1...v0.5.0
 [v0.4.1]: https://github.com/Surgical-Recovery-and-Safety-Lab/medpipe/compare/v0.4.0...v0.4.1
 [v0.4.0]: https://github.com/Surgical-Recovery-and-Safety-Lab/medpipe/compare/v0.4.0.dev2...v0.4.0
 [v0.4.0.dev2]: https://github.com/Surgical-Recovery-and-Safety-Lab/medpipe/compare/v0.4.0.dev1...v0.4.0.dev2
