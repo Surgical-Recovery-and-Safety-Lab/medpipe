@@ -73,7 +73,8 @@ class TestStrataHeatmapScale:
         assert limit == pytest.approx(0.25)
 
     def test_ici_scale_uses_percent_values(self, mock_orchestrator) -> None:
-        """Test that the ICI colour max is computed on the x100 values."""
+        """Test that the ICI colour max is computed on the display-scaled
+        (x100) values."""
         displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
 
         limit = self._color_limit(displayer, "ici", [0.01], [[0.012], [0.012]])
@@ -160,6 +161,56 @@ class TestPlotStrataHeatmap:
 
         assert isinstance(fig, Figure)
         assert "Custom Metric Name" in ax.get_title()
+
+    def test_plot_strata_heatmap_applies_spec_display_scale(
+        self, mock_orchestrator
+    ) -> None:
+        """Test that values are multiplied by the spec's display_scale and the
+        factor is noted in the title and colour-bar label."""
+        custom_spec = MetricSpec(
+            name="tiny_metric",
+            func=lambda y, p: 0.001,
+            response_method="predict",
+            display_name="Tiny",
+            display_scale=1000,
+        )
+
+        with patch.dict(MetricRegistry._registry, {}, clear=False):
+            MetricRegistry.register_spec(custom_spec)
+
+            displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
+            fig, ax = displayer.plot_strata_heatmap(
+                outcomes=["A"],
+                metric="tiny_metric",
+                strata=["x"],
+                scores=np.array([0.001]),
+                strata_scores=np.array([[0.003]]),
+                save=False,
+                show=False,
+            )
+
+        assert r"Tiny $\times$ 1000" in ax.get_title()
+        assert r"$\times$ 1000" in fig.axes[-1].get_ylabel()
+        np.testing.assert_allclose(ax.images[1].get_array(), [[2.0]])
+        assert [t.get_text() for t in ax.texts] == ["1.00", "3.00"]
+
+    def test_plot_strata_heatmap_unscaled_metric_has_no_factor_in_title(
+        self, mock_orchestrator
+    ) -> None:
+        """Test that a metric with display_scale 1 gets no scale factor label."""
+        displayer = MedpipeClassifierDisplayer(orchestrator=mock_orchestrator)
+
+        _, ax = displayer.plot_strata_heatmap(
+            outcomes=["A"],
+            metric="roc_auc",
+            strata=["x"],
+            scores=np.array([0.8]),
+            strata_scores=np.array([[0.7]]),
+            save=False,
+            show=False,
+        )
+
+        assert r"$\times$" not in ax.get_title()
 
     def test_plot_strata_heatmap_unregistered_metric_falls_back_to_upper(
         self, mock_orchestrator
