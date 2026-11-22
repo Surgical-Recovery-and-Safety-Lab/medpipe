@@ -97,11 +97,6 @@ class BaseDisplayer:
     _PLOT_TYPE_ALIASES: ClassVar[dict[str, str]] = {
         "heatmap": "strata_heatmap",
     }
-    # Metrics expressed in the units of the target, for which the heatmap colour
-    # scale is set from the data instead of a fixed value.
-    _SCALE_DEPENDENT_METRICS: ClassVar[frozenset[str]] = frozenset(
-        {"rmse", "mae", "crps"}
-    )
     _FALLBACK_DISPLAY_DEFAULTS: ClassVar[dict[str, Any]] = {
         "n_bootstraps": 1000,
         "save": True,
@@ -416,6 +411,7 @@ class BaseDisplayer:
         scores: np.ndarray,
         strata_scores: np.ndarray,
         strata_groups: list[int] | None = None,
+        vmax_percentile: float = 95.0,
         save: bool | None = None,
         show: bool | None = None,
         **style_kwargs: Any,
@@ -440,6 +436,11 @@ class BaseDisplayer:
             drawn with a gap between them; the "All strata" row always forms its
             own group. Must sum to ``len(strata)``. If None, all strata form a
             single group.
+        vmax_percentile : float, default=95.0
+            Percentile of the absolute strata deltas used as the colour-bar
+            maximum, so that a few outlying cells do not wash out the rest of the
+            scale. The "All strata" row (all zeros) is excluded. Values above the
+            maximum are drawn in the top colour.
         save : bool, optional
             Automatically save the generated plot to the run directory.
         show : bool, optional
@@ -515,15 +516,24 @@ class BaseDisplayer:
             display_name = metric.replace("_", " ").upper()
 
         is_ici = metric.lower() == "ici"
-        vmax = 0.5 if is_ici else 0.1
-        if metric.lower() in self._SCALE_DEPENDENT_METRICS:
-            # Errors in the units of the target: no fixed scale applies
-            vmax = float(np.max(plot_data)) or 1.0
         percent = r" $\times$ 100" if is_ici else ""
 
         if is_ici:
             plot_data *= 100
             text_data *= 100
+
+        # Colour scale from the data: a high percentile of the strata deltas
+        # (excluding the all-zero baseline row) so outliers do not dominate
+        strata_deltas = plot_data[1:]
+        strata_deltas = strata_deltas[np.isfinite(strata_deltas)]
+        vmax = (
+            float(np.percentile(strata_deltas, vmax_percentile))
+            if strata_deltas.size
+            else 0.0
+        )
+        if vmax <= 0:
+            vmax = float(strata_deltas.max()) if strata_deltas.size else 0.0
+        vmax = vmax or 1.0
 
         colorbar_label = rf"|$\Delta$ {display_name}|" + percent
         title = style_kwargs.pop("title", f"Strata delta - {display_name}{percent}")
