@@ -415,6 +415,7 @@ class BaseDisplayer:
         strata: list[str],
         scores: np.ndarray,
         strata_scores: np.ndarray,
+        strata_groups: list[int] | None = None,
         save: bool | None = None,
         show: bool | None = None,
         **style_kwargs: Any,
@@ -433,6 +434,12 @@ class BaseDisplayer:
             Baseline metric scores for unstratified models of shape (n_outcomes,).
         strata_scores : np.ndarray
             Metric scores per stratum and outcome of shape (n_strata, n_outcomes).
+        strata_groups : list of int, optional
+            Number of consecutive strata belonging to each stratification
+            variable (e.g., ``[2, 2, 5]`` for sex, age, and ethnicity). Groups are
+            drawn with a gap between them; the "All strata" row always forms its
+            own group. Must sum to ``len(strata)``. If None, all strata form a
+            single group.
         save : bool, optional
             Automatically save the generated plot to the run directory.
         show : bool, optional
@@ -450,7 +457,8 @@ class BaseDisplayer:
         Raises
         ------
         ValueError
-            If matrix dimensions do not match the provided strata, outcomes, or scores.
+            If matrix dimensions do not match the provided strata, outcomes, or
+            scores, or if `strata_groups` does not sum to the number of strata.
 
         """
         cfg = self._resolve_plot_config(
@@ -484,6 +492,13 @@ class BaseDisplayer:
             raise ValueError(
                 f"Inputs scores and strata_scores must have matching column count, "
                 f"got {len(scores_arr)} and {strata_scores_arr.shape[1]}"
+            )
+        if strata_groups is None:
+            strata_groups = [len(strata)]
+        if sum(strata_groups) != len(strata):
+            raise ValueError(
+                f"strata_groups must sum to the number of strata ({len(strata)}), "
+                f"got {strata_groups}"
             )
 
         # 2. Data Preparation
@@ -526,6 +541,7 @@ class BaseDisplayer:
                 colorbar_label=colorbar_label,
                 vmax=vmax,
                 title=title,
+                row_groups=[1, *strata_groups],
                 **style_kwargs,
             )
 
@@ -584,6 +600,8 @@ class BaseDisplayer:
         # Example row labels: "SEX: F", "SEX: M", "AGE: [18, 50]"
         strata_tuples: list[tuple[str, str]] = []
         strata_row_labels: list[str] = []
+        # Number of rows per stratification variable, used to space groups apart
+        strata_groups = [len(cat_dict) for cat_dict in strata_dict.values() if cat_dict]
 
         for stratum_var, cat_dict in strata_dict.items():
             for cat_key in cat_dict:
@@ -654,6 +672,7 @@ class BaseDisplayer:
                 strata=strata_row_labels,
                 scores=scores,
                 strata_scores=strata_scores,
+                strata_groups=strata_groups,
                 save=save,
                 show=show,
                 **style_kwargs.copy(),
